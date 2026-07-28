@@ -1,0 +1,10 @@
+{
+  "ignorePatterns": [
+    ".repos/**",
+    "**/routeTree.gen.ts",
+    "**/dist/**",
+    "**/.output/**",
+    "**/.wrangler/**",
+    "pnpm-lock.yaml"
+  ]
+}

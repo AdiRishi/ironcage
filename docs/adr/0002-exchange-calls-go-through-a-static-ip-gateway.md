@@ -1,0 +1,5 @@
+# Exchange Calls Go Through a Static-IP Gateway
+
+All exchange REST traffic goes Worker → Cloudflare Tunnel → a thin gateway service on a cheap static-IP host → exchange. The gateway signs requests with keys that exist only there, forwards them, normalizes responses, and enforces nothing.
+
+This is forced, not chosen: Cloudflare Workers egress IPs are unpublished, shared, and rotating, so exchange API keys can never be IP-allowlisted from Workers — and Binance additionally blocks Workers egress outright at the CDN level. Smart Placement and Containers do not solve either problem. The gateway restores IP-allowlisted keys (withdrawals disabled, locked to one host) — a security upgrade, not a workaround — and keeps all intelligence on Cloudflare where it is versioned and testable. The deliberate consequence: if the gateway is down, nothing can trade, which is the failure mode we want. Public market data (candles) may still be fetched directly from Workers where exchanges allow it; only authenticated/trading calls are bound to this path. The gateway arrives at milestone M4; nothing before it needs an exchange account.

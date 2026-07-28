@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ironcage-regime",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Candle-aligned 4h cadence (UTC). The engine treats a stale signal as OFF,
+  // so a missed tick fails closed by construction.
+  "triggers": { "crons": ["5 */4 * * *"] },
+  "observability": { "enabled": true },
+  // Arrives with M3 — create the resources, then uncomment:
+  // "d1_databases": [{ "binding": "DB", "database_name": "ironcage", "database_id": "TODO" }],
+  // "r2_buckets": [{ "binding": "SNAPSHOTS", "bucket_name": "ironcage-snapshots" }],
+  // "ai": { "binding": "AI" }  // or call Anthropic/OpenAI through AI Gateway via fetch
+}

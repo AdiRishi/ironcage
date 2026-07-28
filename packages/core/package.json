@@ -1,0 +1,24 @@
+{
+  "name": "@app/core",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./regime/state": "./src/regime/state.ts",
+    "./risk/cage": "./src/risk/cage.ts",
+    "./risk/sizing": "./src/risk/sizing.ts",
+    "./blotter/trade": "./src/blotter/trade.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@app/contracts": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

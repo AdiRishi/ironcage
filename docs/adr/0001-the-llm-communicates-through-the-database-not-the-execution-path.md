@@ -1,0 +1,5 @@
+# The LLM Communicates Through the Database, Not the Execution Path
+
+The regime worker's only output is a `RegimeSignal` row (plus an audit snapshot); the engine reads that row on its own schedule. There is no RPC, queue, or tool-call from any LLM-influenced code to the engine or the gateway — the LLM has no execution path at all, and the signal is a bounded enum that can only reduce position size.
+
+The obvious alternative — an agent harness where the LLM calls trading tools through a risk-checking middleware (Hummingbot Condor's design, and the shape most 2026 agent frameworks assume) — was rejected deliberately. A permission layer is code that must be right on every call; topology cannot be bypassed by a clever prompt, a schema edge case, or a middleware bug. We give up the LLM's ability to manage orders directly, which we don't want anyway at a 4-hour cadence: every documented failure of autonomous LLM trading (overtrading, panic exits, adversarial-input cascades) lives on the path we removed. If a future strategy genuinely needs LLM-directed execution, that is a new ADR and a new threat model, not a relaxation of this one.
