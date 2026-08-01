@@ -1,32 +1,4 @@
 {
   "name": "ironcage",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "turbo dev",
-    "dev:web": "turbo dev --filter @app/web",
-    "dev:engine": "turbo dev --filter @app/engine",
-    "dev:regime": "turbo dev --filter @app/regime",
-    "build": "turbo build",
-    "typecheck": "turbo typecheck",
-    "test": "turbo test",
-    "lint": "oxlint --disable-nested-config --report-unused-disable-directives",
-    "lint:fix": "oxlint --disable-nested-config --fix --report-unused-disable-directives",
-    "format": "oxfmt",
-    "format:check": "oxfmt --check",
-    "check": "pnpm typecheck && pnpm lint && pnpm format:check",
-    "sync:repos": "node scripts/sync-reference-repos.ts",
-    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules scripts/node_modules apps/*/dist apps/*/.output .turbo apps/*/.turbo packages/*/.turbo"
-  },
-  "devDependencies": {
-    "@types/node": "catalog:",
-    "oxfmt": "catalog:",
-    "oxlint": "catalog:",
-    "turbo": "catalog:",
-    "typescript": "catalog:"
-  },
-  "engines": {
-    "node": ">=22.18"
-  },
-  "packageManager": "pnpm@11.16.0"
+  "private": true
 }
