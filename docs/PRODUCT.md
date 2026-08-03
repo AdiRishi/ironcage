@@ -6,7 +6,7 @@ The [vision](./VISION.md) says why Ironcage exists and the principles that bind 
 
 Ironcage is two things that meet in the middle: an **engine** that runs continuously and needs no one watching, and a **web application** that makes watching it worthwhile. The web app is not an admin panel bolted onto a bot — it is a first-class product and half the joy of the system. Every sleeve, every insight arm, every moving part gets its own living view: what it is doing right now, what it decided and why, how it is performing — presented with the care of something built to be *looked at*, not just checked. The design ambition is an observatory, not a control panel: data-dense, live, legible, and genuinely fun to watch.
 
-The web app is also the only surface. There are no push notifications by design — the system does not interrupt; the operator visits, and enjoys the visit. That choice creates the app's defining obligation: **opening it must answer "is everything okay?" within five seconds**, and the activity feed must make it impossible for anything important to have happened silently. If an event matters, it is in the feed; if it is unseen, the app says so. (A notification channel may be added by a future decision; it is out of scope for v1.)
+The web app is also the only surface: the operator visits it, it never interrupts them. Its defining obligation follows: **opening it must answer "is everything okay?" within five seconds**, and the activity feed must make it impossible for anything important to have happened silently. If an event matters, it is in the feed; if it is unseen, the app says so.
 
 There is exactly one operator. Every screen is built for that one person's trust and pleasure, not for a customer's.
 
@@ -95,4 +95,4 @@ Ordering is a commitment; dates are not.
 
 ## Out of scope
 
-No multi-user anything, no accounts, no sharing. No leverage, shorting, or derivatives — reversing any of these requires a deliberate future decision with its own written reasoning, not a config change. No sub-minute trading in any sleeve. No push notifications in v1. No mobile app; the dashboard is responsive and that is enough. No automatic bank credentials handling outside a proper CDR arrangement. No strategy the operator cannot explain in a paragraph. And nothing that weakens a guarantee in this document — a feature idea that requires doing so is, by that fact, wrong.
+No multi-user anything, no accounts, no sharing. No leverage, shorting, or derivatives — reversing any of these requires a deliberate future decision with its own written reasoning, not a config change. No sub-minute trading in any sleeve. No mobile app; the dashboard is responsive and that is enough. No automatic bank credentials handling outside a proper CDR arrangement. No strategy the operator cannot explain in a paragraph. And nothing that weakens a guarantee in this document — a feature idea that requires doing so is, by that fact, wrong.
