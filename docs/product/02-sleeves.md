@@ -7,7 +7,7 @@ A sleeve is the product's central object: a bounded allocation of capital with i
 Every sleeve is defined by its mandate — versioned configuration, changed only through a deliberate, recorded act ([Operations](./06-operations.md)), never a live slider. A mandate states:
 
 - **Name and purpose** — one paragraph a human can understand. A strategy the operator can't explain doesn't get a sleeve.
-- **Market, venue, instruments** — e.g. spot BTC and ETH on Kraken; ASX/US ETFs via Interactive Brokers. First sleeves are spot, long-only; the mandate vocabulary supports sides and instrument classes beyond that (shorts, options) so future mandates can propose them per the scope rules in [PRODUCT.md](../PRODUCT.md).
+- **Market, venue, instruments** — e.g. spot BTC and ETH on Kraken; US-listed ETFs via Alpaca. Kraken and Alpaca are the system's two venues by deliberate consolidation; first sleeves are spot, long-only. The mandate vocabulary supports venues, sides, and instrument classes beyond these (ASX, shorts, options) so future mandates can propose them per the scope rules in [PRODUCT.md](../PRODUCT.md).
 - **Strategy** — the systematic rules it runs, and the timeframe(s) they evaluate on.
 - **Cadence** — how often it acts: from quarterly rebalancing to every 4-hour candle. Never sub-minute.
 - **AI grants** — which grants from the registry this sleeve holds, with their per-sleeve parameters (below).
@@ -97,6 +97,6 @@ One page per sleeve — the heart of the observatory. Watching a sleeve think sh
 Two tenants are defined from the start; both go through the full lifecycle:
 
 1. **Crypto trend** — Advised profile. Trend-following on BTC and ETH spot (Kraken), 4h–1d timeframes, volatility-scaled sizing. Initial grants: regime vector, event veto, calibration review — each running against its control from the first dry-run day. The first sleeve to run end-to-end, and the proving ground for the whole engine.
-2. **Long-term wealth** — Clockwork profile, no grants. Diversified ETF holdings via Interactive Brokers, contribution-and-rebalance on a slow cadence. Arrives when broker integration does; its mandate exists from day one so the allocator and portfolio views are built for it, not retrofitted.
+2. **Long-term wealth** — Clockwork profile, no grants. Diversified US-listed ETF holdings via Alpaca, contribution-and-rebalance on a slow cadence, using fractional/notional orders so rebalancing is exact. Arrives when the Alpaca integration does; its mandate exists from day one so the allocator and portfolio views are built for it, not retrofitted. (Being US-domiciled holdings, this sleeve carries a W-8BEN and, at larger sizes, US estate-tax considerations — an accountant conversation belongs before it scales, and the mandate records that.)
 
 Assisted-design grants (parameter corridors, strategy variants) and any Piloted sleeve are supported by the product from day one but expected to be adopted only once the first two tenants have proven the machine.
