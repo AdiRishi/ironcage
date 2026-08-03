@@ -1,0 +1,21 @@
+# The catalog is the single place dependency versions are pinned for the whole
+# monorepo. Workspace packages reference `catalog:` and never a literal version.
+#
+# `catalog.effect` is also what `pnpm sync:repos` reads to decide which tag of
+# the Effect source tree to vendor into `.repos/effect` — so the vendored
+# reference and the version we compile against cannot drift apart.
+catalog:
+  "@types/node": 24.13.3
+  effect: 4.0.0-beta.102
+  oxfmt: ^0.61.0
+  oxlint: ^1.76.0
+  typescript: ~6.0.3
+  yaml: ^2.9.0
+
+# Supply-chain guard: refuse package versions published less than a day ago, so
+# a compromised release has a window to be caught before it reaches a repo that
+# will hold venue credentials. Effect betas are excluded because they are pinned
+# deliberately and we often want them the day they land.
+minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - "effect@4.0.0-beta.102"

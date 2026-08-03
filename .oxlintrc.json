@@ -1,0 +1,31 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // `plugins` overwrites oxlint's base set rather than adding to it, so the
+  // four defaults (eslint, typescript, unicorn, oxc) have to be re-listed here.
+  // Everything after them is opt-in and chosen for this stack.
+  "plugins": [
+    "eslint",
+    "typescript",
+    "unicorn",
+    "oxc",
+    "import",
+    "promise",
+    "node",
+    "react",
+    "jsx-a11y",
+    "vitest"
+  ],
+  // `correctness` is the only category oxlint enables by default. The others,
+  // in rough order of how noisy they get: suspicious, perf, pedantic, style,
+  // restriction, nursery.
+  "categories": {
+    "correctness": "error"
+  },
+  "env": {
+    "builtin": true
+  },
+  "rules": {},
+  // Bare ".repos" prunes the directory walk (else nested-config discovery reads
+  // the vendored repo's own config and fails); ".repos/**" ignores the files.
+  "ignorePatterns": [".repos", ".repos/**"]
+}
