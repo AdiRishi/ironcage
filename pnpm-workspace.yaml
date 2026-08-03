@@ -12,10 +12,4 @@ catalog:
   typescript: ~6.0.3
   yaml: ^2.9.0
 
-# Supply-chain guard: refuse package versions published less than a day ago, so
-# a compromised release has a window to be caught before it reaches a repo that
-# will hold venue credentials. Effect betas are excluded because they are pinned
-# deliberately and we often want them the day they land.
 minimumReleaseAge: 1440
-minimumReleaseAgeExclude:
-  - "effect@4.0.0-beta.102"
