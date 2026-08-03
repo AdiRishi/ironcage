@@ -7,7 +7,7 @@ Two trading venues by deliberate consolidation, one bank via file export, two AI
 - **Why**: AUSTRAC-registered Australian entity, free PayID/Osko AUD rails, real AUD pairs, mature REST/WebSocket API, and — decisively — **API keys with IP allowlisting, granular permissions, and no withdrawal rights**, pinned to the gateway's static IP.
 - **Trading**: through the gateway only. Spot, limit + market, client order IDs for idempotency. The gateway uses Kraken's REST API directly (thin, few endpoints) rather than dragging in ccxt — fewer dependencies on the machine that holds keys; the request-signing recipe is small and well-documented.
 - **Market data**: public OHLC/order-book endpoints called directly from `apps/collector` (no auth, no gateway needed). Rate-limit math is comfortable by orders of magnitude at 4h cadence for a handful of pairs.
-- **Account setup ritual** (recorded in ops runbook): dedicated API key per environment; trade + query permissions only; withdrawals disabled at the key *and* confirmed at account level; IP-locked to the VPS.
+- **Account setup ritual** (recorded in ops runbook): dedicated API key per environment; trade + query permissions only; withdrawals disabled at the key _and_ confirmed at account level; IP-locked to the VPS.
 
 ## Alpaca (US stocks & ETFs — the long-term wealth venue)
 
@@ -32,7 +32,7 @@ POST /:venue/orders              (idempotent via client order id)
 POST /:venue/orders/:id/cancel
 ```
 
-Properties, enforced in its ~small codebase: request/response shapes are `@app/contracts` schemas (decode in, encode out); it holds venue keys in its environment and nothing else holds them; it contains zero strategy, risk, or retry-policy logic (retries live in the trade pipeline, so behavior is visible in Workflow state, not hidden at the edge); it logs every call with client order id to its local journal *and* the caller records the same — two sides of every conversation. Service-to-service auth: the Tunnel makes it unreachable publicly; calls additionally carry a shared-secret header rotated with deploys. Deployment: a systemd unit + a deploy script over SSH from CI-less local (`pnpm deploy:gateway`); the VPS is pet-simple on purpose.
+Properties, enforced in its ~small codebase: request/response shapes are `@app/contracts` schemas (decode in, encode out); it holds venue keys in its environment and nothing else holds them; it contains zero strategy, risk, or retry-policy logic (retries live in the trade pipeline, so behavior is visible in Workflow state, not hidden at the edge); it logs every call with client order id to its local journal _and_ the caller records the same — two sides of every conversation. Service-to-service auth: the Tunnel makes it unreachable publicly; calls additionally carry a shared-secret header rotated with deploys. Deployment: a systemd unit + a deploy script over SSH from CI-less local (`pnpm deploy:gateway`); the VPS is pet-simple on purpose.
 
 ## CommBank import (the Money view)
 

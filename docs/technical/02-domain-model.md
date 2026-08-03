@@ -18,27 +18,27 @@ Grouped by subpath export, schema-only (no runtime logic beyond constants):
 
 One database. Append-only tables are enforced by convention and by the absence of UPDATE paths in code; derived tables are rebuildable.
 
-| Table | Nature | Notes |
-| --- | --- | --- |
-| `mandates`, `mandate_versions` | append-only | current pointer per sleeve; versions immutable |
-| `sleeves` | state row | state machine field, allocation, halt reason |
-| `orders` | append-only + status | the blotter's spine; venue-reported fields updated only by fill sync/reconciliation |
-| `intents` | append-only | every intent incl. rejections, with full verdict JSON |
-| `trades` | derived | recomputed from `orders` (`recalcTradeFromOrders`); rebuildable |
-| `pair_locks` | append-only + expiry | source: protection, grant, operator |
-| `grant_outputs` | append-only | every validated grant tick output; staleness computed on read |
-| `grant_ledger` | derived, periodic | per-grant value-added vs. control (accrued by `apps/jobs`) |
-| `control_decisions` | append-only | the counterfactual leg: what the no-AI path would have done, with simulated fills |
-| `proposals`, `gate_runs` | append-only + status | the design-time queue and each gate's result |
-| `trade_proposals` | append-only + status | Piloted-class proposals; consumed/expired by the sleeve tick |
-| `strategy_trials` | counter | the multiplicity ledger, keyed by strategy family |
-| `capital_events` | append-only | the capital ledger; cash is derived from it |
-| `equity_snapshots` | append-only | per-sleeve and system, per tick — the curves |
-| `events` | append-only | the activity feed; `acknowledged_at` for criticals is its only mutable column |
-| `candles_recent` | rolling window | last N days per instrument/timeframe for hot reads; archive in R2 |
-| `transactions`, `accounts`, `category_rules`, `imports` | Money view | dedup hash unique-indexed |
-| `reports` | append-only | metadata + R2 pointer to rendered content |
-| `engine_telemetry` | rolling | every tick's timing/outcome; feeds the vitals |
+| Table                                                   | Nature               | Notes                                                                               |
+| ------------------------------------------------------- | -------------------- | ----------------------------------------------------------------------------------- |
+| `mandates`, `mandate_versions`                          | append-only          | current pointer per sleeve; versions immutable                                      |
+| `sleeves`                                               | state row            | state machine field, allocation, halt reason                                        |
+| `orders`                                                | append-only + status | the blotter's spine; venue-reported fields updated only by fill sync/reconciliation |
+| `intents`                                               | append-only          | every intent incl. rejections, with full verdict JSON                               |
+| `trades`                                                | derived              | recomputed from `orders` (`recalcTradeFromOrders`); rebuildable                     |
+| `pair_locks`                                            | append-only + expiry | source: protection, grant, operator                                                 |
+| `grant_outputs`                                         | append-only          | every validated grant tick output; staleness computed on read                       |
+| `grant_ledger`                                          | derived, periodic    | per-grant value-added vs. control (accrued by `apps/jobs`)                          |
+| `control_decisions`                                     | append-only          | the counterfactual leg: what the no-AI path would have done, with simulated fills   |
+| `proposals`, `gate_runs`                                | append-only + status | the design-time queue and each gate's result                                        |
+| `trade_proposals`                                       | append-only + status | Piloted-class proposals; consumed/expired by the sleeve tick                        |
+| `strategy_trials`                                       | counter              | the multiplicity ledger, keyed by strategy family                                   |
+| `capital_events`                                        | append-only          | the capital ledger; cash is derived from it                                         |
+| `equity_snapshots`                                      | append-only          | per-sleeve and system, per tick — the curves                                        |
+| `events`                                                | append-only          | the activity feed; `acknowledged_at` for criticals is its only mutable column       |
+| `candles_recent`                                        | rolling window       | last N days per instrument/timeframe for hot reads; archive in R2                   |
+| `transactions`, `accounts`, `category_rules`, `imports` | Money view           | dedup hash unique-indexed                                                           |
+| `reports`                                               | append-only          | metadata + R2 pointer to rendered content                                           |
+| `engine_telemetry`                                      | rolling              | every tick's timing/outcome; feeds the vitals                                       |
 
 ## R2 (bulk, immutable)
 

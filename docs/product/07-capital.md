@@ -9,7 +9,7 @@ Ironcage tracks one number as sacred: **total system capital** — everything th
 > total system capital = unallocated cash + Σ (each sleeve's allocation)
 
 - **Unallocated cash** is capital under management but assigned to no sleeve. It sits at venues (or in transit) earning nothing and risking nothing; it is visible in the [Money view](./04-money.md) and is the allocator's reserve.
-- **A sleeve's allocation** is the capital currently entrusted to it — always ≤ its mandate's cap. A sleeve's *equity* (allocation ± its P&L) fluctuates with performance; its *allocation* changes only by allocator acts.
+- **A sleeve's allocation** is the capital currently entrusted to it — always ≤ its mandate's cap. A sleeve's _equity_ (allocation ± its P&L) fluctuates with performance; its _allocation_ changes only by allocator acts.
 
 Dry-run sleeves have simulated allocations, tracked identically but never counted in real capital totals; the two are never conflated anywhere.
 
@@ -22,7 +22,7 @@ Money enters and leaves the system only by the operator's hand. A deposit or wit
 All allocation changes are operator acts, recorded with reasoning and (where one exists) the report that informed them:
 
 - **Fund** — move cash into a sleeve, up to its cap. Typically follows a trial report; always recorded against it when it does.
-- **Reduce** — lower a sleeve's allocation. If the sleeve's deployed exposure exceeds its new allocation, it enters *drawdown-to-target*: no new entries until exposure falls below the target through normal exits. The operator may instead choose an immediate flatten — that is their explicit, separate choice; a reduction never force-sells on its own.
+- **Reduce** — lower a sleeve's allocation. If the sleeve's deployed exposure exceeds its new allocation, it enters _drawdown-to-target_: no new entries until exposure falls below the target through normal exits. The operator may instead choose an immediate flatten — that is their explicit, separate choice; a reduction never force-sells on its own.
 - **Return** — on retirement, everything comes back to cash and the sleeve's record closes.
 
 The system never blocks an allocation act, and never performs one by itself. What it does is keep the ceremony honest: every act shows the sleeve's current evidence (trial report, value-added ledgers, recent reviews) at the moment of decision, and records that it was shown.

@@ -1,6 +1,6 @@
 # The frontend
 
-The observatory is a TanStack Start application (React 19) deployed on Cloudflare Workers, sitting behind Cloudflare Access. This document specifies its data flow and structural rules; visual design is a separate pass (`docs/PRODUCT.md` defines *what* each view conveys).
+The observatory is a TanStack Start application (React 19) deployed on Cloudflare Workers, sitting behind Cloudflare Access. This document specifies its data flow and structural rules; visual design is a separate pass (`docs/PRODUCT.md` defines _what_ each view conveys).
 
 ## Shape
 
@@ -10,13 +10,13 @@ The observatory is a TanStack Start application (React 19) deployed on Cloudflar
 
 ## Liveness
 
-The product demands updates "within seconds" while a view is open. Mechanism: a **BroadcastDO** — one Durable Object fanning out server-sent events. State-changing writers (engine, grants, jobs) POST a lightweight notification (`{topic, ids}`) to it after committing; the web app's server function exposes an SSE endpoint bridged from the DO (WebSocket hibernation API keeps idle cost ~zero); the client subscribes per view and *invalidates the relevant queries* on notification — data still flows through the one server-function path, so SSE can be lost safely (fallback: TanStack Query's interval refetch). Losing the stream flips the page's connection indicator to degraded — dead data never renders as live.
+The product demands updates "within seconds" while a view is open. Mechanism: a **BroadcastDO** — one Durable Object fanning out server-sent events. State-changing writers (engine, grants, jobs) POST a lightweight notification (`{topic, ids}`) to it after committing; the web app's server function exposes an SSE endpoint bridged from the DO (WebSocket hibernation API keeps idle cost ~zero); the client subscribes per view and _invalidates the relevant queries_ on notification — data still flows through the one server-function path, so SSE can be lost safely (fallback: TanStack Query's interval refetch). Losing the stream flips the page's connection indicator to degraded — dead data never renders as live.
 
 ## Write paths (operator actions)
 
-All operator actions — pause/flatten/halt, allocation acts, mandate reviews and approvals, override arming, acknowledgments, imports — are server functions that validate against contracts, perform the act *with its feed event*, and notify the BroadcastDO. Acts owned by a Durable Object are performed as recorded RPCs to it: the web Worker holds bindings to the SleeveDO and SystemDO namespaces **exposing only risk-reducing controls (pause, flatten, halt) and capital acts** — no entry, order, or grant surface exists on those methods, so the binding cannot be a trading path. Everything else writes D1 directly in a transaction. Two actions are special:
+All operator actions — pause/flatten/halt, allocation acts, mandate reviews and approvals, override arming, acknowledgments, imports — are server functions that validate against contracts, perform the act _with its feed event_, and notify the BroadcastDO. Acts owned by a Durable Object are performed as recorded RPCs to it: the web Worker holds bindings to the SleeveDO and SystemDO namespaces **exposing only risk-reducing controls (pause, flatten, halt) and capital acts** — no entry, order, or grant surface exists on those methods, so the binding cannot be a trading path. Everything else writes D1 directly in a transaction. Two actions are special:
 
-- **Mandate changes and proposal approvals** share one review server function: it renders the diff + reasoning + (for proposals) gate results, and on confirm records the decision and writes the `mandate_versions` row — the "no second door" rule is enforced by there being exactly one code path, which the gate workflow *observes* rather than duplicates.
+- **Mandate changes and proposal approvals** share one review server function: it renders the diff + reasoning + (for proposals) gate results, and on confirm records the decision and writes the `mandate_versions` row — the "no second door" rule is enforced by there being exactly one code path, which the gate workflow _observes_ rather than duplicates.
 - **The override flow** is a small state machine persisted in D1 (`armed → cooling → active → expired/used`), with timestamps enforced server-side (the 15-minute cooling-off is checked against the armed row, not a client timer). The cage's effective-limit computation reads active overrides from this table; expiry is a time comparison, not a background job that could fail to run.
 
 ## The dashboard cannot trade

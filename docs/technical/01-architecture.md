@@ -44,7 +44,7 @@ GATEWAY VPS (static IP)
 
 **One Durable Object per sleeve.** A sleeve's decision loop must be serialized — evaluate, size, check, emit, exactly once per tick. DOs give single-threaded execution with durable alarms, so candle-aligned scheduling (`alarm = next candle close + grace`) and single-writer semantics come from the platform, not from locks we write. Sleeve isolation also falls out naturally: one misbehaving sleeve's DO cannot corrupt another's state.
 
-**One SystemDO above them.** Total-exposure checks, capital movements, and halt-all need a serialized global view. During its tick — before any intent is emitted — a SleeveDO calls SystemDO (DO-to-DO RPC) to *reserve* entry headroom, keyed by the intent's client order id; the trade pipeline later **confirms** the reservation on fill or **releases** it on any terminal failure. Reservations carry a TTL: one that expires unconfirmed is flagged, and the reconciliation pass releases it once it verifies no live order references it — so leaked headroom always fails closed while held and can never be held forever. This makes system-cage enforcement race-free: two sleeves cannot both squeeze through the last dollar of exposure budget.
+**One SystemDO above them.** Total-exposure checks, capital movements, and halt-all need a serialized global view. During its tick — before any intent is emitted — a SleeveDO calls SystemDO (DO-to-DO RPC) to _reserve_ entry headroom, keyed by the intent's client order id; the trade pipeline later **confirms** the reservation on fill or **releases** it on any terminal failure. Reservations carry a TTL: one that expires unconfirmed is flagged, and the reconciliation pass releases it once it verifies no live order references it — so leaked headroom always fails closed while held and can never be held forever. This makes system-cage enforcement race-free: two sleeves cannot both squeeze through the last dollar of exposure budget.
 
 **Workflows for anything multi-step that must survive a crash.** Placing an order is a pipeline of fallible steps with retries and idempotency (client order IDs); a design-time proposal is a pipeline of gates ending in a human approval (`waitForEvent`). Cloudflare Workflows give durable, step-level retried execution with state — exactly the shape both need. Queues are reserved for future fan-out needs; nothing uses them at v1.
 
@@ -71,7 +71,7 @@ packages/
 scripts/       repo tooling (reference-repo sync)
 ```
 
-`packages/core` purity is the load-bearing property: the backtester, the dry-run engine, and the live engine execute the *same* strategy/cage/blotter code, differing only in the execution edge injected at the boundary (simulator vs. gateway client). Effect's service/layer system is how those edges are injected.
+`packages/core` purity is the load-bearing property: the backtester, the dry-run engine, and the live engine execute the _same_ strategy/cage/blotter code, differing only in the execution edge injected at the boundary (simulator vs. gateway client). Effect's service/layer system is how those edges are injected.
 
 ## Scheduling
 

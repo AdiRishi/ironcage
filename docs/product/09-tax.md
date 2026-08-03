@@ -2,18 +2,18 @@
 
 The tax arm is Ironcage's holistic, in-house tax engine: it assembles the operator's complete investment activity — Ironcage's own trading, every external crypto exchange and self-custody wallet, the US brokerage account, and the interest lines in the imported bank data — classifies every event under Australian tax rules, reconciles everything into one ledger, and produces the financial-year figures an individual files from. It replaces the operator's external crypto tax service (Summ, née Crypto Tax Calculator) and extends past it: crypto is one asset class inside the engine, not its boundary. It is an insight arm: it reads everything and trades nothing.
 
-Scope, deliberately: **an Australian resident individual investor** with crypto (exchanges: spot + staking; self-custody wallets), US-listed stocks and ETFs via Alpaca, and Australian bank accounts. DeFi protocols, NFTs, derivatives, and trader/business-basis accounting are out of scope until a recorded decision brings them in; unrecognized event shapes are *flagged, never guessed*.
+Scope, deliberately: **an Australian resident individual investor** with crypto (exchanges: spot + staking; self-custody wallets), US-listed stocks and ETFs via Alpaca, and Australian bank accounts. DeFi protocols, NFTs, derivatives, and trader/business-basis accounting are out of scope until a recorded decision brings them in; unrecognized event shapes are _flagged, never guessed_.
 
 ## Sources
 
 - **Ironcage's own sleeves** — native and perfect: the blotter already records every fill, fee, and timestamp, on both venues.
 - **Crypto exchanges** — full-history sync via read-only API keys (Kraken and others as configured): trades, deposits, withdrawals, staking and earn rewards, and — importantly — fiat legs, since an AUD→USD conversion done on an exchange is itself a tax-relevant event with an actual achieved rate. Where an exchange's API cannot reach old history, the arm ingests statement exports and shows exactly which periods came from which source.
 - **Wallets** — self-custody addresses tracked on-chain: xpub-based tracking for UTXO coins, address-based tracking for account chains including tokens, and per-chain staking-reward reconstruction (including rewards that accrue invisibly inside pools).
-- **Alpaca** — the account activity stream: fills, dividends *with their US withholding line items*, interest, fees, cash movements, and corporate actions (splits, spinoffs, mergers). The annual US tax form (1042-S) is archived and reconciled against the year's computed withholding totals.
+- **Alpaca** — the account activity stream: fills, dividends _with their US withholding line items_, interest, fees, cash movements, and corporate actions (splits, spinoffs, mergers). The annual US tax form (1042-S) is archived and reconciled against the year's computed withholding totals.
 - **Bank data** — interest income identified from the Money view's imported transactions; also the AUD side of funding flows to and from the brokers.
 - **Manual import** — CSV for anything else, with the same normalization and audit trail.
 
-The historical rebuild is **from raw sources by design**. The prior tax service's export is used exactly once, as a *verification oracle*: imported, compared, differences itemized — never as a data source.
+The historical rebuild is **from raw sources by design**. The prior tax service's export is used exactly once, as a _verification oracle_: imported, compared, differences itemized — never as a data source.
 
 ## The ledger of events
 
@@ -38,7 +38,7 @@ Contested or elective positions are explicit, recorded settings — never silent
 ## Verification carries the correctness burden
 
 - **Balance reconciliation** — per source, computed holdings vs. live exchange/chain/broker balances; a mismatch is a visible error, never absorbed.
-- **Missing-basis flags** — a disposal exceeding tracked acquisitions is costed at zero basis *visibly* and flagged loudly.
+- **Missing-basis flags** — a disposal exceeding tracked acquisitions is costed at zero basis _visibly_ and flagged loudly.
 - **The gap ledger** — every source shows which periods were fetched from where; holes render as holes.
 - **Cross-document reconciliation** — the year's computed US withholding reconciles against the broker's 1042-S; exchange-sourced totals reconcile against what the ATO's data-matching program sees.
 - **The oracle check** — the one-time comparison against the prior service's export, every difference itemized and resolved or explained.

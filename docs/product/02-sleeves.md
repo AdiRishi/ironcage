@@ -1,6 +1,6 @@
 # Sleeves
 
-A sleeve is the product's central object: a bounded allocation of capital with its own rules of engagement. Creating, watching, and adjudicating sleeves *is* using Ironcage. This document specifies the mandate, the AI grant system, the lifecycle, and the per-sleeve living view.
+A sleeve is the product's central object: a bounded allocation of capital with its own rules of engagement. Creating, watching, and adjudicating sleeves _is_ using Ironcage. This document specifies the mandate, the AI grant system, the lifecycle, and the per-sleeve living view.
 
 ## The mandate
 
@@ -22,10 +22,10 @@ AI participation is not a single dial but a set of **grants**: typed capabilitie
 
 Every grant belongs to exactly one of four **valve classes** — and the classes are closed: adding a fifth is a constitutional change with its own written decision, never a feature.
 
-1. **Attenuator** (run-time). Output is deterministically clamped so it can only *reduce* what the strategy and cage would otherwise permit: a [0,1] size multiplier, an added lock, a tightened limit. Missing, stale, or invalid output resolves to the most restrictive default. Attenuators compose conservatively — multiple grants combine by taking the most restrictive, so **adding grants can only make a sleeve more cautious, never less**. Worst case if the AI is wrong or fed hostile data: the sleeve behaves like its no-AI self, or stands down.
-2. **Gated proposal** (design-time). Output is a *draft change to the machine* — new parameter values, a strategy variant, a mandate diff — that lands in a proposal queue and must pass its declared gate pipeline before touching live behavior: schema validation → reproducible backtest → walk-forward evaluation (with multiplicity-corrected acceptance thresholds — the system assumes that an AI generating many candidates will produce impressive flukes) → champion/challenger dry-run shadowing → operator approval. A wholly wrong AI produces nothing worse than a bad proposal the gates exist to kill.
+1. **Attenuator** (run-time). Output is deterministically clamped so it can only _reduce_ what the strategy and cage would otherwise permit: a [0,1] size multiplier, an added lock, a tightened limit. Missing, stale, or invalid output resolves to the most restrictive default. Attenuators compose conservatively — multiple grants combine by taking the most restrictive, so **adding grants can only make a sleeve more cautious, never less**. Worst case if the AI is wrong or fed hostile data: the sleeve behaves like its no-AI self, or stands down.
+2. **Gated proposal** (design-time). Output is a _draft change to the machine_ — new parameter values, a strategy variant, a mandate diff — that lands in a proposal queue and must pass its declared gate pipeline before touching live behavior: schema validation → reproducible backtest → walk-forward evaluation (with multiplicity-corrected acceptance thresholds — the system assumes that an AI generating many candidates will produce impressive flukes) → champion/challenger dry-run shadowing → operator approval. A wholly wrong AI produces nothing worse than a bad proposal the gates exist to kill.
 3. **Observer**. Read-only analysis: reviews, memos, calibration reports. Observers recommend; they never act. Zero execution risk.
-4. **Trade proposer** (quarantined). The one non-reduce-only class: AI originates individual trades as typed intents that deterministic code checks against the mandate and cage, under a declared per-day proposal budget, with full prompt-trace auditing. Permanently small-capped, permanently experimental — the class exists so this configuration can be *studied*, never scaled.
+4. **Trade proposer** (quarantined). The one non-reduce-only class: AI originates individual trades as typed intents that deterministic code checks against the mandate and cage, under a declared per-day proposal budget, with full prompt-trace auditing. Permanently small-capped, permanently experimental — the class exists so this configuration can be _studied_, never scaled.
 
 **Grants follow evidence — the constitutional rule applies to AI itself.** Every run-time grant computes its counterfactual on every tick: what would the sleeve have done without this grant? The counterfactual runs through the same simulated-fill machinery as dry run, accruing a per-grant **value-added ledger** (P&L delta, drawdown delta, cost delta versus control) that is always visible on the sleeve's living view. The registry declares each grant's default demotion rule and a mandate may tighten it for its sleeve; a grant that underperforms its control past that rule is automatically **suspended** — output ignored, safe default applied, critical feed event, operator adjudicates. Design-time grants keep the analogous ledger over their proposals: submitted, passed gates, survived live, value added.
 
@@ -39,7 +39,7 @@ Run-time attenuators:
 
 - **Regime vector.** The generalization of the original ON/HALF/OFF signal. On its cadence, AI emits — per instrument in the sleeve's universe — a small vector of named axes (e.g. trend quality, volatility state, liquidity, news risk), each on a quantized ladder (0, ¼, ½, ¾, 1) with per-axis rationale and cited sources. A deterministic combiner declared in the mandate (default: the minimum across axes) collapses it to one entry-size multiplier per instrument. An instrument at 0 simply doesn't enter. Stale or invalid → 0. ON/HALF/OFF is the one-axis, three-rung special case.
 - **Event veto.** AI reads economic calendars, exchange status, and news, and writes time-boxed locks ("no BTC entries from 6h before FOMC to 2h after", "venue X degraded — lock all its instruments") with reason and source snapshot, bounded by mandate-declared maximum duration and count. AI can lock; only expiry or the operator unlocks — including locks it didn't create.
-- **Risk-officer overlay.** Once daily, AI reviews the book adversarially — positions, distance to limits, news — and may apply *temporary tightenings* of the sleeve's own limits (a lower daily-loss halt, a cap on the entry multiplier, an added lock), each with expiry, each relative to the mandate's baseline (no compounding ratchet). It can also recommend flattening — as a critical feed event for the operator's one-click controls, never as an action of its own. Exits and stops remain untouchable by every grant.
+- **Risk-officer overlay.** Once daily, AI reviews the book adversarially — positions, distance to limits, news — and may apply _temporary tightenings_ of the sleeve's own limits (a lower daily-loss halt, a cap on the entry multiplier, an added lock), each with expiry, each relative to the mandate's baseline (no compounding ratchet). It can also recommend flattening — as a critical feed event for the operator's one-click controls, never as an action of its own. Exits and stops remain untouchable by every grant.
 
 Gated proposals:
 
@@ -62,17 +62,17 @@ The registry grows by adding entries within these classes — each addition a re
 
 **Draft → Dry run → Live → Halted / Retired**
 
-| State | Meaning | Entered by |
-| --- | --- | --- |
-| Draft | Mandate written; nothing runs | Operator creates sleeve (or a strategy-variant grant proposes it) |
-| Dry run | Trades simulated money against live markets through the same code path as live, with realistic simulated fills and fees | Operator starts it |
-| Live | Real money within the mandate's cap | Operator promotes it |
-| Halted | Stopped; winddown policy applied; no new entries | Cage (automatic) or operator |
-| Retired | Closed; capital returned; record kept forever | Operator |
+| State   | Meaning                                                                                                                 | Entered by                                                        |
+| ------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Draft   | Mandate written; nothing runs                                                                                           | Operator creates sleeve (or a strategy-variant grant proposes it) |
+| Dry run | Trades simulated money against live markets through the same code path as live, with realistic simulated fills and fees | Operator starts it                                                |
+| Live    | Real money within the mandate's cap                                                                                     | Operator promotes it                                              |
+| Halted  | Stopped; winddown policy applied; no new entries                                                                        | Cage (automatic) or operator                                      |
+| Retired | Closed; capital returned; record kept forever                                                                           | Operator                                                          |
 
 Every transition is a feed event recording who or what triggered it and why.
 
-**Promotion is the operator's decision — informed, never forced.** The default recommendation is three months of dry run before first live capital, but the operator can promote or demote any sleeve at any time. The product's guarantee is *informed consent*: promotion happens from a **trial report** ([Reports](./05-reports.md)) — performance against the mandate's declared benchmarks, drawdown, costs, behavior conformance, and the value-added ledger of every grant it holds — and the report, the timing, and the decision are permanently recorded. The system never blocks an allocation choice; it makes every one explicit and impossible to misremember.
+**Promotion is the operator's decision — informed, never forced.** The default recommendation is three months of dry run before first live capital, but the operator can promote or demote any sleeve at any time. The product's guarantee is _informed consent_: promotion happens from a **trial report** ([Reports](./05-reports.md)) — performance against the mandate's declared benchmarks, drawdown, costs, behavior conformance, and the value-added ledger of every grant it holds — and the report, the timing, and the decision are permanently recorded. The system never blocks an allocation choice; it makes every one explicit and impossible to misremember.
 
 **Halts are automatic.** Breaching the sleeve's daily loss or drawdown limits, a reconciliation mismatch, or a system-cage breach halts the sleeve without asking. A halt applies the mandate's winddown policy — with one exception: a reconciliation-mismatch halt always freezes (`keep-all`) regardless of policy, because the system never trades on numbers in dispute. Leaving Halted is always an operator action, from the halt's incident report.
 
@@ -86,7 +86,7 @@ Sleeves may share a venue account, but every position, order, and dollar is tagg
 
 One page per sleeve — the heart of the observatory. Watching a sleeve think should be engaging enough that checking on it is something the operator wants to do, not has to.
 
-- **Now**: what the sleeve is doing at this moment. Its last tick and time to next action; the current strategy read per instrument; the effective entry multiplier per instrument and exactly how it was arrived at (each grant's current contribution — the regime vector's axes with rationale, active event vetoes with reasons, any risk-officer tightening in force); and the distance to each cage limit, so the operator sees not just that the sleeve is safe but *how much room it has*.
+- **Now**: what the sleeve is doing at this moment. Its last tick and time to next action; the current strategy read per instrument; the effective entry multiplier per instrument and exactly how it was arrived at (each grant's current contribution — the regime vector's axes with rationale, active event vetoes with reasons, any risk-officer tightening in force); and the distance to each cage limit, so the operator sees not just that the sleeve is safe but _how much room it has_.
 - **Grants**: every grant the mandate holds, with its current output, its staleness, its value-added-versus-control ledger over time, and its suspension state if demoted. For design-time grants: the proposal queue — pending proposals with their gate results so far, and the history of accepted and rejected ones.
 - **Positions**: open positions with entry, current price, stop, unrealized P&L, and age; open orders with their lifecycle state.
 - **Performance**: equity curve (dry/live distinguished), returns over standard windows, max drawdown, win rate, average win/loss, total fees and costs, and the benchmark overlays the mandate declared — including the no-AI control.

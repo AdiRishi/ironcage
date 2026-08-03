@@ -6,7 +6,7 @@ How the system is run: environments, configuration, deploys, observability, back
 
 Two, not three:
 
-- **Production** — the Cloudflare account + the gateway VPS. Dry-run and live are *data-level modes within production* (a sleeve's state, a mandate's flag), sharing infrastructure deliberately: dry run only proves anything if it runs on the real pipes.
+- **Production** — the Cloudflare account + the gateway VPS. Dry-run and live are _data-level modes within production_ (a sleeve's state, a mandate's flag), sharing infrastructure deliberately: dry run only proves anything if it runs on the real pipes.
 - **Local dev** — `wrangler dev` (Miniflare) with local D1/R2 emulation, the fill simulator as the execution edge, and recorded fixtures for venue/AI responses. `pnpm dev` runs the whole constellation locally; no cloud resources required for feature work.
 
 No staging. The rehearsal space for behavior is dry-run mode; the rehearsal space for code is local dev plus the test suite.
