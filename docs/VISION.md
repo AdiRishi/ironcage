@@ -26,10 +26,10 @@ Ironcage is not one strategy. It is the machine my strategies live inside — an
 
 **The allocator** is the discipline that decides how much capital each strategy holds, and it follows one constitutional rule described below: capital follows evidence.
 
-**Sleeves** are the tenants. A sleeve is a bounded allocation of capital with its own mandate: what it trades, how fast, by what rules, and with how much AI autonomy. Ironcage is built to run many sleeves in parallel, and they can differ in every dimension:
+**Sleeves** are the tenants. A sleeve is a bounded allocation of capital with its own mandate: what it trades, how fast, by what rules, and which bounded AI capabilities — grants — it holds. Ironcage is built to run many sleeves in parallel, and they can differ in every dimension:
 
 - A **long-term wealth sleeve** — the largest and most conservative: slow, diversified, compounding-focused. The boring core lives *inside* the system, because an allocator that can see everything manages the whole better than one managing only the risky slice.
-- **Systematic trading sleeves** — rules-based strategies (trend-following, momentum, and whatever else earns its way in) across crypto and stocks, where AI's role is bounded judgment: assessing market regime, scaling exposure up or down, never placing the trades itself.
+- **Systematic trading sleeves** — rules-based strategies (trend-following, momentum, and whatever else earns its way in) across crypto and stocks, where AI's role is bounded judgment: assessing conditions and scaling exposure down when they're hostile — never up, and never placing the trades itself.
 - **Experimental sleeves** — including fast day-trading strategies and even fully autonomous AI-in-the-loop trading. These are welcome *as experiments*: small, hard-capped, instrumented to the teeth. The evidence says most will fail their trials — and Ironcage is precisely the machine for finding that out cheaply instead of assuming it expensively.
 
 **Insight arms** are the parts of the system that read but never trade: analysis of my bank transactions and spending, portfolio-wide views across every sleeve and account, savings recommendations, and the regular reports that tell me what's working and what should change. They carry zero execution risk, which means they can ship early and be useful on day one.
@@ -40,14 +40,14 @@ The operator is me — one person, personal capital — working with AI coding t
 
 No sleeve is entitled to capital; every sleeve is entitled to a fair trial.
 
-Every strategy enters the system the same way: first in **dry run** — trading simulated money against live markets through the exact same code path as real trading — then with a small, capped real allocation, then with more only if its live track record earns it. Promotion is boringly mechanical: performance against honest benchmarks (including "just hold the market"), drawdowns, costs, and whether the strategy did what its mandate said it would do. Demotion is automatic and unsentimental. A sleeve that can't beat its trial doesn't get argued for; it gets its capital back to the allocator.
+Every strategy enters the system the same way: first in **dry run** — trading simulated money against live markets through the exact same code path as real trading — then with a small, capped real allocation, then with more only if its live track record earns it. Promotion is always my decision, but never an uninformed one: it is made from the evidence — performance against honest benchmarks (including "just hold the market"), drawdowns, costs, and whether the strategy did what its mandate said — and the decision is recorded beside the evidence it was made on. Risk response, by contrast, is automatic and unsentimental: limits breach, sleeves halt, no discussion. A sleeve that can't beat its trial doesn't get argued for; it gets its capital back to the allocator.
 
 This one rule is what lets Ironcage be ambitious and honest at the same time. I get to try everything — fast strategies, autonomous AI loops, ideas I haven't had yet — because trying is cheap and bounded, and only evidence scales.
 
 ## Principles
 
 1. **Fail closed.** Every ambiguity, everywhere in the system, resolves toward not trading. Stale input → stand down. Uncomputable risk state → blocked. Infrastructure down → nothing moves.
-2. **The cage is code.** No AI output can create, enlarge, or extend risk beyond what a sleeve's deterministic rules allow. AI can only work within — or shrink — what the rules permit.
+2. **The cage is code.** No AI output can create, enlarge, or extend risk beyond what a sleeve's deterministic rules allow. At run time, AI can only work within — or shrink — what the rules permit; any richer contribution, from tuned parameters to whole new strategies, is a proposal that must survive testing and my signature before it exists.
 3. **Capital follows evidence.** Dry run first, small real capital second, scale only on a live track record. For every sleeve, forever, no exceptions for excitement.
 4. **Costs are a first-class enemy.** Fees and overtrading are the best-documented killers of systems like this. Every sleeve is judged net of costs, and the default posture is to trade less.
 5. **Everything is auditable.** Every signal, judgment, verdict, order, and fill is reconstructable from persisted records. If I can't trace why the system did something, that part of the system is broken by definition.

@@ -20,6 +20,10 @@ _Avoid_: rebalancer, treasury
 The deterministic risk-limit layer no AI output can reach — per-sleeve limits plus the system cage (total exposure, system drawdown kill switch, venue concentration) above all sleeves.
 _Avoid_: guardrails, safety layer, risk management (as a vague noun)
 
+**Insight arm**:
+A read-only part of the system — spending analysis, portfolio views, reports — that carries zero execution risk.
+_Avoid_: sleeve (arms hold no capital), module, analytics (unqualified)
+
 ## AI grants
 
 **Grant**:
@@ -77,6 +81,10 @@ _Avoid_: cycle, iteration, heartbeat
 **Dry run**:
 Running a sleeve against live markets with simulated fills through the same code path as live trading; the mandatory proving ground for every sleeve.
 _Avoid_: paper trading (in docs and code), simulation (unqualified)
+
+**Trial report**:
+The evidence document a promotion decision is made from: performance against declared benchmarks, risk profile, costs, behavior conformance, and every grant's ledger.
+_Avoid_: performance report (unqualified), review (reserved for weekly reports)
 
 **Shadow run**:
 A challenger configuration running in simulation beside a live champion, on the same live data.

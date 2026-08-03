@@ -26,7 +26,9 @@ Events are immutable and kept forever. There is no editing and no deleting.
 
 **Lifecycle** — sleeve created; mandate changed (with diff and recorded reasoning); state transition (who/what triggered it); promotion or demotion (with trial report link); override armed / became active / used / expired; sleeve retired.
 
-**System** — market data gap (and which sleeves stood down because of it); venue or gateway connectivity lost/restored; AI run failed (regime tick, categorization, report generation — validation failures included); import processed.
+**Capital** — deposit or withdrawal (amount, venue, note); allocation act (fund / reduce / return, with the evidence shown at decision time); drawdown-to-target entered or completed; a system-cage rejection of an entry (which limit, at what value).
+
+**System** — market data gap (and which sleeves stood down because of it); historical data backfill performed (range, source); venue or gateway connectivity lost/restored; AI run failed (regime tick, categorization, report generation — validation failures included); import processed.
 
 **Money** — bank import completed (n transactions, m new, k needing category review); recurring charge detected or changed price; spending anomaly detected.
 
