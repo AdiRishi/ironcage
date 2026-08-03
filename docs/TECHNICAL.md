@@ -11,6 +11,7 @@ This file is the map. Each area has its own document in [`docs/technical/`](./te
 5. [**Integrations**](./technical/05-integrations.md) — Kraken, Alpaca, the gateway service, CommBank import, AI providers.
 6. [**The frontend**](./technical/06-frontend.md) — the observatory's data flow: server functions, liveness, auth.
 7. [**Operations**](./technical/07-operations.md) — environments, secrets, deploys, observability, backups, runbooks.
+8. [**The tax engine**](./technical/08-tax.md) — source connectors, the canonical event pipeline, parcels and basis, prices, verification.
 
 ## Commitments that bind every document
 

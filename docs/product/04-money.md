@@ -38,9 +38,9 @@ The whole-of-wealth view combines what Ironcage manages with what it merely obse
 - **Allocation** — the full breakdown: cash by account, each sleeve, and (once broker integration exists) holdings by asset class.
 - This is also where the "include external balances" toggle on [Overview's](./01-overview.md) equity hero gets its data.
 
-## Records for tax
+## Tax
 
-A trading system in Australia generates tax events by the dozen — every crypto disposal is a CGT event, and the ATO may treat systematic trading as income. The product's obligation is clean records, available without archaeology: the full blotter (every fill with date, amount, price, fees, and sleeve) and the imported transaction set both export as CSV in shapes an accountant or a crypto-tax tool can ingest directly. A financial-year export is one action. Ironcage computes no tax and gives no tax advice; it makes the operator's accountant's job trivial, which is the correct division of labor.
+Crypto tax computation is a full arm of its own — see [**The Tax arm**](./09-tax.md): every exchange and wallet ingested, Australian rules encoded, the financial-year report produced in-house. Its running FY estimate (capital gains position, income to date, carried-forward losses) surfaces here in the Money view year-round, so tax is a number the operator watches rather than an April surprise. The clean-records obligation stands independently: the full blotter and every ledger export as CSV in shapes an accountant can ingest directly, and the arm prepares figures and evidence — the operator or their accountant files.
 
 ## Reports
 

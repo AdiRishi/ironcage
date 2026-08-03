@@ -98,6 +98,14 @@ _Avoid_: lab, sandbox
 The visible count of trials behind any comparative result, so best-of-many is never mistaken for evidence.
 _Avoid_: run counter
 
+**Parcel**:
+A quantity of one asset with a single acquisition date and cost base, tracked from acquisition to disposal; the unit the tax engine's capital-gains math operates on.
+_Avoid_: lot (in docs; acceptable in code), batch
+
+**Gap ledger**:
+The per-source record of which time windows have been fetched from where, making holes in tax history visible instead of silently absent.
+_Avoid_: sync log, coverage report
+
 **Fail closed**:
 The universal resolution of ambiguity: stale input, uncomputable state, or an unreachable venue always resolves toward not trading.
 _Avoid_: fail safe (imprecise), graceful degradation

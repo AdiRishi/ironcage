@@ -30,7 +30,7 @@ Events are immutable and kept forever. There is no editing and no deleting.
 
 **System** — market data gap (and which sleeves stood down because of it); historical data backfill performed (range, source); venue or gateway connectivity lost/restored; AI run failed (regime tick, categorization, report generation — validation failures included); report generated (or generation failed); deploy completed (with the code version).
 
-**Money** — bank import completed (n transactions, m new, k needing category review); recurring charge detected or changed price; spending anomaly detected.
+**Money** — bank import completed (n transactions, m new, k needing category review); recurring charge detected or changed price; spending anomaly detected; tax source synced (events added, coverage change); tax gap detected or closed; missing cost basis flagged or resolved; tax-source balance mismatch; FY tax report generated.
 
 ## Severity semantics
 
