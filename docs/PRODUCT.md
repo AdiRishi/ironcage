@@ -29,7 +29,7 @@ There is exactly one operator. Every screen is built for that one person's trust
 ## Guarantees, as the operator experiences them
 
 - **Nothing is hidden.** Every order intent — including every rejection — appears in the activity feed with the cage's full verdict. A rejection is the system working, and is displayed as such, never buried.
-- **Numbers reconcile.** Positions and equity are recomputed from the recorded order history, and live sleeves are reconciled against the venue on schedule. A discrepancy halts the sleeve and appears at the top of Overview. The app never quietly papers over a mismatch.
+- **Numbers reconcile.** Positions and equity are recomputed from the recorded order history, and live sleeves are reconciled against the venue on schedule. A discrepancy halts the sleeve and is surfaced immediately on Overview. The app never quietly papers over a mismatch.
 - **Every AI output is traceable.** From any regime assessment, categorization, or report, the operator can open the full record: what the model was asked, what data it saw, what it answered, and when. AI outputs that fail validation are recorded failures, never silent guesses.
 - **History is permanent.** Sleeves, trades, decisions, overrides, and reports are never deleted — retirement archives, it does not erase.
 

@@ -16,7 +16,7 @@ Sleeve states are specified in [Sleeves](./02-sleeves.md). Above them, the syste
 - **Pause a sleeve** — no new entries; existing positions and stops continue to be managed.
 - **Flatten** — exit a position, or all of a sleeve's positions, at market.
 - **Halt a sleeve** — full stop with its winddown policy.
-- **Halt everything** — the system-wide stop, always visible in the app header.
+- **Halt everything** — the system-wide stop, reachable from anywhere in the app.
 
 No AI output, cage rule, or system state can block these. Every use is a feed event.
 
@@ -28,7 +28,7 @@ For the moment the operator decides, with open eyes, to act outside a limit — 
 
 - **Scope**: an override names one specific limit on one sleeve and permits one class of action past it (e.g. "allow one entry in BTC above the position cap"). It cannot disable auditing, cannot touch the always-on risk-reducing controls, cannot affect any other sleeve, and cannot suspend the system cage.
 - **Flow**: request → the app states exactly what is being overridden and its risk in plain words → the operator types a confirmation phrase naming the limit → a **15-minute cooling-off** timer runs → the override becomes active for at most **24 hours**, then expires automatically.
-- **Visibility**: an armed or active override shows as a banner on every view ([Overview](./01-overview.md) health strip included), with scope and countdown. Arming, activation, each use, and expiry are all `critical` feed events requiring acknowledgment.
+- **Visibility**: an armed or active override is unmissable from every view, with its scope and expiry. Arming, activation, each use, and expiry are all `critical` feed events requiring acknowledgment.
 
 The friction is the feature: the override exists so the cage never has to be dismantled in an emergency, and the delay exists because the cage protects the operator from himself too.
 

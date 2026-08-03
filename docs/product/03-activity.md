@@ -41,4 +41,4 @@ Events are immutable and kept forever. There is no editing and no deleting.
 
 ## Reading the feed
 
-The full feed view supports filtering by origin (sleeve/arm/system), category, severity, and time range, plus full-text search over summaries. Each sleeve's living view embeds its own pre-filtered slice. The feed renders newest-first, groups bursts (one logical action producing several events, e.g. an entry's intent → order → fill chain) into a single expandable thread, and always shows the unseen-critical count in the app's header from every view.
+The full feed view supports filtering by origin (sleeve/arm/system), category, severity, and time range, plus full-text search over summaries. Each sleeve's living view embeds its own pre-filtered slice. Events produced by one logical action (an entry's intent → order → fill chain) are associated with each other so they can be understood as a unit, and the count of unacknowledged critical events is available from anywhere in the app.

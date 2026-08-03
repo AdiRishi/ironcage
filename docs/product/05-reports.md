@@ -25,11 +25,11 @@ The month's spending by category vs. trailing averages; income, spending, saving
 
 ### Trial report — on demand, and automatically when a sleeve seeks promotion
 
-The evidence for an allocation decision: the trial period and what ran; performance vs. every benchmark the mandate declared; risk profile (max drawdown, worst day, loss streaks); full cost accounting; behavior conformance (did it do what the mandate says — including how often the cage rejected its intents and why); simulation caveats (what dry-run fills can't prove about live execution); and a recommendation with reasoning. The promote/defer decision is made from this report's page, and the decision — either way — is recorded onto it.
+The evidence for an allocation decision: the trial period and what ran; performance vs. every benchmark the mandate declared; risk profile (max drawdown, worst day, loss streaks); full cost accounting; behavior conformance (did it do what the mandate says — including how often the cage rejected its intents and why); simulation caveats (what dry-run fills can't prove about live execution); and a recommendation with reasoning. The promote/defer decision is recorded against this report — either way.
 
 ### Incident report — automatically, on any halt or reconciliation mismatch
 
-What halted and which rule fired, at what value; the timeline reconstructed from the feed; the state at halt (positions, orders, equity); what the winddown policy did; and the open questions the operator should answer before un-halting. The un-halt action lives on this report, so resuming requires having seen it.
+What halted and which rule fired, at what value; the timeline reconstructed from the feed; the state at halt (positions, orders, equity); what the winddown policy did; and the open questions the operator should answer before un-halting. Un-halting requires the operator to have opened this report — resuming without seeing the evidence is not a path the product offers.
 
 ## The library
 

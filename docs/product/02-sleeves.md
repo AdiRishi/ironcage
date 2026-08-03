@@ -50,12 +50,12 @@ Sleeves may share a venue account, but every position, order, and dollar is tagg
 
 One page per sleeve — the heart of the observatory. Watching a sleeve think should be engaging enough that checking on it is something the operator wants to do, not has to.
 
-- **The Now panel** (top): what the sleeve is doing at this moment. Its last tick and next-action countdown; the current strategy read per instrument (e.g. "BTC: uptrend intact, above entry threshold; ETH: no signal"); for L1+, the regime assessment in force with rationale, source list, and age; distance-to-limit meters for each cage rule (position sizes, daily loss, drawdown, trade count) so the operator sees not just that the sleeve is safe but *how much room it has*.
+- **Now**: what the sleeve is doing at this moment. Its last tick and time to next action; the current strategy read per instrument (e.g. "BTC: uptrend intact, above entry threshold; ETH: no signal"); for L1+, the regime assessment in force with rationale, source list, and age; and the distance to each cage limit (position sizes, daily loss, drawdown, trade count) so the operator sees not just that the sleeve is safe but *how much room it has*.
 - **Positions**: open positions with entry, current price, stop, unrealized P&L, and age; open orders with their lifecycle state.
 - **Performance**: equity curve (dry/live distinguished), returns over standard windows, max drawdown, win rate, average win/loss, total fees and costs, and the benchmark overlay the mandate declared.
 - **Decisions**: the sleeve-filtered activity feed — every intent with its cage verdict, every fill, every regime change, in order.
 - **Mandate**: the current mandate in full, plus its complete version history with diffs and the recorded reasoning for each change.
-- **Trial report** (when pending): the report and the promote/defer decision controls, front and center.
+- **Trial report** (when pending): the report, presented with the promote/defer decision it exists to inform.
 
 ## The first sleeves
 
