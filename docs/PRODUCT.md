@@ -4,9 +4,11 @@ The [vision](./VISION.md) says why Ironcage exists and the principles that bind 
 
 ## Product shape
 
-Ironcage is a headless system with one human surface: **the dashboard**, a web application that is the single place the operator sees, understands, and controls everything. There are no push notifications by design — the system does not interrupt; the operator visits. That choice creates the dashboard's defining obligation: **opening it must answer "is everything okay?" within five seconds**, and the activity feed must make it impossible for anything important to have happened silently. If an event matters, it is in the feed; if it is unseen, the dashboard says so. (A notification channel may be added by a future decision; it is out of scope for v1.)
+Ironcage is two things that meet in the middle: an **engine** that runs continuously and needs no one watching, and a **web application** that makes watching it worthwhile. The web app is not an admin panel bolted onto a bot — it is a first-class product and half the joy of the system. Every sleeve, every insight arm, every moving part gets its own living view: what it is doing right now, what it decided and why, how it is performing — presented with the care of something built to be *looked at*, not just checked. The design ambition is an observatory, not a control panel: data-dense, live, legible, and genuinely fun to watch.
 
-There is exactly one operator. Every screen is built for that one person's trust, not for a customer's.
+The web app is also the only surface. There are no push notifications by design — the system does not interrupt; the operator visits, and enjoys the visit. That choice creates the app's defining obligation: **opening it must answer "is everything okay?" within five seconds**, and the activity feed must make it impossible for anything important to have happened silently. If an event matters, it is in the feed; if it is unseen, the app says so. (A notification channel may be added by a future decision; it is out of scope for v1.)
+
+There is exactly one operator. Every screen is built for that one person's trust and pleasure, not for a customer's.
 
 ## The sleeve
 
@@ -60,7 +62,7 @@ Risk-increasing actions go through the mandate (a config change) — with one ex
 Five views, one job each:
 
 1. **Overview** — the five-second answer. Total equity and its curve (dry-run and live clearly distinguished), each sleeve's state and allocation in one row, any active halt or override, system health (data freshness, last engine tick, exchange connectivity), and the top of the activity feed.
-2. **Sleeves** — one page per sleeve: its mandate, state, equity curve, open positions with stops and unrealized P&L, its trial report when one is pending, and its full decision history.
+2. **Sleeves** — a living page per sleeve, the heart of the observatory: its mandate and state, equity curve, open positions with stops and unrealized P&L, and a real-time picture of what the sleeve is doing *now* — the last tick, the current strategy read on each pair, the regime assessment in force with its rationale, distance to each cage limit, and the countdown to its next action. Below the live picture, its full decision history and its trial report when one is pending. Watching a sleeve think should be engaging enough that checking on it is something the operator wants to do, not has to.
 3. **Activity** — the append-only feed of everything that matters: entries, exits, rejected order intents *with the cage's reasons*, regime changes, halts, promotions and demotions, overrides, reconciliation results, errors. Filterable by sleeve and severity. This feed is the product's replacement for notifications, and its completeness is a guarantee, not an aspiration.
 4. **Money** — the insight arms' home. Spending analysis from imported bank data: where money goes by category and month, trends, recurring charges, anomalies, and concrete savings suggestions. Portfolio-wide view across all sleeves plus imported account balances — the whole financial picture in one place.
 5. **Reports** — the library of generated documents: weekly per-sleeve and portfolio reviews written by AI from the recorded data (what worked, what didn't, whether live tracks expectation, whether the regime layer is earning its keep against a no-AI control), monthly spending reports, and every trial report ever produced. Reports recommend; they never act.
