@@ -1,3 +1,5 @@
+packages: []
+
 # The catalog is the single place dependency versions are pinned for the whole
 # monorepo. Workspace packages reference `catalog:` and never a literal version.
 #

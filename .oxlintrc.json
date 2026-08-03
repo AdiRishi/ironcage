@@ -25,7 +25,5 @@
     "builtin": true
   },
   "rules": {},
-  // Bare ".repos" prunes the directory walk (else nested-config discovery reads
-  // the vendored repo's own config and fails); ".repos/**" ignores the files.
   "ignorePatterns": [".repos", ".repos/**"]
 }
