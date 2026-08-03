@@ -13,11 +13,11 @@ Reports are the documents Ironcage writes: scheduled reviews, on-demand trial re
 
 ### Weekly sleeve review — per active sleeve, weekly
 
-What the sleeve did (trades, exposure, notable decisions); performance for the week and cumulatively vs. its declared benchmarks; costs incurred (fees, spread/slippage estimates, AI spend attributable to the sleeve); risk behavior (drawdown, distance to limits, any warnings or rejections); whether live/dry-run behavior tracked backtest expectation, with divergences flagged; and anything anomalous, in plain language.
+What the sleeve did (trades, exposure, notable decisions); performance for the week and cumulatively vs. its declared benchmarks; costs incurred (fees, spread/slippage estimates, AI spend attributable to the sleeve); risk behavior (drawdown, distance to limits, any warnings or rejections); **each grant's week**: its value-added ledger movement vs. control, notable outputs (vetoes placed, tightenings applied, proposals submitted), and any suspension; whether live/dry-run behavior tracked backtest expectation, with divergences flagged; and anything anomalous, in plain language.
 
 ### Weekly portfolio review — one, weekly
 
-The whole system in one page: total performance, per-sleeve contribution, the system cage's headroom, open questions across sleeves, and — for L1 sleeves — the running score of the regime layer against its no-AI control, stated plainly ("the regime layer added/cost X this period; cumulative verdict: earning its keep / not yet / failing").
+The whole system in one page: total performance, per-sleeve contribution, the system cage's headroom, open questions across sleeves, and the grants scoreboard — every active grant's running score against its control, stated plainly ("the regime vector added/cost X this period; cumulative verdict: earning its keep / not yet / failing"), so the question "is the AI worth it?" always has a current, numeric answer.
 
 ### Monthly spending report — monthly, after import
 
@@ -25,7 +25,7 @@ The month's spending by category vs. trailing averages; income, spending, saving
 
 ### Trial report — on demand, and automatically when a sleeve seeks promotion
 
-The evidence for an allocation decision: the trial period and what ran; performance vs. every benchmark the mandate declared; risk profile (max drawdown, worst day, loss streaks); full cost accounting; behavior conformance (did it do what the mandate says — including how often the cage rejected its intents and why); simulation caveats (what dry-run fills can't prove about live execution); and a recommendation with reasoning. The promote/defer decision is recorded against this report — either way.
+The evidence for an allocation decision: the trial period and what ran; performance vs. every benchmark the mandate declared (including the no-AI control where grants are held); the value-added ledger of every grant; risk profile (max drawdown, worst day, loss streaks); full cost accounting; behavior conformance (did it do what the mandate says — including how often the cage rejected its intents and why); simulation caveats (what dry-run fills can't prove about live execution); and a recommendation with reasoning. Where a trial exists because an AI grant proposed the sleeve or its parameters, the report states its acceptance thresholds with multiplicity corrections applied — many candidates means lucky flukes, and the report says so out loud. The promote/defer decision is recorded against this report — either way.
 
 ### Incident report — automatically, on any halt or reconciliation mismatch
 

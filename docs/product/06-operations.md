@@ -22,6 +22,8 @@ No AI output, cage rule, or system state can block these. Every use is a feed ev
 
 **Risk-increasing actions go through the mandate.** Raising a cap, widening a limit, changing a strategy: these are mandate changes — deliberate, versioned, recorded acts. The app presents a mandate edit as what it is: a review screen showing the full diff and requiring a written reason, which becomes part of the mandate's version history. Changes take effect from the next tick, never mid-decision. There are no live sliders on risk.
 
+AI-originated changes arrive through the same door: a gated proposal ([Sleeves](./02-sleeves.md)) that has passed its pipeline reaches the operator as a pre-filled mandate change — diff, rationale, and gate results attached — and is approved or rejected on the same review screen with the same recording. The AI never gets a second, quieter path into the mandate.
+
 ## The break-glass override
 
 For the moment the operator decides, with open eyes, to act outside a limit — without dismantling the cage to do it.

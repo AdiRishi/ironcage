@@ -20,7 +20,7 @@ Events are immutable and kept forever. There is no editing and no deleting.
 
 **Trading** — intent emitted; intent rejected (with the cage's full verdict — every violated rule, not just the first); order placed / partially filled / filled / canceled / replaced; position opened / closed (with realized P&L and costs); stop updated.
 
-**Signals** — regime assessment changed (with old → new, confidence, rationale); regime assessment went stale (the affected sleeve now reads OFF); strategy signal that produced an intent. (Routine no-action ticks are recorded as engine telemetry, not feed events — the feed is for what matters, not a heartbeat log.)
+**Grants & signals** — a grant's output changed materially (regime vector axis moved, with old → new and rationale; event veto placed or expired; risk-officer tightening applied or lapsed); a grant's output went stale (the consuming behavior now at its most restrictive default); a grant suspended or reinstated by its value-added ledger; a design-time proposal submitted, passed or failed a gate, approved, or rejected; a strategy signal that produced an intent. (Routine no-change ticks are recorded as engine telemetry, not feed events — the feed is for what matters, not a heartbeat log.)
 
 **Risk** — a limit approached (configurable warning threshold, e.g. 80% of daily loss); a halt triggered (which rule, at what value); pair/instrument lock created or expired; system-cage event (total exposure or drawdown); reconciliation mismatch detected.
 

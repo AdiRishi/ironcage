@@ -5,7 +5,7 @@ The [vision](./VISION.md) says why Ironcage exists and the principles that bind 
 This file is the map. Each part of the product has its own document in [`docs/product/`](./product/) — read them in order:
 
 1. [**The Overview view**](./product/01-overview.md) — the five-second answer to "is everything okay?"
-2. [**Sleeves**](./product/02-sleeves.md) — the central object: mandates, autonomy levels, the lifecycle, and the per-sleeve living view.
+2. [**Sleeves**](./product/02-sleeves.md) — the central object: mandates, the AI grant system, the lifecycle, and the per-sleeve living view.
 3. [**The Activity feed**](./product/03-activity.md) — the append-only record of everything that matters, and the completeness guarantee behind it.
 4. [**The Money view**](./product/04-money.md) — bank import, spending analysis, and the whole-of-wealth portfolio picture.
 5. [**Reports**](./product/05-reports.md) — the documents the system writes: reviews, trial reports, spending reports, incident reports.
@@ -21,7 +21,7 @@ There is exactly one operator. Every screen is built for that one person's trust
 
 ## The core loop
 
-1. **The engine trades — or declines to.** Each sleeve acts on its own cadence per its mandate: evaluating its strategy, applying any AI input its autonomy level permits, passing every intent through the cage. Most ticks correctly do nothing.
+1. **The engine trades — or declines to.** Each sleeve acts on its own cadence per its mandate: evaluating its strategy, applying whatever AI grants its mandate holds (run-time grants can only attenuate; everything else is a proposal or a report), passing every intent through the cage. Most ticks correctly do nothing.
 2. **The operator visits.** Overview answers whether everything is okay; the Activity feed accounts for everything that happened; each sleeve's living view shows what it is doing and why.
 3. **The operator adjudicates.** Trial reports arrive when sleeves seek promotion; weekly reviews and spending reports arrive on schedule. The system recommends; the operator decides; every decision is recorded.
 4. **The operator feeds it.** Bank exports imported into the Money view keep the whole-of-wealth picture current.
