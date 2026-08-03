@@ -10,6 +10,8 @@ This file is the map. Each part of the product has its own document in [`docs/pr
 4. [**The Money view**](./product/04-money.md) — bank import, spending analysis, and the whole-of-wealth portfolio picture.
 5. [**Reports**](./product/05-reports.md) — the documents the system writes: reviews, trial reports, spending reports, incident reports.
 6. [**Operations & control**](./product/06-operations.md) — modes, halts, the operator's controls, the break-glass override, and reconciliation.
+7. [**Capital & the allocator**](./product/07-capital.md) — the capital ledger, deposits and withdrawals, allocation acts, and the system cage.
+8. [**The Workbench**](./product/08-workbench.md) — historical data, reproducible backtests, the multiplicity ledger, and gate/shadow runs.
 
 ## Product shape
 

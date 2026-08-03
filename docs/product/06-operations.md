@@ -7,7 +7,7 @@ This document specifies how the operator controls Ironcage: the modes, the alway
 Sleeve states are specified in [Sleeves](./02-sleeves.md). Above them, the system as a whole is in exactly one mode:
 
 - **Running** — normal operation.
-- **Halted** — nothing trades anywhere. Entered automatically by the system cage (total drawdown or exposure breach, or a failure the system cannot attribute to a single sleeve), or manually by the operator's halt-all. Leaving system Halted is always an operator action from the incident report.
+- **Halted** — nothing trades anywhere. Entered automatically by the system cage ([Capital](./07-capital.md) — total drawdown or exposure breach, or a failure the system cannot attribute to a single sleeve), or manually by the operator's halt-all. Leaving system Halted is always an operator action from the incident report.
 
 ## The operator's controls
 
