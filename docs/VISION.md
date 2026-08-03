@@ -24,7 +24,7 @@ Ironcage is not one strategy. It is the machine my strategies live inside — an
 
 **The cage** is the deterministic risk layer, and it is the heart of the project. Position limits, stop-losses, daily loss halts, a drawdown kill switch, trade-frequency caps — enforced in plain code that no AI output can reach or override. The cage exists at two levels: each strategy has its own limits, and above them all sits one system-wide cage watching total exposure and total drawdown. When anything is uncertain — a stale signal, missing data, an unreachable exchange — the cage fails closed: it stands down rather than guessing. Every documented way autonomous AI trading blows up is contained here structurally, not by hoping the model behaves.
 
-**The allocator** is the discipline that decides how much capital each strategy holds, and it follows one constitutional rule described below: capital follows evidence.
+**The allocator** is the discipline that decides how much capital each sleeve holds, and it follows one constitutional rule described below: capital follows evidence.
 
 **Sleeves** are the tenants. A sleeve is a bounded allocation of capital with its own mandate: what it trades, how fast, by what rules, and which bounded AI capabilities — grants — it holds. Ironcage is built to run many sleeves in parallel, and they can differ in every dimension:
 
@@ -40,7 +40,7 @@ The operator is me — one person, personal capital — working with AI coding t
 
 No sleeve is entitled to capital; every sleeve is entitled to a fair trial.
 
-Every strategy enters the system the same way: first in **dry run** — trading simulated money against live markets through the exact same code path as real trading — then with a small, capped real allocation, then with more only if its live track record earns it. Promotion is always my decision, but never an uninformed one: it is made from the evidence — performance against honest benchmarks (including "just hold the market"), drawdowns, costs, and whether the strategy did what its mandate said — and the decision is recorded beside the evidence it was made on. Risk response, by contrast, is automatic and unsentimental: limits breach, sleeves halt, no discussion. A sleeve that can't beat its trial doesn't get argued for; it gets its capital back to the allocator.
+Every sleeve enters the system the same way: first in **dry run** — trading simulated money against live markets through the exact same code path as real trading — then with a small, capped real allocation, then with more only if its live track record earns it. Promotion is always my decision, but never an uninformed one: it is made from the evidence — performance against honest benchmarks (including "just hold the market"), drawdowns, costs, and whether the strategy did what its mandate said — and the decision is recorded beside the evidence it was made on. Risk response, by contrast, is automatic and unsentimental: limits breach, sleeves halt, no discussion. A sleeve that can't beat its trial doesn't get argued for; it gets its capital back to the allocator.
 
 This one rule is what lets Ironcage be ambitious and honest at the same time. I get to try everything — fast strategies, autonomous AI loops, ideas I haven't had yet — because trying is cheap and bounded, and only evidence scales.
 

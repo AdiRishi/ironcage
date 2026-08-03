@@ -27,7 +27,7 @@ _Avoid_: sleeve (arms hold no capital), module, analytics (unqualified)
 ## AI grants
 
 **Grant**:
-One typed AI capability a mandate holds, drawn from the versioned grant registry.
+One typed AI capability drawn from the versioned grant registry, held by a sleeve's mandate — or, for system-level observers, by the system itself.
 _Avoid_: permission, feature, power
 
 **Valve class**:
@@ -73,7 +73,7 @@ A deterministic no-entry marker on an instrument (or everything) with a reason a
 _Avoid_: ban, freeze, blacklist
 
 **Tick**:
-One scheduled execution of a recurring process — an engine tick or a grant tick — aligned to candle boundaries.
+One scheduled execution of a recurring process — an engine tick, a grant tick, or a housekeeping run. Decision-making ticks align to candle boundaries.
 _Avoid_: cycle, iteration, heartbeat
 
 ## Proving
@@ -87,7 +87,7 @@ The evidence document a promotion decision is made from: performance against dec
 _Avoid_: performance report (unqualified), review (reserved for weekly reports)
 
 **Shadow run**:
-A challenger configuration running in simulation beside a live champion, on the same live data.
+A challenger configuration running in simulation beside the incumbent champion, on the same live data.
 _Avoid_: A/B test, parallel run
 
 **Workbench**:

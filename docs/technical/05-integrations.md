@@ -13,8 +13,8 @@ Two trading venues by deliberate consolidation, one bank via file export, two AI
 
 - **Why**: available to Australian individuals, $0 commissions, clean API-key REST (no resident gateway process, no OAuth ceremony), fractional/notional orders that make ETF rebalancing exact, and a first-class paper environment.
 - **Trading**: through the gateway (keys live only there; Alpaca doesn't offer key IP-locking, so containing the key to one machine is the compensating control). Notional orders for contributions and rebalances; market hours respected by the sleeve's cadence (daily tick after US close computes; orders queue for next open).
-- **Market data**: the free IEX feed suffices for daily/4h ETF candles — `apps/collector` pulls bars via Alpaca's data API. Known limitation, accepted: IEX-only quotes can diverge from NBBO; irrelevant at rebalancing cadence, noted in the sleeve's simulation caveats.
-- **Paper environment**: used for gateway integration tests only. Ironcage's own dry run (our simulator against live data) remains the proving ground — one honesty model, ours.
+- **Market data**: the free IEX feed suffices for daily/4h ETF candles — pulled via the gateway's `/alpaca/candles` route, because **Alpaca's data API requires key authentication even on the free tier** and keys live only on the gateway. Known limitation, accepted: IEX-only quotes can diverge from NBBO; irrelevant at rebalancing cadence, noted in the sleeve's simulation caveats.
+- **Simulated-trading environment**: Alpaca's own sandbox is used for gateway integration tests only. Ironcage's dry run (our simulator against live data) remains the proving ground — one honesty model, ours.
 - **Onboarding verifications** (flagged, non-blocking): international funding mechanics (wire/FX cost), current AU feature set.
 
 ## The gateway service (`apps/gateway`)
@@ -26,7 +26,8 @@ GET  /health                     → venue reachability + key validity (no secre
 GET  /:venue/balances
 GET  /:venue/orders/open
 GET  /:venue/fills?since=…
-GET  /:venue/candles?…           (fallback path; collector prefers direct)
+GET  /:venue/candles?…           (primary for Alpaca — its data API is
+                                  authenticated; fallback only for Kraken)
 POST /:venue/orders              (idempotent via client order id)
 POST /:venue/orders/:id/cancel
 ```
@@ -35,7 +36,7 @@ Properties, enforced in its ~small codebase: request/response shapes are `@app/c
 
 ## CommBank import (the Money view)
 
-Parsers for the three NetBank export formats — CSV, OFX, QIF — in `@app/core/import` (pure: bytes → `Transaction[]` + diagnostics). Format auto-detection by content, not extension. Dedup key: stable hash of account + date + amount + normalized narrative, with a fuzzy window for the bank's narrative reformatting habits; the unique index on that hash makes re-imports idempotent at the database level. Transfer detection pairs opposite-signed same-amount transactions across the operator's own accounts within a date window. Categorization: rules first (operator-taught, stored in `category_rules`), then an AI-backed classification grant (observer class) for the remainder, with confidence thresholds routing low-confidence rows to the review queue. No bank credentials exist anywhere in the system — the CDR/API upgrade remains a named future decision.
+Parsers for the three NetBank export formats — CSV, OFX, QIF — in `@app/core/import` (pure: bytes → `Transaction[]` + diagnostics). Format auto-detection by content, not extension. Dedup key: stable hash of account + date + amount + normalized narrative, with a fuzzy window for the bank's narrative reformatting habits; the unique index on that hash makes re-imports idempotent at the database level. Transfer detection pairs opposite-signed same-amount transactions across the operator's own accounts within a date window. Categorization: rules first (operator-taught, stored in `category_rules`), then an AI classification service for the remainder — an insight-arm AI use governed by the same honesty rules as grants (schema-validated output, audit snapshots, operator-correctable) but deliberately outside the grant registry, which binds to trading; its product-specified behavior (auto-apply above a confidence threshold, review queue below it) lives in `docs/product/04-money.md`. No bank credentials exist anywhere in the system — the CDR/API upgrade remains a named future decision.
 
 ## AI providers
 

@@ -44,7 +44,7 @@ Portfolio equity over time, viewable across standard windows (week, month, quart
 For every non-retired sleeve, at a glance:
 
 - Name and market (crypto / stocks / …)
-- State (Draft / Dry run / Live / Halted, with the halt reason discoverable)
+- State (Draft / Dry run / Live / Halted, with the halt reason discoverable; a paused running sleeve is visibly flagged)
 - Profile and grant count (Clockwork / Advised / Assisted-design / Piloted; any suspended grant flagged)
 - Current allocation vs. mandate cap
 - P&L today and all-time, net of costs

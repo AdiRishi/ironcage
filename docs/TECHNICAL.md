@@ -1,6 +1,6 @@
 # Ironcage — Technical Specification
 
-The [vision](./VISION.md) says why; the [product specification](./PRODUCT.md) says what. This is how: the system that delivers those surfaces. Where this conflicts with either, they win and this document is wrong. Terms are defined in [`CONTEXT.md`](../CONTEXT.md); hard-to-reverse decisions get ADRs in [`docs/adr/`](./adr/AGENTS.md).
+The [vision](./VISION.md) says why; the [product specification](./PRODUCT.md) says what. This is how: the system that delivers those surfaces. Where this conflicts with either, they win and this document is wrong. Terms are defined in [`CONTEXT.md`](../CONTEXT.md).
 
 This file is the map. Each area has its own document in [`docs/technical/`](./technical/) — read them in order:
 
@@ -14,9 +14,9 @@ This file is the map. Each area has its own document in [`docs/technical/`](./te
 
 ## Commitments that bind every document
 
-- **Cloudflare-first.** Workers, Durable Objects, Workflows, D1, R2, Queues, Cron Triggers, and AI Gateway are the platform. The single exception is the **gateway**: a small static-IP VPS (reached only via Cloudflare Tunnel) for exchange-facing calls, forced by exchange IP-allowlisting and Workers' unpublished egress (ADR-0002).
+- **Cloudflare-first.** Workers, Durable Objects, Workflows, D1, R2, Queues, Cron Triggers, and AI Gateway are the platform. The single exception is the **gateway**: a small static-IP VPS (reached only via Cloudflare Tunnel) for venue-facing calls. This is forced, not chosen — Workers egress IPs are unpublished, shared, and rotating, so venue API keys could never be IP-allowlisted from Workers, and IP-locked withdrawal-disabled keys are the strongest security control available. The deliberate consequence: gateway down ⇒ nothing trades, which is the failure mode we want.
 - **Effect TS end to end.** Services, errors, retries, schedules, and schemas are Effect-native. Contracts are `effect/Schema`; all money and quantity math is `effect` `BigDecimal` — never IEEE floats. `.repos/effect` (once vendored) is the reference for idiomatic usage.
-- **AI communicates through the database, never the execution path** (ADR-0001). Grant runners write schema-validated rows; the engine reads them on its own schedule. No AI-influenced code has a network path to the gateway. The four valve classes are closed (ADR-0003).
+- **AI communicates through the database, never the execution path.** Grant runners write schema-validated rows; the engine reads them on its own schedule. No AI-influenced code has a network path to the gateway — the boundary is *topology*, which no clever prompt, schema edge case, or middleware bug can bypass; a permission layer would be code that must be right on every call. The same one-way pattern binds the web app. And the four valve classes are closed: each class is an analyzed worst case, so a mechanism fitting none of them is, by that fact, an unanalyzed worst case that must earn its own written decision.
 - **One writer per decision domain.** Each sleeve is one Durable Object; the capital ledger and system cage are one Durable Object. Serialized execution makes double-ordering and double-allocation structurally impossible.
 - **Same code path everywhere.** `@app/core` is pure and I/O-free; identical strategy/cage/blotter code runs in backtests, dry run, and live. Mode changes swap the execution edge, never the logic.
 - **Blotter-derived state.** Positions, average entries, realized P&L, and equity are recomputed from the immutable order history — never mutated incrementally. Reconciliation against venues runs on schedule; discrepancy halts.

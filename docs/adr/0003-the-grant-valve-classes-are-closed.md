@@ -1,5 +1,0 @@
-# The Grant Valve Classes Are Closed
-
-AI grants come in exactly four safety shapes — attenuator (run-time, reduce-only), gated proposal (design-time, test-gated), observer (read-only), and trade proposer (quarantined, permanently small) — and this set does not grow by feature work. New *mechanisms* within a class are cheap: a registry entry, a schema, a control definition. A new *class* is a constitutional change requiring its own ADR and threat model.
-
-The reason is that each class is a distinct answer to "what is the worst case if the AI is wrong, compromised, or fed hostile data?" — baseline-risk-only, wasted-proposal, misleading-text, and capped-experiment respectively. Every mechanism anyone has proposed so far collapses into one of these shapes when analyzed; a mechanism that genuinely doesn't is, by that fact, a new worst case the system hasn't reasoned about, and deserves the friction. Companion rule, same reasoning: grants follow evidence — every grant runs against a declared no-AI control and is automatically suspended by its demotion rule, so granting AI a capability is always an experiment, never a commitment.

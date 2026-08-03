@@ -27,7 +27,7 @@ Every grant belongs to exactly one of four **valve classes** — and the classes
 3. **Observer**. Read-only analysis: reviews, memos, calibration reports. Observers recommend; they never act. Zero execution risk.
 4. **Trade proposer** (quarantined). The one non-reduce-only class: AI originates individual trades as typed intents that deterministic code checks against the mandate and cage, under a declared per-day proposal budget, with full prompt-trace auditing. Permanently small-capped, permanently experimental — the class exists so this configuration can be *studied*, never scaled.
 
-**Grants follow evidence — the constitutional rule applies to AI itself.** Every run-time grant computes its counterfactual on every tick: what would the sleeve have done without this grant? The counterfactual runs through the same simulated-fill machinery as dry run, accruing a per-grant **value-added ledger** (P&L delta, drawdown delta, cost delta versus control) that is always visible on the sleeve's living view. Each grant carries a demotion rule in the mandate; a grant that underperforms its control past that rule is automatically **suspended** — output ignored, safe default applied, critical feed event, operator adjudicates. Design-time grants keep the analogous ledger over their proposals: submitted, passed gates, survived live, value added.
+**Grants follow evidence — the constitutional rule applies to AI itself.** Every run-time grant computes its counterfactual on every tick: what would the sleeve have done without this grant? The counterfactual runs through the same simulated-fill machinery as dry run, accruing a per-grant **value-added ledger** (P&L delta, drawdown delta, cost delta versus control) that is always visible on the sleeve's living view. The registry declares each grant's default demotion rule and a mandate may tighten it for its sleeve; a grant that underperforms its control past that rule is automatically **suspended** — output ignored, safe default applied, critical feed event, operator adjudicates. Design-time grants keep the analogous ledger over their proposals: submitted, passed gates, survived live, value added.
 
 ### Profiles (shorthand, not structure)
 
@@ -39,7 +39,7 @@ Run-time attenuators:
 
 - **Regime vector.** The generalization of the original ON/HALF/OFF signal. On its cadence, AI emits — per instrument in the sleeve's universe — a small vector of named axes (e.g. trend quality, volatility state, liquidity, news risk), each on a quantized ladder (0, ¼, ½, ¾, 1) with per-axis rationale and cited sources. A deterministic combiner declared in the mandate (default: the minimum across axes) collapses it to one entry-size multiplier per instrument. An instrument at 0 simply doesn't enter. Stale or invalid → 0. ON/HALF/OFF is the one-axis, three-rung special case.
 - **Event veto.** AI reads economic calendars, exchange status, and news, and writes time-boxed locks ("no BTC entries from 6h before FOMC to 2h after", "venue X degraded — lock all its instruments") with reason and source snapshot, bounded by mandate-declared maximum duration and count. AI can lock; only expiry or the operator unlocks — including locks it didn't create.
-- **Risk-officer overlay.** Once daily, AI reviews the book adversarially — positions, distance to limits, news — and may apply *temporary tightenings* of the sleeve's own limits (lower daily-loss halt, lower throttle ceiling, an added lock), each with expiry, each relative to the mandate's baseline (no compounding ratchet). It can also recommend flattening — as a critical feed event for the operator's one-click controls, never as an action of its own. Exits and stops remain untouchable by every grant.
+- **Risk-officer overlay.** Once daily, AI reviews the book adversarially — positions, distance to limits, news — and may apply *temporary tightenings* of the sleeve's own limits (a lower daily-loss halt, a cap on the entry multiplier, an added lock), each with expiry, each relative to the mandate's baseline (no compounding ratchet). It can also recommend flattening — as a critical feed event for the operator's one-click controls, never as an action of its own. Exits and stops remain untouchable by every grant.
 
 Gated proposals:
 
@@ -48,7 +48,7 @@ Gated proposals:
 
 Observers:
 
-- **Calibration review.** Periodically analyzes which limits never bind (meaninglessly loose?), which bind constantly (too tight — or the cage is doing the strategy's job), stops versus realized volatility, and recommends mandate diffs. Any loosening goes through the normal operator mandate-change act.
+- **Calibration audit.** Periodically analyzes which limits never bind (meaninglessly loose?), which bind constantly (too tight — or the cage is doing the strategy's job), stops versus realized volatility, and recommends mandate diffs. Any loosening goes through the normal operator mandate-change act.
 - **Allocation memo.** Reviews all sleeves' evidence, correlation, and conditions; writes the memo the operator reads before allocator decisions. Recommend-only.
 - **Red-team scenarios.** AI authors adversarial what-ifs as typed shock specifications (gap-downs, venue outages, depegs, historical replays); a deterministic scenario engine replays them against the current book and reports which limits fire, in what order, and whether winddown behaves. Findings feed calibration and risk-officer tightenings.
 
@@ -74,7 +74,9 @@ Every transition is a feed event recording who or what triggered it and why.
 
 **Promotion is the operator's decision — informed, never forced.** The default recommendation is three months of dry run before first live capital, but the operator can promote or demote any sleeve at any time. The product's guarantee is *informed consent*: promotion happens from a **trial report** ([Reports](./05-reports.md)) — performance against the mandate's declared benchmarks, drawdown, costs, behavior conformance, and the value-added ledger of every grant it holds — and the report, the timing, and the decision are permanently recorded. The system never blocks an allocation choice; it makes every one explicit and impossible to misremember.
 
-**Halts are automatic.** Breaching the sleeve's daily loss or drawdown limits, a reconciliation mismatch, or a system-cage breach halts the sleeve without asking. Leaving Halted is always an operator action, from the halt's incident report.
+**Halts are automatic.** Breaching the sleeve's daily loss or drawdown limits, a reconciliation mismatch, or a system-cage breach halts the sleeve without asking. A halt applies the mandate's winddown policy — with one exception: a reconciliation-mismatch halt always freezes (`keep-all`) regardless of policy, because the system never trades on numbers in dispute. Leaving Halted is always an operator action, from the halt's incident report.
+
+Two orthogonal notes. Any running sleeve may be **paused** — an operator flag, not a lifecycle state: no new entries while existing positions and stops continue to be managed, visibly flagged everywhere the sleeve appears. And demotion (Live → Dry run) is an ordinary operator transition, recorded exactly like promotion.
 
 ## Capital accounting
 
@@ -96,7 +98,7 @@ One page per sleeve — the heart of the observatory. Watching a sleeve think sh
 
 Two tenants are defined from the start; both go through the full lifecycle:
 
-1. **Crypto trend** — Advised profile. Trend-following on BTC and ETH spot (Kraken), 4h–1d timeframes, volatility-scaled sizing. Initial grants: regime vector, event veto, calibration review — each running against its control from the first dry-run day. The first sleeve to run end-to-end, and the proving ground for the whole engine.
+1. **Crypto trend** — Advised profile. Trend-following on BTC and ETH spot (Kraken), 4h–1d timeframes, volatility-scaled sizing. Initial grants: regime vector, event veto, calibration audit — each running against its control from the first dry-run day. The first sleeve to run end-to-end, and the proving ground for the whole engine.
 2. **Long-term wealth** — Clockwork profile, no grants. Diversified US-listed ETF holdings via Alpaca, contribution-and-rebalance on a slow cadence, using fractional/notional orders so rebalancing is exact. Arrives when the Alpaca integration does; its mandate exists from day one so the allocator and portfolio views are built for it, not retrofitted. (Being US-domiciled holdings, this sleeve carries a W-8BEN and, at larger sizes, US estate-tax considerations — an accountant conversation belongs before it scales, and the mandate records that.)
 
 Assisted-design grants (parameter corridors, strategy variants) and any Piloted sleeve are supported by the product from day one but expected to be adopted only once the first two tenants have proven the machine.

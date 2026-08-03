@@ -23,7 +23,7 @@ There is exactly one operator. Every screen is built for that one person's trust
 
 ## The core loop
 
-1. **The engine trades — or declines to.** Each sleeve acts on its own cadence per its mandate: evaluating its strategy, applying whatever AI grants its mandate holds (run-time grants can only attenuate; everything else is a proposal or a report), passing every intent through the cage. Most ticks correctly do nothing.
+1. **The engine trades — or declines to.** Each sleeve acts on its own cadence per its mandate: evaluating its strategy, applying whatever AI grants its mandate holds (run-time grants can only attenuate — except the one quarantined trade-proposer class, whose every proposal deterministic rules check individually; everything else is a design-time proposal or a report), passing every intent through the cage. Most ticks correctly do nothing.
 2. **The operator visits.** Overview answers whether everything is okay; the Activity feed accounts for everything that happened; each sleeve's living view shows what it is doing and why.
 3. **The operator adjudicates.** Trial reports arrive when sleeves seek promotion; weekly reviews and spending reports arrive on schedule. The system recommends; the operator decides; every decision is recorded.
 4. **The operator feeds it.** Bank exports imported into the Money view keep the whole-of-wealth picture current.

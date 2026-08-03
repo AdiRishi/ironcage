@@ -14,14 +14,14 @@ The product demands updates "within seconds" while a view is open. Mechanism: a 
 
 ## Write paths (operator actions)
 
-All operator actions — pause/flatten/halt, allocation acts, mandate reviews and approvals, override arming, acknowledgments, imports — are server functions that validate against contracts, perform the act in a transaction *with its feed event*, and notify the BroadcastDO. Two are special:
+All operator actions — pause/flatten/halt, allocation acts, mandate reviews and approvals, override arming, acknowledgments, imports — are server functions that validate against contracts, perform the act *with its feed event*, and notify the BroadcastDO. Acts owned by a Durable Object are performed as recorded RPCs to it: the web Worker holds bindings to the SleeveDO and SystemDO namespaces **exposing only risk-reducing controls (pause, flatten, halt) and capital acts** — no entry, order, or grant surface exists on those methods, so the binding cannot be a trading path. Everything else writes D1 directly in a transaction. Two actions are special:
 
-- **Mandate changes and proposal approvals** share one review server function: it renders the diff + reasoning + (for proposals) gate results, and on confirm writes the `mandate_versions` row — the "no second door" rule is enforced by there being exactly one code path.
+- **Mandate changes and proposal approvals** share one review server function: it renders the diff + reasoning + (for proposals) gate results, and on confirm records the decision and writes the `mandate_versions` row — the "no second door" rule is enforced by there being exactly one code path, which the gate workflow *observes* rather than duplicates.
 - **The override flow** is a small state machine persisted in D1 (`armed → cooling → active → expired/used`), with timestamps enforced server-side (the 15-minute cooling-off is checked against the armed row, not a client timer). The cage's effective-limit computation reads active overrides from this table; expiry is a time comparison, not a background job that could fail to run.
 
 ## The dashboard cannot trade
 
-Structural, not disciplinary: the web Worker has no gateway-client dependency, no service binding to the engine's trading paths, and no AI keys. Its only interactions with the engine are the recorded operator actions above, which flow through D1 rows the DOs consume — the same one-way, through-the-database pattern as the AI (ADR-0001 applied to the UI).
+Structural, not disciplinary: the web Worker has no gateway-client dependency and no AI keys, and its only engine-facing surface is the narrow DO method set above — every reachable method reduces risk or records a capital act; none can open a position, place an order, or touch a grant. Everything else it does is reading D1/R2 and writing the recorded rows other components consume — the same one-way, through-the-database pattern that binds the AI.
 
 ## Frontend conventions
 

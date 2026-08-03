@@ -1,5 +1,0 @@
-# AI Communicates Through the Database, Not the Execution Path
-
-Every AI grant's output is a schema-validated database row (a regime vector, a lock, a tightening, a proposal); the engine reads those rows on its own schedule. There is no RPC, queue, or tool-call from any AI-influenced code to the engine or the gateway — the AI has no execution path at all, and run-time outputs are bounded shapes that can only reduce risk.
-
-The obvious alternative — an agent harness where AI calls trading tools through a risk-checking middleware (the shape most agent frameworks assume, including Hummingbot's Condor) — was rejected deliberately. A permission layer is code that must be right on every call; topology cannot be bypassed by a clever prompt, a schema edge case, or a middleware bug. Every documented failure of autonomous AI trading (overtrading, panic exits, adversarial-input cascades) lives on the path we removed. The same pattern is applied to the web app: the dashboard writes rows the engine consumes; it has no trading dependencies. If a future capability genuinely needs AI-directed execution, that is a new ADR and a new threat model — not a relaxation of this one.

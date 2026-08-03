@@ -20,15 +20,15 @@ Events are immutable and kept forever. There is no editing and no deleting.
 
 **Trading** — intent emitted; intent rejected (with the cage's full verdict — every violated rule, not just the first); order placed / partially filled / filled / canceled / replaced; position opened / closed (with realized P&L and costs); stop updated.
 
-**Grants & signals** — a grant's output changed materially (regime vector axis moved, with old → new and rationale; event veto placed or expired; risk-officer tightening applied or lapsed); a grant's output went stale (the consuming behavior now at its most restrictive default); a grant suspended or reinstated by its value-added ledger; a design-time proposal submitted, passed or failed a gate, approved, or rejected; a strategy signal that produced an intent. (Routine no-change ticks are recorded as engine telemetry, not feed events — the feed is for what matters, not a heartbeat log.)
+**Grants & signals** — a grant's output changed materially (regime vector axis moved, with old → new and rationale; event veto placed or expired; risk-officer tightening applied or lapsed); a grant's output went stale (the consuming behavior now at its most restrictive default); a grant suspended or reinstated by its value-added ledger; a design-time proposal submitted, passed or failed a gate, approved, or rejected; a Piloted sleeve's trade proposal and its outcome (accepted into an intent, or rejected — with the full check result and prompt-trace link); a strategy signal that produced an intent. (Routine no-change ticks are recorded as engine telemetry, not feed events — the feed is for what matters, not a heartbeat log.)
 
-**Risk** — a limit approached (configurable warning threshold, e.g. 80% of daily loss); a halt triggered (which rule, at what value); pair/instrument lock created or expired; system-cage event (total exposure or drawdown); reconciliation mismatch detected.
+**Risk** — a limit approached (configurable warning threshold, e.g. 80% of daily loss); a halt triggered (which rule, at what value); pair/instrument lock created or expired; system-cage event (total exposure or drawdown breach; an entry refused by the system cage is recorded once — as its intent's rejection in Trading, carrying the system-cage reason); reconciliation mismatch detected.
 
-**Lifecycle** — sleeve created; mandate changed (with diff and recorded reasoning); state transition (who/what triggered it); promotion or demotion (with trial report link); override armed / became active / used / expired; sleeve retired.
+**Lifecycle** — sleeve created; mandate changed (with diff and recorded reasoning); state transition, pause, or resume (who/what triggered it); promotion or demotion (with trial report link); override armed / became active / used / expired; sleeve retired.
 
-**Capital** — deposit or withdrawal (amount, venue, note); allocation act (fund / reduce / return, with the evidence shown at decision time); drawdown-to-target entered or completed; a system-cage rejection of an entry (which limit, at what value).
+**Capital** — deposit or withdrawal (amount, venue, note); allocation act (fund / reduce / return, with the evidence shown at decision time); drawdown-to-target entered or completed.
 
-**System** — market data gap (and which sleeves stood down because of it); historical data backfill performed (range, source); venue or gateway connectivity lost/restored; AI run failed (regime tick, categorization, report generation — validation failures included); import processed.
+**System** — market data gap (and which sleeves stood down because of it); historical data backfill performed (range, source); venue or gateway connectivity lost/restored; AI run failed (regime tick, categorization, report generation — validation failures included); report generated (or generation failed); deploy completed (with the code version).
 
 **Money** — bank import completed (n transactions, m new, k needing category review); recurring charge detected or changed price; spending anomaly detected.
 
