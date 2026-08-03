@@ -1,45 +1,61 @@
 # Ironcage — Vision
 
-> **One-liner:** Ironcage is a personal automated trading system that uses an LLM for what it is demonstrably good at — synthesizing messy market context into a slow, bounded judgment — inside a deterministic cage of risk rules the AI can never override.
+> **One-liner:** Ironcage is my personal wealth operating system: one engine that runs many investment strategies in parallel — every strategy caged by deterministic risk rules it cannot override, every strategy earning its capital through evidence, and AI doing the judgment work it is actually good at.
 
-## The problem
+## Why this exists
 
-Markets run 24/7; humans don't. The one structural advantage a retail individual can actually build is a system that watches continuously, never gets tired, and never revenge-trades. The obvious 2026-shaped idea — "let a frontier LLM trade for me" — has now been tested publicly with real money, and it fails: in the Alpha Arena live experiments, four of six frontier models lost 30–63% of their capital in under three weeks, and the winner won through low frequency and strict risk discipline, not intelligence. Long-horizon re-evaluations (FINSABER) showed the impressive LLM-agent backtests collapse under fair testing, and live contamination-free benchmarks (StockBench, Agent Market Arena) found that _framework and risk design_ drive outcomes far more than model choice.
+Markets run around the clock; I don't. A system can watch continuously, never get tired, never revenge-trade, and never forget why it made a decision. That is the one structural advantage an individual can actually build — and with modern AI, the ceiling on what that system can understand about markets, news, and my own finances is higher than it has ever been.
 
-Meanwhile the institutions best equipped to know — Bridgewater, Man Group, AQR — converged on the same shape: AI as a research and synthesis accelerant, with deterministic systems and human gatekeeping between the model and the money. Bridgewater's CIO calls LLM stock-picking "a hopeless path." Man Group lets agentic AI generate signals but never deploy them.
+But the obvious version of this idea — "let an AI trade for me" — has now been tested in public with real money, and it fails. In the Alpha Arena live experiments, four of six frontier models lost 30–63% of their capital in under three weeks; the winner won through low frequency and strict risk discipline, not intelligence. Independent re-evaluations of the impressive academic results (FINSABER, StockBench, Agent Market Arena) found the same pattern: the backtests collapse under fair testing, and *risk design* drives outcomes far more than model choice. The institutions best equipped to know — Bridgewater, Man Group, AQR — all converged on the same shape: AI as a research and synthesis engine, with deterministic systems and gatekeeping between the model and the money.
 
-## The insight
+The lesson is not that AI is useless for investing. It's that the division of labor decides everything:
 
-The evidence does not say AI is useless for trading. It says the division of labor matters:
+- **AI is strong at judgment shaped like language** — reading news flow, market conditions, filings, and my own transaction history, and turning that mess into a clear, bounded assessment.
+- **AI is weak and dangerous at execution** — left alone with an order button, it overtrades, burns fees, panics, and can be misled by bad or even hostile input.
+- **Deterministic code is the mirror image** — unbeatable at discipline, hopeless at reading the world.
 
-- **LLMs are strong at language-shaped judgment**: reading news flow, funding rates, and volatility structure and answering a slow, bounded question like "is this a regime a trend strategy should be trading?"
-- **LLMs are weak and dangerous at execution**: they overtrade, burn fees, panic, and are fragile to perturbed inputs (TradeTrap) and even adversarially manipulated headlines.
-- **Deterministic code is the opposite**: unbeatable at discipline, hopeless at reading the world.
-
-Ironcage is the composition: **AI brain, iron cage.** The LLM's entire influence on trading is a single schema-validated multiplier — `ON`, `HALF`, or `OFF` — over what a boring, backtested, rules-based strategy would do anyway. The cage (position caps, stops, loss halts, kill switch, frequency limits) is code the LLM cannot reach. Every documented failure mode of autonomous LLM trading is structurally contained: it cannot overtrade (frequency cap), cannot panic-exit and re-enter (cooldown locks), cannot blow up on a poisoned headline (worst case: the multiplier drops to OFF), and cannot place an order at all (no execution path).
+Ironcage is the composition of the two: **AI brain, iron cage.** AI informs; code enforces; evidence decides.
 
 ## What Ironcage is
 
-A personal, single-operator system that:
+Ironcage is not one strategy. It is the machine my strategies live inside — an all-in-one system for growing and understanding my money, built from three permanent parts and any number of replaceable tenants.
 
-1. **Trades a systematic strategy** — trend-following on a small set of liquid crypto pairs, on slow timeframes — chosen because momentum is one of the few effects with a century of out-of-sample evidence, and because slow means cheap.
-2. **Lets an LLM scale exposure to conditions** — a regime tick every few hours, reading multiple independent data sources, emitting the bounded signal.
-3. **Enforces risk deterministically** — the cage, pair locks, two-tier drawdown response, fail-closed on every missing input.
-4. **Proves itself before it is trusted** — an honest dry-run mode (order-book-aware simulated fills, same code path as live) is the mandatory proving ground; live capital arrives only after months of clean evidence, and starts small.
-5. **Audits everything** — every tick, signal, verdict, and order event is reconstructable from persisted state. If we can't debug why it traded, we don't have a trading system.
+**The engine** is the shared foundation every strategy uses: market data, order execution, the blotter (the append-only record of every order and fill, from which all positions and profit figures are recomputed — never trusted from memory), the audit trail, and the dashboard. Build it once, well, and every strategy inherits it.
+
+**The cage** is the deterministic risk layer, and it is the heart of the project. Position limits, stop-losses, daily loss halts, a drawdown kill switch, trade-frequency caps — enforced in plain code that no AI output can reach or override. The cage exists at two levels: each strategy has its own limits, and above them all sits one system-wide cage watching total exposure and total drawdown. When anything is uncertain — a stale signal, missing data, an unreachable exchange — the cage fails closed: it stands down rather than guessing. Every documented way autonomous AI trading blows up is contained here structurally, not by hoping the model behaves.
+
+**The allocator** is the discipline that decides how much capital each strategy holds, and it follows one constitutional rule described below: capital follows evidence.
+
+**Sleeves** are the tenants. A sleeve is a bounded allocation of capital with its own mandate: what it trades, how fast, by what rules, and with how much AI autonomy. Ironcage is built to run many sleeves in parallel, and they can differ in every dimension:
+
+- A **long-term wealth sleeve** — the largest and most conservative: slow, diversified, compounding-focused. The boring core lives *inside* the system, because an allocator that can see everything manages the whole better than one managing only the risky slice.
+- **Systematic trading sleeves** — rules-based strategies (trend-following, momentum, and whatever else earns its way in) across crypto and stocks, where AI's role is bounded judgment: assessing market regime, scaling exposure up or down, never placing the trades itself.
+- **Experimental sleeves** — including fast day-trading strategies and even fully autonomous AI-in-the-loop trading. These are welcome *as experiments*: small, hard-capped, instrumented to the teeth. The evidence says most will fail their trials — and Ironcage is precisely the machine for finding that out cheaply instead of assuming it expensively.
+
+**Insight arms** are the parts of the system that read but never trade: analysis of my bank transactions and spending, portfolio-wide views across every sleeve and account, savings recommendations, and the regular reports that tell me what's working and what should change. They carry zero execution risk, which means they can ship early and be useful on day one.
+
+The operator is me — one person, personal capital — working with AI coding tools as a standing part of the process. Ironcage is never finished; it is a long-term engine that grows new sleeves, retires failed ones, and gets smarter as I do.
+
+## The constitutional rule: capital follows evidence
+
+No sleeve is entitled to capital; every sleeve is entitled to a fair trial.
+
+Every strategy enters the system the same way: first in **dry run** — trading simulated money against live markets through the exact same code path as real trading — then with a small, capped real allocation, then with more only if its live track record earns it. Promotion is boringly mechanical: performance against honest benchmarks (including "just hold the market"), drawdowns, costs, and whether the strategy did what its mandate said it would do. Demotion is automatic and unsentimental. A sleeve that can't beat its trial doesn't get argued for; it gets its capital back to the allocator.
+
+This one rule is what lets Ironcage be ambitious and honest at the same time. I get to try everything — fast strategies, autonomous AI loops, ideas I haven't had yet — because trying is cheap and bounded, and only evidence scales.
 
 ## Principles
 
-1. **Fail closed.** Stale signal → OFF. Uncomputable risk state → blocked. Gateway down → nothing trades. Every ambiguity resolves toward not trading.
-2. **The LLM can only subtract.** Its output multiplies the strategy's size by 1.0, 0.5, or 0 — never above 1.0, never a new position, never an override of an exit.
-3. **Slow is a feature.** Fees and overtrading are the documented killer of automated retail systems. Every design choice biases toward trading less.
-4. **Honest evaluation or nothing.** Walk-forward backtests against brutal baselines; a no-LLM control portfolio running beside the regime variant; live results judged on process before P&L. If the regime layer doesn't beat its control, it gets removed.
-5. **The system is the asset.** At starting capital, realistic returns are pocket money; the durable value is a proven machine and the skills to build it. Scaling capital is downstream of evidence, never of excitement.
-6. **The boring core stays boring.** Long-term wealth building belongs in diversified index investing outside this system. Ironcage is the strictly-capped satellite, sized so that its total loss is affordable.
+1. **Fail closed.** Every ambiguity, everywhere in the system, resolves toward not trading. Stale input → stand down. Uncomputable risk state → blocked. Infrastructure down → nothing moves.
+2. **The cage is code.** No AI output can create, enlarge, or extend risk beyond what a sleeve's deterministic rules allow. AI can only work within — or shrink — what the rules permit.
+3. **Capital follows evidence.** Dry run first, small real capital second, scale only on a live track record. For every sleeve, forever, no exceptions for excitement.
+4. **Costs are a first-class enemy.** Fees and overtrading are the best-documented killers of systems like this. Every sleeve is judged net of costs, and the default posture is to trade less.
+5. **Everything is auditable.** Every signal, judgment, verdict, order, and fill is reconstructable from persisted records. If I can't trace why the system did something, that part of the system is broken by definition.
+6. **The system is the asset.** Early returns will be pocket money; the compounding asset is a proven machine and my own judgment about it. Scaling capital is downstream of evidence, never of enthusiasm.
 
 ## What Ironcage is not
 
-- **Not an autonomous AI trader.** The evidence against that design is the reason this project has its shape.
-- **Not a prediction engine.** Nothing in the system forecasts prices. The strategy reacts; the regime signal classifies conditions.
-- **Not a product.** One operator, one account, personal capital. Simplicity beats generality everywhere they conflict.
-- **Not a get-rich scheme.** Anyone promising double-digit monthly returns from a retail bot is selling something. Ironcage's honest good outcome is a system that survives, compounds modestly, and earns the right to more.
+- **Not a product.** One operator, personal capital. Simplicity beats generality wherever they conflict.
+- **Not an entitlement to autonomy.** Full AI-loop trading is a sleeve that must earn trust like any other — autonomy is a dial set per sleeve, never an assumption.
+- **Not a prediction machine.** Nothing in the system claims to know where prices go. Strategies react to conditions; AI classifies and explains them; the cage assumes everyone is wrong sometimes.
+- **Not a get-rich scheme.** The honest good outcome is a system that survives, compounds steadily, understands my whole financial picture, and earns the right to manage more of it.
