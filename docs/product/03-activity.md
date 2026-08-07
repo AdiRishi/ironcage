@@ -28,7 +28,7 @@ Events are immutable and kept forever. There is no editing and no deleting.
 
 **Lifecycle** — sleeve created; mandate changed (with diff and recorded reasoning); state transition, pause, or resume (who/what triggered it); promotion or demotion (with trial report link); override armed / became active / used / expired; sleeve retired.
 
-**Capital** — deposit, withdrawal, or inter-venue transfer recorded (pending) or settled on detection; transfer request issued, fulfilled, or dismissed; a pending transfer flagged (missed window, or arrived at a different amount); an unmatched venue balance change awaiting the operator's claim; allocation act (fund / reduce / return, with the evidence shown at decision time — a fund act awaiting funding, and its activation on arrival); drawdown-to-target entered or completed.
+**Capital** — deposit, withdrawal, or inter-venue transfer recorded (pending) or settled on detection; transfer request issued, fulfilled, or dismissed (with what the dismissal cancelled or accepted); a pending transfer flagged (missed window, or arrived at a different amount); an unmatched venue balance change awaiting the operator's claim; allocation act (fund / reduce / return, with the evidence shown at decision time — a fund act awaiting funding, and its activation on arrival); drawdown-to-target entered or completed.
 
 **System** — market data gap (and which sleeves stood down because of it); historical data backfill performed (range, source); venue or gateway connectivity lost/restored; AI run failed (regime tick, categorization, report generation — validation failures included); report generated (or generation failed); deploy completed (with the code version).
 
