@@ -25,7 +25,7 @@ All allocation changes are operator acts, recorded with reasoning and (where one
 - **Reduce** — lower a sleeve's allocation. If the sleeve's deployed exposure exceeds its new allocation, it enters _drawdown-to-target_: no new entries until exposure falls below the target through normal exits. The operator may instead choose an immediate flatten — that is their explicit, separate choice; a reduction never force-sells on its own.
 - **Return** — on retirement, everything comes back to cash and the sleeve's record closes.
 
-The system never blocks an allocation act, and never performs one by itself. What it does is keep the ceremony honest: every act shows the sleeve's current evidence (trial report, value-added ledgers, recent reviews) at the moment of decision, and records that it was shown.
+The system never blocks an allocation act, and never performs one by itself. What it does is keep the ceremony honest: every act shows the sleeve's current evidence (trial report, capability scorecards, recent reviews) at the moment of decision, and records that it was shown.
 
 ## The system cage
 
@@ -35,7 +35,7 @@ Above every sleeve's own cage sits one system-wide set of limits, enforced indep
 - **System drawdown kill switch** — total live equity falling a set percentage from its high-water mark halts the entire system ([Operations](./06-operations.md)); every sleeve applies its winddown policy; leaving system Halted is a manual act from the incident report.
 - **Venue concentration cap** — a maximum share of total capital at any single exchange or broker, so one venue failure cannot be a total failure. Funding a sleeve past it is flagged at the allocation act.
 
-System cage limits are configuration with the same discipline as mandates: versioned, changed only through a reviewed act with written reasoning, and never touchable by any AI grant. Where a grant may tighten sleeve limits temporarily ([Sleeves](./02-sleeves.md)), nothing but the operator touches the system cage at all.
+System cage limits are configuration with the same discipline as mandates: versioned, changed only through a reviewed act with written reasoning, and never touchable by any AI capability. Where a capability may tighten sleeve limits temporarily ([Sleeves](./02-sleeves.md)), nothing but the operator touches the system cage at all.
 
 ## What the operator sees
 

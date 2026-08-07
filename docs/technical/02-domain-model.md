@@ -6,9 +6,9 @@ Every boundary in the system speaks `effect/Schema` types defined in `@app/contr
 
 Grouped by subpath export, schema-only (no runtime logic beyond constants):
 
-- **`/mandate`** — `Mandate` (the full document: identity, market/venue/instruments, strategy id + parameters, cadence, grants held with per-sleeve parameters, capital cap, risk limits, winddown policy, benchmarks) and `MandateVersion` (immutable, hash-identified, with author, reasoning, and — for AI-proposed versions — the gate record).
-- **`/grants`** — `GrantRegistryEntry` (id, valve class, cadence, staleness window, output schema reference, safe default, control definition, default demotion rule — mandates may tighten it) plus each grant's output schema: `RegimeVector` (per-instrument axes on the quantized ladder, rationale, sources, generatedAt), `EventVeto` (lock request with reason, source snapshot, expiry), `RiskTightening` (named limit, temporary value ≤ mandate value, expiry), `Proposal` (corridor move or strategy variant, with rationale and backtest reference), `TradeProposal` (instrument, side, size, rationale, prompt-trace reference — the Piloted class's output, consumed only by the engine under the mandate's daily budget).
-- **`/trading`** — `OrderIntent` (client order id, sleeve, instrument, side, type, amounts as decimal strings, the strategy tag and attenuation record it was born under, cage verdict), `Order` (intended vs. venue-reported fields kept separate), `Verdict` (Approved with clamped size | Rejected with every violated rule), `PairLock`.
+- **`/mandate`** — `Mandate` (the full document: identity, market/venue/instruments, strategy id + parameters, cadence, capabilities held with per-sleeve parameters, capital cap, risk limits, winddown policy, benchmarks) and `MandateVersion` (immutable, hash-identified, with author, reasoning, and — for AI-proposed versions — the gate record).
+- **`/capabilities`** — `CapabilityRegistryEntry` (id, safety class, cadence, staleness window, output schema reference, safe default, baseline definition, default demotion rule — mandates may tighten it) plus each capability's output schema: `RegimeAssessment` (per-instrument axes on the quantized ladder, rationale, sources, generatedAt), `EventVeto` (lock request with reason, source snapshot, expiry), `RiskTightening` (named limit, temporary value ≤ mandate value, expiry), `Proposal` (corridor move or strategy variant, with rationale and backtest reference), `TradeProposal` (instrument, side, size, rationale, prompt-trace reference — the Piloted class's output, consumed only by the engine under the mandate's daily budget).
+- **`/trading`** — `OrderIntent` (client order id, sleeve, instrument, side, type, amounts as decimal strings, the strategy tag and throttle record it was born under, cage verdict), `Order` (intended vs. venue-reported fields kept separate), `Verdict` (Approved with clamped size | Rejected with every violated rule), `PairLock`.
 - **`/capital`** — `CapitalEvent` (deposit | withdrawal | fund | reduce | return, with amounts, venue, note, evidence reference), `SystemCageConfig`.
 - **`/events`** — the activity-feed event union: category, severity, origin, summary, payload, links (mirrors `docs/product/03-activity.md` exactly — the taxonomy there is the schema here).
 - **`/market`** — `Candle`, `InstrumentRef` (venue + symbol + precision/lot rules frozen at first use), `OrderBookSnapshot` (for the fill simulator).
@@ -25,13 +25,13 @@ One database. Append-only tables are enforced by convention and by the absence o
 | `orders`                                                | append-only + status | the blotter's spine; venue-reported fields updated only by fill sync/reconciliation |
 | `intents`                                               | append-only          | every intent incl. rejections, with full verdict JSON                               |
 | `trades`                                                | derived              | recomputed from `orders` (`recalcTradeFromOrders`); rebuildable                     |
-| `pair_locks`                                            | append-only + expiry | source: protection, grant, operator                                                 |
-| `grant_outputs`                                         | append-only          | every validated grant tick output; staleness computed on read                       |
-| `grant_ledger`                                          | derived, periodic    | per-grant value-added vs. control (accrued by `apps/jobs`)                          |
-| `control_decisions`                                     | append-only          | the counterfactual leg: what the no-AI path would have done, with simulated fills   |
+| `pair_locks`                                            | append-only + expiry | source: protection, capability, operator                                            |
+| `capability_outputs`                                    | append-only          | every validated capability tick output; staleness computed on read                  |
+| `capability_scorecard`                                  | derived, periodic    | per-capability score vs. baseline (accrued by `apps/jobs`)                          |
+| `baseline_decisions`                                    | append-only          | the counterfactual leg: what the no-AI path would have done, with simulated fills   |
 | `proposals`, `gate_runs`                                | append-only + status | the design-time queue and each gate's result                                        |
 | `trade_proposals`                                       | append-only + status | Piloted-class proposals; consumed/expired by the sleeve tick                        |
-| `strategy_trials`                                       | counter              | the multiplicity ledger, keyed by strategy family                                   |
+| `strategy_trials`                                       | counter              | the trial count, keyed by strategy family                                           |
 | `capital_events`                                        | append-only          | the capital ledger; cash is derived from it                                         |
 | `equity_snapshots`                                      | append-only          | per-sleeve and system, per tick — the curves                                        |
 | `events`                                                | append-only          | the activity feed; `acknowledged_at` for criticals is its only mutable column       |
@@ -44,7 +44,7 @@ One database. Append-only tables are enforced by convention and by the absence o
 
 - `candles/{venue}/{instrument}/{timeframe}/{yyyy-mm}.jsonl` — the append-only archive; the backtester's food. (JSONL over Parquet: sizes at this scale are tiny and JS-native beats a columnar dependency.)
 - `books/{venue}/{instrument}/{yyyy-mm-dd}.jsonl` — top-of-book snapshots captured by the collector at tick boundaries; the fill simulator's input, persisted because simulated fills are audit surface.
-- `snapshots/grants/{grant}/{tick-id}.json` — full audit of every AI tick: exact prompt, context inputs, raw response, validation result.
+- `snapshots/capabilities/{capability}/{tick-id}.json` — full audit of every AI tick: exact prompt, context inputs, raw response, validation result.
 - `snapshots/gates/{proposal}/{gate}.json` — gate artifacts incl. reproducible backtest configs and results.
 - `reports/{type}/{id}.md` — rendered report bodies.
 - `backups/d1/{date}/…` — the scheduled export (blotter, events, capital) in plain CSV/JSONL.

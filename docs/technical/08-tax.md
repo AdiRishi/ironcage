@@ -4,7 +4,7 @@ The runtime for `docs/product/09-tax.md`: source connectors, the canonical event
 
 ## Where it runs
 
-Sync runners live in `apps/jobs` (cron, per source, incremental); parsers, matching, and the engine are pure functions in `@app/core/tax`; raw source payloads archive to R2; canonical state lives in D1. Nothing here touches trading paths — the arm is read-only by construction.
+Sync runners live in `apps/jobs` (cron, per source, incremental); parsers, matching, and the engine are pure functions in `@app/core/tax`; raw source payloads archive to R2; canonical state lives in D1. Nothing here touches trading paths — the tax engine is read-only by construction.
 
 Key custody follows the standing rule by _capability_: **broker and exchange API keys — even read-only ones — are venue keys and live only on the gateway**, which grows read-only `/tax/:venue/…` routes (activities, ledgers, balances, documents) for the sync runners. Data-provider keys that can neither move money nor expose account credentials (block explorers, price APIs) are ordinary Worker secrets.
 

@@ -5,18 +5,18 @@ The [vision](./VISION.md) says why Ironcage exists and the principles that bind 
 This file is the map. Each part of the product has its own document in [`docs/product/`](./product/) — read them in order:
 
 1. [**The Overview view**](./product/01-overview.md) — the five-second answer to "is everything okay?"
-2. [**Sleeves**](./product/02-sleeves.md) — the central object: mandates, the AI grant system, the lifecycle, and the per-sleeve living view.
+2. [**Sleeves**](./product/02-sleeves.md) — the central object: mandates, the AI capability system, the lifecycle, and the per-sleeve living view.
 3. [**The Activity feed**](./product/03-activity.md) — the append-only record of everything that matters, and the completeness guarantee behind it.
 4. [**The Money view**](./product/04-money.md) — bank import, spending analysis, and the whole-of-wealth portfolio picture.
 5. [**Reports**](./product/05-reports.md) — the documents the system writes: reviews, trial reports, spending reports, incident reports.
 6. [**Operations & control**](./product/06-operations.md) — modes, halts, the operator's controls, the break-glass override, and reconciliation.
 7. [**Capital & the allocator**](./product/07-capital.md) — the capital ledger, deposits and withdrawals, allocation acts, and the system cage.
-8. [**The Workbench**](./product/08-workbench.md) — historical data, reproducible backtests, the multiplicity ledger, and gate/shadow runs.
-9. [**The Tax arm**](./product/09-tax.md) — the holistic in-house tax engine: every exchange, wallet, broker, and bank source reconciled under Australian rules into the financial-year report.
+8. [**The Workbench**](./product/08-workbench.md) — historical data, reproducible backtests, the trial count, and gate/shadow runs.
+9. [**Tax**](./product/09-tax.md) — the holistic in-house tax engine: every exchange, wallet, broker, and bank source reconciled under Australian rules into the financial-year report.
 
 ## Product shape
 
-Ironcage is two things that meet in the middle: an **engine** that runs continuously and needs no one watching, and a **web application** that makes watching it worthwhile. The web app is not an admin panel bolted onto a bot — it is a first-class product and half the joy of the system. Every sleeve, every insight arm, every moving part gets its own living view: what it is doing right now, what it decided and why, how it is performing — presented with the care of something built to be _looked at_, not just checked. The design ambition is an observatory, not a control panel: data-dense, live, legible, and genuinely fun to watch.
+Ironcage is two things that meet in the middle: an **engine** that runs continuously and needs no one watching, and a **web application** that makes watching it worthwhile. The web app is not an admin panel bolted onto a bot — it is a first-class product and half the joy of the system. Every sleeve, every read-only surface, every moving part gets its own living view: what it is doing right now, what it decided and why, how it is performing — presented with the care of something built to be _looked at_, not just checked. The design ambition is an observatory, not a control panel: data-dense, live, legible, and genuinely fun to watch.
 
 The web app is also the only surface: the operator visits it, it never interrupts them. Its defining obligation follows: **opening it must answer "is everything okay?" within five seconds**, and the activity feed must make it impossible for anything important to have happened silently. If an event matters, it is in the feed; if it is unseen, the app says so.
 
@@ -24,7 +24,7 @@ There is exactly one operator. Every screen is built for that one person's trust
 
 ## The core loop
 
-1. **The engine trades — or declines to.** Each sleeve acts on its own cadence per its mandate: evaluating its strategy, applying whatever AI grants its mandate holds (run-time grants can only attenuate — except the one quarantined trade-proposer class, whose every proposal deterministic rules check individually; everything else is a design-time proposal or a report), passing every intent through the cage. Most ticks correctly do nothing.
+1. **The engine trades — or declines to.** Each sleeve acts on its own cadence per its mandate: evaluating its strategy, applying whatever AI capabilities its mandate holds (run-time capabilities can only throttle — except the one quarantined trade-proposer class, whose every proposal deterministic rules check individually; everything else is a design-time proposal or a report), passing every intent through the cage. Most ticks correctly do nothing.
 2. **The operator visits.** Overview answers whether everything is okay; the Activity feed accounts for everything that happened; each sleeve's living view shows what it is doing and why.
 3. **The operator adjudicates.** Trial reports arrive when sleeves seek promotion; weekly reviews and spending reports arrive on schedule. The system recommends; the operator decides; every decision is recorded.
 4. **The operator feeds it.** Bank exports imported into the Money view keep the whole-of-wealth picture current.

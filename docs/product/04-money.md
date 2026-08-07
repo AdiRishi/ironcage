@@ -1,6 +1,6 @@
 # The Money view
 
-The Money view is the insight arms' home: the whole of the operator's financial picture, powered by imported bank data and the sleeves' own records. It reads everything and trades nothing — zero execution risk, which is why it ships first and is useful in week one.
+The Money view is the whole of the operator's financial picture, powered by imported bank data and the sleeves' own records. It reads everything and trades nothing — zero execution risk, which is why it ships first and is useful in week one.
 
 ## Bank import
 
@@ -40,7 +40,7 @@ The whole-of-wealth view combines what Ironcage manages with what it merely obse
 
 ## Tax
 
-Crypto tax computation is a full arm of its own — see [**The Tax arm**](./09-tax.md): every exchange and wallet ingested, Australian rules encoded, the financial-year report produced in-house. Its running FY estimate (capital gains position, income to date, carried-forward losses) surfaces here in the Money view year-round, so tax is a number the operator watches rather than an April surprise. The clean-records obligation stands independently: the full blotter and every ledger export as CSV in shapes an accountant can ingest directly, and the arm prepares figures and evidence — the operator or their accountant files.
+Tax computation is a full engine of its own — see [**Tax**](./09-tax.md): every exchange and wallet ingested, Australian rules encoded, the financial-year report produced in-house. Its running FY estimate (capital gains position, income to date, carried-forward losses) surfaces here in the Money view year-round, so tax is a number the operator watches rather than an April surprise. The clean-records obligation stands independently: the full blotter and every ledger export as CSV in shapes an accountant can ingest directly, and the tax engine prepares figures and evidence — the operator or their accountant files.
 
 ## Reports
 

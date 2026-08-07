@@ -7,7 +7,7 @@ The feed is the append-only record of everything that matters, and the product's
 Every event carries:
 
 - **Timestamp** (and the candle/tick it belongs to, where applicable)
-- **Origin** — a sleeve, an insight arm, or the system itself
+- **Origin** — a sleeve, a read-only surface (Money, Tax), or the system itself
 - **Category and type** (taxonomy below)
 - **Severity** — `info`, `notice`, `warning`, `critical`
 - **Summary** — one plain-language line, readable without context
@@ -20,7 +20,7 @@ Events are immutable and kept forever. There is no editing and no deleting.
 
 **Trading** — intent emitted; intent rejected (with the cage's full verdict — every violated rule, not just the first); order placed / partially filled / filled / canceled / replaced; position opened / closed (with realized P&L and costs); stop updated.
 
-**Grants & signals** — a grant's output changed materially (regime vector axis moved, with old → new and rationale; event veto placed or expired; risk-officer tightening applied or lapsed); a grant's output went stale (the consuming behavior now at its most restrictive default); a grant suspended or reinstated by its value-added ledger; a design-time proposal submitted, passed or failed a gate, approved, or rejected; a Piloted sleeve's trade proposal and its outcome (accepted into an intent, or rejected — with the full check result and prompt-trace link); a strategy signal that produced an intent. (Routine no-change ticks are recorded as engine telemetry, not feed events — the feed is for what matters, not a heartbeat log.)
+**Capabilities & signals** — a capability's output changed materially (a regime-assessment axis moved, with old → new and rationale; event veto placed or expired; risk-officer tightening applied or lapsed); a capability's output went stale (the consuming behavior now at its most restrictive default); a capability suspended or reinstated by its scorecard; a design-time proposal submitted, passed or failed a gate, approved, or rejected; a Piloted sleeve's trade proposal and its outcome (accepted into an intent, or rejected — with the full check result and prompt-trace link); a strategy signal that produced an intent. (Routine no-change ticks are recorded as engine telemetry, not feed events — the feed is for what matters, not a heartbeat log.)
 
 **Risk** — a limit approached (configurable warning threshold, e.g. 80% of daily loss); a halt triggered (which rule, at what value); pair/instrument lock created or expired; system-cage event (total exposure or drawdown breach; an entry refused by the system cage is recorded once — as its intent's rejection in Trading, carrying the system-cage reason); reconciliation mismatch detected.
 
@@ -35,7 +35,7 @@ Events are immutable and kept forever. There is no editing and no deleting.
 ## Severity semantics
 
 - **info** — the system doing its job (fills, imports, routine transitions).
-- **notice** — worth a glance (regime changes, mandate changes, rejected intents).
+- **notice** — worth a glance (regime-assessment changes, mandate changes, rejected intents).
 - **warning** — something degraded or approaching a limit (stale data, failed AI run, 80% of a loss limit).
 - **critical** — something stopped or is wrong (halts, reconciliation mismatches, connectivity loss with positions open, every override event).
 
@@ -43,4 +43,4 @@ Events are immutable and kept forever. There is no editing and no deleting.
 
 ## Reading the feed
 
-The full feed view supports filtering by origin (sleeve/arm/system), category, severity, and time range, plus full-text search over summaries. Each sleeve's living view embeds its own pre-filtered slice. Events produced by one logical action (an entry's intent → order → fill chain) are associated with each other so they can be understood as a unit, and the count of unacknowledged critical events is available from anywhere in the app.
+The full feed view supports filtering by origin (sleeve / read-only surface / system), category, severity, and time range, plus full-text search over summaries. Each sleeve's living view embeds its own pre-filtered slice. Events produced by one logical action (an entry's intent → order → fill chain) are associated with each other so they can be understood as a unit, and the count of unacknowledged critical events is available from anywhere in the app.

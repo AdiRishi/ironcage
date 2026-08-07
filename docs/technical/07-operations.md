@@ -13,8 +13,8 @@ No staging. The rehearsal space for behavior is dry-run mode; the rehearsal spac
 
 ## Configuration & secrets
 
-- Mandates, grant registry, cage config: **code**, versioned, reviewed — never dashboard-edited.
-- Worker secrets (`wrangler secret`): AI provider keys (grants/jobs workers only), the gateway shared-secret. The web app and engine hold no AI keys; nothing on Cloudflare holds venue keys.
+- Mandates, the capability registry, cage config: **code**, versioned, reviewed — never dashboard-edited.
+- Worker secrets (`wrangler secret`): AI provider keys (capabilities/jobs workers only), the gateway shared-secret. The web app and engine hold no AI keys; nothing on Cloudflare holds venue keys.
 - Venue keys exist in exactly one place: the gateway VPS environment file (root-only, never in git). Key custody ritual per venue in the runbook: trade-only permissions, withdrawals disabled, IP-locked where supported (Kraken), rotation on any suspicion and on a fixed calendar.
 - Tunnel credentials: the VPS's cloudflared config, same custody rules.
 
@@ -29,7 +29,7 @@ No staging. The rehearsal space for behavior is dry-run mode; the rehearsal spac
 
 - **The activity feed is the primary signal** — by product design, anything that matters is an event. Ops-grade telemetry sits beneath it: Workers Logs + structured logging (one JSON line per tick/step with sleeve, tick id, duration, outcome), Workflow run states for pipelines, `engine_telemetry` for cadence health, AI Gateway analytics for spend.
 - The Overview vitals are computed from these (tick age, data freshness, gateway `/health`, AI run status) — the ops dashboard and the product dashboard are the same thing, on purpose.
-- Error budget: any unhandled error in engine/grants/jobs code paths lands as a `warning`/`critical` feed event via the top-level Effect error channel — silent failure is treated as a defect class, tested for explicitly.
+- Error budget: any unhandled error in engine/capabilities/jobs code paths lands as a `warning`/`critical` feed event via the top-level Effect error channel — silent failure is treated as a defect class, tested for explicitly.
 
 ## Backups & recovery
 
@@ -40,7 +40,7 @@ No staging. The rehearsal space for behavior is dry-run mode; the rehearsal spac
 
 ## Cost envelope
 
-Workers Paid ~US$5/mo · VPS ~US$5/mo · AI spend per grant budgets (expected US$3–10/mo at v1 cadences, visible per-grant in the ledgers) · D1/R2/Workflows within included allowances at this scale · Cloudflare Access free tier. Total ≈ **US$15–20/month**; any line item drifting is visible in the monthly portfolio review's cost section.
+Workers Paid ~US$5/mo · VPS ~US$5/mo · AI spend per capability budgets (expected US$3–10/mo at v1 cadences, visible per-capability in the scorecards) · D1/R2/Workflows within included allowances at this scale · Cloudflare Access free tier. Total ≈ **US$15–20/month**; any line item drifting is visible in the monthly portfolio review's cost section.
 
 ## Runbooks (kept as short checklists beside this doc as they're written)
 
@@ -52,4 +52,4 @@ Workers Paid ~US$5/mo · VPS ~US$5/mo · AI spend per grant budgets (expected US
 
 ## Testing strategy
 
-`packages/core` is the invariant vault — property-style tests on the cage (never approves above caps; fail-closed on any missing input; attenuators can never increase size), the blotter (recompute equals expectation across partial fills, fees, reversals; order-independence), the simulator (golden tests against recorded book fixtures), and the stats module (multiplicity corrections). Contract round-trip tests pin every schema. Workflow pipelines get step-level tests with injected failures (gateway timeout mid-place, crash between fill and blotter write) asserting idempotent recovery. The feed-totality rule — every state change emits exactly one event — has its own test harness walking write paths. And dry run remains the continuous integration test of the whole: divergence from backtest expectation is a defect until proven a market condition.
+`packages/core` is the invariant vault — property-style tests on the cage (never approves above caps; fail-closed on any missing input; throttles can never increase size), the blotter (recompute equals expectation across partial fills, fees, reversals; order-independence), the simulator (golden tests against recorded book fixtures), and the stats module (multiplicity corrections). Contract round-trip tests pin every schema. Workflow pipelines get step-level tests with injected failures (gateway timeout mid-place, crash between fill and blotter write) asserting idempotent recovery. The feed-totality rule — every state change emits exactly one event — has its own test harness walking write paths. And dry run remains the continuous integration test of the whole: divergence from backtest expectation is a defect until proven a market condition.

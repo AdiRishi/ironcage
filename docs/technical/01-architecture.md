@@ -8,15 +8,15 @@ The system is a set of small Cloudflare applications sharing one database, one o
 CLOUDFLARE
 ├─ apps/engine      Worker + Durable Objects
 │    SleeveDO (one instance per sleeve, alarm-driven)
-│      slow tick @ candle close: data → strategy → attenuators → cage → intents
+│      slow tick @ candle close: data → strategy → throttles → cage → intents
 │      fast tick (1–5 min): open-order management, stop checks, fill sync
 │    SystemDO (singleton): capital ledger, allocation acts, system cage,
 │      entry reservations, halt-all
 │    TradePipeline (Workflow, one run per order intent):
 │      revalidate via SleeveDO → confirm reservation → place (idempotent)
 │      → poll fill → blotter write via SleeveDO → settle
-├─ apps/grants      Worker (cron): runtime grant ticks
-│    regime vector · event veto · risk-officer review → AI Gateway →
+├─ apps/capabilities  Worker (cron): run-time capability ticks
+│    regime assessment · event veto · risk-officer review → AI Gateway →
 │    schema-validate → D1 rows + R2 tick snapshots
 │    GatePipeline (Workflow, one run per design-time proposal):
 │      validate → reproduce backtest → walk-forward → shadow-run register
@@ -58,7 +58,7 @@ Turborepo + pnpm workspaces, raw-TS workspace packages — no build steps: `expo
 apps/
   web/         TanStack Start (React 19) — the observatory
   engine/      SleeveDO, SystemDO, TradePipeline
-  grants/      grant runners + GatePipeline
+  capabilities/  capability runners + GatePipeline
   collector/   market-data collection
   jobs/        reports, reconciliation schedule, backups
   gateway/     the VPS service (deployed to the VPS, not Cloudflare)
@@ -66,7 +66,7 @@ packages/
   contracts/   effect/Schema for every boundary (see 02)
   core/        pure domain logic: strategy interface, cage, sizing,
                blotter recomputation, fill simulator, backtester,
-               attenuator composition — zero I/O, runs anywhere
+               throttle composition — zero I/O, runs anywhere
   gateway-client/  typed client for the gateway's API (used by engine only)
 scripts/       repo tooling (reference-repo sync)
 ```
@@ -75,4 +75,4 @@ scripts/       repo tooling (reference-repo sync)
 
 ## Scheduling
 
-Cron Triggers fire the cadence-owning workers (grants, collector, jobs) — coarse, at-least-once, minute-granularity. SleeveDOs self-schedule with DO alarms computed from their mandate's candle boundaries (close + a small grace so venue candles are final). Every tick — fired, skipped, or failed — lands in engine telemetry; an overdue tick degrades the Overview vital, and one overdue by more than a full interval marks it failing.
+Cron Triggers fire the cadence-owning workers (capabilities, collector, jobs) — coarse, at-least-once, minute-granularity. SleeveDOs self-schedule with DO alarms computed from their mandate's candle boundaries (close + a small grace so venue candles are final). Every tick — fired, skipped, or failed — lands in engine telemetry; an overdue tick degrades the Overview vital, and one overdue by more than a full interval marks it failing.

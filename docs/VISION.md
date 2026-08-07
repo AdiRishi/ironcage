@@ -1,6 +1,6 @@
 # Ironcage — Vision
 
-> **One-liner:** Ironcage is my personal wealth operating system: one engine that runs many investment strategies in parallel — every strategy caged by deterministic risk rules it cannot override, every strategy earning its capital through evidence, and AI doing the judgment work it is actually good at.
+> **One-liner:** Ironcage is my personal wealth operating system: one engine that runs many investment strategies in parallel — every strategy caged by deterministic risk rules it cannot override, every strategy earning its capital through evidence, and AI doing the work it is actually good at: judging conditions and designing improvements, never holding the order button.
 
 ## Why this exists
 
@@ -11,10 +11,15 @@ But the obvious version of this idea — "let an AI trade for me" — has now be
 The lesson is not that AI is useless for investing. It's that the division of labor decides everything:
 
 - **AI is strong at judgment shaped like language** — reading news flow, market conditions, filings, and my own transaction history, and turning that mess into a clear, bounded assessment.
+- **AI is deeply knowledgeable about the craft itself** — decades of public quant research, strategy design, market structure, and the documented ways systems like this blow up are all in the model. That makes it a genuinely capable engineer of the machine, not just a commentator on markets — as long as its designs are treated as hypotheses that must survive testing, never as truths.
 - **AI is weak and dangerous at execution** — left alone with an order button, it overtrades, burns fees, panics, and can be misled by bad or even hostile input.
 - **Deterministic code is the mirror image** — unbeatable at discipline, hopeless at reading the world.
 
-Ironcage is the composition of the two: **AI brain, iron cage.** AI informs; code enforces; evidence decides.
+Ironcage is the composition: **AI brain, iron cage.** AI informs and designs; code enforces; evidence decides. Concretely, AI participates at three layers, each with its own containment:
+
+- **At run time**, it exercises bounded judgment: assessing market conditions and only ever reducing what the deterministic rules already permit. Contained by clamping.
+- **At design time**, it is the knowledgeable engineer: proposing strategy variants, tuned parameters, and adversarial what-ifs. Contained by the gate pipeline — reproducible backtests, walk-forward evaluation, shadow runs — and my signature.
+- **At build time**, it pair-engineers the system itself with me, as a standing part of how Ironcage is made. Contained by code review, and by the fact that the cage is code.
 
 ## What Ironcage is
 
@@ -26,13 +31,13 @@ Ironcage is not one strategy. It is the machine my strategies live inside — an
 
 **The allocator** is the discipline that decides how much capital each sleeve holds, and it follows one constitutional rule described below: capital follows evidence.
 
-**Sleeves** are the tenants. A sleeve is a bounded allocation of capital with its own mandate: what it trades, how fast, by what rules, and which bounded AI capabilities — grants — it holds. Ironcage is built to run many sleeves in parallel, and they can differ in every dimension:
+**Sleeves** are the tenants. A sleeve is a bounded allocation of capital with its own mandate: what it trades, how fast, by what rules, and which bounded AI capabilities it holds. Ironcage is built to run many sleeves in parallel, and they can differ in every dimension:
 
 - A **long-term wealth sleeve** — the largest and most conservative: slow, diversified, compounding-focused. The boring core lives _inside_ the system, because an allocator that can see everything manages the whole better than one managing only the risky slice.
 - **Systematic trading sleeves** — rules-based strategies (trend-following, momentum, and whatever else earns its way in) across crypto and stocks, where AI's role is bounded judgment: assessing conditions and scaling exposure down when they're hostile — never up, and never placing the trades itself.
 - **Experimental sleeves** — including fast day-trading strategies and even fully autonomous AI-in-the-loop trading. These are welcome _as experiments_: small, hard-capped, instrumented to the teeth. The evidence says most will fail their trials — and Ironcage is precisely the machine for finding that out cheaply instead of assuming it expensively.
 
-**Insight arms** are the parts of the system that read but never trade: analysis of my bank transactions and spending, portfolio-wide views across every sleeve and account, savings recommendations, and the regular reports that tell me what's working and what should change. They carry zero execution risk, which means they can ship early and be useful on day one.
+**The read-only surfaces** are the parts of the system that read but never trade: analysis of my bank transactions and spending, portfolio-wide views across every sleeve and account, savings recommendations, tax, and the regular reports that tell me what's working and what should change. They carry zero execution risk, which means they can ship early and be useful on day one.
 
 The operator is me — one person, personal capital — working with AI coding tools as a standing part of the process. Ironcage is never finished; it is a long-term engine that grows new sleeves, retires failed ones, and gets smarter as I do.
 

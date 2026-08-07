@@ -45,11 +45,11 @@ For every non-retired sleeve, at a glance:
 
 - Name and market (crypto / stocks / …)
 - State (Draft / Dry run / Live / Halted, with the halt reason discoverable; a paused running sleeve is visibly flagged)
-- Profile and grant count (Clockwork / Advised / Assisted-design / Piloted; any suspended grant flagged)
+- Profile and capability count (Clockwork / Advised / Assisted-design / Piloted; any suspended capability flagged)
 - Current allocation vs. mandate cap
 - P&L today and all-time, net of costs
 - Recent equity trajectory
-- For sleeves with run-time grants: the current effective entry multiplier per instrument (or a summary of it) and its freshness — stale inputs presenting as their most restrictive default
+- For sleeves with run-time capabilities: the current effective entry multiplier per instrument (or a summary of it) and its freshness — stale inputs presenting as their most restrictive default
 - Time until its next scheduled action
 
 Each sleeve's summary leads to its [living view](./02-sleeves.md).

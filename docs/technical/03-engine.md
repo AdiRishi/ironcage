@@ -9,10 +9,10 @@ At each mandate-cadence candle close (+ grace period), a SleeveDO runs, in order
 1. **Freshness check.** Confirm the candle store has the final candle for every instrument; a gap means stand down (telemetry + `warning` event), not evaluate on partial data.
 2. **Strategy evaluation.** The mandate's strategy — a pure function `(candles, params, positionState) → signals` from the strategy registry in `@app/core/strategies` — evaluated on _closed_ candles only. Signals are entries (each carrying the strategy's own risk weight in [0,1] — this is where volatility-scaled sizing lives), exits, and stop adjustments per instrument.
 3. **Trade proposals (Piloted mandates only).** Pending validated `trade_proposals` — at most the mandate's daily budget — join the entry candidates, each carrying its prompt-trace reference. Unconsumed proposals expire at this tick; every consumption or rejection is a feed event with its full verdict.
-4. **Attenuation.** Read current grant outputs from D1; compute per-instrument multipliers: staleness-checked, schema-validated, combined by the mandate's combiner (default `min`), clamped to [0,1]. Exits and stops bypass attenuation entirely — risk-reducing actions are never gated.
-5. **Sizing.** `positionSize = perSlotEquity × strategyRiskWeight × attenuationMultiplier`, all `BigDecimal`, venue lot/precision applied, clamped by the cage in the next step.
+4. **Throttling.** Read current capability outputs from D1; compute per-instrument multipliers: staleness-checked, schema-validated, combined by the mandate's combiner (default `min`), clamped to [0,1]. Exits and stops bypass throttling entirely — risk-reducing actions are never gated.
+5. **Sizing.** `positionSize = perSlotEquity × strategyRiskWeight × throttleMultiplier`, all `BigDecimal`, venue lot/precision applied, clamped by the cage in the next step.
 6. **The cage, and reservations.** `evaluateEntry(config, portfolioState, request) → Verdict` — pure, fail-closed (any uncomputable input → `Rejected("state-unavailable")`), collecting _every_ violated rule; pair locks checked here. Because the tick is serialized inside the DO, the DO reserves its own sleeve-level headroom (position slots, trade count, daily-loss room) as it approves, then reserves system-cage headroom from SystemDO — so neither sleeve-level nor system-level limits can be raced by concurrent intents. Every verdict — approved or not — is persisted with its intent record and emits its feed event.
-7. **Counterfactual legs.** The decision steps re-run in pure code N+1 times: once with _all_ attenuators at their control values (the sleeve's no-AI leg, feeding its benchmark), and once per grant with _only that grant_ at its control (leave-one-out legs, feeding each grant's own ledger). Differences are recorded to `control_decisions` and later simulated-filled. Attribution interactions (per-grant deltas that don't sum to the joint delta) are reported in the weekly review, not hidden.
+7. **Counterfactual legs.** The decision steps re-run in pure code N+1 times: once with _all_ throttles at their baseline values (the sleeve's no-AI leg, feeding its benchmark), and once per capability with _only that capability_ at its baseline (leave-one-out legs, feeding each capability's own scorecard). Differences are recorded to `baseline_decisions` and later simulated-filled. Attribution interactions (per-capability deltas that don't sum to the joint delta) are reported in the weekly review, not hidden.
 8. **Emit.** Approved entries/exits become `OrderIntent`s; each spawns a TradePipeline Workflow run. The tick ends; the DO re-arms its alarm for the next candle.
 
 ## The fast tick (1–5 min alarm)
@@ -61,7 +61,7 @@ On engine start, on schedule (`apps/jobs`), and after any gateway connectivity l
 
 ## Protections
 
-Deterministic post-exit rules writing `pair_locks`, checked by the cage on every entry: cooldown after any close; loss-streak guard (N stoploss exits in a window → lock); sleeve-level drawdown locks. Grant-sourced locks (event vetoes) share the same table and check — one mechanism, several writers, expiry-or-operator removal only.
+Deterministic post-exit rules writing `pair_locks`, checked by the cage on every entry: cooldown after any close; loss-streak guard (N stoploss exits in a window → lock); sleeve-level drawdown locks. Capability-sourced locks (event vetoes) share the same table and check — one mechanism, several writers, expiry-or-operator removal only.
 
 ## The backtester
 
