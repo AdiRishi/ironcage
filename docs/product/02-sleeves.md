@@ -72,13 +72,13 @@ The registry grows by adding entries within these classes — each addition a re
 
 **Draft → Dry run → Live → Halted / Retired**
 
-| State   | Meaning                                                                                                                 | Entered by                                                          |
-| ------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| State   | Meaning                                                                                                                 | Entered by                                                             |
+| ------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | Draft   | Mandate written; nothing runs                                                                                           | Operator creates sleeve (or a strategy-variant capability proposes it) |
-| Dry run | Trades simulated money against live markets through the same code path as live, with realistic simulated fills and fees | Operator starts it                                                  |
-| Live    | Real money within the mandate's cap                                                                                     | Operator promotes it                                                |
-| Halted  | Stopped; winddown policy applied; no new entries                                                                        | Cage (automatic) or operator                                        |
-| Retired | Closed; capital returned; record kept forever                                                                           | Operator                                                            |
+| Dry run | Trades simulated money against live markets through the same code path as live, with realistic simulated fills and fees | Operator starts it                                                     |
+| Live    | Real money within the mandate's cap                                                                                     | Operator promotes it                                                   |
+| Halted  | Stopped; winddown policy applied; no new entries                                                                        | Cage (automatic) or operator                                           |
+| Retired | Closed; capital returned; record kept forever                                                                           | Operator                                                               |
 
 Every transition is a feed event recording who or what triggered it and why.
 
