@@ -30,4 +30,6 @@ This file is the map. Each part has its own document in [`docs/technical/`](./te
 | Web application | **TanStack Start**, served from the same platform | [D18](./technical/00-decisions.md#d18) |
 | Venues | **Kraken** (crypto spot) and **Alpaca** (US stocks/ETFs) — per the product spec | [PRODUCT.md](./PRODUCT.md) |
 
+The build order across all of this is decided and planned in [ROADMAP.md](./ROADMAP.md): Money first, Tax second, the investing engine third ([D28](./technical/00-decisions.md#d28)).
+
 Iteration-phase note: like everything in `docs/`, this specification is being actively worked. Where it is silent, the decision log is the tiebreaker; where both are silent, the question is open and worth raising, not assuming.
