@@ -44,13 +44,13 @@ A clarification recorded in [D28](./technical/00-decisions.md#d28) because it's 
 
 What actually depends on what — and therefore what could proceed in parallel if the operator's appetite says so:
 
-| Work | Depends on | Independent of |
-| --- | --- | --- |
-| Platform spine (workers, DB, auth, shell, feed, reports) | — | everything below |
-| Money | spine | tax computation, engine |
-| Tax sources & ledger | spine; bank data (one source among many) | engine (until sleeves trade) |
-| Candle store / workbench | spine | Money, tax |
-| Actors, cage, dry run | spine, candle store | Money, tax |
-| Gate pipeline / proposals | workbench, a running sleeve | Money, tax |
+| Work                                                     | Depends on                               | Independent of               |
+| -------------------------------------------------------- | ---------------------------------------- | ---------------------------- |
+| Platform spine (workers, DB, auth, shell, feed, reports) | —                                        | everything below             |
+| Money                                                    | spine                                    | tax computation, engine      |
+| Tax sources & ledger                                     | spine; bank data (one source among many) | engine (until sleeves trade) |
+| Candle store / workbench                                 | spine                                    | Money, tax                   |
+| Actors, cage, dry run                                    | spine, candle store                      | Money, tax                   |
+| Gate pipeline / proposals                                | workbench, a running sleeve              | Money, tax                   |
 
 The phases serialize the spine's construction through the lowest-risk consumer first; after phase 1, the islands are genuinely parallel and the order between tax and engine work is preference, not dependency — the decided preference is tax first.

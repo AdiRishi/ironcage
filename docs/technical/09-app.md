@@ -21,9 +21,9 @@ The product's always-present elements ([PRODUCT.md](../PRODUCT.md)) are one layo
 
 ## Liveness and honesty
 
-- Every displayed datum carries its **as-of time** from the API, rendered relative and tooltipped absolute. Values the app cannot refresh render as *unknown/stale*, never as their last value pretending to be current.
+- Every displayed datum carries its **as-of time** from the API, rendered relative and tooltipped absolute. Values the app cannot refresh render as _unknown/stale_, never as their last value pretending to be current.
 - The WebSocket's state drives the **connection indicator**: disconnected → visible degraded state, data marked stale, automatic reconnect with backoff; on reconnect the client re-reads the feed cursor from the API — push is an optimization, the record is the truth ([Topology](./02-topology.md)).
-- Equity curves and sleeve summaries poll their queries at gentle intervals *while visible* as a safety net under the feed-driven invalidation; nothing polls when the tab is hidden.
+- Equity curves and sleeve summaries poll their queries at gentle intervals _while visible_ as a safety net under the feed-driven invalidation; nothing polls when the tab is hidden.
 
 ## Auth
 

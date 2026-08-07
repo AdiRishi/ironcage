@@ -12,7 +12,7 @@ The read-only surfaces' machinery: the bank-import pipeline, deduplication, cate
 - The narrative embeds structure: `Value Date: DD/MM/YYYY` (the authorization date — and not only on card rows), card suffixes (`Card xx1234`), truncated merchant names padded with variable whitespace. Whitespace is rendering, not delimiting — collapse before deriving anything.
 - **Exports contain posted transactions only** — pendings never appear, so no pending→posted mutation handling exists in v1. This is a simplification the design leans on deliberately.
 - The export window is volume-dependent and can be far shorter than commonly claimed; the flow assumes **chunked, overlapping exports** as the normal case, which is why dedupe is a first-class subsystem and not an edge case.
-- OFX may carry `FITID` transaction IDs for deposit accounts and not for cards — treated as an *opportunistic accelerator*, verified per account type at first import, never the sole key.
+- OFX may carry `FITID` transaction IDs for deposit accounts and not for cards — treated as an _opportunistic accelerator_, verified per account type at first import, never the sole key.
 
 **Flow**: parse → normalize → dedupe → preview (n found / m new / d duplicates / k needing review) → operator confirms → write transactions + import row + feed event. Nothing writes before the confirm.
 
@@ -22,7 +22,7 @@ Three tiers, evaluated in order, all scoped per account ([D-research recorded in
 
 1. **`FITID` exact match**, where OFX provided one and prior imports stored it.
 2. **Content key**: hash of (account, posted date, amount, normalized narrative), plus an **occurrence index** for identical same-day rows (two identical coffees are two rows: first import's occurrence 1 and 2; a re-import maps onto them stably). Normalization strips value-date stamps, card suffixes, and batch IDs, collapses whitespace, uppercases — and is **versioned**: the raw narrative is the durable fact, the key a derived column recomputable when the normalizer improves.
-3. **Balance-chain verification** (deposit accounts only): the running balance must satisfy `balance[n] − balance[n−1] = amount[n]` within each import, and the overlap region of two imports must produce an identical chain. This deterministically catches both duplicates *and* gaps — the check no pure hash scheme can make — and its result is stored on the import row. A chain violation blocks the import with a precise diff; it is never auto-resolved.
+3. **Balance-chain verification** (deposit accounts only): the running balance must satisfy `balance[n] − balance[n−1] = amount[n]` within each import, and the overlap region of two imports must produce an identical chain. This deterministically catches both duplicates _and_ gaps — the check no pure hash scheme can make — and its result is stored on the import row. A chain violation blocks the import with a precise diff; it is never auto-resolved.
 
 A claim-once discipline during matching (each stored row matches at most one incoming row per import) prevents N incoming duplicates collapsing onto one stored row.
 
@@ -40,19 +40,19 @@ Architecture in one sentence: **sync workflows pull raw history per source into 
 
 Each source has a sync Workflow, on schedule or on demand, writing raw pages to R2 and normalized events to Postgres, and updating the source's **gap ledger** (`tax_source_coverage`) — which windows were fetched from where; holes render as holes:
 
-- **Ironcage's own venues** — native: the blotter already is the record; a thin mapper emits events (fills → acquisitions/disposals, fees, and Kraken's per-fill fee *asset* respected).
+- **Ironcage's own venues** — native: the blotter already is the record; a thin mapper emits events (fills → acquisitions/disposals, fees, and Kraken's per-fill fee _asset_ respected).
 - **Kraken full history** — the export API (`AddExport`/`RetrieveExport`) for bulk trades + ledgers rather than paged endpoints; the **ledger is the spine** (staking/earn rewards appear as ledger entries; there is no separate rewards endpoint).
 - **External exchanges** — read-only API keys, same shape; statement-file ingestion where APIs can't reach old history, with the file recorded as the source.
 - **Wallets** — xpub-based tracking for UTXO chains, address-based for account chains including tokens, via a configured chain-data provider; per-chain staking-reward reconstruction as its own normalizer concern.
 - **Alpaca** — the account-activities stream, cursor-paged from the beginning: fills, `DIV` with its `DIVNRA`/`DIVTW` withholding lines, fees, interest, and corporate-action codes (`SPLIT`, `SPIN`, `MA`, `REORG`). The 1042-S is a manual annual upload, archived in R2, reconciled — not a source of events.
-- **Bank interest** — identified from Money's imported rows by narrative patterns (`Credit Interest`, `Bonus Interest`, TFN-withholding lines *including the bank's own misspelling*), matched case-insensitively; also the AUD legs of broker/exchange funding flows.
+- **Bank interest** — identified from Money's imported rows by narrative patterns (`Credit Interest`, `Bonus Interest`, TFN-withholding lines _including the bank's own misspelling_), matched case-insensitively; also the AUD legs of broker/exchange funding flows.
 - **Manual CSV** — same normalization, same audit trail.
 
 The prior tax service's export is imported **once, as a verification oracle**: compared, differences itemized and resolved or explained — never merged as data.
 
 ### Normalization and matching
 
-Every raw record maps to canonical events (acquisition, disposal, transfer, income, withholding, fee, spend, gift, corporate action) carrying timestamp, asset, quantity, **AUD valuation + rate source**, source reference. Cross-source matching runs after each sync: transfer legs between the operator's own accounts/wallets pair up (not disposals; the network fee is), funding flows match their bank leg to their venue arrival. Anything unmatched, unrecognized, or below confidence lands in the review queue — **flagged, never guessed** is implemented as: an unrecognized shape produces a review item and *no* event, so the computation never ingests a guess.
+Every raw record maps to canonical events (acquisition, disposal, transfer, income, withholding, fee, spend, gift, corporate action) carrying timestamp, asset, quantity, **AUD valuation + rate source**, source reference. Cross-source matching runs after each sync: transfer legs between the operator's own accounts/wallets pair up (not disposals; the network fee is), funding flows match their bank leg to their venue arrival. Anything unmatched, unrecognized, or below confidence lands in the review queue — **flagged, never guessed** is implemented as: an unrecognized shape produces a review item and _no_ event, so the computation never ingests a guess.
 
 ### Computation
 
@@ -66,6 +66,6 @@ Every raw record maps to canonical events (acquisition, disposal, transfer, inco
 
 ### Verification
 
-Runs with every recomputation; failures are feed events and attention items, never absorbed: per-source balance reconciliation (computed holdings vs live exchange/chain/broker balances), zero-basis flags (disposal exceeding tracked acquisitions — costed at zero *visibly*), the gap ledger, the 1042-S cross-check (computed withholding vs the broker's form), and the one-time oracle comparison. Every figure on the FY report walks back to events, every event to its raw source record in R2.
+Runs with every recomputation; failures are feed events and attention items, never absorbed: per-source balance reconciliation (computed holdings vs live exchange/chain/broker balances), zero-basis flags (disposal exceeding tracked acquisitions — costed at zero _visibly_), the gap ledger, the 1042-S cross-check (computed withholding vs the broker's form), and the one-time oracle comparison. Every figure on the FY report walks back to events, every event to its raw source record in R2.
 
 The FY report itself is a report like any other ([Data](./03-data.md)): generated into R2, shaped as myTax asks, with the per-disposal, income, withholding, and carried-loss ledgers behind the headline figures; the running FY estimate is the same computation on the year-to-date event set, surfaced on Portfolio.

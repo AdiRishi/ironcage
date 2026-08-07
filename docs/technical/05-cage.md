@@ -6,7 +6,7 @@ The cage is the deterministic risk layer no AI output can reach — the heart of
 
 **Rule evaluation is pure code in `packages/engine`** — a function from (mandate limits, current sleeve state, proposed action) to a verdict. Purity is load-bearing twice over: the same evaluation runs identically in live trading, dry run, and backtests, and it is trivially property-testable. **Cage state** — the counters and marks the rules read — lives in the sleeve actor and is rebuildable from the blotter. **The system cage** is its own actor ([Topology](./02-topology.md)). No code in `ironcage-agents` can invoke, address, or configure any of it; the AI's only relationship to the cage is being clamped by it.
 
-Cage configuration — a sleeve's limits — lives in the mandate, versioned, changed only through the ceremony, effective from the next tick, never mid-decision. **An unstated limit is a validation error at mandate authoring, not a default.** The system cage's configuration has the same discipline, with a stricter rule: no AI capability may even *propose* a change to it; only the operator authors one.
+Cage configuration — a sleeve's limits — lives in the mandate, versioned, changed only through the ceremony, effective from the next tick, never mid-decision. **An unstated limit is a validation error at mandate authoring, not a default.** The system cage's configuration has the same discipline, with a stricter rule: no AI capability may even _propose_ a change to it; only the operator authors one.
 
 ## The sleeve cage — rule semantics
 
@@ -16,7 +16,7 @@ Six rule families, in two behavioral classes: **entry checks** (evaluated when a
 
 - **Max position size per instrument.** The proposed entry's notional (post-clamp), plus any existing position and any in-flight entry on that instrument, must not exceed the mandate's per-instrument cap. Notional is quantity × current mark; the mark is the candle close the tick evaluated on.
 - **Max concurrent positions.** Count of open positions plus in-flight entries across the sleeve, strictly below the cap before a new entry may form.
-- **Trade-frequency cap.** Entries within the mandate's rolling window (e.g. per 24h) must be under the cap. Counted from intent creation, not fills — a rejected intent does not consume budget, a placed-then-canceled one does; the cap bounds *attempts to act*, not luck.
+- **Trade-frequency cap.** Entries within the mandate's rolling window (e.g. per 24h) must be under the cap. Counted from intent creation, not fills — a rejected intent does not consume budget, a placed-then-canceled one does; the cap bounds _attempts to act_, not luck.
 
 **Monitors:**
 
@@ -50,7 +50,7 @@ Above every sleeve, one actor owns three whole-system limits ([Portfolio](../pro
 
 **System drawdown kill switch.** Total live equity across all sleeves against its high-water mark, evaluated on every commit, every exit fill, and every reconciliation. Breach → system mode Halted: every sleeve actor is told immediately (and would discover it at its next tick regardless, [Topology](./02-topology.md)), each applies its own winddown policy, the incident report generates, the one interruption sends. Leaving system-Halted is a single operator act from that report.
 
-**Venue concentration cap.** A placement limit, not an order-time check: capital at any single venue over total system capital. Orders don't move capital between venues, so this monitors continuously, flags at the moments that *do* move capital — allocation acts and transfer requests — and surfaces breached headroom on Portfolio until a transfer request or the operator's recorded acceptance resolves it.
+**Venue concentration cap.** A placement limit, not an order-time check: capital at any single venue over total system capital. Orders don't move capital between venues, so this monitors continuously, flags at the moments that _do_ move capital — allocation acts and transfer requests — and surfaces breached headroom on Portfolio until a transfer request or the operator's recorded acceptance resolves it.
 
 ## Halts, pause, and leaving them
 
@@ -66,7 +66,7 @@ Mechanics are specified in [Engine](./04-engine.md); the control rules live here
 The ceremony at its most severe ([Operations](../product/07-operations.md)), specified technically:
 
 - **An override is a row**, not a mode: sleeve, the single named limit, the single action class permitted past it, armed-at, active-from (armed + 15-minute cooling-off), expires-at (active + 24h max), consumed-at. All transitions are `critical` feed events requiring acknowledgment; the shell banner renders from this row's existence.
-- **Enforcement is a narrow carve-out in cage evaluation**: when the named rule fails for the named sleeve, and an active, unconsumed override matches this exact action class, the verdict records the rule as **overridden** (never as passed — the verdict shows the breach *and* the authorization), and consumption is written in the same transaction. One action; using it spends it.
+- **Enforcement is a narrow carve-out in cage evaluation**: when the named rule fails for the named sleeve, and an active, unconsumed override matches this exact action class, the verdict records the rule as **overridden** (never as passed — the verdict shows the breach _and_ the authorization), and consumption is written in the same transaction. One action; using it spends it.
 - **Structural exclusions**, enforced by what the code consults: the system cage never reads overrides (they cannot exist for it), risk-reducing paths never read them (nothing there to override), and auditing is unconditional. An override affects exactly one future verdict of one sleeve, and nothing else in the system.
 
 ## What the cage never does

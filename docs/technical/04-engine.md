@@ -11,7 +11,7 @@ A strategy is **reviewed code in the strategy registry**, named by mandates — 
 - **Identity**: a registry name and version. A mandate references both; changing strategy code that a live mandate references requires a new version and a mandate change — there is no editing a strategy under a running sleeve.
 - **Parameters**: declared as an Effect Schema, with each tunable's type, bounds, and default. Parameter corridors ([Sleeves](../product/02-sleeves.md)) reference these declarations; a mandate's parameter values are validated against the schema at authoring time.
 - **Interface**: a pure function of its inputs — the candle window it declared it needs, its own persisted working state, its parameters — returning its desired posture per instrument (target position, entry/exit signals, stop placement) and its next working state. No I/O, no clock access (the tick's timestamp is an input), no randomness. Purity is enforced socially by review and practically by the package boundary: `packages/engine` has no imports that could perform I/O.
-- **Explainability**: alongside its posture, a strategy returns its *read* — the named conditions it saw (e.g. trend direction, volatility state) that the living view renders. A strategy that can't explain itself in its output type doesn't pass review, matching the product rule that a strategy the operator can't explain doesn't get a sleeve.
+- **Explainability**: alongside its posture, a strategy returns its _read_ — the named conditions it saw (e.g. trend direction, volatility state) that the living view renders. A strategy that can't explain itself in its output type doesn't pass review, matching the product rule that a strategy the operator can't explain doesn't get a sleeve.
 
 ## The tick
 
@@ -42,8 +42,8 @@ pending ──▶ submitted ──▶ placed ──▶ filled
    (born rejected — cage verdict — is a terminal creation state)
 ```
 
-- **`pending → submitted`**: the venue actor persists `submitted` *before* the HTTP request leaves. From this moment, the intent is assumed possibly-known to the venue until proven otherwise.
-- **Ambiguity resolution** ([D8](./00-decisions.md#d8)): on timeout or unclear response, the venue actor queries the venue for the intent's client-order ID. Found → adopt the venue's truth. Not found *and* the Kraken `deadline` has passed → the original can no longer execute; safe to retry. Not found on Alpaca (no deadline mechanism) → retry only with the same client-order ID, whose active-order uniqueness makes the race harmless. **A blind retry does not exist as a code path.**
+- **`pending → submitted`**: the venue actor persists `submitted` _before_ the HTTP request leaves. From this moment, the intent is assumed possibly-known to the venue until proven otherwise.
+- **Ambiguity resolution** ([D8](./00-decisions.md#d8)): on timeout or unclear response, the venue actor queries the venue for the intent's client-order ID. Found → adopt the venue's truth. Not found _and_ the Kraken `deadline` has passed → the original can no longer execute; safe to retry. Not found on Alpaca (no deadline mechanism) → retry only with the same client-order ID, whose active-order uniqueness makes the race harmless. **A blind retry does not exist as a code path.**
 - **Fills** arrive by burst-polling while any order is live (every few seconds, backing off), and land as fill rows + feed events + position recomputation. Partial fills are ordinary: the order stays live, fills accumulate.
 
 ## Execution at the venue
@@ -61,14 +61,14 @@ Dry run and backtests share one fill model, versioned in `packages/engine` (the 
 
 - **Market orders** fill at the next available price after the intent (in candle terms: the next candle's open), adjusted by a slippage estimate and charged the venue's real fee schedule for the order's type and the account's tier.
 - **Limit orders** fill when the candle range crosses the limit price — conservatively: touching the price is not enough for a fill at better-than-limit assumptions, and fills never exceed what the candle plausibly offered.
-- **Stops** trigger when the candle range crosses the stop level and fill with slippage *worse* than the trigger, because that is what real stops do.
-- **What the model does not simulate** — queue position, partial-fill dynamics, liquidity depth, venue outages — is a standing list in `packages/engine`, and the trial report's simulation-caveats section is generated *from that list*, so the product's honesty about dry-run limits is mechanically tied to what the code actually skips.
+- **Stops** trigger when the candle range crosses the stop level and fill with slippage _worse_ than the trigger, because that is what real stops do.
+- **What the model does not simulate** — queue position, partial-fill dynamics, liquidity depth, venue outages — is a standing list in `packages/engine`, and the trial report's simulation-caveats section is generated _from that list_, so the product's honesty about dry-run limits is mechanically tied to what the code actually skips.
 
 The model errs pessimistic by design: a strategy that only works with optimistic fills should die in dry run, not in production.
 
 ## Market data
 
-- **Per tick**: the sleeve fetches its universe's closed candles from the venue's public API (Kraken OHLC / Alpaca bars), validates them (complete, expected close timestamp, sane values), and writes them to the candle store — the tick's fetch *is* the collector at trading timeframes.
+- **Per tick**: the sleeve fetches its universe's closed candles from the venue's public API (Kraken OHLC / Alpaca bars), validates them (complete, expected close timestamp, sane values), and writes them to the candle store — the tick's fetch _is_ the collector at trading timeframes.
 - **The candle store** ([Data](./03-data.md)) also serves the Workbench; deeper history arrives by backfill acts (Kraken's quarterly CSV archives; Alpaca's history API), each recorded with source and range, closing entries in the gap ledger.
 - **Alpaca bar geometry**: hour-multiple bars anchor to UTC, not the exchange session — acceptable for this system's ETF cadences, recorded here so nobody "fixes" session alignment ad hoc later. If a strategy ever requires session-aligned bars, they are built from minute bars as a deliberate change.
 - **A gap is a state, not an error**: sleeves that depend on the gapped data stand down (feed event, vital degraded) and resume when data does. Recovery requires no operator action.

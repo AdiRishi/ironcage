@@ -29,7 +29,7 @@ Execution: a Workflow (or an operator action) starts the run; the container read
 Multiplicity bookkeeping, enforced where trials run:
 
 - Every backtest run increments a counter keyed by **strategy family** — the registry strategy name plus the sleeve/proposal lineage it serves. Family identity is assigned at run creation and immutable.
-- Every comparative display and every trial report states the count: "best of N" is rendered *with* N, and the gate pipeline's acceptance thresholds scale with it — the multiplicity-corrected thresholds the product spec demands for AI-generated candidates are computed from this counter, so neither an enthusiastic operator nor a prolific proposer can launder a lucky draw by simply not mentioning the draws.
+- Every comparative display and every trial report states the count: "best of N" is rendered _with_ N, and the gate pipeline's acceptance thresholds scale with it — the multiplicity-corrected thresholds the product spec demands for AI-generated candidates are computed from this counter, so neither an enthusiastic operator nor a prolific proposer can launder a lucky draw by simply not mentioning the draws.
 
 ## The gate pipeline
 

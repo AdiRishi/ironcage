@@ -16,17 +16,17 @@ What is stored, where, and in what shape. The three tiers are decided ([D9](./00
 
 ### Sleeves & mandates
 
-- **`sleeves`** — sleeve ID, name, market, created; current state (`draft | dry_run | live | halted | retired`) and pause flag; pointer to active mandate version. State changes only via `sleeve_transitions` ⊕ (from, to, who/what triggered, why, feed event link) — the table *is* the lifecycle history the product promises.
+- **`sleeves`** — sleeve ID, name, market, created; current state (`draft | dry_run | live | halted | retired`) and pause flag; pointer to active mandate version. State changes only via `sleeve_transitions` ⊕ (from, to, who/what triggered, why, feed event link) — the table _is_ the lifecycle history the product promises.
 - **`mandate_versions`** ⊕ — sleeve ID, version number, the full mandate document (`jsonb`, Schema-validated: purpose, universe, strategy ref + parameters, cadence, capabilities + per-sleeve parameters, capital cap, risk limits, winddown policy, benchmarks), the diff from its predecessor, recorded reasoning, author (operator | proposal ID), and the ceremony record it was approved in. A sleeve's behavior at any past moment is reconstructable by version.
 
 ### Trading (the blotter)
 
-The blotter is three append-only tables; positions and equity are *computed* from them, never stored as truth.
+The blotter is three append-only tables; positions and equity are _computed_ from them, never stored as truth.
 
 - **`order_intents`** ⊕ for creation, with one mutable column — `state` — advanced only by the owning venue actor ([D8](./00-decisions.md#d8)): `pending → submitted → placed → filled | rejected | canceled | failed`. Fields: intent ID (doubles as the venue client-order ID), sleeve, mandate version, instrument, side, type, quantity/notional, limit price, the **full context that produced it** (strategy signal, each capability's contribution, clamp arithmetic), the cage verdict (every rule checked, pass/fail, distance to limit), and the system-cage reservation ID. A rejected intent is a complete row — rejection is the system working.
 - **`orders`** ⊕ — venue order ID, intent ID, venue lifecycle events as received (acknowledged, partial, replaced, canceled), raw venue payload alongside the decoded form.
 - **`fills`** ⊕ — fill ID, order ID, quantity, price, **fee amount and fee asset** (Kraken's fee currency varies by order flags — captured, never assumed), venue timestamp, our receipt timestamp, and a `simulated` flag: dry-run and backtest fills flow through this same shape with `simulated = true` and are never conflated with live rows (mode tags survive end-to-end, per the product shell rules).
-- **`positions_view`** — a *projection* (materialized or computed on read; explicitly not the record): current position per sleeve/instrument derived from fills. Rebuildable from scratch at any time; the reconciliation job recomputes it independently before comparing against the venue.
+- **`positions_view`** — a _projection_ (materialized or computed on read; explicitly not the record): current position per sleeve/instrument derived from fills. Rebuildable from scratch at any time; the reconciliation job recomputes it independently before comparing against the venue.
 
 ### Capital
 
@@ -35,7 +35,7 @@ The blotter is three append-only tables; positions and equity are *computed* fro
 
 ### The feed
 
-- **`feed_events`** ⊕ — event ID, timestamp, origin (sleeve | surface | system), category, type, severity, one-line summary, payload (`jsonb`), links (trade story root, report, mandate version, decision record), and the correlation ID grouping one logical action's events (an entry's intent → order → fill chain). Written by each originating actor through its outbox — the feed's completeness guarantee is enforced at the *writer*: emitting the domain row and its feed event is one transaction, so an event cannot be silently skipped.
+- **`feed_events`** ⊕ — event ID, timestamp, origin (sleeve | surface | system), category, type, severity, one-line summary, payload (`jsonb`), links (trade story root, report, mandate version, decision record), and the correlation ID grouping one logical action's events (an entry's intent → order → fill chain). Written by each originating actor through its outbox — the feed's completeness guarantee is enforced at the _writer_: emitting the domain row and its feed event is one transaction, so an event cannot be silently skipped.
 - **`acknowledgments`** ⊕ — operator acknowledgments of critical events, each itself recorded (who is constant; when matters).
 
 ### AI
@@ -66,7 +66,7 @@ The blotter is three append-only tables; positions and equity are *computed* fro
 ### Reports & ceremonies
 
 - **`reports`** ⊕ — type, subject, data window, generated-at, generation config version, R2 key of the rendered body, read/unread. A failed generation is a feed event, and the absent row is the visible fact.
-- **`ceremonies`** ⊕ — the decision ceremony's record ([Operations](../product/07-operations.md)): what decision, the evidence presented (by reference — report IDs, scorecard rows, diffs — recorded *as presented*), the plain-language statement of change shown, the operator's written reasoning where required, approve/reject, and timing. Referenced by mandate versions, capital acts, proposals, transitions, and overrides; this table is why no decision is reconstructible only from memory.
+- **`ceremonies`** ⊕ — the decision ceremony's record ([Operations](../product/07-operations.md)): what decision, the evidence presented (by reference — report IDs, scorecard rows, diffs — recorded _as presented_), the plain-language statement of change shown, the operator's written reasoning where required, approve/reject, and timing. Referenced by mandate versions, capital acts, proposals, transitions, and overrides; this table is why no decision is reconstructible only from memory.
 
 ## Durable Object state
 

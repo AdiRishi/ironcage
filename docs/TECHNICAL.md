@@ -20,15 +20,15 @@ This file is the map. Each part has its own document in [`docs/technical/`](./te
 
 ## The stack at a glance
 
-| Layer | Choice | Where it's argued |
-| --- | --- | --- |
-| Language & core library | TypeScript with **Effect V4** (pinned beta) for all engine and domain code | [D1](./technical/00-decisions.md#d1) |
-| Runtime platform | **Cloudflare** — Workers, Durable Objects, Workflows, Queues, Containers, R2 | [D2](./technical/00-decisions.md#d2) |
-| System of record | **PlanetScale Postgres** via Hyperdrive (dual config: uncached default + cached analytics binding) | [D3](./technical/00-decisions.md#d3) |
-| AI framework | **Flue** for all AI code; **AI Gateway** for all model traffic | [D10](./technical/00-decisions.md#d10), [D11](./technical/00-decisions.md#d11) |
-| Durable pipelines | **Cloudflare Workflows**, Effect inside each step | [D4](./technical/00-decisions.md#d4) |
-| Web application | **TanStack Start**, served from the same platform | [D18](./technical/00-decisions.md#d18) |
-| Venues | **Kraken** (crypto spot) and **Alpaca** (US stocks/ETFs) — per the product spec | [PRODUCT.md](./PRODUCT.md) |
+| Layer                   | Choice                                                                                             | Where it's argued                                                              |
+| ----------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Language & core library | TypeScript with **Effect V4** (pinned beta) for all engine and domain code                         | [D1](./technical/00-decisions.md#d1)                                           |
+| Runtime platform        | **Cloudflare** — Workers, Durable Objects, Workflows, Queues, Containers, R2                       | [D2](./technical/00-decisions.md#d2)                                           |
+| System of record        | **PlanetScale Postgres** via Hyperdrive (dual config: uncached default + cached analytics binding) | [D3](./technical/00-decisions.md#d3)                                           |
+| AI framework            | **Flue** for all AI code; **AI Gateway** for all model traffic                                     | [D10](./technical/00-decisions.md#d10), [D11](./technical/00-decisions.md#d11) |
+| Durable pipelines       | **Cloudflare Workflows**, Effect inside each step                                                  | [D4](./technical/00-decisions.md#d4)                                           |
+| Web application         | **TanStack Start**, served from the same platform                                                  | [D18](./technical/00-decisions.md#d18)                                         |
+| Venues                  | **Kraken** (crypto spot) and **Alpaca** (US stocks/ETFs) — per the product spec                    | [PRODUCT.md](./PRODUCT.md)                                                     |
 
 The build order across all of this is decided and planned in [ROADMAP.md](./ROADMAP.md): Money first, Tax second, the investing engine third ([D28](./technical/00-decisions.md#d28)).
 

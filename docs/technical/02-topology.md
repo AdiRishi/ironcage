@@ -6,12 +6,12 @@ The [overview](./01-overview.md) drew the system; this chapter makes it precise:
 
 ([D23](./00-decisions.md#d23)) Boundaries are mostly forced — TanStack Start and Flue each own their Worker's build entry, Durable Object classes live in exactly one Worker, and a Container image build couples to its Worker's deploy.
 
-| Worker | Owns | Build | Deploys |
-| --- | --- | --- | --- |
-| **`ironcage-app`** | TanStack Start: SSR, static assets, session auth, server functions, the WebSocket ticket route | Vite (`tanstackStart` + `cloudflare` plugins) | Freely — it holds no state and can never touch money |
-| **`ironcage-core`** | The engine: every Durable Object class below, Workflows, the cron watchdog, both Hyperdrive bindings, the Queue consumer, venue HTTP clients | Plain Worker build (`wrangler`) | Fast and rolls back instantly; never waits on anything |
-| **`ironcage-agents`** | The Flue application: every AI capability, AI Gateway provider configuration, the Queue producer | Vite (`flue` + `cloudflare` plugins; Flue generates one DO class per agent for its own conversations) | On its own cadence; a broken agents deploy degrades AI to safe defaults, never trading |
-| **`ironcage-compute`** | The backtest Container class (a Durable Object fronting the container) and its Dockerfile | `wrangler` + Docker image | Rarely; kept off core's deploy path so an image build never delays or blocks core |
+| Worker                 | Owns                                                                                                                                         | Build                                                                                                 | Deploys                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **`ironcage-app`**     | TanStack Start: SSR, static assets, session auth, server functions, the WebSocket ticket route                                               | Vite (`tanstackStart` + `cloudflare` plugins)                                                         | Freely — it holds no state and can never touch money                                   |
+| **`ironcage-core`**    | The engine: every Durable Object class below, Workflows, the cron watchdog, both Hyperdrive bindings, the Queue consumer, venue HTTP clients | Plain Worker build (`wrangler`)                                                                       | Fast and rolls back instantly; never waits on anything                                 |
+| **`ironcage-agents`**  | The Flue application: every AI capability, AI Gateway provider configuration, the Queue producer                                             | Vite (`flue` + `cloudflare` plugins; Flue generates one DO class per agent for its own conversations) | On its own cadence; a broken agents deploy degrades AI to safe defaults, never trading |
+| **`ironcage-compute`** | The backtest Container class (a Durable Object fronting the container) and its Dockerfile                                                    | `wrangler` + Docker image                                                                             | Rarely; kept off core's deploy path so an image build never delays or blocks core      |
 
 ## The binding graph
 
@@ -64,7 +64,7 @@ The single-writer for whole-of-system limits ([Portfolio](../product/04-portfoli
 
 - **Owns**: the total-exposure ledger (reservations by sleeve), the equity high-water mark and drawdown kill switch, venue concentration tracking, and the system mode (Running / Halted).
 - **Protocol**: a sleeve must `reserve` exposure headroom before sending an order, then `commit` (on fill) or `release` (on rejection/cancel). Reservations carry the intent ID and expire if unresolved — a crashed sleeve cannot leak headroom forever. Full protocol in [Cage](./05-cage.md).
-- **Halt-all**: flipping to Halted notifies every sleeve actor (best-effort, immediately) *and* is the state every sleeve re-checks at each tick — so a missed notification delays a stand-down by at most one tick, never past it.
+- **Halt-all**: flipping to Halted notifies every sleeve actor (best-effort, immediately) _and_ is the state every sleeve re-checks at each tick — so a missed notification delays a stand-down by at most one tick, never past it.
 
 ### Feed actor — singleton, named `feed`
 
@@ -75,7 +75,7 @@ The dashboard's live push channel; deliberately the least critical actor in the 
 
 ### Flue conversation actors — in `ironcage-agents`, generated
 
-Flue generates one DO class per agent; each conversation is an instance holding its own transcript in its own SQLite. These are Flue's machinery, not ours — we name them here only to note that they hold *conversations*, never engine state, and their contents are debugging material under the observability split ([D12](./00-decisions.md#d12)).
+Flue generates one DO class per agent; each conversation is an instance holding its own transcript in its own SQLite. These are Flue's machinery, not ours — we name them here only to note that they hold _conversations_, never engine state, and their contents are debugging material under the observability split ([D12](./00-decisions.md#d12)).
 
 ### Backtest container — in `ironcage-compute`
 
@@ -85,18 +85,18 @@ A Container-backed DO class. A gate-pipeline Workflow (or the operator, from the
 
 The reason this topology exists, in one table — each invariant has exactly one owner, and no invariant has two:
 
-| Invariant | Owner |
-| --- | --- |
-| A sleeve's cage counters and tick sequence | That sleeve's actor |
-| Kraken's nonce ordering; one-at-a-time venue calls | That key's venue actor |
-| Total exposure never exceeds the cap | System cage |
-| System mode (Running/Halted) | System cage |
-| An order intent's lifecycle state | The intent ledger row in Postgres, advanced only by the owning venue actor |
-| The permanent record of everything | Postgres — every actor writes, none is the record |
+| Invariant                                          | Owner                                                                      |
+| -------------------------------------------------- | -------------------------------------------------------------------------- |
+| A sleeve's cage counters and tick sequence         | That sleeve's actor                                                        |
+| Kraken's nonce ordering; one-at-a-time venue calls | That key's venue actor                                                     |
+| Total exposure never exceeds the cap               | System cage                                                                |
+| System mode (Running/Halted)                       | System cage                                                                |
+| An order intent's lifecycle state                  | The intent ledger row in Postgres, advanced only by the owning venue actor |
+| The permanent record of everything                 | Postgres — every actor writes, none is the record                          |
 
 ## The interleaving rule
 
-A Durable Object's single-threading protects state between messages, **not across `await`s of external I/O** — while a venue HTTP call is in flight, other messages can interleave. So every actor that performs external I/O follows one discipline: **persist the in-flight marker first, then call out, then settle.** A sleeve marks `executing intent X` before handing it to the venue actor; the venue actor writes the intent's `submitted` state before the HTTP request leaves. Any message arriving mid-flight sees honest state and reacts (a second tick no-ops; a halt defers winddown until the in-flight call settles). This rule is restated where each flow is specified; it lives here because it is topological: it is *the* cost of the actor model, paid everywhere I/O happens.
+A Durable Object's single-threading protects state between messages, **not across `await`s of external I/O** — while a venue HTTP call is in flight, other messages can interleave. So every actor that performs external I/O follows one discipline: **persist the in-flight marker first, then call out, then settle.** A sleeve marks `executing intent X` before handing it to the venue actor; the venue actor writes the intent's `submitted` state before the HTTP request leaves. Any message arriving mid-flight sees honest state and reacts (a second tick no-ops; a halt defers winddown until the in-flight call settles). This rule is restated where each flow is specified; it lives here because it is topological: it is _the_ cost of the actor model, paid everywhere I/O happens.
 
 ## Monorepo layout
 
