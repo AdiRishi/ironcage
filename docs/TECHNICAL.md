@@ -1,6 +1,6 @@
 # Ironcage — Technical Specification
 
-The [vision](./VISION.md) says why; the [product specification](./PRODUCT.md) says what. This is how: the system that delivers those surfaces. Where this conflicts with either, they win and this document is wrong. Terms are defined in [`CONTEXT.md`](../CONTEXT.md).
+The [vision](./VISION.md) says why; the [product specification](./PRODUCT.md) says what. This is how: the system that delivers those surfaces. It chooses mechanisms freely, but the vision's principles and the product's guarantees are binding: a mechanism that weakens either is wrong by that fact — and where technical reality genuinely can't deliver a specified behavior, that is a conflict to surface and resolve deliberately in the upstream document, never to paper over here. Terms are defined in [`CONTEXT.md`](../CONTEXT.md).
 
 This file is the map. Each area has its own document in [`docs/technical/`](./technical/) — read them in order:
 

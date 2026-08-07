@@ -1,10 +1,14 @@
 # Sleeves
 
-A sleeve is the product's central object: a bounded allocation of capital with its own rules of engagement. Creating, watching, and adjudicating sleeves _is_ using Ironcage. This document specifies the mandate, the AI capability system, the lifecycle, and the per-sleeve living view.
+A sleeve is the product's central object: a bounded allocation of capital with its own rules of engagement. Creating, watching, and adjudicating sleeves _is_ using Ironcage. This document specifies the roster, the mandate, the AI capability system, the lifecycle, and the per-sleeve living view.
+
+## The roster
+
+The Sleeves view opens on the roster: every sleeve the system has ever run. Active sleeves lead — each with the same at-a-glance summary Overview shows (state, profile, allocation vs. cap, P&L net of costs, trajectory, next action) — and retired sleeves follow in an archive section, each keeping its complete record forever: a retired sleeve is a closed book, not a deleted one, and the archive is where the operator's accumulated evidence about what works actually lives. Creating a sleeve starts here.
 
 ## The mandate
 
-Every sleeve is defined by its mandate — versioned configuration, changed only through a deliberate, recorded act ([Operations](./06-operations.md)), never a live slider. A mandate states:
+Every sleeve is defined by its mandate — versioned configuration, changed only through a deliberate, recorded act ([Operations](./07-operations.md)), never a live slider. A mandate states:
 
 - **Name and purpose** — one paragraph a human can understand. A strategy the operator can't explain doesn't get a sleeve.
 - **Market, venue, instruments** — e.g. spot BTC and ETH on Kraken; US-listed ETFs via Alpaca. Kraken and Alpaca are the system's two venues by deliberate consolidation; first sleeves are spot, long-only. The mandate vocabulary supports venues, sides, and instrument classes beyond these (ASX, shorts, options) so future mandates can propose them per the scope rules in [PRODUCT.md](../PRODUCT.md).
@@ -15,6 +19,10 @@ Every sleeve is defined by its mandate — versioned configuration, changed only
 - **Risk limits** — the sleeve's own cage: max position size per instrument, max concurrent positions, stop-loss policy, daily loss halt, drawdown halt, trade-frequency cap.
 - **Winddown policy** — what a halt does with open state: `flatten-all`, `keep-positions-cancel-orders`, or `keep-all`.
 - **Benchmarks** — what this sleeve must beat to justify itself, declared up front (always including buy-and-hold of its own universe; for any sleeve with run-time capabilities, also its own no-AI baseline).
+
+## Creating a sleeve
+
+A new sleeve is authored, not configured: a guided mandate editor walks the operator through every section above, validating as it goes — strategies come from the strategy registry (they exist as reviewed code before any mandate can name them), risk limits must be complete (an unstated limit is a validation error, not a default), and structural rules are enforced at authoring time (a Piloted mandate cannot be written with more than its permanently-small cap). The finished draft is saved as the mandate's version 1 with the operator's stated purpose as its recorded reasoning, and the sleeve enters the roster in Draft: fully specified, running nothing, waiting for its dry run to begin. AI-drafted sleeves (strategy variants, below) arrive through this same door with their mandate pre-filled and their provenance attached.
 
 ## AI capabilities
 
@@ -28,6 +36,8 @@ Every capability belongs to exactly one of four **safety classes** — and the c
 4. **Trade proposer** (quarantined). The one non-reduce-only class: AI originates individual trades as typed intents that deterministic code checks against the mandate and cage, under a declared per-day proposal budget, with full prompt-trace auditing. Permanently small-capped, permanently experimental — the class exists so this configuration can be _studied_, never scaled.
 
 **Capabilities follow evidence — the constitutional rule applies to AI itself.** Every run-time capability computes its counterfactual on every tick: what would the sleeve have done without this capability? The counterfactual runs through the same simulated-fill machinery as dry run, accruing a per-capability **scorecard** (P&L delta, drawdown delta, cost delta versus the no-AI baseline) that is always visible on the sleeve's living view. The registry declares each capability's default demotion rule and a mandate may tighten it for its sleeve; a capability that underperforms its baseline past that rule is automatically **suspended** — output ignored, safe default applied, critical feed event, operator adjudicates. Design-time capabilities keep the analogous scorecard over their proposals: submitted, passed gates, survived live, value added.
+
+Every capability output — every assessment, veto, tightening, and proposal — opens its full trace ([Activity](./03-activity.md)): what the model was asked, what it saw, what it answered.
 
 ### Profiles (shorthand, not structure)
 
@@ -72,7 +82,7 @@ The registry grows by adding entries within these classes — each addition a re
 
 Every transition is a feed event recording who or what triggered it and why.
 
-**Promotion is the operator's decision — informed, never forced.** The default recommendation is three months of dry run before first live capital, but the operator can promote or demote any sleeve at any time. The product's guarantee is _informed consent_: promotion happens from a **trial report** ([Reports](./05-reports.md)) — performance against the mandate's declared benchmarks, drawdown, costs, behavior conformance, and the scorecard of every capability it holds — and the report, the timing, and the decision are permanently recorded. The system never blocks an allocation choice; it makes every one explicit and impossible to misremember.
+**Promotion is the operator's decision — informed, never forced.** The default recommendation is three months of dry run before first live capital, but the operator can promote or demote any sleeve at any time. The product's guarantee is _informed consent_: promotion happens through the decision ceremony ([Operations](./07-operations.md)) from a **trial report** ([Reports](./06-reports.md)) — performance against the mandate's declared benchmarks, drawdown, costs, behavior conformance, and the scorecard of every capability it holds — and the report, the timing, and the decision are permanently recorded. The system never blocks an allocation choice; it makes every one explicit and impossible to misremember.
 
 **Halts are automatic.** Breaching the sleeve's daily loss or drawdown limits, a reconciliation mismatch, or a system-cage breach halts the sleeve without asking. A halt applies the mandate's winddown policy — with one exception: a reconciliation-mismatch halt always freezes (`keep-all`) regardless of policy, because the system never trades on numbers in dispute. Leaving Halted is always an operator action, from the halt's incident report.
 
@@ -86,9 +96,11 @@ Sleeves may share a venue account, but every position, order, and dollar is tagg
 
 One page per sleeve — the heart of the observatory. Watching a sleeve think should be engaging enough that checking on it is something the operator wants to do, not has to.
 
+**The view adapts to the mandate.** "What are you doing and why" is answered in the sleeve's own vocabulary, at the sleeve's own tempo. An Advised trading sleeve leads with its entry multipliers and each capability's contribution to them; a Clockwork rebalancing sleeve — which holds the most money and does the least — leads with holdings versus target weights, current drift, the next contribution or rebalance date, and conformance to plan. A slow sleeve's view is calm on purpose: "nothing until the next rebalance, on plan, drift 0.4%" is that sleeve's version of good news, stated proudly rather than apologized for. A view that makes the biggest allocation look boring-broken while flattering the busiest sleeve has failed this spec.
+
 - **Now**: what the sleeve is doing at this moment. Its last tick and time to next action; the current strategy read per instrument; the effective entry multiplier per instrument and exactly how it was arrived at (each capability's current contribution — the regime assessment's axes with rationale, active event vetoes with reasons, any risk-officer tightening in force); and the distance to each cage limit, so the operator sees not just that the sleeve is safe but _how much room it has_.
-- **Capabilities**: every capability the mandate holds, with its current output, its staleness, its scorecard-versus-baseline over time, and its suspension state if demoted. For design-time capabilities: the proposal queue — pending proposals with their gate results so far, and the history of accepted and rejected ones.
-- **Positions**: open positions with entry, current price, stop, unrealized P&L, and age; open orders with their lifecycle state.
+- **Capabilities**: every capability the mandate holds, with its current output, its staleness, its scorecard-versus-baseline over time, and its suspension state if demoted. For design-time capabilities: the proposal queue — pending proposals with their gate results so far, and the history of accepted and rejected ones. Every output opens its trace.
+- **Positions**: open positions with entry, current price, stop, unrealized P&L, and age; open orders with their lifecycle state. Every position and completed trade opens its trade story ([Activity](./03-activity.md)).
 - **Performance**: equity curve (dry/live distinguished), returns over standard windows, max drawdown, win rate, average win/loss, total fees and costs, and the benchmark overlays the mandate declared — including the no-AI baseline.
 - **Decisions**: the sleeve-filtered activity feed — every intent with its cage verdict, every fill, every capability output change, in order.
 - **Mandate**: the current mandate in full, plus its complete version history with diffs and the recorded reasoning for each change (including gate records for AI-proposed versions).

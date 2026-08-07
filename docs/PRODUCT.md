@@ -1,16 +1,16 @@
 # Ironcage — Product Specification
 
-The [vision](./VISION.md) says why Ironcage exists and the principles that bind it. This specification says what the system does. Where the two conflict, the vision wins and this specification is wrong. The test of these documents: a stranger should be able to read them and tell whether any behavior of the built system is correct or a bug, without reading code.
+The [vision](./VISION.md) says why Ironcage exists and the principles that bind it. This specification says what the system does. It refines the vision freely on specifics, but the vision's principles are constitutional: a specified behavior that weakens one is wrong by that fact. Any other disagreement between the two means one document is stale — a defect to resolve deliberately, not a contest either side wins by default. The test of these documents: a stranger should be able to read them and tell whether any behavior of the built system is correct or a bug, without reading code.
 
 This file is the map. Each part of the product has its own document in [`docs/product/`](./product/) — read them in order:
 
-1. [**The Overview view**](./product/01-overview.md) — the five-second answer to "is everything okay?"
-2. [**Sleeves**](./product/02-sleeves.md) — the central object: mandates, the AI capability system, the lifecycle, and the per-sleeve living view.
-3. [**The Activity feed**](./product/03-activity.md) — the append-only record of everything that matters, and the completeness guarantee behind it.
-4. [**The Money view**](./product/04-money.md) — bank import, spending analysis, and the whole-of-wealth portfolio picture.
-5. [**Reports**](./product/05-reports.md) — the documents the system writes: reviews, trial reports, spending reports, incident reports.
-6. [**Operations & control**](./product/06-operations.md) — modes, halts, the operator's controls, the break-glass override, and reconciliation.
-7. [**Capital & the allocator**](./product/07-capital.md) — the capital ledger, deposits and withdrawals, allocation acts, and the system cage.
+1. [**Overview**](./product/01-overview.md) — the five-second answer to "is everything okay?"
+2. [**Sleeves**](./product/02-sleeves.md) — the central object: the roster, mandates, the AI capability system, the lifecycle, and the per-sleeve living view.
+3. [**Activity**](./product/03-activity.md) — the append-only record of everything that matters, the trade story, and the AI trace viewer.
+4. [**Portfolio**](./product/04-portfolio.md) — the whole of wealth and the allocator's home: net worth, the capital ledger, allocation acts, the current book, costs, and the system cage.
+5. [**Money**](./product/05-money.md) — bank import, categorization, and spending analysis.
+6. [**Reports**](./product/06-reports.md) — the documents the system writes: reviews, trial reports, spending reports, incident reports.
+7. [**Operations & control**](./product/07-operations.md) — the decision ceremony, modes, halts, the operator's controls, the break-glass override, and reconciliation.
 8. [**The Workbench**](./product/08-workbench.md) — historical data, reproducible backtests, the trial count, and gate/shadow runs.
 9. [**Tax**](./product/09-tax.md) — the holistic in-house tax engine: every exchange, wallet, broker, and bank source reconciled under Australian rules into the financial-year report.
 
@@ -18,22 +18,38 @@ This file is the map. Each part of the product has its own document in [`docs/pr
 
 Ironcage is two things that meet in the middle: an **engine** that runs continuously and needs no one watching, and a **web application** that makes watching it worthwhile. The web app is not an admin panel bolted onto a bot — it is a first-class product and half the joy of the system. Every sleeve, every read-only surface, every moving part gets its own living view: what it is doing right now, what it decided and why, how it is performing — presented with the care of something built to be _looked at_, not just checked. The design ambition is an observatory, not a control panel: data-dense, live, legible, and genuinely fun to watch.
 
-The web app is also the only surface: the operator visits it, it never interrupts them. Its defining obligation follows: **opening it must answer "is everything okay?" within five seconds**, and the activity feed must make it impossible for anything important to have happened silently. If an event matters, it is in the feed; if it is unseen, the app says so.
+The web app is the only surface: the operator visits it, it never interrupts them. Its defining obligation follows: **opening it must answer "is everything okay?" within five seconds**, and the activity feed must make it impossible for anything important to have happened silently. If an event matters, it is in the feed; if it is unseen, the app says so.
 
 There is exactly one operator. Every screen is built for that one person's trust and pleasure, not for a customer's.
+
+### The shell
+
+A handful of elements are present on every screen, because the guarantees they carry must survive navigation:
+
+- The **system mode** (Running / Halted) and the **halt-all control** — the system-wide stop is one click from anywhere.
+- The **unacknowledged-critical count**, leading to the attention items on [Overview](./product/01-overview.md).
+- The **override banner** — an armed or active break-glass override, with its scope and expiry, whenever one exists.
+- The **connection indicator** — the app losing its backend link is a visible degraded state; dead data never renders as live.
+- The **mode discipline** — dry-run and live data are tagged end-to-end and styled distinctly; no screen may conflate them.
+
+### The one interruption
+
+The app never pushes — with a single deliberate exception, recorded here as a decision: a **system-level halt**, or a **critical event while real positions are open**, sends the operator a terse external notification ("Ironcage needs you") that carries no data and offers no actions. Everything else waits in the feed. The exception exists because a machine holding real money must be able to say it has stopped; the notification's emptiness exists so the web app remains the only surface for information and control.
 
 ## The core loop
 
 1. **The engine trades — or declines to.** Each sleeve acts on its own cadence per its mandate: evaluating its strategy, applying whatever AI capabilities its mandate holds (run-time capabilities can only throttle — except the one quarantined trade-proposer class, whose every proposal deterministic rules check individually; everything else is a design-time proposal or a report), passing every intent through the cage. Most ticks correctly do nothing.
 2. **The operator visits.** Overview answers whether everything is okay; the Activity feed accounts for everything that happened; each sleeve's living view shows what it is doing and why.
-3. **The operator adjudicates.** Trial reports arrive when sleeves seek promotion; weekly reviews and spending reports arrive on schedule. The system recommends; the operator decides; every decision is recorded.
-4. **The operator feeds it.** Bank exports imported into the Money view keep the whole-of-wealth picture current.
+3. **The operator adjudicates.** Trial reports arrive when sleeves seek promotion; weekly reviews and spending reports arrive on schedule. The system recommends; the operator decides through the decision ceremony ([Operations](./product/07-operations.md)); every decision is recorded beside its evidence.
+4. **The operator feeds it.** Bank exports imported into the Money view keep the Money and Portfolio pictures current, and transfer requests ([Portfolio](./product/04-portfolio.md)) are fulfilled by moving money at the bank or venue — the system computes what to move and detects arrivals; only the operator's hands touch the money.
 
 ## Guarantees, as the operator experiences them
 
 - **Nothing is hidden.** Every order intent — including every rejection — appears in the activity feed with the cage's full verdict. A rejection is the system working, and is displayed as such, never buried.
 - **Numbers reconcile.** Positions and equity are recomputed from the recorded order history, and live sleeves are reconciled against the venue on schedule. A discrepancy halts the sleeve and is surfaced immediately on Overview. The app never quietly papers over a mismatch.
-- **Every AI output is traceable.** From any regime assessment, categorization, or report, the operator can open the full record: what the model was asked, what data it saw, what it answered, and when. AI outputs that fail validation are recorded failures, never silent guesses.
+- **Every AI output is traceable.** From any regime assessment, categorization, or report, the operator can open the full trace: what the model was asked, what data it saw, what it answered, and when. AI outputs that fail validation are recorded failures, never silent guesses.
+- **Decisions are informed.** Every decision of consequence — promotion, mandate change, allocation act, un-halt — happens through the decision ceremony: the evidence presented and recorded as presented, the change stated plainly, the reason written where risk increases, the decision stored permanently beside its evidence.
+- **The system never moves money.** Venue keys cannot withdraw and no funding path exists anywhere in the system — every physical transfer is the operator's own act. The product computes what to move, requests it, detects the arrival, and settles the record ([Portfolio](./product/04-portfolio.md)); it choreographs money movement and can never perform it.
 - **History is permanent.** Sleeves, trades, decisions, overrides, and reports are never deleted — retirement archives, it does not erase.
 
 ## Out of scope

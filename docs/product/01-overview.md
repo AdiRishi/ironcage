@@ -1,4 +1,4 @@
-# The Overview view
+# Overview
 
 Overview is the five-second answer. Its job is singular: the operator opens the app and knows immediately whether everything is okay — and if not, what needs them. Everything on this view is a summary with a path to detail; nothing on it is the only place a fact lives. How its contents are arranged is a design decision made elsewhere; this document defines what Overview must convey and how that information must behave.
 
@@ -29,12 +29,15 @@ Everything that needs a human, and nothing else (absence of items is the good st
 - Unacknowledged critical events (see [Activity](./03-activity.md) — criticals persist here until acknowledged).
 - Halted sleeves, with the halt reason and a link to the incident report.
 - An armed or active override approaching expiry.
+- Outstanding transfer requests — money the system needs the operator to move ([Portfolio](./04-portfolio.md)), with amount, destination, and rail — and any pending transfer that has missed its expected window.
+
+Every item here opens the decision it is waiting on, through the decision ceremony ([Operations](./07-operations.md)) — this row is the product's entire to-do list, and an empty row is the good state.
 
 ### The equity picture
 
 Portfolio equity over time, viewable across standard windows (week, month, quarter, year, all):
 
-- Total across all sleeves, with the option to include imported external balances from the [Money view](./04-money.md) (whole-of-wealth mode).
+- Total across all sleeves, with the option to include imported external balances from [Portfolio](./04-portfolio.md) (whole-of-wealth mode).
 - **Dry-run and live equity are never conflated** — they are distinguishable at a glance, with the moment of any sleeve's promotion identifiable.
 - Deposits and withdrawals are identifiable on the curve so growth is never misread as performance.
 - Alongside the curve: total P&L (today / 30 days / all-time), always net of costs.
@@ -49,7 +52,7 @@ For every non-retired sleeve, at a glance:
 - Current allocation vs. mandate cap
 - P&L today and all-time, net of costs
 - Recent equity trajectory
-- For sleeves with run-time capabilities: the current effective entry multiplier per instrument (or a summary of it) and its freshness — stale inputs presenting as their most restrictive default
+- For sleeves with run-time capabilities: the current effective entry multiplier per instrument (or a summary of it) and its freshness — stale inputs presenting as their most restrictive default. A Clockwork sleeve shows its drift from target weights here instead — each sleeve's summary speaks its own mandate's language ([Sleeves](./02-sleeves.md)).
 - Time until its next scheduled action
 
 Each sleeve's summary leads to its [living view](./02-sleeves.md).

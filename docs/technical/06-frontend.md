@@ -4,7 +4,7 @@ The observatory is a TanStack Start application (React 19) deployed on Cloudflar
 
 ## Shape
 
-- **TanStack Start** with file-based routes mapping one-to-one onto the product's surfaces: Overview, Sleeves (+ per-sleeve living view), Activity, Money, Reports, Workbench, and the operations screens (mandate review, incident reports, override flow).
+- **TanStack Start** with file-based routes mapping one-to-one onto the product's surfaces: Overview, Sleeves (+ per-sleeve living view), Activity (+ trade story and trace viewer), Portfolio, Money, Reports, Workbench, Tax, and the operations screens (decision ceremony instances: mandate review, incident reports, override flow).
 - **Server functions are the only data access.** They run in the Worker, query D1 (and R2 for report bodies/snapshots), decode through `@app/contracts`, and return typed data. The browser never touches D1, R2, venue anything, or AI anything. The web app holds no secrets beyond its D1/R2 bindings.
 - **TanStack Query** manages server state with per-view staleness budgets; every payload carries the `asOf` timestamps the product's honesty rules require (data freshness is displayed, never implied).
 

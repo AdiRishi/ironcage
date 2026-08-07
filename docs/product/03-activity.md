@@ -1,6 +1,8 @@
-# The Activity feed
+# Activity
 
-The feed is the append-only record of everything that matters, and the product's substitute for interruptions: the system never pushes, so the feed must make it impossible for anything important to have happened silently. Its completeness is a guarantee, not an aspiration — every order intent, verdict, fill, halt, transition, and failure produces exactly one feed event. If it isn't in the feed, it didn't happen; if it happened and isn't in the feed, that is a bug by definition.
+The feed is the append-only record of everything that matters, and the product's substitute for interruptions: the system never pushes (save the one recorded exception in [PRODUCT.md](../PRODUCT.md)), so the feed must make it impossible for anything important to have happened silently. Its completeness is a guarantee, not an aspiration — every order intent, verdict, fill, halt, transition, and failure produces exactly one feed event. If it isn't in the feed, it didn't happen; if it happened and isn't in the feed, that is a bug by definition.
+
+This document also specifies the two lenses built on top of the raw record: the **trade story**, which renders one trade's events as a narrative, and the **trace viewer**, which opens any AI output to its full record.
 
 ## The event record
 
@@ -12,7 +14,7 @@ Every event carries:
 - **Severity** — `info`, `notice`, `warning`, `critical`
 - **Summary** — one plain-language line, readable without context
 - **Payload** — the full structured record behind the summary: the complete cage verdict, the order details, the diff, the error. One click from summary to everything.
-- **Links** — to the trade, the report, the mandate version, or the AI tick snapshot the event relates to.
+- **Links** — to the trade story, the report, the mandate version, or the AI trace the event relates to.
 
 Events are immutable and kept forever. There is no editing and no deleting.
 
@@ -26,7 +28,7 @@ Events are immutable and kept forever. There is no editing and no deleting.
 
 **Lifecycle** — sleeve created; mandate changed (with diff and recorded reasoning); state transition, pause, or resume (who/what triggered it); promotion or demotion (with trial report link); override armed / became active / used / expired; sleeve retired.
 
-**Capital** — deposit or withdrawal (amount, venue, note); allocation act (fund / reduce / return, with the evidence shown at decision time); drawdown-to-target entered or completed.
+**Capital** — deposit, withdrawal, or inter-venue transfer recorded (pending) or settled on detection; transfer request issued, fulfilled, or dismissed; a pending transfer flagged (missed window, or arrived at a different amount); an unmatched venue balance change awaiting the operator's claim; allocation act (fund / reduce / return, with the evidence shown at decision time — a fund act awaiting funding, and its activation on arrival); drawdown-to-target entered or completed.
 
 **System** — market data gap (and which sleeves stood down because of it); historical data backfill performed (range, source); venue or gateway connectivity lost/restored; AI run failed (regime tick, categorization, report generation — validation failures included); report generated (or generation failed); deploy completed (with the code version).
 
@@ -44,3 +46,15 @@ Events are immutable and kept forever. There is no editing and no deleting.
 ## Reading the feed
 
 The full feed view supports filtering by origin (sleeve / read-only surface / system), category, severity, and time range, plus full-text search over summaries. Each sleeve's living view embeds its own pre-filtered slice. Events produced by one logical action (an entry's intent → order → fill chain) are associated with each other so they can be understood as a unit, and the count of unacknowledged critical events is available from anywhere in the app.
+
+## The trade story
+
+The association between one action's events is not just a grouping — it renders as a view: **any trade, fully explained, on one screen.** A trade story tells, in order: the strategy signal that started it; each capability's contribution to the size (the regime assessment's axes and rationale, any veto or tightening in force — each opening its trace); the cage's verdict with every rule it checked; the order's venue lifecycle; every fill with its fees; the stop's placement and every move it made; the exit and what triggered it; and the realized P&L, net of the costs itemized along the way. Simulated fills are marked as simulated, degraded fills as degraded — the story carries the same honesty tags as everything else.
+
+The trade story opens from any of its events in the feed, from a sleeve's Positions and Decisions sections, and from any report that cites the trade. It is the observatory's atomic unit of comprehension: if the operator can read one trade's story and understand every step, the product's auditability guarantee is real; if any step is unexplained, that is a bug in this view.
+
+## The trace viewer
+
+Every AI output in the product — a capability tick, a transaction categorization, a generated report — links to its **trace**: the exact prompt, the full context snapshot the model saw, the raw response, the validation result, the model used, the cost, and the timing. One click from any AI-attributed value, anywhere in the app, to the complete record behind it. Failed validations render as first-class traces too — a rejected output's trace shows exactly what was refused and why, which is how "recorded failures, never silent guesses" is made inspectable.
+
+The trace viewer is the guarantee "every AI output is traceable" made concrete: it is reachable from every surface that displays an AI output, and a displayed AI output with no path to its trace is, by that fact, a defect.
