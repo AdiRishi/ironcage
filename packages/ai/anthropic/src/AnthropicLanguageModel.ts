@@ -20,6 +20,7 @@ import * as Predicate from "effect/Predicate"
 import * as Redactable from "effect/Redactable"
 import * as Schema from "effect/Schema"
 import * as SchemaAST from "effect/SchemaAST"
+import * as SchemaIssue from "effect/SchemaIssue"
 import * as Stream from "effect/Stream"
 import type { Span } from "effect/Tracer"
 import type { Mutable, Simplify } from "effect/Types"
@@ -38,6 +39,8 @@ import { addGenAIAnnotations } from "./AnthropicTelemetry.ts"
 import type { AnthropicTool } from "./AnthropicTool.ts"
 import type * as Generated from "./Generated.ts"
 import * as InternalUtilities from "./internal/utilities.ts"
+
+const formatIssue = SchemaIssue.makeFormatterDefault()
 
 /**
  * Known Anthropic Claude model identifiers exposed by the generated Anthropic schema.
@@ -65,7 +68,7 @@ export type Model = (typeof Generated.Model)["members"][1]["Encoded"]
  * requests. Scoped configuration overrides defaults supplied to `model`,
  * `make`, or `layer`.
  *
- * @category configuration
+ * @category services
  * @since 4.0.0
  */
 export class Config extends Context.Service<
@@ -111,7 +114,7 @@ declare module "effect/unstable/ai/Prompt" {
    * These options are used when translating system messages into Anthropic
    * request content.
    *
-   * @category request
+   * @category models
    * @since 4.0.0
    */
   export interface SystemMessageOptions extends ProviderOptions {
@@ -131,7 +134,7 @@ declare module "effect/unstable/ai/Prompt" {
    * These options are used when translating user messages into Anthropic
    * request content.
    *
-   * @category request
+   * @category models
    * @since 4.0.0
    */
   export interface UserMessageOptions extends ProviderOptions {
@@ -151,7 +154,7 @@ declare module "effect/unstable/ai/Prompt" {
    * These options are used when replaying assistant messages in Anthropic
    * conversation history.
    *
-   * @category request
+   * @category models
    * @since 4.0.0
    */
   export interface AssistantMessageOptions extends ProviderOptions {
@@ -171,7 +174,7 @@ declare module "effect/unstable/ai/Prompt" {
    * These options are used when converting tool results into Anthropic user
    * content blocks.
    *
-   * @category request
+   * @category models
    * @since 4.0.0
    */
   export interface ToolMessageOptions extends ProviderOptions {
@@ -190,7 +193,7 @@ declare module "effect/unstable/ai/Prompt" {
    *
    * Use when you use these options to control how text blocks are sent to Anthropic.
    *
-   * @category request
+   * @category models
    * @since 4.0.0
    */
   export interface TextPartOptions extends ProviderOptions {
@@ -210,7 +213,7 @@ declare module "effect/unstable/ai/Prompt" {
    * Preserves Claude thinking metadata when reasoning content is sent back to
    * Anthropic in later turns.
    *
-   * @category request
+   * @category models
    * @since 4.0.0
    */
   export interface ReasoningPartOptions extends ProviderOptions {
@@ -245,7 +248,7 @@ declare module "effect/unstable/ai/Prompt" {
    * Controls document metadata, citations, and prompt caching for files sent to
    * Anthropic.
    *
-   * @category request
+   * @category models
    * @since 4.0.0
    */
   export interface FilePartOptions extends ProviderOptions {
@@ -283,7 +286,7 @@ declare module "effect/unstable/ai/Prompt" {
    * Carries Anthropic tool caller metadata, MCP metadata, and cache control for
    * tool use blocks.
    *
-   * @category request
+   * @category models
    * @since 4.0.0
    */
   export interface ToolCallPartOptions extends ProviderOptions {
@@ -315,7 +318,7 @@ declare module "effect/unstable/ai/Prompt" {
    *
    * Controls Anthropic prompt caching for tool result content.
    *
-   * @category request
+   * @category models
    * @since 4.0.0
    */
   export interface ToolResultPartOptions extends ProviderOptions {
@@ -334,7 +337,7 @@ declare module "effect/unstable/ai/Prompt" {
    *
    * Controls prompt caching for human approval requests in conversations.
    *
-   * @category request
+   * @category models
    * @since 4.0.0
    */
   export interface ToolApprovalRequestPartOptions extends ProviderOptions {
@@ -353,7 +356,7 @@ declare module "effect/unstable/ai/Prompt" {
    *
    * Controls prompt caching for human approval responses in conversations.
    *
-   * @category request
+   * @category models
    * @since 4.0.0
    */
   export interface ToolApprovalResponsePartOptions extends ProviderOptions {
@@ -375,7 +378,7 @@ declare module "effect/unstable/ai/Response" {
    * Includes Claude thinking metadata needed to continue reasoning-aware
    * conversations.
    *
-   * @category response
+   * @category models
    * @since 4.0.0
    */
   export interface ReasoningStartPartMetadata extends ProviderMetadata {
@@ -405,7 +408,7 @@ declare module "effect/unstable/ai/Response" {
    *
    * Includes the signature for streamed Claude thinking content when available.
    *
-   * @category response
+   * @category models
    * @since 4.0.0
    */
   export interface ReasoningDeltaPartMetadata extends ProviderMetadata {
@@ -428,7 +431,7 @@ declare module "effect/unstable/ai/Response" {
    *
    * Preserves Claude thinking or redacted thinking information for later turns.
    *
-   * @category response
+   * @category models
    * @since 4.0.0
    */
   export interface ReasoningPartMetadata extends ProviderMetadata {
@@ -459,7 +462,7 @@ declare module "effect/unstable/ai/Response" {
    * Identifies Anthropic caller details and MCP tool metadata emitted by the
    * provider.
    *
-   * @category response
+   * @category models
    * @since 4.0.0
    */
   export interface ToolCallPartMetadata extends ProviderMetadata {
@@ -488,7 +491,7 @@ declare module "effect/unstable/ai/Response" {
    * Identifies MCP tool metadata associated with provider-executed tool
    * results.
    *
-   * @category response
+   * @category models
    * @since 4.0.0
    */
   export interface ToolResultPartMetadata extends ProviderMetadata {
@@ -512,7 +515,7 @@ declare module "effect/unstable/ai/Response" {
    *
    * Records the cited document span by character position or page number.
    *
-   * @category response
+   * @category models
    * @since 4.0.0
    */
   export interface DocumentSourcePartMetadata extends ProviderMetadata {
@@ -556,7 +559,7 @@ declare module "effect/unstable/ai/Response" {
    *
    * Records cited URL text or web-search source freshness information.
    *
-   * @category response
+   * @category models
    * @since 4.0.0
    */
   export interface UrlSourcePartMetadata extends ProviderMetadata {
@@ -586,7 +589,7 @@ declare module "effect/unstable/ai/Response" {
    * Includes container state, context management information, stop details, and
    * token usage reported by Anthropic.
    *
-   * @category response
+   * @category models
    * @since 4.0.0
    */
   export interface FinishPartMetadata extends ProviderMetadata {
@@ -605,7 +608,7 @@ declare module "effect/unstable/ai/Response" {
    *
    * Includes the provider request identifier when Anthropic returns one.
    *
-   * @category response
+   * @category models
    * @since 4.0.0
    */
   export interface ErrorPartMetadata extends ProviderMetadata {
@@ -889,7 +892,7 @@ const prepareMessages = Effect.fnUntraced(
                           : {
                             type: "text",
                             media_type: "text/plain",
-                            data: typeof part.data === "string" ? part.data : Encoding.encodeBase64(part.data)
+                            data: typeof part.data === "string" ? part.data : new TextDecoder().decode(part.data)
                           } as const
 
                         content.push({
@@ -2575,7 +2578,7 @@ const makeStreamResponse = Effect.fnUntraced(
                   (contentBlock.providerName === "bash_code_execution" ||
                     contentBlock.providerName === "text_editor_code_execution")
                 ) {
-                  delta = `{"type":${contentBlock.providerName},${delta.substring(1)}}`
+                  delta = `{"type":${JSON.stringify(contentBlock.providerName)},${delta.substring(1)}`
                 }
 
                 parts.push({
@@ -2650,7 +2653,7 @@ const makeStreamResponse = Effect.fnUntraced(
                   }
 
                   const params = contentBlock.providerExecuted === true
-                    ? finalParams
+                    ? Tool.unsafeSecureJsonParse(finalParams)
                     : yield* transformToolCallParams(
                       options.tools,
                       contentBlock.name,
@@ -3098,7 +3101,7 @@ const transformToolCallParams = Effect.fnUntraced(function*<Tools extends Readon
       reason: new AiError.ToolParameterValidationError({
         toolName,
         toolParams,
-        description: error.issue.toString()
+        description: formatIssue(error.issue)
       })
     })
   ))
