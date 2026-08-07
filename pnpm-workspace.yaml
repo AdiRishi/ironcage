@@ -7,11 +7,11 @@ packages: []
 # the Effect source tree to vendor into `.repos/effect` — so the vendored
 # reference and the version we compile against cannot drift apart.
 catalog:
-  "@types/node": 24.13.3
-  effect: 4.0.0-beta.102
-  oxfmt: ^0.61.0
-  oxlint: ^1.76.0
-  typescript: ~6.0.3
+  "@types/node": 26.1.2
+  effect: 4.0.0-beta.105
+  oxfmt: ^0.62.0
+  oxlint: ^1.77.0
+  typescript: ~7.0.2
   yaml: ^2.9.0
 
 minimumReleaseAge: 1440
