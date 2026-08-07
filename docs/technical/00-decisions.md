@@ -96,6 +96,10 @@ Reads and writes: TanStack Start server functions calling core's typed client ov
 
 <a name="d20"></a>**D20 — Deployment target: the operator's personal Cloudflare account, on a subdomain of an existing domain.** A dedicated domain is unnecessary for a private, authenticated, single-operator app and can be adopted later without consequence.
 
+<a name="d27"></a>**D27 — Authentication is Cloudflare Access** (resolves the auth item of D21; supersedes D26's WebSocket-ticket detail).
+A self-hosted Access application protects the app's entire subdomain — no path scoping, so pages, server functions, the WebSocket route, and SSE streams are all behind it. Login uses the **Cloudflare identity provider** restricted to the account's members plus an email match, with Access's Independent MFA for passkeys/security keys and one-time-PIN kept as the lockout escape hatch; sessions run long (a month) because there is one trusted operator. The app Worker **validates the Access JWT on every request** — header or `CF_Authorization` cookie, verified against the team's JWKS with the app's audience tag — because the edge check alone is spoofable if any route bypasses the zone; accordingly `workers_dev` and preview URLs are disabled on the app Worker so no unprotected path to it exists. **The WebSocket ticket pattern is dropped**: same-origin upgrades carry the Access cookie, the upgrade request is validated like any other, and the feed actor closes the socket at the token's expiry so a stale session can't outlive its authorization. Every app fetch sends `X-Requested-With: XMLHttpRequest` so an expired session yields a clean 401 (not a CORS-opaque redirect), and the client answers a 401 with a full-page navigation that lets Access re-auth silently. Service tokens exist for any future CLI access and for `wrangler dev` against protected remotes. Zero Trust free tier (50 seats) covers one operator comfortably.
+_Rejected_: Clerk (a second vendor and an in-app auth surface for a system with exactly one user; Access moves the entire concern to the edge with audit logs included).
+
 ## Venue facts recorded as constraints
 
 <a name="d22"></a>**D22 — The no-withdrawal guarantee is provable on Kraken, structural on Alpaca.**
@@ -104,4 +108,4 @@ Also recorded: AUD funds Kraken natively (PayID/Osko, free; native BTC/AUD and E
 
 ## Deferred
 
-<a name="d21"></a>**D21 — Deferred decisions.** Auth mechanism (Clerk vs Cloudflare Access — nothing designed so far depends on the choice); provider/model selection per capability (D11 makes it swappable configuration, so it can wait); any notification channel beyond email (D19); streaming market data (D7's recorded re-entry path).
+<a name="d21"></a>**D21 — Deferred decisions.** Provider/model selection per capability (D11 makes it swappable configuration, so it can wait); any notification channel beyond email (D19); streaming market data (D7's recorded re-entry path). *(Auth was deferred here and has since been decided — [D27](#d27).)*
