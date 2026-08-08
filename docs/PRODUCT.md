@@ -34,7 +34,9 @@ A handful of elements are present on every screen, because the guarantees they c
 
 ### The one interruption
 
-The app never pushes — with a single deliberate exception, recorded here as a decision: a **system-level halt**, or a **critical event while real positions are open**, sends the operator a terse external notification ("Ironcage needs you") that carries no data and offers no actions. Everything else waits in the feed. The exception exists because a machine holding real money must be able to say it has stopped; the notification's emptiness exists so the web app remains the only surface for information and control.
+The app never pushes, with one deliberate exception. A **system-level halt**, or a **critical event while real positions are open**, sends the operator a terse external notification: "Ironcage needs you." It carries no data and offers no actions. Everything else waits in the feed.
+
+The exception lets a machine holding real money say that it has stopped. Its emptiness keeps the web app as the only surface for information and control. Live capital remains unavailable until a named provider and a duplicate-safe acceptance fixture make the notification implementable. Provider acceptance and inbox delivery are recorded as different facts.
 
 ## The core loop
 
@@ -47,16 +49,18 @@ The app never pushes — with a single deliberate exception, recorded here as a 
 
 - **Nothing is hidden.** Every order intent — including every rejection — appears in the activity feed with the cage's full verdict. A rejection is the system working, and is displayed as such, never buried.
 - **Numbers reconcile.** Positions and equity are recomputed from the recorded order history, and live sleeves are reconciled against the venue on schedule. A discrepancy halts the sleeve and is surfaced immediately on Overview. The app never quietly papers over a mismatch.
-- **Every AI output is traceable.** From any regime assessment, categorization, or report, the operator can open its permanent decision record: what the model was asked, what it decided, why, what it cost, and when — with a link into the platform's full trace for as long as the platform retains it. AI outputs that fail validation are recorded failures, never silent guesses.
+- **Every AI output is traceable.** From any regime assessment, categorization, or report, the operator can open its permanent decision record: what the model was asked, what it decided, why, what it cost, and when. When the runtime captured a Gateway Log ID and the log still exists, the record can open it too. AI outputs that fail validation are recorded failures, never silent guesses.
 - **Decisions are informed.** Every decision of consequence — promotion, mandate change, allocation act, un-halt — happens through the decision ceremony: the evidence presented and recorded as presented, the change stated plainly, the reason written where risk increases, the decision stored permanently beside its evidence.
-- **The system never moves money.** Venue keys cannot withdraw and no funding path exists anywhere in the system — every physical transfer is the operator's own act. The product computes what to move, requests it, detects the arrival, and settles the record ([Portfolio](./product/04-portfolio.md)); it choreographs money movement and can never perform it.
+- **Ironcage never initiates money movement.** No product code calls a withdrawal, whitelist, or transfer route. Kraken enforces this boundary through an exact permission-scoped key. Alpaca exposes broader key authority, so it cannot go live until production-account tests and written provider evidence establish the same boundary. If they cannot, the product states the remaining exfiltration risk and reconsiders the venue. Every intended transfer remains the operator's act ([Portfolio](./product/04-portfolio.md)).
 - **History is permanent.** Sleeves, trades, decisions, overrides, and reports are never deleted — retirement archives, it does not erase.
 
 ## Out of scope
 
 No multi-user anything, no accounts beyond the operator, no sharing. No sub-minute trading in any sleeve. No mobile app; the web app is responsive and that is enough. No bank credentials handling outside a proper CDR arrangement. No strategy the operator cannot explain in a paragraph.
 
-The system's venues are **Kraken (crypto) and Alpaca (US stocks/ETFs)** by deliberate consolidation — two clean, API-first integrations rather than many. **ASX access is deferred, not rejected**: the only programmatic doors for Australians (Interactive Brokers, Tiger) carry real operational cost for little gain at this scale, and US-listed ETFs serve the long-term wealth sleeve well; a future mandate may reopen the question with its own recorded decision.
+The target venues are **Kraken (crypto) and Alpaca (US stocks/ETFs)** by deliberate consolidation. Kraken's Australian funding path is documented. Alpaca remains a candidate until an Australian-resident securities Trading API account is approved, funded, and passes the transfer-surface gate. A paper account is not proof.
+
+**ASX access is deferred, not rejected.** US-listed ETFs can serve the long-term wealth sleeve if the Alpaca gate closes. A failed gate reopens venue selection rather than weakening a guarantee.
 
 On leverage, shorting, and derivatives, the boundary is drawn by feasibility and regulation, not squeamishness. **Equity-side shorting, options, and modest leverage are legitimate future sleeve mandates** (Alpaca itself supports US options; Interactive Brokers would add more), and a sleeve mandate proposing them goes through the same written-mandate, dry-run-first lifecycle as anything else — plus its own recorded decision, since each adds a new class of risk (unlimited downside on shorts, assignment on options, financing costs on leverage). **Crypto derivatives — margin, perpetuals, futures — stay out of scope**: Australian regulators have shut down or penalized the domestic retail offerings (Kraken's $8M penalty, Binance Australia Derivatives' $10M penalty), and the offshore alternatives sit in a regulatory grey zone with the worst blow-up profile in this document. The first sleeves are spot, long-only.
 

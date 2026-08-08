@@ -4,11 +4,13 @@ The Money view is the operator's banking picture: imported transactions, categor
 
 ## Bank import
 
-**v1 is file import, by explicit decision.** CommBank NetBank exports transactions in CSV, OFX, and QIF with two years of transaction history available; automatic sync via the Consumer Data Right requires an accredited intermediary and is deliberately deferred — it becomes worth revisiting only if manual export proves to be the system's limiting annoyance.
+**v1 is CSV file import, by explicit decision.** [CommBank's export guidance](https://www.commbank.com.au/support.digital-banking.export-transaction-information.html) documents exports of up to 600 transactions in CSV/plain text and several named accounting-package formats. It promises no fixed history window and does not identify those package dialects as OFX or QIF. Each non-CSV dialect remains unavailable until real redacted fixtures prove it.
+
+Automatic CDR sync is deferred. It would require a valid regulated path: direct or sponsored accreditation, a representative arrangement, or eligible outsourcing. The product does not assume that one intermediary model is the only route.
 
 The flow:
 
-1. The operator exports from NetBank (any supported format — the importer auto-detects) and drops the file onto the Money view.
+1. The operator exports CSV from NetBank and drops it onto the Money view. A later fixture-certified profile may add a named package dialect; “any format” is not promised.
 2. **Preview before commit**: the importer shows what it found — n transactions, m new, d duplicates of already-imported rows, k needing category review — before anything is written.
 3. On confirm, new transactions are stored, categorized, and the analysis views update. The import itself becomes a feed event, and every import is listed in an import history with its source file name and counts.
 

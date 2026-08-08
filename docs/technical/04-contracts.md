@@ -7,14 +7,16 @@ Every boundary in the system, in one place: how Workers talk, who may call what,
 - Every cross-Worker call goes through a typed client generated from a single definition in `packages/contracts`. No hand-built fetch against an internal URL exists anywhere.
 - Every payload crossing a boundary is validated by the receiver with Effect Schema, whatever the sender already checked.
 - Every failure a caller can observe maps to one member of a closed error taxonomy. No stringly-typed errors cross a boundary.
-- Every identifier that crosses a boundary is a UUIDv7, so any ID is time-ordered, venue-safe, and joinable anywhere.
+- Every identifier that crosses a boundary is a UUIDv7, so IDs are time-ordered and joinable everywhere. A venue field uses one only after that exact venue accepts it in a conformance fixture.
 - Every mutating flow is idempotent under a declared key. A key collision with different content is treated as a defect and raised as a critical event, never absorbed as a duplicate.
 - Agents reach the rest of the system through exactly two paths: a read-only API and one queue. No mutating operation exists for them to call, and no other write path exists.
 - Mutations and the live-feed upgrade are accepted only from the app's own origin, on top of the platform's access control.
 
 ## Transport
 
-Cross-Worker communication is HTTP over service bindings. Core defines its APIs as Effect `HttpApi` values in `packages/contracts`, and callers use `HttpApiClient` against the binding's `fetch`. The result is end-to-end request and response types with schema validation on both sides, over plain HTTP.
+Cross-Worker communication is HTTP over service bindings. Core defines its APIs as Effect `HttpApi` values in `packages/contracts`. A small adapter implements Effect's [`HttpClient`](https://effect-ts.github.io/effect/platform/HttpClient.ts.html) interface over the binding's `fetch`. [`HttpApiClient`](https://effect-ts.github.io/effect/platform/HttpApiClient.ts.html) is then constructed with that adapter.
+
+The adapter owns abort propagation, streaming bodies, headers, and transport-error mapping. Effect does not advertise this service-binding adapter, so one real endpoint must pass a conformance test before the contract is frozen. The resulting requests and responses are schema-validated at both ends over plain HTTP.
 
 Native Workers RPC must not be used between Workers. RPC calls ignore Smart Placement, and core's latency budget is owned by its distance to Postgres. Inside core, Durable Object stubs keep their native method calls. A DO call goes to wherever the object lives, so placement is irrelevant there.
 
@@ -22,7 +24,9 @@ The receiver always re-validates. A payload that arrives at core is decoded with
 
 ## Identifiers
 
-Every identifier in the system is a UUIDv7: intents, events, records, request IDs. (Ticks are the exception with no ID at all — a tick is keyed by `(sleeve_id, candle_close_at)`, its natural identity.) One format everywhere means any ID can be logged, joined, and compared without knowing which table minted it, and the embedded timestamp makes IDs sort in creation order. The format is also venue-safe. An intent ID doubles as the venue client order ID, and Kraken's `cl_ord_id` field accepts either a UUID or at most 18 ASCII characters. A 26-character ULID fails that check, which is why ULIDs appear nowhere in this system.
+Every identifier in the system is a UUIDv7: intents, events, records, and request IDs. Ticks have no ID; `(sleeve_id, candle_close_at)` is their natural identity. One format lets any identifier be logged, joined, and compared without knowing which table minted it. Its embedded timestamp also preserves creation order.
+
+An intent ID is proposed as the venue client order ID. Kraken documents a generic UUID form, but not version 7 specifically. Alpaca documents a unique client ID without promising retry idempotency. The launch fixtures in [Venues](./06-venues.md) must prove field acceptance. The intent ledger, not the venue field, owns deduplication.
 
 Capability run IDs are the one deliberate exception: they are deterministic name-based UUIDs, not random UUIDv7s. The agent derives the run ID as a name-based UUID from the run's identity — the capability, its configuration version, and the cadence slot it answers — so a re-executed run collides with its earlier self instead of slipping past deduplication as a fresh ID. It is still a UUID and stores in the same `uuid` columns as every other ID. The derivation and its core-side validation are defined in [AI](./07-ai.md).
 
@@ -34,7 +38,7 @@ On the public seam, Cloudflare Access fronts the whole subdomain, and the app Wo
 
 Verified identity is not enough for mutations. Access authenticates the session, not the page that initiated a request: a cross-site page can cause the browser to send credentialed requests, and a WebSocket upgrade is not subject to the same-origin policy. So the server enforces an explicit check. Every mutating operation verifies the `Origin` header against the app's own origin and rejects a mismatch before any handler runs. The WebSocket upgrade performs the same check. If the check fails, the request is refused with `ValidationFailed` and nothing downstream executes.
 
-Future non-interactive callers authenticate with Access service tokens, and a service token is authorized by an explicit audience allowlist: the Worker accepts a token only when its audience claim matches a named entry in the allowlist. The absence of a user email claim is never the test. An allowlist states what may call; an absence test merely notices what looks unusual.
+Future non-interactive callers authenticate with Access service tokens. The Worker first verifies signature, issuer, expiry, and the expected Access-application `aud`; that audience identifies the application, not the machine caller. It then authorizes the caller by an exact allowlist of service-token Client IDs carried in the application token's `common_name` claim. The Access policy selects the same tokens as defense in depth. The absence of a user email claim is never the test.
 
 The internal seams carry no tokens. A service binding is not a network route; only the bound Worker can invoke it, so possession of the binding is the authentication. The receiver still re-validates every payload, as everywhere else.
 
@@ -81,7 +85,7 @@ One message per capability run:
 ```ts
 // packages/contracts/src/queue.ts
 export const CapabilityRunMessage = Schema.Struct({
-  runId: RunId, // deterministic name-based UUID derived from the run identity; queue dedupe key; equals capability_outputs.id
+  runId: RunId, // application idempotency key backed by capability_outputs.id; Queues itself does not dedupe on it
   capability: Schema.String, // registry name
   sleeveId: Schema.NullOr(SleeveId), // UUIDv7
   configVersion: Schema.Number,
@@ -95,17 +99,22 @@ export const CapabilityRunMessage = Schema.Struct({
 });
 ```
 
-Delivery is at-least-once, so the consumer, not the queue, owns exactly-once semantics. On each delivery the consumer proceeds in order. First it decodes the message with the authoritative Schema; a message that fails decoding goes to the dead-letter queue. Second it checks timing: a run delivered after its capability's dispatch deadline is rejected rather than written, and the rejection is recorded ([AI](./07-ai.md) defines the deadline and validity windows). Third it validates `output` against the capability's own output Schema from the registry. Fourth it writes the output row, the decision record, and the feed event in one Postgres transaction, and the deduplication check lives inside that same transaction: the insert is keyed on the run ID, and the stored row carries a hash of the message content.
+[Queues delivery is at-least-once](https://developers.cloudflare.com/queues/reference/delivery-guarantees/), so the consumer owns exactly-once application semantics. It handles each delivery in four steps.
+
+1. Decode the message with the authoritative Schema. A decode failure follows the configured retry path. [Native dead-letter routing occurs only after those retries are exhausted](https://developers.cloudflare.com/queues/configuration/dead-letter-queues/).
+2. Check timing. A run delivered after its capability's dispatch deadline is rejected and recorded rather than written. [AI](./07-ai.md) defines the deadline and validity windows.
+3. Validate `output` against the capability's registered output Schema.
+4. Write the output row, decision record, and feed event in one Postgres transaction. The run ID keys the insert, and the stored row carries a hash of the message content. This places the deduplication check inside the same transaction.
 
 Redelivery then resolves by hash. A duplicate run ID with a matching content hash is acknowledged and dropped; that is the at-least-once queue doing what it does. The same run ID with a different content hash is never treated as a duplicate. Two executions have claimed the same identity, which means a producer is broken. The consumer refuses the write, keeps the stored original, and raises a critical event.
 
-Messages are acknowledged individually, never as a batch, so one poison message can never re-drive its neighbors through the pipeline. A message that exhausts its delivery attempts dead-letters. A dead-lettered message becomes a `decision_record_lost` warning event on the feed: the run's evidence did not reach the record, and the operator can see that it did not.
+The consumer batch size is one, so acknowledgement and retry apply to one run at a time. A message that exhausts its delivery attempts is routed to `decision-records-dlq`. That queue has its own idempotent consumer: it persists a `decision_record_lost` warning and attention item keyed by the failed message ID, then acknowledges the DLQ message. Merely configuring a DLQ does not execute that application logic.
 
 Arrival order carries no meaning. When the engine consumes a capability's output for a tick, it selects the greatest eligible `(scheduled_at, run_id)` pair among rows whose validity window covers the evaluation. A late arrival never rewrites a completed tick. The staleness windows and consumption rules are defined in [AI](./07-ai.md).
 
-The platform caps a queue message at 128 KiB, and that cap is the output budget. A capability output that exceeds it is a failed run, handled like any other capability failure: the safe default applies and the failure is recorded. No spillover path exists at v1. A staging pattern for oversized outputs is a recorded future option, not a built one (see Open questions).
+[The platform caps a queue message at 128,000 bytes](https://developers.cloudflare.com/queues/platform/limits/). Ironcage caps the complete serialized envelope at **120,000 bytes** (proposed), leaving room below the platform boundary. A capability envelope that exceeds it is a failed run, handled like any other capability failure: the safe default applies and the failure is recorded. No spillover path exists at v1. A staging pattern for oversized outputs is a recorded future option, not a built one (see Open questions).
 
-Queue settings: batch size 1, maximum 10 delivery attempts, dead-letter queue `decision-records-dlq`, DLQ retention 14 days. All are proposed defaults owned by engine configuration.
+Queue settings: batch size 1, `max_retries = 9` for ten total delivery attempts (the initial delivery plus nine retries), dead-letter queue `decision-records-dlq`, DLQ retention 14 days. All are proposed defaults owned by engine configuration.
 
 ## Error taxonomy
 
@@ -132,7 +141,7 @@ Each flow's key and dedupe boundary, in one table. These are the only idempotenc
 | Flow                   | Key                                   | Deduped by                                                                                                                                        |
 | ---------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Tick execution         | `(sleeve_id, candle_close_at)`        | The Postgres `ticks` table, written in the decision transaction; the actor's copy is a cache                                                      |
-| Order at the venue     | intent ID (UUIDv7) as client order ID | The venue, while the order is open; the intent ledger, always                                                                                     |
+| Order at the venue     | intent ID (UUIDv7) as client order ID | The intent ledger, always. Venue lookup supplies reconciliation evidence but is not treated as a documented dedupe/idempotency boundary           |
 | Outbox effect delivery | `pending_effects` row ID              | The drainer's delivered mark; a crash between send and mark may repeat the effect, and every effect carried (the halt email) tolerates repetition |
 | AI run ingestion       | run ID                                | `capability_outputs` primary key plus content hash, checked inside the write transaction                                                          |
 | App mutations          | client `request_id` (UUIDv7)          | A request-log table with a unique key, checked in the mutation's transaction                                                                      |
@@ -153,28 +162,28 @@ The tick and venue chapters set their own interior values; this table is the cro
 | core → agents (dispatch)       | 30 s                   | 3 attempts; a failed dispatch is a missed run, visible in vitals             |
 | core → venue (all calls)       | 10 s                   | Never blindly for orders (the `Ambiguous` path); 3 attempts for reads        |
 | core → Postgres                | 15 s statement timeout | Reads: 3 attempts. Writes: retried only via the outbox or an idempotency key |
-| queue consumer                 | 30 s per message       | Platform redelivery ×10, then DLQ                                            |
+| queue consumer                 | 30 s per message       | Initial delivery + 9 retries, then DLQ                                       |
 
 ## Schema versioning
 
-Contracts evolve additively. A new optional field ships freely. A breaking change ships as a new operation or a new message tag, and the old one is removed only after no deployed caller can still send it: callee deploys first on additions, caller first on removals. The wire seam to Flue tools mirrors these Schemas in Flue's own schema language. The mirror is wire-level convenience; core's Schema decoding remains the authoritative check ([AI](./07-ai.md)).
+Contracts evolve additively. One main-branch release deploys every Worker, but those deploys are not a distributed transaction and a short mixed-commit interval remains. A new field is therefore optional through the release that introduces it. A breaking change uses a new operation or message tag; the old form is removed in a later whole-system release after production proves the new path. The wire seam to Flue tools mirrors these Schemas in Flue's own schema language. The mirror is wire-level convenience; core's Schema decoding remains the authoritative check ([AI](./07-ai.md)).
 
 ## Values set in this chapter
 
-| Value                                      | Default                         | Owner                                                       | Status   |
-| ------------------------------------------ | ------------------------------- | ----------------------------------------------------------- | -------- |
-| app → core read timeout                    | 10 s                            | engine config                                               | proposed |
-| app → core mutation timeout                | 10 s                            | engine config                                               | proposed |
-| app mutation retry cap (same `request_id`) | 2                               | engine config                                               | proposed |
-| agents → core timeout / retries            | 10 s; 3 attempts, exp. from 1 s | engine config                                               | proposed |
-| core → agents dispatch timeout / retries   | 30 s; 3 attempts                | engine config                                               | proposed |
-| core → venue call timeout                  | 10 s                            | engine config                                               | proposed |
-| Postgres statement timeout                 | 15 s                            | engine config                                               | proposed |
-| queue consumer per-message budget          | 30 s                            | engine config                                               | proposed |
-| queue batch size / acknowledgment          | 1; individual acks              | engine config                                               | proposed |
-| queue delivery attempts before DLQ         | 10                              | engine config                                               | proposed |
-| DLQ retention                              | 14 days                         | engine config                                               | proposed |
-| queue message size budget                  | 128 KiB                         | platform limit (register, [Operations](./12-operations.md)) | decided  |
+| Value                                      | Default                         | Owner                    | Status             |
+| ------------------------------------------ | ------------------------------- | ------------------------ | ------------------ |
+| app → core read timeout                    | 10 s                            | engine config            | proposed           |
+| app → core mutation timeout                | 10 s                            | engine config            | proposed           |
+| app mutation retry cap (same `request_id`) | 2                               | engine config            | proposed           |
+| agents → core timeout / retries            | 10 s; 3 attempts, exp. from 1 s | engine config            | proposed           |
+| core → agents dispatch timeout / retries   | 30 s; 3 attempts                | engine config            | proposed           |
+| core → venue call timeout                  | 10 s                            | engine config            | proposed           |
+| Postgres statement timeout                 | 15 s                            | engine config            | proposed           |
+| queue consumer per-message budget          | 30 s                            | engine config            | proposed           |
+| queue batch size / acknowledgment          | 1; individual acks              | engine config            | proposed           |
+| queue retries / total attempts before DLQ  | 9 / 10                          | engine config            | proposed           |
+| DLQ retention                              | 14 days                         | engine config            | proposed           |
+| queue platform / envelope size             | 128,000 / 120,000 bytes         | platform / engine config | decided / proposed |
 
 ## Alternatives considered
 
@@ -184,20 +193,20 @@ Contracts evolve additively. A new optional field ships freely. A breaking chang
 - **Retry on `Ambiguous`.** Rejected everywhere: ambiguity resolves by querying, never by resending. The venue chapter owns the algorithm.
 - **Silently dropping mismatched idempotency collisions.** Rejected: a same-key, different-content collision is evidence of a broken writer or a compromised boundary. Dropping it would hide exactly the defect it proves.
 - **Relying on Cloudflare Access alone for mutation safety.** Rejected: Access authenticates the session, not the initiating page, and WebSocket upgrades sit outside the same-origin policy. The server-side Origin check closes both gaps.
-- **An R2 staging bucket for oversized agent outputs.** Deferred, not built: it would be a second agent write path, and no v1 capability needs more than the 128 KiB message budget. An output over budget is a failed run instead.
+- **An R2 staging bucket for oversized agent outputs.** Deferred, not built: it would be a second agent write path, and no v1 capability needs more than the 120,000-byte envelope budget. An output over budget is a failed run instead.
 
 ## Open questions
 
 1. **Does a second feed consumer ever appear?** The WebSocket frame protocol is specified in [App](./11-app.md) beside its single browser client; a second consumer would move the protocol into this chapter. Safe fallback: the protocol stays in App. Must close before: adding any non-browser feed consumer. Closed by: that consumer's concrete requirements.
-2. **Do any capability outputs approach the 128 KiB message budget?** Safe fallback: an over-budget output is a failed run and the capability's safe default applies, which is fail-closed. Must close before: enabling the trade proposer in dry run, the class most likely to produce large outputs. Closed by: observed output-size distributions from dry-run capability runs; if sizes crowd the budget, the staging-bucket option is designed then, as its own decision.
+2. **Do any capability outputs approach the 120,000-byte envelope budget?** Safe fallback: an over-budget output is a failed run and the capability's safe default applies, which is fail-closed. Must close before: enabling the trade proposer in dry run, the class most likely to produce large outputs. Closed by: observed serialized-envelope size distributions from dry-run capability runs; if sizes crowd the budget, the staging-bucket option is designed then, as its own decision.
 
 ## Build checklist
 
 - [ ] `packages/contracts` with `AppApi`, `AgentReadApi`, the queue message Schema, the error union, and UUIDv7 codecs
 - [ ] Catalog generation: the operation tables in this chapter produced from `packages/contracts` definitions (hand-maintained until the package exists)
 - [ ] Generated clients wired through service bindings in app and agents
-- [ ] Origin-check middleware on every mutating route and on the WebSocket upgrade; audience-allowlist check for service tokens
+- [ ] Origin-check middleware on every mutating route and on the WebSocket upgrade; expected application `aud` plus exact service-token `common_name` allowlist
 - [ ] The request-log table and `request_id` middleware for app mutations, including the collision → `Conflict` + critical-event path
 - [ ] Queue consumer with in-transaction dedupe, content-hash comparison, dispatch-deadline rejection, and individual acknowledgment
-- [ ] DLQ wired, with a `decision_record_lost` feed event and an attention item when it is non-empty
+- [ ] DLQ consumer wired, with idempotent `decision_record_lost` feed and attention writes; test poison-message retries and final DLQ delivery
 - [ ] Contract round-trip tests: encode → decode identity for every Schema; wire-mirror equivalence tests for Flue tool schemas

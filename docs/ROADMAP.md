@@ -6,7 +6,7 @@ The build order, decided and recorded in the [decision history](./technical/appe
 
 Bank import, categorization, spending analysis, and the first reports — the [Money](./product/05-money.md) surface end to end.
 
-What it delivers: CSV/OFX import with the three-tier dedupe, the categorization capability with its review queue and rules, monthly/trends/recurring/anomaly analysis, savings suggestions, the monthly spending report, and external balances feeding a first whole-of-wealth view.
+What it delivers: fixture-proven CommBank CSV import (up to 600 transactions per export) with overlap dedupe, the categorization capability with its review queue and rules, monthly/trends/recurring/anomaly analysis, savings suggestions, the monthly spending report, and external balances feeding a first whole-of-wealth view. Microsoft Money/Quicken-style formats remain unavailable until real redacted exports prove a specific dialect; OFX is not assumed from a marketing label.
 
 **What phase 1 quietly builds — the real payload:**
 
@@ -15,10 +15,10 @@ What it delivers: CSV/OFX import with the three-tier dedupe, the categorization 
 - Postgres via dual Hyperdrive, the schema conventions, R2 layout.
 - The app shell (mode, connection indicator, attention items), TanStack Query + feed plumbing.
 - The feed itself: events, severities, acknowledgment — exercised by imports and anomalies before anything critical exists.
-- **The entire AI runtime on its first real capability**: the categorization agent in Flue, gateway-fronted providers, the decision-records queue, gateway traces, safe defaults, the review queue. Every seam the regime assessment will later cross gets crossed first by transaction categorization, where the worst possible failure is a miscategorized coffee.
+- **The entire AI runtime on its first real capability**: the categorization agent in pinned Flue, gateway-fronted providers, the decision-records queue and DLQ consumer, returned Gateway Log IDs/application trace IDs, explicit Flue durable-state inventory, safe defaults, and the review queue. Every seam the regime assessment will later cross gets crossed first by transaction categorization, where the worst possible failure is a miscategorized coffee.
 - The reports library with its first report type.
 
-Exit criteria: a full year of real CommBank history imported with dedupe verified by balance-chain; categorization running with rules learning from corrections; the first monthly report generated; the operator checking the app because it's useful, not because it's new. The fixture homework lands here too: real overlapping NetBank exports (deposit and card, including a multi-row day) are what clear the OFX `FITID` and export-format **VERIFY** markers in the technical chapters.
+Exit criteria: a full year of real CommBank history imported through overlapping CSV exports with dedupe verified by balance-chain; categorization running with rules learning from corrections; the first monthly report generated; the operator checking the app because it's useful, not because it's new. Real overlapping deposit and card CSVs—including a multi-row day, signs, quoting, non-ASCII text, and the 600-row edge—must clear the v1 parser markers. OFX/FITID fixtures are optional future-format work, not phase-1 exit criteria.
 
 ## Phase 2 — Tax
 
@@ -33,9 +33,9 @@ Exit criteria: full history reconciled from raw sources across every account and
 Everything else, in lifecycle order:
 
 1. **Candle store and workbench basics** — collection, backfill from Kraken archives, coverage honesty, first backtests of the crypto-trend strategy in the compute container.
-2. **The actors and the cage** — sleeve, venue, system-cage, feed actors; the tick; the intent ledger; venue adapters proven against Alpaca's paper environment and Kraken's validate-only orders ([Operations](./technical/12-operations.md)).
+2. **The actors and the cage** — sleeve, venue, system-cage, feed actors; the tick; the intent ledger; adapter shape proven against Alpaca paper and Kraken validate, then the exact live launch fixtures and written-confirmation gates in [Venues](./technical/06-venues.md) before capital is enabled.
 3. **Crypto-trend in dry run** — the first tenant, with its capabilities (regime assessment, event veto, calibration audit) accruing scorecards against their no-AI baselines from day one, and the living view making it worth watching.
-4. **Trial, promotion, live** — the trial report, the ceremony, first small real capital on Kraken; the long-term wealth sleeve arrives with the Alpaca integration and its own dry run.
+4. **Trial, promotion, live** — the trial report, the ceremony, first small real capital on Kraken; the long-term wealth sleeve arrives only after a funded Australian-resident Alpaca securities account and its credential transfer boundary are proven, then completes its own dry run.
 5. **The proving machinery matures** — gate pipeline, proposals, shadow runs — once there is an incumbent worth challenging.
 
 A clarification recorded in the [decision history](./technical/appendix/decisions.md) because it's easy to misremember: **dry run is our own simulated-fill machinery against live market data, not a venue paper account.** Kraken offers no spot sandbox at all, and one simulator serving dry run, backtests, and the no-AI counterfactuals is what makes their evidence comparable. Alpaca's paper account is provisioned anyway — it integration-tests the venue adapter, nothing more.

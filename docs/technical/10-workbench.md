@@ -28,9 +28,11 @@ The candle store is one table, written by two kinds of act. The tick's own fetch
 **Backfill is a recorded act, never an ambient job.** Each act writes a row carrying source, venue, instrument, timeframe, requested range, fetched-at, the R2 key of the raw archive, and four counts: candles read, written, matched, conflicting. Two sources are supported at launch.
 
 - **Kraken quarterly OHLCV CSVs.** Kraken's public OHLC endpoint returns at most 720 candles and cannot serve deep history, so the CSV archive is the expected path for crypto and not a fallback.
-- **Alpaca history API**, paged backward from the window's end. Alpaca hour-multiple bars anchor to UTC rather than the exchange session; the store records that anchoring and must not realign bars silently.
+- **Alpaca history API**, paged from the requested window under a recorded feed, adjustment, as-of, currency, and sort policy. Timestamp anchoring is established by fixed fixtures across session and daylight-saving boundaries rather than asserted from undocumented behavior.
 
-**Backfill ingestion runs in the compute container, never in a Worker.** The Kraken archives are multi-gigabyte zips, far past Worker memory and CPU limits. The raw archive lands in R2 first, under a content-addressed key. The container then reads it from R2, decodes it with a versioned importer, and writes normalized rows to the store. The same container path handles Alpaca paging, so there is one importer code path to test.
+**Backfill decoding runs in the compute container; trusted core commits it.** Kraken archives can be multi-gigabyte, beyond Worker memory and CPU limits. The raw archive first lands in R2 under a content-addressed key. Narrow compute-Worker outbound handlers let the container read that object. A versioned importer writes normalized chunks and a manifest back to a run-scoped R2 prefix, all content-addressed.
+
+The container has no Postgres credential and no general internet egress. Core verifies every chunk hash and schema before streaming bounded batches into Postgres under the recorded backfill act. The match and conflict rules below apply at commit. A credential-owning trusted adapter pages Alpaca, then sends its raw pages through the same R2 decoder path. This keeps one normalization path without giving untrusted code authority over the record.
 
 **The uniqueness key is `(venue, instrument, timeframe, close_ts)`.** A write that collides with an existing row must compare all five OHLCV fields at the venue's stored precision. Equal on all five is a match and a no-op. Unequal on any field is a conflict, and the resolution is fixed:
 
@@ -38,7 +40,7 @@ The candle store is one table, written by two kinds of act. The tick's own fetch
 - The `(instrument, timeframe, close_ts)` triple is marked **disputed** in the gap ledger. A disputed candle counts as absent for coverage.
 - A `warning` feed event fires naming the instrument, timeframe, and count of disputed candles in the act.
 
-**Gaps are computed against an expected grid, never inferred from row counts.** After each write batch the store expands the affected range into every close timestamp the timeframe implies, and any expected timestamp with no row opens or extends a gap. Crypto grids run continuously. Equity grids come from the venue's trading calendar, whose version is recorded on the gap row, so a market holiday is not a gap and a calendar correction is visible as one.
+**Gaps are computed from source semantics, not row counts.** The store expands the affected range into the expected grid, then classifies each absent timestamp as `source_missing`, `market_closed`, or `confirmed_no_trade`. Kraken archives omit intervals with no trades; those become explicit zero-trade intervals under the chosen previous-close/zero-volume normalization (or nontradable intervals), never source corruption. Equity grids come from a versioned venue calendar, so a holiday is not a gap and a calendar correction is visible.
 
 **Coverage renders from the ledger.** Per `(venue, instrument, timeframe)` the workbench shows earliest close, latest close, every gap range with its detection time, the disputed count, and the coverage ratio `present ÷ expected` over the rendered window. A backtest whose window intersects any gap or disputed candle carries that intersection in its stored result and in every view of it. Interpolation does not exist as a code path.
 
@@ -106,7 +108,7 @@ Rules the type cannot express, stated once:
 - `seed` does not exist as a field, because no code path under a backtest may consume randomness.
 - A tolerance applies only to grown-data reproduction (gate 2's second tier, below). A metric without a declared tolerance must match exactly. There is no global "close enough."
 
-Proposed cost-model defaults: Kraken maker **16 bps**, taker **26 bps** at the entry fee tier; Alpaca commission **0** with a minimum of `null`; slippage **5 bps** for crypto majors and **2 bps** for liquid US ETFs. The fill model that consumes them is specified in [Venues](./06-venues.md).
+There are no timeless fee defaults. Each manifest pins the fee schedule, pair, maker/taker side, and account tier observed for that run. Kraken's live applicable tier/pair schedule supplies the assumption and realized Ledger fees remain authoritative. For Alpaca, an eligible commission-free order is still not cost-free: applicable regulatory, clearing, and activity `FEE` rows are modeled and later reconciled. Slippage starts at **5 bps** for crypto majors and **2 bps** for liquid US ETFs (proposed), then is calibrated from actual fills. The fill model that consumes these values is specified in [Venues](./06-venues.md).
 
 ### Canonicalization and hashing
 
@@ -152,7 +154,8 @@ export type BacktestReceipt =
       readonly resultKey: R2Key;
       readonly resultSha256: string; // of result.json, the byte-identity subject
       readonly recomputedCandleSetHash: string;
-      readonly summaryRowId: BacktestSummaryId; // already written to Postgres
+      readonly configuredImageDigest: string; // injected by the release and returned by the trusted compute Worker
+      readonly artifactManifestKey: R2Key;
     }
   | { readonly _tag: "Aborted"; readonly runId: RunId; readonly reason: AbortReason };
 ```
@@ -165,17 +168,19 @@ Outputs land under one prefix, split so that identity is testable:
 | `result.json`    | headline stats, benchmark comparisons, risk statistics, caveats | yes           |
 | `equity.csv`     | stitched out-of-sample equity, one row per evaluation candle    | yes           |
 | `folds/{k}.json` | per fold: fitted parameters, in-sample stats, evaluation stats  | yes           |
-| `receipt.json`   | container image digest, started-at, duration, host              | no            |
+| `receipt.json`   | release-configured image digest, started-at, duration, run ID   | no            |
 
 Determinism requirements, enforced in the container entrypoint:
 
 - `Date.now`, `new Date()` with no argument, `performance.now`, and `Math.random` **must** be replaced with throwing stubs before engine code loads. Every timestamp the engine sees is a candle timestamp from its inputs.
 - Every input the container reads **must** verify against its recorded SHA-256 before execution. A candidate bundle that fails verification aborts the run.
 - Iteration over any map or set that reaches an output **must** be sorted explicitly. Insertion order is not a specification.
-- The container's only egress is R2 and Postgres. It **must not** fetch market data, and a manifest naming candles absent from `candleInput` aborts the run.
-- Execution timeout is **30 minutes** wall clock, and container concurrency is **2 runs**. A timed-out run writes no summary row and no partial result.
-- The run **must** execute under the manifest's `imageDigest`, and `receipt.json` records the digest that actually ran. Byte-identity is claimed against that digest, not across image upgrades.
-- The container writes its own summary row to Postgres before returning, so a receipt never points at a row that does not exist.
+- The container has no Postgres secret and no general network egress. Its only external operations are run-scoped reads and conditional writes exposed by the compute Worker's narrow R2 outbound handlers. A manifest naming candles absent from `candleInput` aborts the run.
+- Execution timeout is **30 minutes** wall clock, and container concurrency is **2 runs**. A timed-out run may leave unreferenced objects in its run prefix, but no summary row exists and garbage collection may remove them later.
+- The release injects `EXPECTED_IMAGE_DIGEST` into the trusted compute Worker beside the container binding configured to that immutable tag. The Worker rejects a manifest naming another digest and returns the configured value. The container cannot self-attest its runtime image, so the receipt never claims that it can; deployment verification of the binding configuration plus the injected value is the authority.
+- On completion, trusted core reads the artifact manifest, verifies every object hash, re-decodes `result.json`, checks the returned candle-set hash and configured image digest, and only then writes the run summary plus artifact pointers in one Postgres transaction. A container receipt alone has no authority.
+
+The whole-system deployment blocks new compute dispatch before replacing the image and unblocks it only after the release verification sees the expected digest. Existing runs finish under their originally pinned digest or abort; no run is silently moved across images.
 
 ## 4. Walk-forward construction
 
@@ -232,7 +237,7 @@ The t-test assumes fold excesses are roughly independent, and overlapping fit wi
 
 ## 6. Proposal bundles
 
-A design-time agent delivers its proposal bundle through the same decision queue as every capability output, within the same 128 KiB queue budget; an oversize bundle is a failed run at v1. Core validates the delivered bundle and writes it into a dedicated R2 bucket, `agent-artifacts`. This is the bundle path's one store, and its trust semantics are fixed:
+A design-time agent delivers its proposal bundle through the same decision queue as every capability output, within the same 120,000-byte serialized-envelope budget; an oversize bundle is a failed run at v1. Core validates the delivered bundle and writes it into a dedicated R2 bucket, `agent-artifacts`. This is the bundle path's one store, and its trust semantics are fixed:
 
 - Only core writes it, and only core reads it. Agents never hold an R2 binding. Keys are content-addressed by SHA-256, and an object is immutable once any proposal references it.
 - The bucket is a quarantine zone. Everything in it is agent-authored output, and nothing in it means anything until the gate pipeline accepts it.
@@ -312,34 +317,34 @@ In the example: 31 days of shadow, 14 intents combined. Challenger **+3.9%** sim
 
 ## Values set in this chapter
 
-| Value                          | Default                                      | Owner                 | Status   |
-| ------------------------------ | -------------------------------------------- | --------------------- | -------- |
-| Fit window                     | 180 days                                     | workbench config      | proposed |
-| Evaluation window              | 30 days                                      | workbench config      | proposed |
-| Roll step                      | 30 days                                      | workbench config      | proposed |
-| Minimum folds                  | 6                                            | gate pipeline config  | decided  |
-| Minimum closed trades          | 30                                           | gate pipeline config  | decided  |
-| Base significance level        | 0.05                                         | gate pipeline config  | decided  |
-| Multiplicity correction        | Bonferroni, `0.05/N`                         | gate pipeline config  | decided  |
-| Drawdown ceiling vs benchmark  | 1.25 ×                                       | gate pipeline config  | decided  |
-| Concurrent trials per family   | 3                                            | gate pipeline config  | decided  |
-| Gate 2, same manifest          | byte-identical `result.json`                 | gate pipeline         | decided  |
-| Gate 2, grown data             | metric-specific tolerances in the manifest   | gate pipeline         | decided  |
-| Gate 2 tolerance values        | none set                                     | manifest, per metric  | proposed |
-| Container run timeout          | 30 min                                       | compute config        | proposed |
-| Container concurrency          | 2 runs                                       | compute config        | proposed |
-| Kraken fees (maker / taker)    | 16 bps / 26 bps                              | cost model, per venue | proposed |
-| Slippage (crypto / liquid ETF) | 5 bps / 2 bps                                | cost model, per venue | proposed |
-| Shadow window minimum          | 28 days                                      | gate pipeline config  | proposed |
-| Shadow activity floor          | 10 intents                                   | gate pipeline config  | proposed |
-| Shadow window extension / cap  | 14 days / 84 days                            | gate pipeline config  | proposed |
-| Approval wait timeout          | 90 days                                      | gate pipeline config  | proposed |
-| Approval nudge interval        | 14 days                                      | gate pipeline config  | proposed |
-| Candle-set hash                | SHA-256 over canonical lines                 | workbench             | decided  |
-| Manifest hash                  | SHA-256 over RFC 8785, image digest excluded | workbench             | decided  |
-| Image digest pinning           | in the manifest, enforced at execution       | workbench             | decided  |
-| Trial counter unit             | distinct manifest hash; reproductions exempt | workbench             | proposed |
-| Proposal bundle store          | `agent-artifacts` R2 bucket, SHA-256 keys    | platform              | decided  |
+| Value                          | Default                                        | Owner                 | Status                 |
+| ------------------------------ | ---------------------------------------------- | --------------------- | ---------------------- |
+| Fit window                     | 180 days                                       | workbench config      | proposed               |
+| Evaluation window              | 30 days                                        | workbench config      | proposed               |
+| Roll step                      | 30 days                                        | workbench config      | proposed               |
+| Minimum folds                  | 6                                              | gate pipeline config  | decided                |
+| Minimum closed trades          | 30                                             | gate pipeline config  | decided                |
+| Base significance level        | 0.05                                           | gate pipeline config  | decided                |
+| Multiplicity correction        | Bonferroni, `0.05/N`                           | gate pipeline config  | decided                |
+| Drawdown ceiling vs benchmark  | 1.25 ×                                         | gate pipeline config  | decided                |
+| Concurrent trials per family   | 3                                              | gate pipeline config  | decided                |
+| Gate 2, same manifest          | byte-identical `result.json`                   | gate pipeline         | decided                |
+| Gate 2, grown data             | metric-specific tolerances in the manifest     | gate pipeline         | decided                |
+| Gate 2 tolerance values        | none set                                       | manifest, per metric  | proposed               |
+| Container run timeout          | 30 min                                         | compute config        | proposed               |
+| Container concurrency          | 2 runs                                         | compute config        | proposed               |
+| Venue fee assumption           | pinned current pair/tier/schedule per manifest | cost model, per venue | decided (source shape) |
+| Slippage (crypto / liquid ETF) | 5 bps / 2 bps                                  | cost model, per venue | proposed               |
+| Shadow window minimum          | 28 days                                        | gate pipeline config  | proposed               |
+| Shadow activity floor          | 10 intents                                     | gate pipeline config  | proposed               |
+| Shadow window extension / cap  | 14 days / 84 days                              | gate pipeline config  | proposed               |
+| Approval wait timeout          | 90 days                                        | gate pipeline config  | proposed               |
+| Approval nudge interval        | 14 days                                        | gate pipeline config  | proposed               |
+| Candle-set hash                | SHA-256 over canonical lines                   | workbench             | decided                |
+| Manifest hash                  | SHA-256 over RFC 8785, image digest excluded   | workbench             | decided                |
+| Image digest pinning           | manifest + release-injected binding config     | workbench             | decided                |
+| Trial counter unit             | distinct manifest hash; reproductions exempt   | workbench             | proposed               |
+| Proposal bundle store          | `agent-artifacts` R2 bucket, SHA-256 keys      | platform              | decided                |
 
 ## Alternatives considered
 
@@ -364,10 +369,10 @@ In the example: 31 days of shadow, 14 intents combined. Challenger **+3.9%** sim
 - [ ] `candle_conflicts` table, the compare-on-collision write path, and the disputed marking in the gap ledger
 - [ ] Expected-grid gap detection, with the trading-calendar version recorded on equity gap rows
 - [ ] Coverage query returning ranges, gaps, disputed counts, and the coverage ratio
-- [ ] Backfill act rows plus the Kraken CSV and Alpaca history importers, running in the compute container, each paced against venue limits
+- [ ] Backfill acts; trusted Alpaca pager; compute-container Kraken/raw-page decoders; content-addressed normalized chunks; core hash/schema verification and bounded Postgres commit
 - [ ] `BacktestManifest` schema in `packages/contracts`, with corridor-subset validation of `searchSpace` and per-metric tolerance declarations
 - [ ] Canonical line serializer, RFC 8785 manifest canonicalization, and both SHA-256 hashers, with cross-runtime golden fixtures the Workers runtime, the container runtime, and CI all reproduce
-- [ ] Container entrypoint with clock and randomness stubs, input digest verification, egress restriction, image-digest enforcement, and the timeout
+- [ ] Container entrypoint with clock/randomness stubs and input verification; no DB secret/general egress; narrow R2 outbound handlers; release-injected expected digest + binding verification; core receipt verification; timeout and deploy-time dispatch freeze
 - [ ] Walk-forward fold builder; property test: no evaluation candle is reachable from any fit slice
 - [ ] `strategy_families` table keyed by immutable family UUID, with the distinct-manifest increment and the 3-concurrent cap inside the run-creation transaction, and a rename test proving the counter survives
 - [ ] Corrected significance test as a pure function; unit test at `N = 12`, `k = 42`, `t = 3.54`, including the 30-trade floor

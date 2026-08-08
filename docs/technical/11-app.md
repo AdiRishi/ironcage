@@ -1,6 +1,12 @@
 # App
 
-The observatory is a TanStack Start application deployed as the Worker `ironcage-app`. It exists so the operator can answer "is everything okay?" in seconds, from evidence, without ever mistaking dead data for live or dry-run for real money. The app holds two service bindings and no state of its own: `CORE` for every product read and write, and `AGENTS` for research-conversation streaming only. Everything it shows arrives from core's `AppApi`, from the live feed, or from a conversation stream. This chapter covers the route tree, the data paths, the feed wire protocol (this is the protocol's home chapter), the research chat, the shell, and authentication. It stops where core's API begins: the feed record and its taxonomy are defined in [Data](./03-data.md), the API catalog and error taxonomy in [Contracts](./04-contracts.md), and deployment in [Operations](./12-operations.md).
+The observatory exists so the operator can answer “is everything okay?” in seconds. Its evidence must never let dead data look live or dry-run money look real. It is a TanStack Start application deployed as the Worker `ironcage-app`.
+
+Upstream currently labels [TanStack Start a Release Candidate](https://tanstack.com/start/latest/docs/framework/react/overview). The repository therefore pins an exact version, and the whole-release smoke test covers SSR, server functions, streaming, and the Worker entry point. A dependency upgrade is a deliberate platform change.
+
+The app holds no state of its own. Its `CORE` service binding carries every product read and write. Its `AGENTS` binding carries research-conversation streaming only. Everything the app shows arrives from core's `AppApi`, the live feed, or a conversation stream.
+
+This chapter owns the route tree, data paths, feed wire protocol, research chat, shell, and authentication. [Data](./03-data.md) defines the feed record and taxonomy. [Contracts](./04-contracts.md) defines the API catalog and error taxonomy. [Operations](./12-operations.md) defines deployment.
 
 ## What this chapter guarantees
 
@@ -134,7 +140,7 @@ This section is the single home of the frame protocol. Other chapters reference 
 export type ClientFrame =
   | { readonly _tag: "Subscribe"; readonly since: FeedEventId | null; readonly filter: FeedFilter }
   | { readonly _tag: "Ack"; readonly through: FeedEventId }
-  | { readonly _tag: "Pong"; readonly at: Instant };
+  | { readonly _tag: "Heartbeat" };
 
 export type ServerFrame =
   | {
@@ -144,11 +150,11 @@ export type ServerFrame =
       readonly serverTime: Instant;
     }
   | { readonly _tag: "Event"; readonly event: FeedEvent } // UUIDv7 id, strictly increasing
-  | { readonly _tag: "Ping"; readonly at: Instant }
+  | { readonly _tag: "HeartbeatAck" }
   | { readonly _tag: "Lagged"; readonly from: FeedEventId } // replay exceeded the cap
   | {
       readonly _tag: "Closing";
-      readonly reason: "token-expired" | "shutdown";
+      readonly reason: "token-expired" | "lease-expired" | "shutdown";
       readonly at: Instant;
     };
 ```
@@ -160,27 +166,35 @@ Resume semantics, stated once:
 - Replay is capped at **500 events** (proposed). Beyond the cap the server sends `Lagged`, and the client **must** refetch every active query instead of applying frames.
 - Event IDs are UUIDv7, which is time-ordered, so ordering and de-duplication need no separate sequence number. An event ID the client already holds is dropped.
 
-Replay and live delivery cannot interleave. The feed actor is a single Durable Object and processes one message at a time. When a `Subscribe` arrives, the actor runs the whole replay from Postgres before handling anything else; a live event that commits during the replay waits in the actor's inbox and is delivered after `Ready`, in ID order. The client therefore never merges a replay stream with a live stream, and there is no gap between the last replayed event and the first live one. If a delayed live push duplicates an event the replay already delivered, the ID de-duplication rule above absorbs it.
+Durable Object handlers can [interleave whenever a handler awaits](https://developers.cloudflare.com/durable-objects/best-practices/rules-of-durable-objects/), so the inbox alone does not order a Postgres replay against a live push. The feed actor implements the ordering explicitly for each socket:
+
+1. Before its first await, mark the socket as replaying and start an in-memory live-event buffer.
+2. Read a Postgres high-water event ID, then read and cap the rows in `(since, high_water]`.
+3. Without another await, merge those rows with the buffered live events, sort and de-duplicate by event ID, send the result, transition the socket to live, and send `Ready`.
+4. A live push checks the per-socket state: it appends while replaying and sends immediately while live.
+
+If the object restarts with a socket attachment still marked replaying, it closes that socket and lets the ordinary cursor reconnect recover it; it never guesses that the lost in-memory buffer was complete. This creates one ordered stream without holding `blockConcurrencyWhile` across a database query.
+
+The actor uses the [WebSocket Hibernation API](https://developers.cloudflare.com/durable-objects/best-practices/websockets/). Each accepted socket serializes its filter, last acknowledged cursor, replay state, token expiry, and socket-lease expiry in its attachment. The browser sends the fixed `Heartbeat` frame every 30 seconds and the actor configures the fixed `HeartbeatAck` WebSocket auto-response pair, so a healthy idle socket does not wake the object. There is no server timer. The actor's single alarm is scheduled for the earliest token or lease expiry; it closes expired sockets, then schedules the next expiry.
 
 Liveness numbers, all proposed:
 
-| Parameter                     | Value              |
-| ----------------------------- | ------------------ |
-| Server `Ping` interval        | 30 s               |
-| Client `Pong` deadline        | 10 s               |
-| Server closes after           | 2 missed pongs     |
-| Client declares the link dead | 45 s without frame |
-| Reconnect backoff             | 1 s → 30 s cap     |
-| Backoff jitter                | ±20%               |
+| Parameter                     | Value                       |
+| ----------------------------- | --------------------------- |
+| Client `Heartbeat` interval   | 30 s                        |
+| Client declares the link dead | 45 s without `HeartbeatAck` |
+| Maximum socket lease          | 15 min                      |
+| Reconnect backoff             | 1 s → 30 s cap              |
+| Backoff jitter                | ±20%                        |
 
-The connection lifecycle below is also stated in prose. A connection becomes live after `Ready`. A dead link (45 seconds without a frame, or a transport close) triggers reconnect with backoff, and the reconnect resumes from the last applied event ID. A `Lagged` frame moves the client into a refetch of every active query, after which it is live again. A `Closing(token-expired)` frame or close code 4401 ends the session; recovery is a full-page navigation, which lets Access re-authenticate.
+The connection lifecycle below is also stated in prose. A connection becomes live after `Ready`. A dead link (45 seconds without a heartbeat acknowledgement, or a transport close) triggers reconnect with backoff, and the reconnect resumes from the last applied event ID. Normal expiry of the 15-minute socket lease also reconnects and revalidates the current Access session. A `Lagged` frame moves the client into a refetch of every active query, after which it is live again. A `Closing(token-expired)` frame or close code 4401 ends the session; recovery is a full-page navigation, which lets Access re-authenticate.
 
 ```mermaid
 stateDiagram-v2
     [*] --> Connecting
     Connecting --> Ready: Ready frame
-    Ready --> Live: first Event or Ping
-    Live --> Reconnecting: link dead (45 s) or transport close
+    Ready --> Live: first Event or HeartbeatAck
+    Live --> Reconnecting: link dead, lease expired, or transport close
     Reconnecting --> Connecting: backoff elapsed
     Live --> Refetching: Lagged
     Refetching --> Live: all active queries refetched
@@ -242,9 +256,9 @@ Cloudflare Access sits in front of everything. The Worker verifies every request
 - **Login** is the Cloudflare identity provider, matching account members by email. Independent MFA requires a passkey or security key. One-time PIN remains the lockout fallback. Global and application sessions are set to **one month**.
 - **The Worker verifies, always.** One early middleware validates the JWT against the team JWKS with the application's audience tag, then stashes the identity on request context. It reads the `cf-access-jwt-assertion` header, falling back to the `CF_Authorization` cookie. Edge enforcement without Worker-side verification is treated as no auth at all.
 - **Origin is checked in the Worker.** The Access cookie travels automatically with any request the browser sends, including one a hostile page triggers cross-site. The middleware therefore verifies the `Origin` header on every state-changing request and on the WebSocket upgrade; a missing or foreign Origin is rejected with 403 before any handler runs. The upgrade is included because a cross-site page could otherwise open a socket and read the feed. Read-only GETs are exempt.
-- **WebSocket upgrades carry the cookie** because they are same-origin, and are validated like any other request, including the Origin check. The feed actor closes the socket at the token's `exp` with close code **4401**, so a session cannot outlive its authorization. A handshake failure is probed once over HTTP and **must not** be retry-looped.
+- **WebSocket upgrades carry the cookie** because they are same-origin, and are validated like any other request, including the Origin check. Each socket gets a 15-minute lease and must reconnect through that validation path; the actor also closes it no later than the JWT's `exp` with close code **4401**. Access does not revoke an already-upgraded origin socket immediately, so the lease is the accepted maximum revocation window. A handshake failure is probed once over HTTP and **must not** be retry-looped.
 - **Expired sessions surface as 401.** Every fetch and server-function call sends `X-Requested-With: XMLHttpRequest`, which turns Access's redirect into a clean 401. The client answers with a full-page navigation, letting Access re-authenticate silently while the global session is valid.
-- **Non-browser paths bypass HTTP entirely.** Service bindings and Durable Object stubs never traverse the edge, so Access is structurally irrelevant to Worker-to-Worker calls. Any future CLI client uses an Access service token. The middleware authorizes service tokens against an explicit audience allowlist, which ships empty; a service token whose audience tag is not on the list is rejected. Authorization comes from being listed, never from inference about which claims a token lacks.
+- **Non-browser paths bypass HTTP entirely.** Service bindings and Durable Object stubs never traverse the edge, so Access is structurally irrelevant to Worker-to-Worker calls. Any future CLI client uses an Access service token. The middleware validates the expected application `aud`, then authorizes the caller against an exact [`common_name`/Client-ID](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/application-token/) allowlist, which ships empty. Authorization comes from being listed, never from inference about which claims a token lacks.
 
 There is exactly one operator and no other role. Login attempts are in Access's audit log.
 
@@ -260,14 +274,14 @@ Every number above, its owner, and its status. "Proposed" means: pick differentl
 | Default query `staleTime`          | 30 s                         | app                    | proposed |
 | `vitals` / `attention` `staleTime` | 10 s                         | app                    | proposed |
 | Visible-tab poll interval          | 60 s                         | app                    | proposed |
-| Feed heartbeat interval            | 30 s                         | feed actor             | proposed |
-| Client pong deadline               | 10 s                         | feed actor             | proposed |
+| Client heartbeat interval          | 30 s                         | app                    | proposed |
 | Client dead-link threshold         | 45 s                         | app                    | proposed |
+| Maximum socket lease               | 15 min                       | app/feed actor         | proposed |
 | Reconnect backoff                  | 1 s → 30 s, ±20% jitter      | app                    | proposed |
 | Replay cap on resume               | 500 events                   | feed actor             | proposed |
 | Expired-token close code           | 4401                         | feed actor             | decided  |
 | Access session length              | 1 month                      | Access application     | proposed |
-| Service-token audience allowlist   | empty (no tokens authorized) | operator               | decided  |
+| Service-token Client-ID allowlist  | empty (no tokens authorized) | operator               | decided  |
 | Chat chrome source                 | AI Elements, copied in       | app                    | decided  |
 
 ## Alternatives considered
@@ -276,7 +290,7 @@ Every number above, its owner, and its status. "Proposed" means: pick differentl
 - **Proxying conversations through core.** Rejected: it would put an open-ended streaming AI workload on the Worker that holds financial authority, without adding any authorization core could usefully enforce, and a conversation failure would share fate with product reads. The direct agents binding costs one more binding and removes a hop.
 - **Exposing agents directly to the browser.** Rejected: it would bypass the app's Access validation and place agents outside the private-binding boundary.
 - **A signed WebSocket ticket issued before the upgrade.** Rejected: same-origin upgrades carry the Access cookie, so the upgrade is validated exactly like every other request, Origin check included. A second credential would add a second thing to expire.
-- **Polling instead of a socket.** Rejected: the product requires new fills and vital transitions to appear within seconds, and polling that fast on every surface costs more than one hibernating socket. The visible-tab poll survives only as a slow safety net under the socket.
+- **Polling instead of a socket.** Rejected: the product requires new fills and vital transitions to appear within seconds, and polling that fast on every surface costs more than one hibernating socket. The client-initiated heartbeat uses an auto-response and does not keep the actor awake. The visible-tab poll survives only as a slow safety net under the socket.
 - **The Vercel AI SDK for chat.** Rejected: Flue owns the conversation protocol, and a second client would need its own mapping of Flue's state to keep in sync.
 
 ## Open questions
@@ -294,8 +308,9 @@ Every number above, its owner, and its status. "Proposed" means: pick differentl
 - [ ] Visible-tab safety-net polling on the safety-critical aggregates; a test proving nothing polls while hidden
 - [ ] `/api/feed.ws` upgrade route: Access validation, Origin check, proxy to the feed actor, close-code handling
 - [ ] Frame protocol schemas, replay-from-cursor, `Lagged` path that refetches every active query
-- [ ] A feed-actor test proving live events queue behind an in-progress replay and arrive after `Ready` in ID order
+- [ ] Feed-actor tests proving high-water replay plus a concurrent live push is sorted and gap-free, and a restart while replaying forces cursor recovery
 - [ ] SSR dehydration of the root and Overview loaders; first-paint budget asserted in CI
 - [ ] Shell with halt-all wired to nothing but the binding
-- [ ] Access middleware: JWKS verification, audience check, Origin check on mutations and the upgrade, service-token audience allowlist, `X-Requested-With` 401 path
+- [ ] Hibernation attachments, WebSocket auto-response heartbeat, earliest-expiry alarm, and 15-minute socket-lease reconnect
+- [ ] Access middleware: JWKS verification, application audience check, Origin check on mutations and the upgrade, service-token `common_name` allowlist, `X-Requested-With` 401 path
 - [ ] Conversation route forwarding over the agents binding, streaming unbuffered end to end, verified with a slow response

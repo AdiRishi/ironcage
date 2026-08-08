@@ -33,7 +33,7 @@ This trace is a **fixture replayed through a scripted venue adapter**. The venue
 | 04:07:02   | venue actor  | Scripted poll response reports a partial fill. One transaction: CAS `placed → partially_filled` + seq 4 + fill row (**0.006 BTC @ 100,000**, fee A$0.96) + `order_partial_fill` and `position_opened` events                                        |
 | 04:07:02   | system cage  | `commit(res…, 600)`: reservation → `partially_committed`; A$600 recognized, A$400 stays reserved                                                                                                                                                    |
 | 04:07:03   | venue actor  | Stop placed at **94,000** for 0.006 BTC; scripted ack confirms it working → `stop_placed` event. Monitors re-run on the fill: all pass                                                                                                              |
-| 04:30:18   | venue actor  | Fill window (30 min from placement, mirrored by `expiretm`) closes. Cancel sent; scripted confirmation → CAS `partially_filled → canceled` + seq 5 + `order_canceled` event                                                                         |
+| 04:30:18   | venue actor  | Fill window (30 min from placement, mirrored by Kraken `GTD` + `expiretm`) closes. Cancel sent; scripted confirmation → CAS `partially_filled → canceled` + seq 5 + `order_canceled` event                                                          |
 | 04:30:18   | system cage  | Terminal outcome proven: `release` frees the A$400 remainder; reservation → `released`                                                                                                                                                              |
 | 04:30:18   | sleeve actor | In-flight marker cleared. Next alarm: 08:00:15                                                                                                                                                                                                      |
 | 10:00:41   | venue actor  | Scheduled reconciliation against scripted balances: position 0.006 BTC, cash, and the working stop all match                                                                                                                                        |
@@ -95,6 +95,7 @@ AddOrder  pair=XBTAUD  type=buy  ordertype=limit  price=100000
           oflags=post                        # maker-only
           cl_ord_id=018f6b2a-7c4e-7d31-a2f0-3b9d4e8c1a55
           deadline=2026-08-07T04:00:33Z      # request timeout 10 s + 5 s
+          timeinforce=GTD                    # required for expiretm to take effect
           expiretm=2026-08-07T04:30:18Z      # venue-side mirror of the fill window
 ```
 

@@ -33,5 +33,6 @@ This page is the front door. Three rules govern the whole set:
 | What any surface must show and guarantee                                    | the matching [product chapter](./product/)                                          |
 | One trade, traced end to end                                                | [technical/examples/crypto-trend-order](./technical/examples/crypto-trend-order.md) |
 | Hand-checked tax computations                                               | [technical/examples/tax-cases](./technical/examples/tax-cases.md)                   |
+| External-provider contract audit and remediation gates                      | [audits/2026-08-08-external-contracts](./audits/2026-08-08-external-contracts.md)   |
 | Build order and dependencies                                                | [ROADMAP.md](./ROADMAP.md)                                                          |
 | The ubiquitous language                                                     | [../CONTEXT.md](../CONTEXT.md)                                                      |

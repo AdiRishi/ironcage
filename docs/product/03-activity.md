@@ -57,6 +57,8 @@ The trade story opens from any of its events in the feed, from a sleeve's Positi
 
 Every AI output in the product — a capability tick, a transaction categorization, a generated report — opens its **decision record**: the permanent account of that one decision. It records what the model was asked, at decision grain; what it decided; the stated rationale; the model and configuration used; the cost; and the timing. One click from any AI-attributed value, anywhere in the app, to this record. Failed validations produce decision records too — a rejected output's record shows exactly what was refused and why, which is how "recorded failures, never silent guesses" is made inspectable.
 
-Each decision record also links into AI Gateway's full trace — the exact prompt, the context the model saw, the raw response — for as long as the platform retains it (7–30 days). The decision record is permanent; the full trace is a window that closes.
+Each decision record shows the AI Gateway Log IDs captured by the runtime. While a corresponding Gateway log still exists, the record can open it through the Logs API. Gateway retention follows the account's count, storage, and oldest-log deletion settings, so that lookup may disappear. The application-owned decision record remains permanent.
+
+Research conversations follow a different contract. Flue stores their canonical stream for the life of the agent instance. Ironcage therefore treats them as sensitive platform records, not short-lived traces.
 
 The decision record is the guarantee "every AI output is traceable" made concrete: it is reachable from every surface that displays an AI output, and a displayed AI output with no path to its decision record is, by that fact, a defect.

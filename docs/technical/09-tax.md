@@ -59,10 +59,10 @@ The Workflow is orchestration and never the record. Every step writes its real o
 Per-source facts the sync must honor:
 
 - **Ironcage's own venues** are native: the blotter already is the record, and a thin mapper emits events from committed live fills, including each fill's fee asset. Dry-run, shadow, and backtest fills are excluded.
-- **Kraken full history** uses the export API (`AddExport` / `RetrieveExport`) for bulk trades and ledgers rather than the paged endpoints. The export API returns a zip; the compute container downloads, unzips, and parses it, because the archives outgrow Worker limits. **The ledger export is the spine**: deposits, withdrawals, staking and earn rewards appear only as ledger entries. The trades export supplements pair and fee detail, and trade records join their ledger entries by the shared `refid`. These exports run under a **dedicated read-only Kraken key with its own nonce sequence**, separate from the trading key; the venue key posture is specified in [Venues](./06-venues.md).
+- **Kraken full history** uses the export API for bulk trades and ledgers. A trusted importer streams the archived zip from R2. **Ledger is authoritative** for exact fee amount/currency and balance-changing type/subtype; trades supplement pair and execution context through `refid`. A generic `transfer` code is never assumed to be the operator's own-account transfer because Kraken also uses it for other movements. Exports run under the dedicated read-only key and nonce sequence specified in [Venues](./06-venues.md).
 - **External exchanges** use read-only API keys in the same shape. Where an API cannot reach old history, a statement file is ingested and the file itself is recorded as the source.
 - **Wallets** are tracked by xpub for UTXO chains and by address for account chains including tokens, through a configured chain-data provider. Per-chain staking-reward reconstruction is its own normalizer concern. An address or xpub is an observation mechanism, not proof of ownership; the operator records the ownership interval.
-- **Alpaca** uses the account-activities stream, cursor-paged from the beginning of the account. The annual 1042-S is a manual upload archived in R2 and reconciled, which makes it evidence rather than a source of events.
+- **Alpaca** has two source generations: legacy Account Activities REST for older history and Activity SSE/REST for activity booked after the provider's 2026-02-11 boundary. Separate normalizers preserve each vocabulary, immutable ID, corrections, and busts. Every 1042-S the broker issues for a calendar year is archived and reconciled as evidence; there may be several forms by income type/rate and none when no reportable activity exists.
 - **Bank interest and AUD funding legs** come from the imported bank rows described in [Money](./08-money.md), selected by narrative pattern rather than re-imported.
 - **Manual CSV** gets the same normalization and the same audit trail as any API source.
 
@@ -104,8 +104,20 @@ export interface Valuation {
 export type ValuationBasis =
   | { readonly _tag: "NativeAud" }
   | { readonly _tag: "ActualAchieved"; readonly conversion: TaxEventId; readonly rate: Decimal }
-  | { readonly _tag: "RbaDaily"; readonly rateDate: LocalDate; readonly rate: Decimal }
-  | { readonly _tag: "RbaMonthlyAverage"; readonly month: YearMonth; readonly rate: Decimal }
+  | {
+      readonly _tag: "PublishedRate";
+      readonly provider: "RBA" | "bank";
+      readonly rateDate: LocalDate;
+      readonly rate: Decimal;
+      readonly policy: FxRatePolicyId;
+    }
+  | {
+      readonly _tag: "PeriodAverage";
+      readonly provider: "RBA" | "bank";
+      readonly period: DateRange;
+      readonly rate: Decimal;
+      readonly assessment: EvidenceRef;
+    }
   | { readonly _tag: "MarketPrice"; readonly provider: PriceProviderId; readonly at: Instant };
 
 type Kind<T extends string, F> = { readonly _tag: T } & Readonly<F>;
@@ -138,7 +150,7 @@ Rules the types cannot express, stated once:
 
 - **`Disposal`, `Spend`, and `Gift` are the disposal class.** All three consume parcels by the same algorithm. They are distinct kinds because they are distinct return-line facts.
 - **`Transfer` is never a disposal.** A transfer between the operator's own accounts moves a parcel to a new custody location, keeping its acquisition date and cost base. The network fee consumed by that transfer is a separate `Disposal`.
-- **A fee is counted exactly once.** A fee reported on the same source record as its trade becomes that event's `costs`. A fee arriving as its own record becomes a `Fee` event, added to the parcel's cost base, and a fee charged in the asset rather than in cash additionally emits a `Disposal` of the fee quantity. Where Kraken reports the same fee in both the trades export and the ledger export, the `refid` join deduplicates it: one fee fact, whichever export carried it.
+- **A fee is counted exactly once.** A fee on the authoritative financial record becomes the event's `costs`; a standalone fee becomes a `Fee` event, and a fee consumed in an asset also emits a disposal of that quantity. For Kraken, Ledger is authoritative for exact amount and currency; the Trades History estimate is diagnostic context only. The `refid` join deduplicates the two representations.
 - **`Withholding` records the amount actually withheld** on the source's own activity line, and it must name the event it was withheld against. No withholding amount is ever derived by applying an assumed rate to income. An unattached withholding row is a review item, because a gross-up with no gross is not a figure.
 - **Zero-cost entries are acquisitions, not income.** An initial-allocation airdrop or a chain-split coin enters as an `Acquisition` valued at A$0. Established-token airdrops and staking rewards are `Income` at market value on receipt.
 - **A match group relates events without changing them.** Transfer legs, funding flows, and dividend-plus-withholding pairs share a match group. A crypto transfer's legs match on asset, quantity net of the known network fee, and a timestamp window of **72 hours** (proposed). An ambiguous match is a review item, never an automatic pairing.
@@ -149,34 +161,26 @@ Every mapping is a table, and every table has a final row. An unlisted code prod
 
 **Kraken ledger and trade records:**
 
-| Source record                                      | Events emitted                                     | Notes                                                              |
-| -------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------ |
-| `trade` (asset out)                                | `Disposal` (`sale` or `crypto_for_crypto`)         | paired to the asset-in row by the shared `refid`                   |
-| `trade` (asset in)                                 | `Acquisition`                                      | same `refid`, same match group                                     |
-| `spend` / `receive`                                | `Disposal` / `Acquisition`                         | the two sides of a fiat-pair order                                 |
-| ledger `fee` column, fee asset ≠ AUD               | `Fee` + `Disposal` (`network_fee` or trading fee)  | the fee asset is captured, never assumed; counted once per `refid` |
-| `deposit`                                          | `Transfer` in                                      | matched to the sending leg; not income                             |
-| `withdrawal`                                       | `Transfer` out, plus `Disposal` of the network fee | the fee quantity comes from the withdrawal record                  |
-| `staking`, `reward`, `earn`                        | `Income` (`staking`)                               | the ledger is the only place these appear                          |
-| `transfer` between the operator's own Kraken books | no event                                           | same beneficial owner, no change in holdings                       |
-| `margin`, `rollover`, `settled`, any unlisted type | review item, no event                              | out of declared scope, or a shape we do not know                   |
+| Source record                                      | Events emitted                                     | Notes                                                                                        |
+| -------------------------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `trade` (asset out)                                | `Disposal` (`sale` or `crypto_for_crypto`)         | paired to the asset-in row by the shared `refid`                                             |
+| `trade` (asset in)                                 | `Acquisition`                                      | same `refid`, same match group                                                               |
+| `spend` / `receive`                                | `Disposal` / `Acquisition`                         | the two sides of a fiat-pair order                                                           |
+| ledger `fee` column, fee asset ≠ AUD               | `Fee` + `Disposal` (`network_fee` or trading fee)  | the fee asset is captured, never assumed; counted once per `refid`                           |
+| `deposit`                                          | `Transfer` in                                      | matched to the sending leg; not income                                                       |
+| `withdrawal`                                       | `Transfer` out, plus `Disposal` of the network fee | the fee quantity comes from the withdrawal record                                            |
+| `staking`, `reward`, `earn`                        | `Income` (`staking`)                               | the ledger is the only place these appear                                                    |
+| `transfer`                                         | evidence-classified event or review item           | may represent forks/airdrops, OTC, futures, staking, or own movement; never blanket no-event |
+| `margin`, `rollover`, `settled`, any unlisted type | review item, no event                              | out of declared scope, or a shape we do not know                                             |
 
-**Alpaca account activities.** **VERIFY:** the branch sources for this table contradict each other on the corporate-action codes (`SPLIT`/`SPIN` versus `SSP`/`SSO`) and on which of `DIVNRA` and `DIVTW` carries the treaty-rate line. The table below is the working mapping; a real activities pull from the operator's account confirms the codes and their semantics before any of these rows is trusted.
+**Alpaca activities are versioned by source generation, not merged into one ambiguous code table.**
 
-| Code                             | Events emitted                          | Notes                                                                          |
-| -------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------ |
-| `FILL`                           | `Acquisition` or `Disposal`             | USD amounts; translated per §6                                                 |
-| `DIV`                            | `Income` (`dividend`)                   | grossed up by its actual withholding lines, never by an assumed rate           |
-| `DIVNRA`                         | `Withholding`                           | attached to the `DIV` by symbol and pay date; treaty/NRA semantics VERIFY      |
-| `DIVTW`                          | `Withholding`                           | same attachment; semantics VERIFY against the real stream                      |
-| `DIVCGL`                         | `Income` (`cg_distribution`)            | classified apart from ordinary dividends                                       |
-| `DIVROC`                         | `CorporateAction` (`return_of_capital`) | reduces cost base with a floor at zero; the excess past zero is a capital gain |
-| `INT`                            | `Income` (`interest_us`)                | broker cash interest is foreign income                                         |
-| `FEE`                            | `Fee`                                   | charged in USD, so an incidental cost, not a disposal                          |
-| `CSD` / `CSW`                    | `Transfer` in / out                     | matched to the AUD bank leg by amount and date                                 |
-| `SPLIT` (or `SSP`)               | `CorporateAction` (`split`)             | `resolve: false`; code identity VERIFY                                         |
-| `SPIN` (or `SSO`), `MA`, `REORG` | `CorporateAction` + review item         | `resolve: true`; never silently processed; code identity VERIFY                |
-| any other code                   | review item, no event                   | including codes Alpaca adds after this table ships                             |
+| Source                             | Documented identities                                                                                                                                             | Normalization rule                                                                                                                                                                                           |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Legacy Account Activities REST     | immutable `id`; `FILL`, `DIV`, `DIVNRA`, `DIVTW`, `DIVFT`, `DIVFEE`, `DIVCGS`, `CGD`, `DIVROC`, `INT`, `FEE`, `CSD`, `CSW`, `SSP`, `SSO`, and other catalog codes | map through `alpaca-legacy-v1`; actual withholding attaches to dividend by source relationship/symbol/pay date; distribution and corporate-action variants remain distinct; any unmapped code is review-only |
+| Activity SSE/REST after 2026-02-11 | stable `ref_id`; type/subtype such as `TRD`, `SPLIT`/`FSPLIT`, `SPIN`; correction/bust references to `previous_id`                                                | map through `alpaca-activity-v1`; append linked correction/reversal events; never rewrite the prior event; any unmapped subtype is review-only                                                               |
+
+A real account fixture validates which codes actually occur and their payload shapes, but it does not collapse the two generations or redefine the published boundary.
 
 **Bank narratives**, matched case-insensitively against the normalized narrative:
 
@@ -193,9 +197,10 @@ Every non-AUD amount gets an AUD value, and every AUD value gets a recorded basi
 
 1. **Native AUD.** The amount is already AUD. Basis `NativeAud`, no rate.
 2. **Actual achieved rate.** A real conversion in the operator's own accounts backs this flow, and source evidence ties that conversion to this movement inside one match group. Use that conversion's own rate; basis `ActualAchieved` naming the conversion event. A conversion that merely happened near the same time does not qualify: without evidence linking it to the movement, the legs stay related and this rule does not fire.
-3. **RBA daily rate for the transaction date.** The default for everything else. Basis `RbaDaily` with the rate and the date it was published for.
-4. **RBA monthly average.** Used only when the operator has elected it for the whole financial year, recorded per event as `RbaMonthlyAverage`. It is never mixed silently with rule 3 inside one year.
-5. **Nearest prior published rate.** When no rate exists for the date, use the most recent earlier publication and record its actual date. A gap wider than **4 days** (proposed) additionally raises a review item.
+3. **Published transaction-time policy.** The default uses the RBA transaction-date rate when one exists. Weekends and NSW bank/public holidays have no RBA publication. The actual publication date and the accountant-approved policy used for non-publication days are recorded; nearest-prior RBA is a configured policy, not described as an ATO rule. A gap wider than **4 days** (proposed) raises review.
+4. **Period average.** An average over a chosen period of no more than 12 months is allowed only when a recorded reasonableness assessment shows it approximates applicable spot rates. Whole-FY consistency does not replace that test. The period, provider, assessment, and rate are stored on every affected event.
+
+The primary authorities for that policy are the [ATO's transaction/average-rate guidance](https://www.ato.gov.au/api/public/content/0-ae2dac92-eed2-4f82-8464-2a3f2165ad03) and the [RBA publication calendar and units](https://www.rba.gov.au/statistics/frequency/exchange-rates.html). Neither is stretched into a general previous-business-day rule.
 
 Crypto valuation uses `MarketPrice` from the configured provider at the event's timestamp, and the provider identity is part of the basis. A missing price is a review item and no event, because a disposal valued at a guess is worse than a disposal the operator has to look at.
 
@@ -206,6 +211,8 @@ Crypto valuation uses `MarketPrice` from the configured provider at the event's 
 **Parcels are run outputs, not inventory.** A computation run freezes its inputs (events, elections, opening positions, carried-loss vintages, code version), derives every parcel and consumption from scratch, and stores them keyed by the run. There is no mutable parcel table that later syncs edit. A corrected source record produces a new run with new parcels, and the previously accepted report remains reproducible from its own run.
 
 **Parcel selection is location-scoped FIFO.** Specific identification is applied per asset per custody location (venue or wallet), with FIFO as the default selection order within a location; the practice is recorded on the report so the accountant can see exactly which identification was used. Transfers move parcels between locations with acquisition dates and cost bases intact, so scoping by location never resets a holding period. HIFO and LIFO are available as recorded specific-identification variants with a records-adequacy caveat.
+
+The method choice is grounded in the [ATO investor CGT toolkit](https://www.ato.gov.au/api/public/content/4b8c14fa-eaae-4e76-9487-93de5c1a64a8_TaxTimeToolkit_Captialgainstaxonsaleofsharesandunits_pdf) and [Taxation Determination TD 33](https://www.ato.gov.au/law/view/document?LocID=%22CGD%2FTD33%2FNAT%2FATO%22&PiT=99991231235958). Location scoping is Ironcage's conservative records policy, not represented as a separate ATO requirement.
 
 ```
 function computeParcels(events, openingPositions, method = FIFO):
@@ -306,29 +313,36 @@ A transfer back from the wallet before the sale would carry its own network fee,
 
 ## 9. Division 775 and the USD balance
 
-The USD cash balance is itself an asset under the forex rules. How it is treated depends on an election only the operator can make, and the engine never assumes the election was made.
+This section implements the [ATO's forex-election and limited-balance guidance](https://www.ato.gov.au/forex12mthrule) against the [Division 775 statute](https://www.legislation.gov.au/C2004A05138/2024-09-15/2024-09-15/text/original/epub/OEBPS/document_9/document_9.html). The guidance defines the qualifying-account boundary; the statute controls where summary wording and the state machine ever differ.
+
+The USD cash balance is itself an asset under the forex rules. Full tracking is the safe default. The limited-balance election may apply only to an actual **qualifying forex account**: a foreign-currency-denominated credit-card account or an account held primarily to facilitate transactions. A broker cash ledger is not assumed eligible. Before election treatment activates for one, the signed election and an accountant-reviewed eligibility analysis of the actual account agreement are both archived.
 
 **Without an election, full forex tracking is the computation.** Currency amounts form lots consumed FIFO, and realization gains and losses are ordinary income rather than capital gains.
 
-**The limited balance election disregards FX movements on qualifying accounts, and it has strict formalities.** The election is prospective from its effective date, it must be written and signed, and it applies per nominated account. The engine's role is bounded:
+**The limited-balance election has event-specific effects and strict formalities.** It is prospective, written, signed, and names qualifying accounts. It may disregard specified FRE2/FRE4 and attributable CGT effects while the limited-balance test passes; it does not disregard FRE1 on depositing foreign currency. The engine's role is exact:
 
 - It **drafts** the election document with the nominated accounts and effective date, for the operator's signature. A draft has no effect; only the signed artifact, archived with its date, activates the treatment, and only from that date forward. Nothing is backdated.
-- It **tests credit and debit balances separately** against the statutory limits, per the provision's own structure, using daily peak AUD-translated balances across the nominated accounts.
-- It **monitors thresholds** and makes any approach or breach unmissable:
+- It **tests aggregate credit and debit balances separately**, without netting, across all nominated accounts. For the statutory test, foreign-currency amounts use the average exchange rate for the third month before the income year—not a daily spot translation.
+- It **tracks the buffering rule as a state machine**. A balance above A$250,000 can still pass during at most two increased-balance periods in one income year when each is remedied within 15 days and neither credit nor debit balance exceeds A$500,000. A period crossing an income-year boundary follows the statutory cross-year conditions.
+- It **applies the exemption per event only while the test passes**. A failed condition brings relevant events during the failed period into full forex treatment; it does not automatically terminate the written election.
+- It **warns before the statutory boundary** without confusing a product alert with the law:
 
-| Condition                                  | Behavior                                                                                           |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| Peak AUD-translated balance < A$200,000    | Nothing. The headroom figure shows on the running FY estimate.                                     |
-| Peak ≥ **A$200,000** (proposed buffer)     | `warning` feed event and an attention item naming the headroom to the threshold.                   |
-| Peak ≥ **A$250,000** (the statutory limit) | `critical` feed event, an attention item, and every subsequent USD flow marked `election_at_risk`. |
+| Condition                                                                 | Behavior                                                                                                                                        |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Statutory credit and debit totals each < A$200,000                        | show headroom only                                                                                                                              |
+| Either total ≥ **A$200,000** (product warning)                            | `warning` with headroom, statutory translation basis, and current buffer-period count                                                           |
+| Either total > **A$250,000** and ≤ A$500,000                              | open/continue an increased-balance period; show days remaining and periods used; treatment still passes only while every buffer condition holds |
+| Either total > **A$500,000**, a third period, or a period exceeds 15 days | `critical`; mark the precise failed interval and compute relevant events under full forex rules for that interval                               |
 
-The consequence of a breach is a question for the operator's accountant. The engine's job is to make the breach unmissable and its date exact, and to keep computing both modes so the accountant can compare them.
+The engine always computes the full-tracking comparison beside the election result, so the accountant can inspect eligibility and each buffer interval. The sourced algorithm is not an open question; account eligibility and unusual facts remain accountant-review items.
 
 ## 10. Foreign income and withholding
 
-US dividends are assessable foreign income recorded **gross of the amounts actually withheld**, taken from the broker's own withholding activity lines. The engine never imputes a withholding amount from a rate: when only net cash is visible and no withholding line exists, that is a missing-evidence review item, not a 15% assumption. The year's computed withholding reconciles against the uploaded 1042-S.
+The form contracts are the IRS [W-8BEN instructions](https://www.irs.gov/instructions/iw8ben) and [1042-S instructions](https://www.irs.gov/instructions/i1042s). FITO calculation and carry treatment follow the [ATO foreign income tax offset guide](https://www.ato.gov.au/forms-and-instructions/foreign-income-tax-offset-rules-guide-2018/calculating-and-claiming-your-foreign-income-tax-offset).
 
-W-8BEN validity is a dated fact. The form normally remains valid through the end of the third calendar year after signature, and can end earlier on a change of circumstances. The engine stores the signature date, computes the expiry, and raises an attention item **90 days** (proposed) before lapse. After a lapse, the broker withholds at the 30% non-treaty rate; the engine records the actual 30% amounts, flags the lapsed form, and marks the portion above the treaty rate for accountant review rather than claiming it as an offset. The lapsed-form case is a golden fixture in [examples/tax-cases.md](./examples/tax-cases.md).
+US dividends are assessable foreign income recorded **gross of the amounts actually withheld**, taken from the broker's own activity lines. The engine never imputes withholding from a rate. Calendar-year USD activity reconciles against every 1042-S issued for the corresponding recipient, income code, and tax rate; no form is expected when there was no reportable activity.
+
+W-8BEN treaty-claim validity is a dated fact. A properly completed treaty claim normally remains effective through the end of the third calendar year after signature and can end earlier on changed circumstances. The record stores form version, signature date, country, treaty article/rate claim, broker acceptance/status, expiry, and changed-circumstance events; “three years” is not used as a generic form-state shortcut. A **90-day** warning is proposed. Actual withholding remains authoritative, and over-treaty amounts remain accountant review rather than an invented offset.
 
 Foreign tax paid feeds the **foreign income tax offset**. Up to A$1,000 of foreign tax may be claimed directly with no limit calculation. Above that, the offset limit must be computed, and the limit depends on the operator's whole income position, which the investment ledger cannot see. The **operator tax profile** supplies it: salary and other non-Ironcage income, a deductions estimate, Medicare levy status, and the HELP debt flag, entered per financial year and versioned like any setting. With a profile, the FITO figure is computed and the report names the profile version it used. Without one, the **restricted A$1,000 direct claim is the recorded fallback**, and the report says the claim was capped for that reason. Unused FITO is lost, not carried, and the report says so when it happens.
 
@@ -340,17 +354,17 @@ Broker cash interest is foreign income; Australian bank interest is domestic. Th
 
 Verification runs with every recomputation. Checks split into two classes: **run-failing** checks, where a failure means the computation itself cannot be trusted and no report is produced, and **finding-producing** checks, where the figures stand but carry attention items and feed events. The class of each check is explicit in code.
 
-| Check                   | Class             | Computation                                                                                                                                                 | On failure                                                                        |
-| ----------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Rate coverage           | run-failing       | every non-AUD event has a `ValuationBasis` with a rate or price                                                                                             | the run fails; a missing basis is a defect, not a finding                         |
-| Traceability            | run-failing       | every figure names events, every event names an existing R2 object and record                                                                               | the run fails                                                                     |
-| Ledger identity         | run-failing       | Σ parcel quantity remaining = opening + Σ acquisitions − Σ disposal-class quantities, per asset                                                             | the run fails                                                                     |
-| Balance reconciliation  | finding           | per source and asset: opening + acquisitions + transfers in − disposals − transfers out − consumed fees, versus the live exchange, chain, or broker balance | `warning` event, attention item, and the source marked unreconciled on the report |
-| Zero-basis disposal     | finding           | disposal quantity exceeding tracked acquisitions and opening positions for that asset                                                                       | costed at zero base, `warning` event, and the report line flagged                 |
-| Gap ledger              | finding           | union of coverage windows per source vs the financial-year window                                                                                           | attention item per hole; the FY report renders as incomplete                      |
-| 1042-S cross-check      | finding           | Σ US withholding events for the US calendar year vs the uploaded form                                                                                       | attention item itemizing the difference where it exceeds **A$1.00** (proposed)    |
-| Carried-loss continuity | finding           | each vintage's closing remainder this year equals its opening amount next year                                                                              | attention item naming the vintage and the delta                                   |
-| Oracle comparison       | finding, one-time | per-disposal diff against the prior tax service's export                                                                                                    | every difference itemized and individually resolved or explained                  |
+| Check                   | Class             | Computation                                                                                                                                                            | On failure                                                                          |
+| ----------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Rate coverage           | run-failing       | every non-AUD event has a `ValuationBasis` with a rate or price                                                                                                        | the run fails; a missing basis is a defect, not a finding                           |
+| Traceability            | run-failing       | every figure names events, every event names an existing R2 object and record                                                                                          | the run fails                                                                       |
+| Ledger identity         | run-failing       | Σ parcel quantity remaining = opening + Σ acquisitions − Σ disposal-class quantities, per asset                                                                        | the run fails                                                                       |
+| Balance reconciliation  | finding           | per source and asset: opening + acquisitions + transfers in − disposals − transfers out − consumed fees, versus the live exchange, chain, or broker balance            | `warning` event, attention item, and the source marked unreconciled on the report   |
+| Zero-basis disposal     | finding           | disposal quantity exceeding tracked acquisitions and opening positions for that asset                                                                                  | costed at zero base, `warning` event, and the report line flagged                   |
+| Gap ledger              | finding           | union of coverage windows per source vs the financial-year window                                                                                                      | attention item per hole; the FY report renders as incomplete                        |
+| 1042-S cross-check      | finding           | group raw USD withholding by calendar year, recipient, income code, and rate; round each form aggregate to whole USD under IRS instructions; compare every issued form | attention item for missing/extra forms or a difference beyond whole-dollar rounding |
+| Carried-loss continuity | finding           | each vintage's closing remainder this year equals its opening amount next year                                                                                         | attention item naming the vintage and the delta                                     |
+| Oracle comparison       | finding, one-time | per-disposal diff against the prior tax service's export                                                                                                               | every difference itemized and individually resolved or explained                    |
 
 The balance-reconciliation identity is stated per source so a mismatch localizes: the reconstructed closing quantity must equal the source's reported balance within the declared tolerance, and a mismatch reports both values, the delta, and the last point at which they agreed. It never creates a balancing event.
 
@@ -393,37 +407,40 @@ Behind the headline figures sit the ledgers the accountant works from: per-dispo
 
 Every number above, its owner, and its status. "Proposed" means: pick differently and only configuration changes.
 
-| Value                             | Default                                                              | Owner                        | Status         |
-| --------------------------------- | -------------------------------------------------------------------- | ---------------------------- | -------------- |
-| FY date basis                     | Australia/Sydney local date of the source timestamp                  | computation config           | decided        |
-| Parcel method                     | FIFO specific identification, scoped per custody location            | computation config           | decided        |
-| Parcel lifecycle                  | run outputs, recomputed each run; never mutable inventory            | computation config           | decided        |
-| CGT discount                      | 50%; acquired ≥ 12 months before the event, both end days excluded   | statute                      | decided        |
-| Loss pools                        | current-year first, then carried vintages in origin order            | statute                      | decided        |
-| Loss direction                    | non-discountable gains first (operator-overridable, recorded)        | computation config           | decided        |
-| Rounding                          | intermediates unrounded; disposal lines half-even to the cent        | computation config           | decided        |
-| FX default basis                  | RBA daily for the transaction date                                   | computation config           | decided        |
-| Division 775 mode                 | full forex tracking unless a signed prospective election is archived | operator election            | decided        |
-| Limited-balance threshold / alert | A$250,000 statutory, A$200,000 warning                               | statute / computation config | alert proposed |
-| FITO direct-claim threshold       | A$1,000                                                              | statute                      | decided        |
-| FITO fallback without a profile   | restricted A$1,000 direct claim, stated on the report                | computation config           | decided        |
-| W-8BEN expiry warning             | 90 days before lapse                                                 | computation config           | proposed       |
-| Transfer match window             | 72 hours                                                             | normalizer config            | proposed       |
-| Stale-rate review trigger         | no published rate within 4 days                                      | computation config           | proposed       |
-| Reconciliation tolerances         | 1042-S A$1.00; balances 1 minor unit or 0.01%                        | verification config          | proposed       |
-| Kraken export poll interval       | 60 s                                                                 | engine config                | proposed       |
-| Container recompute threshold     | run in the compute container above ~10,000 events                    | engine config                | proposed       |
-| Event idempotency key             | (system, account, record_id, leg)                                    | normalizer                   | decided        |
-| Recomputation strategy            | total, from the full event set and opening inputs                    | computation config           | decided        |
-| Personal-use exemption            | off, per-transaction opt-in with warning                             | operator setting             | decided        |
-| Wrapping treatment                | disposal, with a recorded override                                   | operator setting             | decided        |
+| Value                           | Default                                                                                                      | Owner               | Status          |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------- | --------------- |
+| FY date basis                   | Australia/Sydney local date of the source timestamp                                                          | computation config  | decided         |
+| Parcel method                   | FIFO specific identification, scoped per custody location                                                    | computation config  | decided         |
+| Parcel lifecycle                | run outputs, recomputed each run; never mutable inventory                                                    | computation config  | decided         |
+| CGT discount                    | 50%; acquired ≥ 12 months before the event, both end days excluded                                           | statute             | decided         |
+| Loss pools                      | current-year first, then carried vintages in origin order                                                    | statute             | decided         |
+| Loss direction                  | non-discountable gains first (operator-overridable, recorded)                                                | computation config  | decided         |
+| Rounding                        | intermediates unrounded; disposal lines half-even to the cent                                                | computation config  | decided         |
+| FX default basis                | actual rate, else RBA transaction-date when published; accountant-approved policy on non-publication days    | computation config  | decided         |
+| Period-average rate             | period ≤ 12 months plus archived reasonableness assessment                                                   | computation config  | decided         |
+| Division 775 mode               | full forex tracking unless a signed prospective election is archived                                         | operator election   | decided         |
+| Limited-balance statutory test  | separate credit/debit totals; third-month average rate; A$250k threshold; max 2 periods ≤15 days and ≤A$500k | statute             | decided         |
+| Limited-balance warning         | A$200,000 under the statutory translation basis                                                              | computation config  | proposed        |
+| FITO direct-claim threshold     | A$1,000                                                                                                      | statute             | decided         |
+| FITO fallback without a profile | restricted A$1,000 direct claim, stated on the report                                                        | computation config  | decided         |
+| W-8BEN expiry warning           | 90 days before lapse                                                                                         | computation config  | proposed        |
+| Transfer match window           | 72 hours                                                                                                     | normalizer config   | proposed        |
+| Stale-rate review trigger       | no acceptable published rate within 4 days                                                                   | computation config  | proposed        |
+| Reconciliation tolerances       | 1042-S grouped/rounded whole USD; balances 1 minor unit or 0.01%                                             | verification config | proposed        |
+| Kraken export poll interval     | 60 s                                                                                                         | engine config       | proposed        |
+| Tax recompute execution         | trusted core by default; offload only through hash-verified R2 artifacts when measured limits require it     | engine config       | decided (shape) |
+| Event idempotency key           | (system, account, record_id, leg)                                                                            | normalizer          | decided         |
+| Recomputation strategy          | total, from the full event set and opening inputs                                                            | computation config  | decided         |
+| Personal-use exemption          | off, per-transaction opt-in with warning                                                                     | operator setting    | decided         |
+| Wrapping treatment              | arrangement-specific; unknown beneficial ownership/trust facts → accountant review                           | tax policy          | decided         |
 
 ## Alternatives considered
 
 - **The prior service's export as a data source.** Rejected: importing another engine's conclusions inherits its errors and destroys traceability to raw records. It is imported once as a verification oracle, compared, and every difference resolved or explained.
 - **Incremental recomputation.** Rejected: incremental parcel state invalidates subtly on any historical correction, and corrections are routine. At one individual's volume the full recomputation is cheap, and totality is what makes the determinism guarantee checkable.
 - **Global FIFO across venues and wallets.** Rejected: it fabricates identification choices the operator's records cannot substantiate, which is exactly what specific identification must avoid. Location-scoped selection matches the records that exist, and it is recorded on the report as the identification practice.
-- **Treating the limited-balance election as the software default.** Rejected: the election is prospective, written, signed, and per nominated account, and assuming it would let a computation depend on a legal act that never happened. The engine drafts the document and tracks the thresholds; the operator makes the election.
+- **Treating the limited-balance election or broker-account eligibility as a software default.** Rejected: the election is prospective and signed, and a broker cash ledger must independently satisfy the qualifying-account definition. Full tracking remains active until both artifacts exist.
+- **A universal wrapping toggle.** Rejected: [ATO guidance](https://www.ato.gov.au/api/public/content/0-c61607c3-22a0-480f-878f-70292b745da3) makes the CGT event depend on the arrangement, beneficial ownership, and possible trust. Typical token-for-token wrapping may be a disposal, but unknown arrangements go to accountant review rather than an operator override.
 - **Imputing withholding at the 15% treaty rate.** Rejected: the broker's activity lines carry the actual amounts, and imputation invents a figure exactly where the 1042-S cross-check needs an independent one. A missing withholding line is a review item.
 - **A single lumped loss pool.** Rejected: the return asks for carried losses by continuity, the statutory ordering distinguishes current-year from carried losses, and a lumped pool cannot show which vintage a remainder belongs to.
 - **Kraken's paged endpoints instead of the export API.** Rejected for bulk history: the export API returns complete trade and ledger sets in one artifact, which is both faster and easier to archive as a single immutable object.
@@ -434,8 +451,8 @@ Every number above, its owner, and its status. "Proposed" means: pick differentl
 ## Open questions
 
 1. **Kraken ledger type coverage.** Which ledger entry types and subtypes appear in the operator's real full-history export. _Safe fallback:_ any type not in the mapping table lands in the review queue with no event. _Must close before:_ the first FY computation on real data. _Evidence:_ a real full-history export ingested and every row mapped or reviewed.
-2. **Alpaca activity-code identity and semantics.** Whether the corporate-action codes are `SPLIT`/`SPIN` or `SSP`/`SSO`, and which of `DIVNRA`/`DIVTW` carries the treaty-rate line. _Safe fallback:_ unlisted codes produce review items; withholding events attach by symbol and pay date regardless of code. _Must close before:_ the first FY computation on real data. _Evidence:_ a real activities pull from the operator's account, archived as fixtures.
-3. **The consequence of a limited-balance breach.** Whether the election ceases from the breach date, from the start of the year, or under a temporary-excess allowance. _Safe fallback:_ the engine records the exact breach date, marks subsequent flows `election_at_risk`, and computes both modes. _Must close before:_ the first FY in which a breach occurs. _Evidence:_ accountant advice against the provision for the operator's facts.
+2. **Alpaca payload coverage by source generation.** The legacy/new vocabularies and cutoff are fixed; the unknown is which documented/added shapes occur in the real account. _Safe fallback:_ unlisted code/subtype produces a review item. _Must close before:_ the first FY computation on real data. _Evidence:_ archived pulls from both sides of the cutoff, with every row mapped or reviewed.
+3. **Broker USD account eligibility for Division 775.** _Safe fallback:_ full forex tracking. _Must close before:_ election treatment for that account. _Evidence:_ actual account agreement plus accountant-reviewed qualifying-account analysis and signed election.
 4. **FITO treatment of over-treaty withholding after a W-8BEN lapse.** Whether the portion above 15% is claimable, recoverable from the IRS, or lost. _Safe fallback:_ claim only the treaty-limited portion; flag the excess for accountant review. _Must close before:_ the first FY report containing a lapsed-form dividend. _Evidence:_ accountant confirmation for the operator's facts.
 5. **Chain-data and price providers.** Which provider backs xpub and address tracking, and whether crypto valuation uses the trade timestamp or the daily close. _Safe fallback:_ wallet history enters by manual CSV; valuations without a price are review items. _Must close before:_ wallet sync ships. _Evidence:_ provider output validated against a known wallet's full history.
 6. **ETF distribution components.** Whether the Alpaca stream distinguishes every component the return requires, or whether the annual statement must supplement it. _Safe fallback:_ unclassifiable distribution lines are review items. _Must close before:_ the first FY report containing ETF distributions. _Evidence:_ a full distribution year of the real stream reconciled against the issuer's annual statement.
@@ -443,14 +460,15 @@ Every number above, its owner, and its status. "Proposed" means: pick differentl
 ## Build checklist
 
 - [ ] `TaxEvent` union and `ValuationBasis` as Effect Schemas in `packages/domain`, with the idempotency key as a unique index and UUIDv7 IDs
-- [ ] One sync Workflow shape, instantiated per source, with the seven steps and the coverage rows; the Kraken export path running the zip through the compute container under the dedicated read-only key
+- [ ] One sync Workflow shape per source with coverage rows; core requests/retrieves Kraken exports using the dedicated read-only key, stores raw bytes in R2, and the keyless compute decoder emits hash-verified chunks for trusted core to commit
 - [ ] Opening-position and carried-loss input surfaces, with attached evidence and per-vintage loss records
-- [ ] The three mapping tables as data-driven normalizers, each with a fixture per row, a final unknown-code case, and the Kraken `refid` join with its fee-once rule
+- [ ] Source-versioned normalizers with a fixture per row and final unknown case: Kraken Ledger authority + Trades context; Alpaca legacy Activities; Alpaca new Activity SSE with corrections/busts
 - [ ] FX precedence as a pure function; property test: every event leaves the normalizer with a basis or does not exist
 - [ ] `packages/tax`: location-scoped parcels as run outputs, consumption, the 12-month discount rule on Sydney local dates, loss vintages with the recorded direction default, carry-forward by vintage, DIVROC floor
 - [ ] The worked CGT example and every case in [examples/tax-cases.md](./examples/tax-cases.md) as golden tests: same events, byte-identical figures
-- [ ] Division 775 election drafting, the signed-artifact gate, separate credit and debit balance tests, and both alert levels
+- [ ] Division 775 eligibility artifact and signed-election gates; FRE1/FRE2/FRE4 rules; separate credit/debit totals; third-month rate; two 15-day/A$500k buffers including cross-FY cases; full-tracking comparison
 - [ ] The operator tax profile per FY, the computed FITO limit, and the recorded A$1,000 fallback
 - [ ] Verification checks with the run-failing and finding-producing classes separated in code; readiness states `draft` / `reconciled` / `accountant_review_ready`
 - [ ] Review queue with the closed reason set, and the resolution path that writes events
+- [ ] 1042-S one-to-many evidence model and USD whole-dollar grouped reconciliation; W-8BEN treaty-claim record with broker status/changed circumstances
 - [ ] FY report generation shaped as myTax asks, with the per-disposal, income, withholding, per-vintage carried-loss, and closing-holdings ledgers behind it and the foreign-assets operator confirmation recorded

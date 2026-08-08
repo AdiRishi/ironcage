@@ -49,7 +49,7 @@ The withholding amount is read from the broker's activity line, never computed f
 - Net cash in AUD: 80.75 / 0.6550 = **123.28** (checks: 145.04 − 21.76 = 123.28).
 - Assessable foreign income includes the gross 145.04 (the withheld amount is income too); FITO accrues 21.76.
 
-**Expected FY figures** (alone): assessable foreign income 145.04; FITO claim 21.76 — under the A$1,000 threshold → claimed directly, no offset-limit calculation, no tax-profile dependency. The year's computed US withholding (USD 14.25) is the figure the broker's 1042-S must reconcile against; the reconciliation runs in USD because the form is stated in USD.
+**Expected FY figures** (alone): assessable foreign income 145.04; FITO claim 21.76 — under the A$1,000 threshold → claimed directly, no offset-limit calculation, no tax-profile dependency. Raw US withholding is USD 14.25. In its recipient/income-code/rate group, the 1042-S comparison expects the form's whole-dollar USD amount under IRS rounding; AUD translation remains separate.
 
 **Variant** — if the year's total FITO exceeded A$1,000, the offset-limit calculation engages and requires the operator's tax profile. The expected behavior is a figure computed from the profile's rate table plus a report annotation naming the profile version used. Without a profile, the expected behavior is the restricted A$1,000 direct claim, stated as such on the report.
 
