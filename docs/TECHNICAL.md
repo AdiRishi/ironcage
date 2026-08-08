@@ -27,6 +27,8 @@ Supporting material:
 
 - [examples/crypto-trend-order.md](./technical/examples/crypto-trend-order.md) — one fixed trade threaded through chapters 05–07; the integration test replays it.
 - [examples/tax-cases.md](./technical/examples/tax-cases.md) — hand-computed tax scenarios that double as golden test fixtures.
+- [examples/commbank-exports.md](./technical/examples/commbank-exports.md) — observed NetBank formats, collection cadence, backfill procedure, and extractor evaluation.
+- [examples/commbank-fixtures.md](./technical/examples/commbank-fixtures.md) — fictional, structure-preserving examples for the CommBank parser contracts.
 - [appendix/decisions.md](./technical/appendix/decisions.md) — the decision archive: history, supersessions, and rejected alternatives. You never need it to build the system; you need it to avoid re-arguing settled questions.
 - [ROADMAP.md](./ROADMAP.md) — the build order (Money → Tax → the investing engine) and the dependency map.
 
@@ -38,6 +40,7 @@ Supporting material:
 | Runtime platform        | Cloudflare: Workers, Durable Objects, Workflows, Queues, Containers, R2  | [Architecture](./technical/01-architecture.md) |
 | System of record        | PlanetScale Postgres via dual Hyperdrive bindings                        | [Data](./technical/03-data.md)                 |
 | AI framework & routing  | Flue for all AI code; AI Gateway for all model traffic                   | [AI](./technical/07-ai.md)                     |
+| Statement extraction    | AnyDoc 0.1.7 in the isolated compute container                           | [Money](./technical/08-money.md)               |
 | Durable pipelines       | Cloudflare Workflows, Effect inside each step                            | [Workbench](./technical/10-workbench.md)       |
 | Web application         | TanStack Start, shadcn/ui, behind Cloudflare Access                      | [App](./technical/11-app.md)                   |
 | Venues                  | Kraken (crypto spot) and Alpaca (US stocks/ETFs)                         | [Venues](./technical/06-venues.md)             |

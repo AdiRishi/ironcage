@@ -25,7 +25,7 @@ This page is the front door. Three rules govern the whole set:
 | The tick: gates, strategy, clamp, cage, reservation, persistence            | [technical/05-the-tick](./technical/05-the-tick.md)                                 |
 | Venue execution, order ambiguity, stops, reconciliation, simulated fills    | [technical/06-venues](./technical/06-venues.md)                                     |
 | AI capabilities: registry, runtime, staleness, scorecards, demotion         | [technical/07-ai](./technical/07-ai.md)                                             |
-| Bank import, deduplication, categorization                                  | [technical/08-money](./technical/08-money.md)                                       |
+| Bank evidence, import, deduplication, coverage, categorization, analysis    | [technical/08-money](./technical/08-money.md)                                       |
 | The tax engine                                                              | [technical/09-tax](./technical/09-tax.md)                                           |
 | Backtests, multiplicity, the gate pipeline, shadow runs                     | [technical/10-workbench](./technical/10-workbench.md)                               |
 | The web app: data paths, the live feed protocol, auth                       | [technical/11-app](./technical/11-app.md)                                           |
@@ -33,5 +33,7 @@ This page is the front door. Three rules govern the whole set:
 | What any surface must show and guarantee                                    | the matching [product chapter](./product/)                                          |
 | One trade, traced end to end                                                | [technical/examples/crypto-trend-order](./technical/examples/crypto-trend-order.md) |
 | Hand-checked tax computations                                               | [technical/examples/tax-cases](./technical/examples/tax-cases.md)                   |
+| Observed CommBank formats and collection runbook                            | [technical/examples/commbank-exports](./technical/examples/commbank-exports.md)     |
+| Fictional CommBank parser shapes                                            | [technical/examples/commbank-fixtures](./technical/examples/commbank-fixtures.md)   |
 | Build order and dependencies                                                | [ROADMAP.md](./ROADMAP.md)                                                          |
 | The ubiquitous language                                                     | [../CONTEXT.md](../CONTEXT.md)                                                      |

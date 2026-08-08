@@ -6,7 +6,7 @@ The build order, decided and recorded in the [decision history](./technical/appe
 
 Bank import, categorization, spending analysis, and the first reports — the [Money](./product/05-money.md) surface end to end.
 
-What it delivers: fixture-proven CommBank CSV import (up to 600 transactions per export) with overlap dedupe, the categorization capability with its review queue and rules, monthly/trends/recurring/anomaly analysis, savings suggestions, the monthly spending report, and external balances feeding a first whole-of-wealth view. Microsoft Money/Quicken-style formats remain unavailable until real redacted exports prove a specific dialect; OFX is not assumed from a marketing label.
+What it delivers: fixture-proven paired CommBank CSV/OFX import with overlap dedupe, source preservation, balance reconciliation, and account-level coverage. It also delivers the categorization capability with its review queue and rules, monthly/trends/recurring/anomaly analysis, savings suggestions, the monthly spending report, and external balances feeding a first whole-of-wealth view. QIF remains unsupported because it adds no identity or reconciliation evidence. Older statements are archived immediately and enter the record only through account-specific fixture-proven parsers.
 
 **What phase 1 quietly builds — the real payload:**
 
@@ -18,7 +18,7 @@ What it delivers: fixture-proven CommBank CSV import (up to 600 transactions per
 - **The entire AI runtime on its first real capability**: the categorization agent in pinned Flue, gateway-fronted providers, the decision-records queue and DLQ consumer, returned Gateway Log IDs/application trace IDs, explicit Flue durable-state inventory, safe defaults, and the review queue. Every seam the regime assessment will later cross gets crossed first by transaction categorization, where the worst possible failure is a miscategorized coffee.
 - The reports library with its first report type.
 
-Exit criteria: a full year of real CommBank history imported through overlapping CSV exports with dedupe verified by balance-chain; categorization running with rules learning from corrections; the first monthly report generated; the operator checking the app because it's useful, not because it's new. Real overlapping deposit and card CSVs—including a multi-row day, signs, quoting, non-ASCII text, and the 600-row edge—must clear the v1 parser markers. OFX/FITID fixtures are optional future-format work, not phase-1 exit criteria.
+Exit criteria: two years of available structured CommBank history imported for the four required accounts through overlapping paired bundles. Reimport must produce zero new canonical transactions, and all complete months must pass account, row-pair, balance, and coverage reconciliation. Real fixtures must cover all four account types, a multi-row collision, signs, quoting, non-ASCII text, an empty result, and the 600-row edge. Categorization must learn visible rules from corrections, and the first complete-month report must be generated. Statement PDFs must be archived, but production statement parsing is a later tranche unless the required overlap fixtures already pass.
 
 ## Phase 2 — Tax
 

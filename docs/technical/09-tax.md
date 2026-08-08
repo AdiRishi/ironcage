@@ -63,7 +63,7 @@ Per-source facts the sync must honor:
 - **External exchanges** use read-only API keys in the same shape. Where an API cannot reach old history, a statement file is ingested and the file itself is recorded as the source.
 - **Wallets** are tracked by xpub for UTXO chains and by address for account chains including tokens, through a configured chain-data provider. Per-chain staking-reward reconstruction is its own normalizer concern. An address or xpub is an observation mechanism, not proof of ownership; the operator records the ownership interval.
 - **Alpaca** has two source generations: legacy Account Activities REST for older history and Activity SSE/REST for activity booked after the provider's 2026-02-11 boundary. Separate normalizers preserve each vocabulary, immutable ID, corrections, and busts. Every 1042-S the broker issues for a calendar year is archived and reconciled as evidence; there may be several forms by income type/rate and none when no reportable activity exists.
-- **Bank interest and AUD funding legs** come from the imported bank rows described in [Money](./08-money.md), selected by narrative pattern rather than re-imported.
+- **Bank interest and AUD funding legs** come from Money's canonical bank transactions and linked source observations, not from re-importing bank files. Tax reads Money's account coverage with those rows and keeps an incomplete source window visible.
 - **Manual CSV** gets the same normalization and the same audit trail as any API source.
 
 ## 3. Opening positions and carried losses

@@ -30,6 +30,20 @@ _Avoid_: rebalancer, treasury
 The deterministic risk-limit layer no AI output can reach — per-sleeve limits plus the system cage (total exposure, system drawdown kill switch, venue concentration) above all sleeves. The one deliberately themed term in the system.
 _Avoid_: guardrails, safety layer, risk management (as a vague noun)
 
+## Money
+
+**Bank transaction**:
+One canonical posted movement in one owned bank account. Analysis counts it once regardless of how many source observations support it.
+_Avoid_: imported row, CSV transaction, statement transaction
+
+**Source observation**:
+One bank-supplied representation of a bank transaction from an import bundle. It preserves source facts and links to the canonical transaction when identity is proven.
+_Avoid_: transaction (when referring to evidence), raw transaction
+
+**Import bundle**:
+The files submitted together for one account and source window. A CommBank structured bundle contains paired CSV and OFX, while a statement bundle contains one PDF.
+_Avoid_: upload, import file (for a multi-file source)
+
 ## AI capabilities
 
 **Capability**:

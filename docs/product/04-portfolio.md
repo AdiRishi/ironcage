@@ -4,7 +4,7 @@ The Portfolio view is the whole of wealth in one place, and the allocator's home
 
 ## The whole-of-wealth picture
 
-- **Net worth over time** — sleeve equity (live and dry-run clearly separated) plus imported external account balances from [Money](./05-money.md), each component carrying its as-of date; stale imported balances are visibly dated, never silently presumed current.
+- **Net worth over time** — sleeve equity (live and dry-run clearly separated) plus imported ledger balances from [Money](./05-money.md). Offset cash is an asset, while Mastercard and home-loan balances are liabilities. Every component carries its as-of date, and stale imported balances are visibly dated rather than presumed current.
 - **Allocation** — the full breakdown: unallocated cash by venue (and in transit), external cash by account, each sleeve, and holdings by asset class.
 - **The running FY tax estimate** — gains position, income to date, FITO accrued, election-threshold headroom — surfaced year-round from the [tax engine](./09-tax.md), so tax is a number the operator watches rather than an April surprise.
 - This view feeds Overview's whole-of-wealth toggle ([Overview](./01-overview.md)).

@@ -48,18 +48,18 @@ Core exposes two named surfaces. Both are defined once in `packages/contracts`. 
 
 ### `AppApi` — the operator surface, called only by the app Worker
 
-| Group         | Operations                                                                                         | Notes                                             |
-| ------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| Overview      | `getVitals`, `getAttentionItems`, `getEquityCurve`, `getSleeveSummaries`                           | Reads; every response carries as-of times         |
-| Sleeves       | `getSleeve`, `getLivingView`, `createSleeve`, `transition`, `setPaused`                            | `transition` demands a ceremony payload           |
-| Mandates      | `getMandate`, `getMandateHistory`, `proposeChange`, `applyChange`                                  | `applyChange` demands a ceremony payload          |
-| Activity      | `getFeed(cursor, filters)`, `getTradeStory(correlationId)`, `acknowledge(eventId)`                 | Feed cursors are event IDs (UUIDv7, time-ordered) |
-| Portfolio     | `getCapitalLedger`, `getBook`, `getCosts`, `recordCapitalAct`, `recordTransfer`, `resolveTransfer` | Acts demand ceremony payloads                     |
-| Controls      | `pauseSleeve`, `flatten`, `haltSleeve`, `haltAll`                                                  | Never gated; no ceremony; confirm-only in the UI  |
-| Overrides     | `armOverride`, `getOverrides`                                                                      | Arming demands the ceremony's typed phrase        |
-| Money         | `import(preview/confirm)`, `getAnalysis`, `categorize`, `getRules`, `editRule`                     |                                                   |
-| Reports & Tax | `listReports`, `getReport`, `getTaxEstimate`, `getTaxReport`, `runSync`                            |                                                   |
-| Workbench     | `runBacktest`, `getCoverage`, `getProposals`, `decideProposal`                                     | `decideProposal` demands a ceremony payload       |
+| Group         | Operations                                                                                                                                                                        | Notes                                                                     |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Overview      | `getVitals`, `getAttentionItems`, `getEquityCurve`, `getSleeveSummaries`                                                                                                          | Reads; every response carries as-of times                                 |
+| Sleeves       | `getSleeve`, `getLivingView`, `createSleeve`, `transition`, `setPaused`                                                                                                           | `transition` demands a ceremony payload                                   |
+| Mandates      | `getMandate`, `getMandateHistory`, `proposeChange`, `applyChange`                                                                                                                 | `applyChange` demands a ceremony payload                                  |
+| Activity      | `getFeed(cursor, filters)`, `getTradeStory(correlationId)`, `acknowledge(eventId)`                                                                                                | Feed cursors are event IDs (UUIDv7, time-ordered)                         |
+| Portfolio     | `getCapitalLedger`, `getBook`, `getCosts`, `recordCapitalAct`, `recordTransfer`, `resolveTransfer`                                                                                | Acts demand ceremony payloads                                             |
+| Controls      | `pauseSleeve`, `flatten`, `haltSleeve`, `haltAll`                                                                                                                                 | Never gated; no ceremony; confirm-only in the UI                          |
+| Overrides     | `armOverride`, `getOverrides`                                                                                                                                                     | Arming demands the ceremony's typed phrase                                |
+| Money         | `previewBankImport`, `confirmBankImport`, `getImportHistory`, `getBankCoverage`, `getMoneyAnalysis`, `categorizeTransactions`, `getCategorizationRules`, `editCategorizationRule` | Preview and confirm resend source bytes; analysis carries coverage status |
+| Reports & Tax | `listReports`, `getReport`, `getTaxEstimate`, `getTaxReport`, `runSync`                                                                                                           |                                                                           |
+| Workbench     | `runBacktest`, `getCoverage`, `getProposals`, `decideProposal`                                                                                                                    | `decideProposal` demands a ceremony payload                               |
 
 Two rules bind the surface. First, risk-reducing controls never require a ceremony payload, and they must be accepted even when every other operation is failing. Second, every mutating operation is idempotent under a client-supplied `request_id` (UUIDv7), so the app may safely retry any timeout.
 

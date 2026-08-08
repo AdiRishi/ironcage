@@ -21,7 +21,7 @@ The whole system in one page: total performance, per-sleeve contribution, the sy
 
 ### Monthly spending report — monthly, after import
 
-The month's spending by category vs. trailing averages; income, spending, savings rate; recurring-charge changes; anomalies; and the current stack of savings suggestions with estimated annual impact. Written to be read in three minutes.
+The month's spending by category vs. trailing averages; income, spending, savings rate; recurring-charge changes; anomalies; and the current stack of savings suggestions with estimated annual impact. The report is generated only when every required Money account covers the full month. An incomplete month shows its account-level gaps instead of a partial report. Written to be read in three minutes.
 
 ### Trial report — on demand, and automatically when a sleeve seeks promotion
 

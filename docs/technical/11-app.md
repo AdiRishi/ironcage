@@ -48,8 +48,8 @@ routes/
     costs.tsx                         venue fees, AI spend, infrastructure spend
     cage.tsx                          system cage: exposure, drawdown, venue concentration
   money/
-    index.tsx                         monthly spending and trends
-    import.tsx                        file import and its balance-chain result
+    index.tsx                         complete-month spending, trends, balances, and data-through date
+    import.tsx                        bundle/statement preview, source evidence, dedupe verdicts, balances, and coverage
     review.tsx                        categorization review queue
     recurring.tsx                     recurring charges and anomalies
   reports/
