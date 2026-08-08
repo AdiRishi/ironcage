@@ -19,11 +19,11 @@ A bounded allocation of capital with its own mandate — the standard portfolio-
 _Avoid_: bot, strategy (for the capital unit), portfolio (for one sleeve)
 
 **Mandate**:
-A sleeve's versioned constitution: everything it may do, and under what limits — the standard investment-mandate sense, extended to cover AI capabilities.
+A sleeve's versioned rules of engagement: everything it may do, and under what limits — the standard investment-mandate sense, extended to cover AI capabilities.
 _Avoid_: config, settings, profile (reserved for capability-bundle shorthand)
 
 **Allocator**:
-The discipline governing capital: total system capital equals unallocated cash plus sleeve allocations, and every allocation change is a recorded operator act.
+The discipline governing capital: total system capital equals unallocated cash plus sleeve allocations — a ledger of authority, not a valuation — and every allocation change is a recorded operator act.
 _Avoid_: rebalancer, treasury
 
 **Cage**:
@@ -59,6 +59,10 @@ _Avoid_: control, benchmark (reserved for sleeve-level comparisons)
 **Scorecard**:
 A capability's running score versus its no-AI baseline — the evidence that decides whether the capability keeps its place.
 _Avoid_: value-added ledger, rating
+
+**Decision record**:
+The permanent record of one AI decision: what was asked, what was answered, the stated reasoning, the model, and the cost — the durable half of AI observability (full traces live in the gateway only for its retention window).
+_Avoid_: trace (for the permanent record), audit log (unqualified)
 
 **Gate pipeline**:
 The test gauntlet a proposal must survive before touching live behavior: validation, reproducible backtest, walk-forward, shadow run, operator approval.
@@ -109,7 +113,7 @@ A quantity of one asset with a single acquisition date and cost base, tracked fr
 _Avoid_: lot (in docs; acceptable in code), batch
 
 **Gap ledger**:
-The per-source record of which time windows have been fetched from where, making holes in tax history visible instead of silently absent.
+The per-source record of which time windows have been fetched from where, making holes in imported history — tax sources and bank imports alike — visible instead of silently absent.
 _Avoid_: sync log, coverage report
 
 **Fail closed**:

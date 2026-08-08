@@ -17,7 +17,7 @@ The health of every load-bearing part of the system, each with three states — 
 - **Venue connectivity** — reachability of each connected exchange/broker (and the gateway, once live capital exists). Failing means affected sleeves are failing closed.
 - **AI runs** — status of the last scheduled AI work (regime ticks, report generation). A failed run is a degraded vital and a feed event; the affected sleeve independently shows its stale-signal state.
 
-Vitals are honest about staleness: every value carries its "as of" time, and a value the app cannot currently refresh reports as unknown (degraded), never as its last known healthy reading.
+Vitals state their own staleness: every value carries its "as of" time, and a value the app cannot currently refresh reports as unknown (degraded), never as its last known healthy reading.
 
 If a break-glass override is armed or active, that fact — with its scope and expiry — is unmissable on this view regardless of anything else.
 
@@ -31,7 +31,7 @@ Everything that needs a human, and nothing else (absence of items is the good st
 - An armed or active override approaching expiry.
 - Outstanding transfer requests — money the system needs the operator to move ([Portfolio](./04-portfolio.md)), with amount, destination, and rail — and any pending transfer that has missed its expected window.
 
-Every item here opens the decision it is waiting on, through the decision ceremony ([Operations](./07-operations.md)) — this row is the product's entire to-do list, and an empty row is the good state.
+Every item here opens the decision it is waiting on, through the decision ceremony ([Operations](./07-operations.md)). This row is the product's entire to-do list.
 
 ### The equity picture
 

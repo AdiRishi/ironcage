@@ -16,7 +16,7 @@ Ironcage tracks one number as sacred: **total system capital** — everything th
 > total system capital = unallocated cash + Σ (each sleeve's allocation)
 
 - **Unallocated cash** is capital under management but assigned to no sleeve. It sits at venues — or in transit between the bank and a venue — earning nothing and risking nothing; it is the allocator's reserve, and this view shows it plainly. The headline identity is venue-blind, but the ledger is not: cash is tracked per venue, because a dollar at Kraken cannot back an Alpaca sleeve until it physically moves.
-- **A sleeve's allocation** is the capital currently entrusted to it — always ≤ its mandate's cap. A sleeve's _equity_ (allocation ± its P&L) fluctuates with performance; its _allocation_ changes only by allocator acts.
+- **A sleeve's allocation** is the capital currently entrusted to it — always ≤ its mandate's cap. Allocation is authority, not value: a sleeve's _equity_ (what its allocation is currently worth) fluctuates with performance, its _allocation_ changes only by allocator acts, and the nightly check that recorded value adds up is a separate assertion from this ledger.
 
 Dry-run sleeves have simulated allocations, tracked identically but never counted in real capital totals; the two are never conflated anywhere.
 
@@ -47,7 +47,7 @@ The system never blocks an allocation act, never performs one by itself, and nev
 
 Every open position across every sleeve, on one screen: instrument, sleeve, venue, size, entry, current price, stop, unrealized P&L, age — grouped by venue with per-venue totals against the venue concentration cap, and total deployed exposure against the system cage's exposure cap.
 
-This is the emergency page: when the system halts or a venue degrades, the operator sees everything open, everywhere, without visiting five sleeve pages — with the always-available risk-reducing controls ([Operations](./07-operations.md)) beside each row. In calm times it is the same honest picture at rest: how much is at risk right now, and where. Each position opens its trade story ([Activity](./03-activity.md)).
+This is the emergency page: when the system halts or a venue degrades, the operator sees everything open, everywhere, without visiting five sleeve pages — with the always-available risk-reducing controls ([Operations](./07-operations.md)) beside each row. In calm times it is the same picture at rest: how much is at risk right now, and where. Each position opens its trade story ([Activity](./03-activity.md)).
 
 ## Costs
 

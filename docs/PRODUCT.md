@@ -1,12 +1,12 @@
 # Ironcage — Product Specification
 
-The [vision](./VISION.md) says why Ironcage exists and the principles that bind it. This specification says what the system does. It refines the vision freely on specifics, but the vision's principles are constitutional: a specified behavior that weakens one is wrong by that fact. Any other disagreement between the two means one document is stale — a defect to resolve deliberately, not a contest either side wins by default. The test of these documents: a stranger should be able to read them and tell whether any behavior of the built system is correct or a bug, without reading code.
+The [vision](./VISION.md) says why Ironcage exists and the principles that bind it. This specification says what the system does. It refines the vision freely on specifics, but the vision's principles bind it: a specified behavior that weakens one is wrong by that fact. Any other disagreement between the two means one document is stale. That is a defect to resolve deliberately, not a contest either side wins by default. The test of these documents: a stranger should be able to read them and tell whether any behavior of the built system is correct or a bug, without reading code.
 
 This file is the map. Each part of the product has its own document in [`docs/product/`](./product/) — read them in order:
 
 1. [**Overview**](./product/01-overview.md) — the five-second answer to "is everything okay?"
 2. [**Sleeves**](./product/02-sleeves.md) — the central object: the roster, mandates, the AI capability system, the lifecycle, and the per-sleeve living view.
-3. [**Activity**](./product/03-activity.md) — the append-only record of everything that matters, the trade story, and the AI trace viewer.
+3. [**Activity**](./product/03-activity.md) — the append-only record of everything that matters, the trade story, and the AI decision record.
 4. [**Portfolio**](./product/04-portfolio.md) — the whole of wealth and the allocator's home: net worth, the capital ledger, allocation acts, the current book, costs, and the system cage.
 5. [**Money**](./product/05-money.md) — bank import, categorization, and spending analysis.
 6. [**Reports**](./product/06-reports.md) — the documents the system writes: reviews, trial reports, spending reports, incident reports.
@@ -16,7 +16,7 @@ This file is the map. Each part of the product has its own document in [`docs/pr
 
 ## Product shape
 
-Ironcage is two things that meet in the middle: an **engine** that runs continuously and needs no one watching, and a **web application** that makes watching it worthwhile. The web app is not an admin panel bolted onto a bot — it is a first-class product and half the joy of the system. Every sleeve, every read-only surface, every moving part gets its own living view: what it is doing right now, what it decided and why, how it is performing — presented with the care of something built to be _looked at_, not just checked. The design ambition is an observatory, not a control panel: data-dense, live, legible, and genuinely fun to watch.
+Ironcage is two things that meet in the middle: an **engine** that runs continuously and needs no one watching, and a **web application** that makes watching it worthwhile. The web app is not an admin panel bolted onto a bot. It is a first-class product and half the joy of the system. Every sleeve, every read-only surface, every moving part gets its own living view: what it is doing right now, what it decided and why, how it is performing — presented with the care of something built to be _looked at_, not just checked. The design ambition is an observatory, not a control panel: data-dense, live, legible, and genuinely fun to watch.
 
 The web app is the only surface: the operator visits it, it never interrupts them. Its defining obligation follows: **opening it must answer "is everything okay?" within five seconds**, and the activity feed must make it impossible for anything important to have happened silently. If an event matters, it is in the feed; if it is unseen, the app says so.
 
@@ -47,7 +47,7 @@ The app never pushes — with a single deliberate exception, recorded here as a 
 
 - **Nothing is hidden.** Every order intent — including every rejection — appears in the activity feed with the cage's full verdict. A rejection is the system working, and is displayed as such, never buried.
 - **Numbers reconcile.** Positions and equity are recomputed from the recorded order history, and live sleeves are reconciled against the venue on schedule. A discrepancy halts the sleeve and is surfaced immediately on Overview. The app never quietly papers over a mismatch.
-- **Every AI output is traceable.** From any regime assessment, categorization, or report, the operator can open the full trace: what the model was asked, what data it saw, what it answered, and when. AI outputs that fail validation are recorded failures, never silent guesses.
+- **Every AI output is traceable.** From any regime assessment, categorization, or report, the operator can open its permanent decision record: what the model was asked, what it decided, why, what it cost, and when — with a link into the platform's full trace for as long as the platform retains it. AI outputs that fail validation are recorded failures, never silent guesses.
 - **Decisions are informed.** Every decision of consequence — promotion, mandate change, allocation act, un-halt — happens through the decision ceremony: the evidence presented and recorded as presented, the change stated plainly, the reason written where risk increases, the decision stored permanently beside its evidence.
 - **The system never moves money.** Venue keys cannot withdraw and no funding path exists anywhere in the system — every physical transfer is the operator's own act. The product computes what to move, requests it, detects the arrival, and settles the record ([Portfolio](./product/04-portfolio.md)); it choreographs money movement and can never perform it.
 - **History is permanent.** Sleeves, trades, decisions, overrides, and reports are never deleted — retirement archives, it does not erase.
@@ -60,4 +60,4 @@ The system's venues are **Kraken (crypto) and Alpaca (US stocks/ETFs)** by delib
 
 On leverage, shorting, and derivatives, the boundary is drawn by feasibility and regulation, not squeamishness. **Equity-side shorting, options, and modest leverage are legitimate future sleeve mandates** (Alpaca itself supports US options; Interactive Brokers would add more), and a sleeve mandate proposing them goes through the same written-mandate, dry-run-first lifecycle as anything else — plus its own recorded decision, since each adds a new class of risk (unlimited downside on shorts, assignment on options, financing costs on leverage). **Crypto derivatives — margin, perpetuals, futures — stay out of scope**: Australian regulators have shut down or penalized the domestic retail offerings (Kraken's $8M penalty, Binance Australia Derivatives' $10M penalty), and the offshore alternatives sit in a regulatory grey zone with the worst blow-up profile in this document. The first sleeves are spot, long-only.
 
-And nothing that weakens a guarantee in this specification — a feature idea that requires doing so is, by that fact, wrong.
+And nothing that weakens a guarantee in this specification. A feature idea that requires doing so is, by that fact, wrong.

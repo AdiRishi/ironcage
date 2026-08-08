@@ -2,7 +2,7 @@
 
 The feed is the append-only record of everything that matters, and the product's substitute for interruptions: the system never pushes (save the one recorded exception in [PRODUCT.md](../PRODUCT.md)), so the feed must make it impossible for anything important to have happened silently. Its completeness is a guarantee, not an aspiration — every order intent, verdict, fill, halt, transition, and failure produces exactly one feed event. If it isn't in the feed, it didn't happen; if it happened and isn't in the feed, that is a bug by definition.
 
-This document also specifies the two lenses built on top of the raw record: the **trade story**, which renders one trade's events as a narrative, and the **trace viewer**, which opens any AI output to its full record.
+This document also specifies the two lenses built on top of the raw record: the **trade story**, which renders one trade's events as a narrative, and the **decision record**, which opens any AI output to its permanent record.
 
 ## The event record
 
@@ -14,7 +14,7 @@ Every event carries:
 - **Severity** — `info`, `notice`, `warning`, `critical`
 - **Summary** — one plain-language line, readable without context
 - **Payload** — the full structured record behind the summary: the complete cage verdict, the order details, the diff, the error. One click from summary to everything.
-- **Links** — to the trade story, the report, the mandate version, or the AI trace the event relates to.
+- **Links** — to the trade story, the report, the mandate version, or the decision record the event relates to.
 
 Events are immutable and kept forever. There is no editing and no deleting.
 
@@ -22,7 +22,7 @@ Events are immutable and kept forever. There is no editing and no deleting.
 
 **Trading** — intent emitted; intent rejected (with the cage's full verdict — every violated rule, not just the first); order placed / partially filled / filled / canceled / replaced; position opened / closed (with realized P&L and costs); stop updated.
 
-**Capabilities & signals** — a capability's output changed materially (a regime-assessment axis moved, with old → new and rationale; event veto placed or expired; risk-officer tightening applied or lapsed); a capability's output went stale (the consuming behavior now at its most restrictive default); a capability suspended or reinstated by its scorecard; a design-time proposal submitted, passed or failed a gate, approved, or rejected; a Piloted sleeve's trade proposal and its outcome (accepted into an intent, or rejected — with the full check result and prompt-trace link); a strategy signal that produced an intent. (Routine no-change ticks are recorded as engine telemetry, not feed events — the feed is for what matters, not a heartbeat log.)
+**Capabilities & signals** — a capability's output changed materially (a regime-assessment axis moved, with old → new and rationale; event veto placed or expired; risk-officer tightening applied or lapsed); a capability's output went stale (the consuming behavior now at its most restrictive default); a capability suspended or reinstated by its scorecard; a design-time proposal submitted, passed or failed a gate, approved, or rejected; a Piloted sleeve's trade proposal and its outcome (accepted into an intent, or rejected — with the full check result and decision-record link); a strategy signal that produced an intent. (Routine no-change ticks are recorded as engine telemetry, not feed events — the feed is for what matters, not a heartbeat log.)
 
 **Risk** — a limit approached (configurable warning threshold, e.g. 80% of daily loss); a halt triggered (which rule, at what value); pair/instrument lock created or expired; system-cage event (total exposure or drawdown breach; an entry refused by the system cage is recorded once — as its intent's rejection in Trading, carrying the system-cage reason); reconciliation mismatch detected.
 
@@ -49,12 +49,14 @@ The full feed view supports filtering by origin (sleeve / read-only surface / sy
 
 ## The trade story
 
-The association between one action's events is not just a grouping — it renders as a view: **any trade, fully explained, on one screen.** A trade story tells, in order: the strategy signal that started it; each capability's contribution to the size (the regime assessment's axes and rationale, any veto or tightening in force — each opening its trace); the cage's verdict with every rule it checked; the order's venue lifecycle; every fill with its fees; the stop's placement and every move it made; the exit and what triggered it; and the realized P&L, net of the costs itemized along the way. Simulated fills are marked as simulated, degraded fills as degraded — the story carries the same honesty tags as everything else.
+The association between one action's events is not just a grouping — it renders as a view: **any trade, fully explained, on one screen.** A trade story tells, in order: the strategy signal that started it; each capability's contribution to the size (the regime assessment's axes and rationale, any veto or tightening in force — each opening its decision record); the cage's verdict with every rule it checked; the order's venue lifecycle; every fill with its fees; the stop's placement and every move it made; the exit and what triggered it; and the realized P&L, net of the costs itemized along the way. Simulated fills are marked as simulated, degraded fills as degraded — the story carries the same honesty tags as everything else.
 
 The trade story opens from any of its events in the feed, from a sleeve's Positions and Decisions sections, and from any report that cites the trade. It is the observatory's atomic unit of comprehension: if the operator can read one trade's story and understand every step, the product's auditability guarantee is real; if any step is unexplained, that is a bug in this view.
 
-## The trace viewer
+## The decision record
 
-Every AI output in the product — a capability tick, a transaction categorization, a generated report — links to its **trace**: the exact prompt, the full context snapshot the model saw, the raw response, the validation result, the model used, the cost, and the timing. One click from any AI-attributed value, anywhere in the app, to the complete record behind it. Failed validations render as first-class traces too — a rejected output's trace shows exactly what was refused and why, which is how "recorded failures, never silent guesses" is made inspectable.
+Every AI output in the product — a capability tick, a transaction categorization, a generated report — opens its **decision record**: the permanent account of that one decision. It records what the model was asked, at decision grain; what it decided; the stated rationale; the model and configuration used; the cost; and the timing. One click from any AI-attributed value, anywhere in the app, to this record. Failed validations produce decision records too — a rejected output's record shows exactly what was refused and why, which is how "recorded failures, never silent guesses" is made inspectable.
 
-The trace viewer is the guarantee "every AI output is traceable" made concrete: it is reachable from every surface that displays an AI output, and a displayed AI output with no path to its trace is, by that fact, a defect.
+Each decision record also links into AI Gateway's full trace — the exact prompt, the context the model saw, the raw response — for as long as the platform retains it (7–30 days). The decision record is permanent; the full trace is a window that closes.
+
+The decision record is the guarantee "every AI output is traceable" made concrete: it is reachable from every surface that displays an AI output, and a displayed AI output with no path to its decision record is, by that fact, a defect.

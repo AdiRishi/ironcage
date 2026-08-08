@@ -12,7 +12,7 @@ The flow:
 2. **Preview before commit**: the importer shows what it found — n transactions, m new, d duplicates of already-imported rows, k needing category review — before anything is written.
 3. On confirm, new transactions are stored, categorized, and the analysis views update. The import itself becomes a feed event, and every import is listed in an import history with its source file name and counts.
 
-Deduplication is stable across re-imports and overlapping exports: the same transaction imported twice is recognized and skipped, using account + date + amount + narrative matching with a tolerance window for the ways banks reformat narratives. Multiple accounts (transaction, savings, credit card) are supported and kept distinct, each carrying its balance as-of the export date — these balances are what the [Portfolio](./04-portfolio.md) view's net worth includes as external components.
+Deduplication is stable across re-imports and overlapping exports: the same transaction imported twice is recognized and skipped, using exact matching on normalized account + date + amount + narrative, where the normalization absorbs the ways banks reformat narratives. Multiple accounts (transaction, savings, credit card) are supported and kept distinct, each carrying its balance as-of the export date — these balances are what the [Portfolio](./04-portfolio.md) view's net worth includes as external components.
 
 The system never holds bank credentials. Transactions live in Ironcage's own store, exportable by the operator at any time.
 
@@ -20,7 +20,7 @@ The system never holds bank credentials. Transactions live in Ironcage's own sto
 
 Every transaction gets exactly one category (with support for manual splits — one transaction divided across categories). The taxonomy ships with a sensible default set (housing, groceries, eating out, transport, utilities, subscriptions, health, travel, shopping, income, transfers, fees, other) and is operator-editable.
 
-Categorization is AI-assisted with honest confidence: high-confidence assignments apply automatically; low-confidence ones are flagged for review in a quick triage queue. **Corrections teach the system** — fixing a payee's category once creates a rule that applies henceforth, and rules are visible and editable, not buried in a model. Every AI categorization opens its trace ([Activity](./03-activity.md)). Transfers between the operator's own accounts are detected and excluded from spending analysis rather than counted as expense and income.
+Categorization is AI-assisted with stated confidence: at launch, every assignment goes through the operator's review; automatic application of high-confidence assignments is enabled only after an initial calibration period of that review, and low-confidence assignments are always flagged for the quick triage queue. **Corrections teach the system** — fixing a payee's category once creates a rule that applies henceforth, and rules are visible and editable, not buried in a model. Every AI categorization opens its decision record ([Activity](./03-activity.md)). Transfers between the operator's own accounts are detected and excluded from spending analysis rather than counted as expense and income.
 
 ## Analysis
 

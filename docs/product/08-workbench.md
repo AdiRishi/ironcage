@@ -4,7 +4,7 @@ The workbench is where strategies face history before they face money: the resea
 
 ## Historical data
 
-The engine continuously collects market data (candles, at the timeframes mandates require) for every instrument in any mandate's universe, plus a configurable watchlist. The workbench shows **coverage honestly**: which instruments, which timeframes, what date ranges, and — crucially — where the gaps are. A backtest over gappy data says so on its face; it never silently interpolates. Historical depth is extended by deliberate backfill, which is itself a recorded act with a source.
+The engine continuously collects market data (candles, at the timeframes mandates require) for every instrument in any mandate's universe, plus a configurable watchlist. The workbench shows **coverage plainly**: which instruments, which timeframes, what date ranges, and — crucially — where the gaps are. A backtest over gappy data says so on its face; it never silently interpolates. Historical depth is extended by deliberate backfill, which is itself a recorded act with a source.
 
 ## Backtests
 
@@ -21,8 +21,8 @@ The workbench counts trials. Every backtest run against a given strategy family 
 
 ## Gate runs and shadow runs
 
-Design-time proposals ([Sleeves](./02-sleeves.md)) pass through the workbench's machinery, and their progress is visible here: each proposal's gate results (schema, backtest reproduction, walk-forward, shadow performance) as they complete, and the queue of what awaits the operator. **Champion/challenger shadow runs** — a candidate configuration running in simulation beside the incumbent, on live data — appear with both curves and the running comparison, using the same display honesty as everything else (simulated is always marked simulated).
+Design-time proposals ([Sleeves](./02-sleeves.md)) pass through the workbench's machinery, and their progress is visible here: each proposal's gate results (schema, backtest reproduction, walk-forward, shadow performance) as they complete, and the queue of what awaits the operator. **Champion/challenger shadow runs** — a candidate configuration running in simulation beside the incumbent, on live data — appear with both curves and the running comparison, under the same display discipline as everything else (simulated is always marked simulated).
 
 ## What the workbench is not
 
-It is not the proving ground — dry run is. A backtest, however clean, is evidence about the past; the lifecycle's dry-run stage exists because live markets are the only honest test of execution, data, and behavior together. The workbench's job is cheaper and humbler: kill bad ideas early, kill lucky ideas reliably, and give surviving ideas an honest number to carry into their trial.
+It is not the proving ground — dry run is. A backtest, however clean, is evidence about the past; the lifecycle's dry-run stage exists because live markets are the only honest test of execution, data, and behavior together. The workbench's job is cheaper: kill bad ideas early, kill lucky ideas reliably, and give surviving ideas a defensible number to carry into their trial.

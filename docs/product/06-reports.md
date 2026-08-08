@@ -1,6 +1,6 @@
 # Reports
 
-Reports are the documents Ironcage writes: scheduled reviews, on-demand trial reports, and post-halt incident reports. They are where AI does synthesis at its best — reading the recorded data and telling the operator what it means — under rules that keep that synthesis honest.
+Reports are the documents Ironcage writes: scheduled reviews, on-demand trial reports, and post-halt incident reports. They are where AI does synthesis at its best — reading the recorded data and telling the operator what it means — under rules that keep that synthesis grounded in the record.
 
 ## Rules that bind every report
 
