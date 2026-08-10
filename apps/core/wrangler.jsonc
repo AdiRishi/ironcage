@@ -8,7 +8,8 @@
   "preview_urls": false,
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1,
+    "logs": { "enabled": true, "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 },
   },
   "dev": {
     "port": 8787,
@@ -36,7 +37,7 @@
   // everything; `DB_CACHED` is opt-in for analytics reads, because a cached
   // read of a position or a cage counter would be a wrong number that looks
   // right. Local development supplies a connection string through
-  // `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB*` in `.dev.vars`, which
+  // `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB*` in `.env`, which
   // reaches the database directly and therefore exercises neither pooling nor
   // caching.
   "hyperdrive": [

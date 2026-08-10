@@ -9,10 +9,12 @@
     }
   },
   "scripts": {
-    "cf-typegen": "wrangler types",
-    "deploy": "wrangler deploy",
+    "build": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler deploy --dry-run --outdir dist",
+    "cf-typegen": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types",
+    "cf-typegen:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --check",
+    "deploy": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler deploy",
     "dev": "wrangler dev",
-    "test": "vitest run",
+    "test": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests"
   },
   "dependencies": {

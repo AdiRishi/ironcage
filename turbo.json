@@ -22,6 +22,10 @@
     "test": {
       "dependsOn": ["^compile"]
     },
+    "test:integration": {
+      "dependsOn": ["^compile"],
+      "cache": false
+    },
     "deploy": {
       "cache": false,
       "dependsOn": ["build"]
@@ -34,6 +38,9 @@
     "cf-typegen": {
       "cache": false,
       "outputs": ["worker-configuration.d.ts"]
+    },
+    "cf-typegen:check": {
+      "cache": false
     }
   }
 }

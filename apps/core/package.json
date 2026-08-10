@@ -4,10 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "cf-typegen": "wrangler types",
-    "deploy": "wrangler deploy",
+    "build": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler deploy --dry-run --outdir dist",
+    "cf-typegen": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types",
+    "cf-typegen:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --check",
+    "deploy": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler deploy",
     "dev": "wrangler dev",
-    "test": "vitest run",
+    "test": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false vitest run",
+    "test:integration": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false vitest run --config vitest.integration.config.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests"
   },
   "dependencies": {

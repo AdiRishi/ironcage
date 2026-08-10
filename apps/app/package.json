@@ -4,14 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build",
-    "deploy": "vite build && wrangler deploy",
+    "build": "vite build && CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler deploy --dry-run",
+    "cf-typegen": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types",
+    "cf-typegen:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --check",
+    "deploy": "vite build && CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler deploy",
     "dev": "vite dev --port 8080",
     "preview": "vite preview",
     "preview:worker": "wrangler dev",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tests",
-    "cf-typegen": "wrangler types"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests"
   },
   "dependencies": {
     "@ironcage/contracts": "workspace:*",

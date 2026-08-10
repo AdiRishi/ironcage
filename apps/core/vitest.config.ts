@@ -44,4 +44,7 @@ export default defineConfig({
       },
     }),
   ],
+  test: {
+    exclude: ["tests/integration/**/*.test.ts"],
+  },
 });

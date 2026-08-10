@@ -8,7 +8,8 @@
   "preview_urls": false,
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1,
+    "logs": { "enabled": true, "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 },
   },
   "dev": {
     "port": 8789,

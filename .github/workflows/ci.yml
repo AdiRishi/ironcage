@@ -45,6 +45,9 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Check Cloudflare binding types
+        run: pnpm cf-typegen:check
+
       - name: Build
         run: pnpm build
 
@@ -75,3 +78,6 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      - name: Integration test
+        run: pnpm test:integration
