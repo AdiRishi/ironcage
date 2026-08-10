@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["vite/client", "vitest/globals", "vitest/jsdom", "@testing-library/jest-dom"]
+  },
+  "include": ["./**/*.ts", "./**/*.tsx", "../src/routeTree.gen.ts"]
+}

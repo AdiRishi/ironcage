@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { App } from "./index";
+import { App } from "../../src/routes/index.tsx";
 
 describe("people route", () => {
   it("renders an empty people list", () => {
