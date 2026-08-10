@@ -1,21 +1,35 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
-  "globalDependencies": [".nvmrc"],
+  "globalDependencies": [".nvmrc", "pnpm-lock.yaml", "pnpm-workspace.yaml"],
   "tasks": {
+    "compile": {
+      "dependsOn": ["^compile"],
+      "outputs": ["dist/**"]
+    },
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": [".output/**", ".nitro/**", "dist/**"]
+      "dependsOn": ["^compile"],
+      "outputs": [".output/**", ".nitro/**", ".wrangler/deploy/**", "dist/**"]
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "dependsOn": ["^compile"]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^compile"]
     },
     "test": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^compile"]
+    },
+    "deploy": {
+      "cache": false,
+      "dependsOn": ["build"]
+    },
+    "preview:worker": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["build"]
     },
     "cf-typegen": {
       "cache": false,
