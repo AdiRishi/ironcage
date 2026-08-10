@@ -3,7 +3,8 @@
   "compilerOptions": {
     "paths": {
       "@ironcage/ui/*": ["./src/*"]
-    }
+    },
+    "noEmit": true
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

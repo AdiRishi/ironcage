@@ -1,0 +1,11 @@
+# Compile internal packages and let Turborepo order the graph
+
+`packages/domain`, `packages/engine`, `packages/tax`, and `packages/contracts` emit JavaScript and declarations to `dist/` with `tsc`, and their package exports point at `dist/` rather than `src/`. Each has a `compile` script; `compile` is the task name for a package, and `build` stays the task name for an app. Turborepo's `compile` task declares `dependsOn: ["^compile"]` with `dist/**` as its output, and `typecheck`, `test`, `build`, and `dev` all declare `dependsOn: ["^compile"]`.
+
+Consumers therefore read a built package contract, not raw implementation files. A workspace that imports a package must declare the dependency, because nothing resolves without it. Turborepo derives ordering and cache invalidation from that declared graph: editing a package's source recompiles it and invalidates every dependent's typecheck, and a missing `dist/` is rebuilt before any dependent task runs.
+
+The rejected alternative is exporting `src/*.ts` directly. It removes the build step, which is why it is tempting for a young repository. It also pushes every consumer's toolchain into compiling the package itself, so type errors surface in whichever app happens to import the file, package boundaries stop being enforced by resolution, and each consumer must agree on the same TypeScript settings. Compiling once and consuming the output makes the boundary real.
+
+Two consequences are worth stating. Relative imports inside package source stay extensionless, so the emitted JavaScript carries extensionless specifiers and every consumer must be a bundler; Vite and the Workers build both are. A package's own tests import `../src/...` rather than the package name, so they can exercise code that the public surface does not export.
+
+`packages/ui` is deliberately excluded and still exports `src/`. It holds shadcn/ui components that are edited constantly while building screens, and compiling them would cost that feedback loop for no gain: its only consumer is Vite, which reads JSX and drives Tailwind's class scanning from source. It also exports a stylesheet, which `tsc` does not compile.

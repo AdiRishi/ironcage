@@ -6,6 +6,7 @@
     "build": "turbo build",
     "cf-typegen": "turbo cf-typegen",
     "check": "oxfmt && oxlint --disable-nested-config --fix && turbo typecheck",
+    "compile": "turbo compile",
     "dev": "turbo dev",
     "format": "oxfmt",
     "format:check": "oxfmt --check",

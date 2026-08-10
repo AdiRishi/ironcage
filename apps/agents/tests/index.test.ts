@@ -1,7 +1,7 @@
 import { exports } from "cloudflare:workers";
 import { expect, test } from "vitest";
 
-import "../src/index.ts";
+import "../src/index";
 
 test("responds over the default fetch handler", async () => {
   const response = await exports.default.fetch("https://ironcage.test/");
