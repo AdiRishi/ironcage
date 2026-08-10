@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "preview:worker": "wrangler dev",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests"
   },
   "dependencies": {
     "@ironcage/ui": "workspace:*",

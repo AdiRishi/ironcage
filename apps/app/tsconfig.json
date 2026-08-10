@@ -1,7 +1,7 @@
 {
   "extends": "@ironcage/tsconfig/react.json",
   "compilerOptions": {
-    "types": ["vite/client", "vitest/globals", "vitest/jsdom", "@testing-library/jest-dom"],
+    "types": ["vite/client"],
     "paths": {
       "@/*": ["./src/*"]
     },
