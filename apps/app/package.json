@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
+    "deploy": "vite build && wrangler deploy",
     "dev": "vite dev --port 8080",
     "preview": "vite preview",
+    "preview:worker": "wrangler dev",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
@@ -41,6 +43,7 @@
     "shadcn": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "wrangler": "catalog:"
   }
 }
