@@ -6,6 +6,7 @@ import process from "node:process";
 import { Effect, Layer } from "effect";
 
 import { applyMigration, ensureLedger, readLedger, withLock } from "./lib/migrations/apply.ts";
+import { migrationMode } from "./lib/migrations/arguments.ts";
 import { Database } from "./lib/migrations/database.ts";
 import type { MigrationFile, Refusal } from "./lib/migrations/plan.ts";
 import { parseMigration, plan } from "./lib/migrations/plan.ts";
@@ -57,7 +58,9 @@ const migrate = (planOnly: boolean) =>
   Effect.gen(function* () {
     const found = yield* readMigrations;
 
-    yield* ensureLedger;
+    if (!planOnly) {
+      yield* ensureLedger;
+    }
 
     const ledger = yield* readLedger;
     const decided = plan(found.files, ledger);
@@ -110,10 +113,17 @@ if (connectionString.includes("hyperdrive")) {
   process.exit(1);
 }
 
-const planOnly = process.argv.includes("--plan");
+let mode: ReturnType<typeof migrationMode>;
+
+try {
+  mode = migrationMode(process.argv.slice(2));
+} catch (error) {
+  console.error(String(error));
+  process.exit(1);
+}
 
 await Effect.runPromise(
-  withLock(migrate(planOnly)).pipe(
+  withLock(migrate(mode === "plan")).pipe(
     Effect.provide(Layer.orDie(Database.layer(connectionString))),
     Effect.scoped,
   ),

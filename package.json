@@ -15,7 +15,8 @@
     "test": "turbo test",
     "typecheck": "turbo typecheck",
     "verify": "oxfmt --check && oxlint --disable-nested-config && turbo typecheck test build",
-    "migrate": "node scripts/migrate.ts"
+    "migrate": "node scripts/migrate.ts",
+    "migrate:apply": "node scripts/migrate.ts --apply"
   },
   "devDependencies": {
     "@types/node": "catalog:",

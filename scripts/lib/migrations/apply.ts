@@ -7,7 +7,7 @@ import type { LedgerRow, MigrationFile } from "./plan.ts";
  * Bumped when the runner's semantics change, so a ledger row says which rules
  * were in force when it was written.
  */
-export const runnerVersion = "1";
+export const runnerVersion = "2";
 
 const lockKey = 8_070_140_121_919_871n;
 
@@ -35,6 +35,13 @@ export const ensureLedger = Effect.gen(function* () {
 
 export const readLedger = Effect.gen(function* () {
   const database = yield* Database;
+  const [table] = yield* database.query<{ readonly exists: boolean }>(
+    "SELECT to_regclass('public.schema_migrations') IS NOT NULL AS exists",
+  );
+
+  if (!table?.exists) {
+    return [];
+  }
 
   return yield* database.query<LedgerRow>(
     "SELECT id, name, checksum, outcome FROM schema_migrations ORDER BY id",
@@ -106,8 +113,8 @@ export const applyMigration = (migration: MigrationFile) =>
     const applied = Effect.gen(function* () {
       yield* database.query("BEGIN");
       yield* database.query(migration.statements);
-      yield* database.query("COMMIT");
       yield* verify(migration);
+      yield* database.query("COMMIT");
     }).pipe(
       Effect.tapError(() =>
         Effect.andThen(

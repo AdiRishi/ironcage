@@ -13,13 +13,36 @@ const migration: MigrationFile = {
   checksum: "abc",
 };
 
-/** Records what the applier asks of a database, and answers the verification. */
+/** Simulates the transaction boundary while answering the verification query. */
 const recording = (verificationAnswer: unknown) => {
   const statements: Array<string> = [];
+  let committedSchema = false;
+  let transactionSchema: boolean | undefined;
+  let ledgerOutcome: "running" | "applied" | "failed" | undefined;
   const layer = Layer.succeed(Database)(
     Database.of({
-      query: <A>(statement: string) => {
+      query: <A>(statement: string, parameters: ReadonlyArray<unknown> = []) => {
         statements.push(statement.trim().split("\n")[0]!.trim());
+
+        if (statement.startsWith("INSERT INTO schema_migrations")) {
+          ledgerOutcome = "running";
+        } else if (statement === "BEGIN") {
+          transactionSchema = committedSchema;
+        } else if (statement === migration.statements) {
+          transactionSchema = true;
+        } else if (statement === "COMMIT") {
+          committedSchema = transactionSchema ?? committedSchema;
+          transactionSchema = undefined;
+        } else if (statement === "ROLLBACK") {
+          transactionSchema = undefined;
+        } else if (statement.startsWith("UPDATE schema_migrations")) {
+          const outcome = parameters[0];
+
+          if (outcome === "applied" || outcome === "failed") {
+            ledgerOutcome = outcome;
+          }
+        }
+
         const rows = statement === "SELECT true" ? [{ ok: verificationAnswer }] : [];
 
         return Effect.succeed(rows as ReadonlyArray<unknown> as ReadonlyArray<A>);
@@ -27,12 +50,20 @@ const recording = (verificationAnswer: unknown) => {
     }),
   );
 
-  return { statements, layer };
+  return {
+    statements,
+    layer,
+    state: () => ({
+      committedSchema,
+      ledgerOutcome,
+      transactionOpen: transactionSchema !== undefined,
+    }),
+  };
 };
 
 describe("applyMigration", () => {
-  test("commits the migration, then verifies it", async () => {
-    const { statements, layer } = recording(true);
+  test("commits a migration only after its verification holds", async () => {
+    const { statements, layer, state } = recording(true);
 
     await Effect.runPromise(applyMigration(migration).pipe(Effect.provide(layer)));
 
@@ -40,25 +71,31 @@ describe("applyMigration", () => {
       "INSERT INTO schema_migrations",
       "BEGIN",
       "CREATE TABLE sleeves ();",
-      "COMMIT",
       "SELECT true",
+      "COMMIT",
       "UPDATE schema_migrations SET outcome = $1, finished_at = now() WHERE id = $2",
     ]);
+    expect(state()).toStrictEqual({
+      committedSchema: true,
+      ledgerOutcome: "applied",
+      transactionOpen: false,
+    });
   });
 
   // A migration whose verification does not hold has not done what it claimed,
   // and the ledger has to say so rather than reading as applied.
   test("records a failure when the verification does not hold", async () => {
-    const { statements, layer } = recording(false);
+    const { layer, state } = recording(false);
 
     const error = await Effect.runPromise(
       Effect.flip(applyMigration(migration).pipe(Effect.provide(layer))),
     );
 
     expect(error).toBeInstanceOf(VerificationFailed);
-    expect(statements).toContain("ROLLBACK");
-    expect(statements.at(-1)).toBe(
-      "UPDATE schema_migrations SET outcome = $1, finished_at = now() WHERE id = $2",
-    );
+    expect(state()).toStrictEqual({
+      committedSchema: false,
+      ledgerOutcome: "failed",
+      transactionOpen: false,
+    });
   });
 });
