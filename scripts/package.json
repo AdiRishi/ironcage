@@ -1,0 +1,17 @@
+{
+  "name": "@ironcage/scripts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "yaml": "catalog:"
+  },
+  "devDependencies": {
+    "@ironcage/tsconfig": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

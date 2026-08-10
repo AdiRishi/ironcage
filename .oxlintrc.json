@@ -22,8 +22,26 @@
     "correctness": "error"
   },
   "env": {
-    "builtin": true
+    "builtin": true,
+    "browser": true,
+    "node": true,
+    "vitest": true
   },
-  "rules": {},
-  "ignorePatterns": [".repos", ".repos/**"]
+  "rules": {
+    "react/react-in-jsx-scope": "off"
+  },
+  "settings": {
+    "react": {
+      "version": "19.2.8"
+    }
+  },
+  "overrides": [
+    {
+      "files": ["packages/ui/src/components/**"],
+      "rules": {
+        "jsx-a11y/label-has-associated-control": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [".repos", ".repos/**", "**/*.gen.ts", "**/worker-configuration.d.ts"]
 }

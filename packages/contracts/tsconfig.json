@@ -1,0 +1,4 @@
+{
+  "extends": "@ironcage/tsconfig/base.json",
+  "include": ["src/**/*.ts"]
+}

@@ -1,0 +1,9 @@
+{
+  "extends": "@ironcage/tsconfig/react.json",
+  "compilerOptions": {
+    "paths": {
+      "@ironcage/ui/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}
