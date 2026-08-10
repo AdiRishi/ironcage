@@ -1,5 +1,5 @@
 import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 // workerd refuses to start with an unresolved binding, so the siblings have to
 // exist. They throw rather than answer, so a unit test cannot quietly become an
@@ -45,6 +45,6 @@ export default defineConfig({
     }),
   ],
   test: {
-    exclude: ["tests/integration/**/*.test.ts"],
+    exclude: [...configDefaults.exclude, "tests/integration/**/*.test.ts"],
   },
 });
