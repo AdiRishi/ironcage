@@ -1,4 +1,4 @@
-import { AgentReadRpcs, AppRpcs, clientOverBinding, timeouts } from "@ironcage/contracts";
+import { AgentReadRpcs, AppRpcs, clientOverBinding, timeouts } from "@ironcage/contracts/client";
 import { exports } from "cloudflare:workers";
 import { Effect } from "effect";
 import { expect, test } from "vitest";

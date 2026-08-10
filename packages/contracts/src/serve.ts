@@ -1,13 +1,25 @@
 import { DateTime, Effect, Layer } from "effect";
-import { HttpServer } from "effect/unstable/http";
+import { HttpRouter } from "effect/unstable/http";
+import type { Rpc, RpcGroup } from "effect/unstable/rpc";
 import { RpcSerialization, RpcServer } from "effect/unstable/rpc";
 
-export const rpcPath = "/rpc";
+import { rpcPath } from "./protocol";
 
-export const rpcServerLayer = Layer.mergeAll(
-  RpcServer.layerProtocolHttp({ path: rpcPath }).pipe(Layer.provide(RpcSerialization.layerJson)),
-  HttpServer.layerServices,
-);
+export { rpcPath } from "./protocol";
+
+export const rpcHttpRoute = <Rpcs extends Rpc.Any, R>(
+  group: RpcGroup.RpcGroup<Rpcs>,
+  handlers: Layer.Layer<Rpc.ToHandler<Rpcs>, never, R>,
+) =>
+  HttpRouter.add(
+    "POST",
+    rpcPath,
+    RpcServer.toHttpEffect(group).pipe(
+      Effect.provide(handlers),
+      Effect.provide(RpcSerialization.layerJson),
+      Effect.flatMap((handler) => handler),
+    ),
+  );
 
 export const systemPingHandler = (identity: {
   readonly worker: string;

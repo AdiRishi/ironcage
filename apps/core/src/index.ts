@@ -1,35 +1,28 @@
+import { DispatchRpcs, clientOverBinding, timeouts } from "@ironcage/contracts/client";
 import {
   AgentReadRpcs,
   AppRpcs,
-  DispatchRpcs,
-  clientOverBinding,
-  rpcServerLayer,
+  makeWorkerRequestContext,
+  rpcHttpRoute,
   systemPingHandler,
-  timeouts,
-} from "@ironcage/contracts";
+} from "@ironcage/contracts/server";
 import { WorkerEntrypoint } from "cloudflare:workers";
-import { Effect, Layer } from "effect";
+import { Effect } from "effect";
 import { HttpRouter } from "effect/unstable/http";
-import { RpcServer } from "effect/unstable/rpc";
 
 const worker = "ironcage-core";
+const workerRequest = makeWorkerRequestContext<Env, ExecutionContext>(
+  "ironcage/core/WorkerRequest",
+);
+const ping = (surface: string) =>
+  Effect.flatMap(workerRequest.service, () => systemPingHandler({ worker, surface }));
 
 const appSurface = HttpRouter.toWebHandler(
-  RpcServer.layer(AppRpcs).pipe(
-    Layer.provide(
-      AppRpcs.toLayer({ ping: () => systemPingHandler({ worker, surface: "AppApi" }) }),
-    ),
-    Layer.provide(rpcServerLayer),
-  ),
+  rpcHttpRoute(AppRpcs, AppRpcs.toLayer({ ping: () => ping("AppApi") })),
 );
 
 const agentSurface = HttpRouter.toWebHandler(
-  RpcServer.layer(AgentReadRpcs).pipe(
-    Layer.provide(
-      AgentReadRpcs.toLayer({ ping: () => systemPingHandler({ worker, surface: "AgentReadApi" }) }),
-    ),
-    Layer.provide(rpcServerLayer),
-  ),
+  rpcHttpRoute(AgentReadRpcs, AgentReadRpcs.toLayer({ ping: () => ping("AgentReadApi") })),
 );
 
 // Two entrypoints rather than two paths on one: a service binding names the
@@ -37,13 +30,13 @@ const agentSurface = HttpRouter.toWebHandler(
 // cannot reach the operator surface.
 export class AppApiEntrypoint extends WorkerEntrypoint<Env> {
   override fetch(request: Request): Promise<Response> {
-    return appSurface.handler(request);
+    return appSurface.handler(request, workerRequest.forRequest(this.env, this.ctx));
   }
 }
 
 export class AgentReadApiEntrypoint extends WorkerEntrypoint<Env> {
   override fetch(request: Request): Promise<Response> {
-    return agentSurface.handler(request);
+    return agentSurface.handler(request, workerRequest.forRequest(this.env, this.ctx));
   }
 }
 

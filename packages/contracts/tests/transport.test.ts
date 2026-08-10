@@ -3,20 +3,16 @@ import type { Duration } from "effect";
 import { DateTime, Effect, Layer } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 import type { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { RpcServer } from "effect/unstable/rpc";
 import { describe, expect } from "vitest";
 
 import { Internal } from "../src/errors";
-import { rpcServerLayer, systemPingHandler } from "../src/serve";
+import { rpcHttpRoute, systemPingHandler } from "../src/serve";
 import { AppRpcs } from "../src/surfaces";
 import type { ServiceBinding } from "../src/transport";
 import { clientOverBinding, intoTaxonomy, timeouts } from "../src/transport";
 
 const serverWith = (handlers: Layer.Layer<Rpc.ToHandler<RpcGroup.Rpcs<typeof AppRpcs>>>) =>
-  HttpRouter.toWebHandler(
-    RpcServer.layer(AppRpcs).pipe(Layer.provide(handlers), Layer.provide(rpcServerLayer)),
-    { disableLogger: true },
-  );
+  HttpRouter.toWebHandler(rpcHttpRoute(AppRpcs, handlers), { disableLogger: true });
 
 // What workerd hands a caller: a `fetch` into another Worker's fetch handler.
 const bindingTo = (handler: (request: Request) => Promise<Response>): ServiceBinding => ({

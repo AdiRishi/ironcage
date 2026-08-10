@@ -1,11 +1,6 @@
-import type { AppClient } from "@ironcage/contracts";
-import {
-  AppRpcs,
-  SystemPing,
-  clientOverBinding,
-  intoTaxonomy,
-  timeouts,
-} from "@ironcage/contracts";
+import type { AppClient } from "@ironcage/contracts/client";
+import { AppRpcs, clientOverBinding, intoTaxonomy, timeouts } from "@ironcage/contracts/client";
+import { SystemPing } from "@ironcage/contracts/schema";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 

@@ -1,48 +1,39 @@
+import { AgentReadRpcs, clientOverBinding, timeouts } from "@ironcage/contracts/client";
 import {
-  AgentReadRpcs,
   ConversationRpcs,
   DispatchRpcs,
-  clientOverBinding,
-  rpcServerLayer,
+  makeWorkerRequestContext,
+  rpcHttpRoute,
   systemPingHandler,
-  timeouts,
-} from "@ironcage/contracts";
+} from "@ironcage/contracts/server";
 import { WorkerEntrypoint } from "cloudflare:workers";
-import { Effect, Layer } from "effect";
+import { Effect } from "effect";
 import { HttpRouter } from "effect/unstable/http";
-import { RpcServer } from "effect/unstable/rpc";
 
 const worker = "ironcage-agents";
+const workerRequest = makeWorkerRequestContext<Env, ExecutionContext>(
+  "ironcage/agents/WorkerRequest",
+);
+const ping = (surface: string) =>
+  Effect.flatMap(workerRequest.service, () => systemPingHandler({ worker, surface }));
 
 const conversationSurface = HttpRouter.toWebHandler(
-  RpcServer.layer(ConversationRpcs).pipe(
-    Layer.provide(
-      ConversationRpcs.toLayer({
-        ping: () => systemPingHandler({ worker, surface: "ConversationApi" }),
-      }),
-    ),
-    Layer.provide(rpcServerLayer),
-  ),
+  rpcHttpRoute(ConversationRpcs, ConversationRpcs.toLayer({ ping: () => ping("ConversationApi") })),
 );
 
 const dispatchSurface = HttpRouter.toWebHandler(
-  RpcServer.layer(DispatchRpcs).pipe(
-    Layer.provide(
-      DispatchRpcs.toLayer({ ping: () => systemPingHandler({ worker, surface: "DispatchApi" }) }),
-    ),
-    Layer.provide(rpcServerLayer),
-  ),
+  rpcHttpRoute(DispatchRpcs, DispatchRpcs.toLayer({ ping: () => ping("DispatchApi") })),
 );
 
 export class ConversationApiEntrypoint extends WorkerEntrypoint<Env> {
   override fetch(request: Request): Promise<Response> {
-    return conversationSurface.handler(request);
+    return conversationSurface.handler(request, workerRequest.forRequest(this.env, this.ctx));
   }
 }
 
 export class DispatchApiEntrypoint extends WorkerEntrypoint<Env> {
   override fetch(request: Request): Promise<Response> {
-    return dispatchSurface.handler(request);
+    return dispatchSurface.handler(request, workerRequest.forRequest(this.env, this.ctx));
   }
 }
 

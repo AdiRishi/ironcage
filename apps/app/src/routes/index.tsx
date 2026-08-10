@@ -1,4 +1,4 @@
-import { SystemPing } from "@ironcage/contracts";
+import { SystemPing } from "@ironcage/contracts/schema";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { DateTime, Schema } from "effect";

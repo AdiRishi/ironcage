@@ -1,10 +1,10 @@
 import { Duration, Effect, Layer } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientError } from "effect/unstable/http";
 import type { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { RpcClient, RpcSerialization } from "effect/unstable/rpc";
+import { RpcClient, RpcClientError, RpcSerialization } from "effect/unstable/rpc";
 
 import { Internal } from "./errors";
-import { rpcPath } from "./serve";
+import { rpcPath } from "./protocol";
 
 /**
  * The slice of a Cloudflare service binding this module uses. A `Fetcher`
@@ -46,27 +46,32 @@ export const timeouts = {
   appToAgents: Duration.seconds(30),
 } as const;
 
-const withBudget =
-  (timeout: Duration.Input) =>
-  <E, R>(client: HttpClient.HttpClient.With<E, R>): HttpClient.HttpClient.With<E, R> =>
-    HttpClient.transform(client, (effect, request) =>
-      Effect.timeoutOrElse(effect, {
-        duration: timeout,
-        // Failing as a transport error is what keeps the client's error type
-        // intact; a domain error here would widen every procedure's signature.
-        orElse: () =>
-          Effect.fail(
-            new HttpClientError.HttpClientError({
-              reason: new HttpClientError.TransportError({
-                request,
-                cause: new Error(
-                  `no answer within ${Duration.format(Duration.fromInputUnsafe(timeout))}`,
-                ),
-              }),
-            }) as unknown as E,
-          ),
-      }),
-    );
+const withBudget = (
+  client: HttpClient.HttpClient,
+  timeout: Duration.Input,
+): HttpClient.HttpClient =>
+  HttpClient.transform(client, (effect, request) =>
+    Effect.timeoutOrElse(effect, {
+      duration: timeout,
+      orElse: () =>
+        Effect.fail(
+          new HttpClientError.HttpClientError({
+            reason: new HttpClientError.TransportError({
+              request,
+              cause: new Error(
+                `no answer within ${Duration.format(Duration.fromInputUnsafe(timeout))}`,
+              ),
+            }),
+          }),
+        ),
+    }),
+  );
+
+const budgetedHttpClientOverBinding = (binding: ServiceBinding, timeout: Duration.Input) =>
+  Layer.effect(
+    HttpClient.HttpClient,
+    Effect.map(HttpClient.HttpClient, (client) => withBudget(client, timeout)),
+  ).pipe(Layer.provide(httpClientOverBinding(binding)));
 
 /** A client for one RPC surface, reached over one service binding. */
 export const clientOverBinding = <Rpcs extends Rpc.Any>(
@@ -81,31 +86,21 @@ export const clientOverBinding = <Rpcs extends Rpc.Any>(
     Effect.provide(
       RpcClient.layerProtocolHttp({
         url: `${internalOrigin(options.surface)}${rpcPath}`,
-        transformClient: withBudget(options.timeout),
       }).pipe(
         Layer.provide(RpcSerialization.layerJson),
-        Layer.provide(httpClientOverBinding(options.binding)),
+        Layer.provide(budgetedHttpClientOverBinding(options.binding, options.timeout)),
       ),
     ),
   );
-
-const isTransportFailure = (error: unknown): boolean =>
-  typeof error === "object" &&
-  error !== null &&
-  (error as { _tag?: string })._tag === "RpcClientError";
 
 /**
  * Narrow a client's failure to the error taxonomy. Every RPC call can also fail
  * with the protocol's own transport error, which no caller should have to
  * match on; folding it into `Internal` leaves only our tags.
  */
-export const intoTaxonomy = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-  Effect.catch(
-    effect,
-    (error): Effect.Effect<never, Internal | Exclude<E, { readonly _tag: "RpcClientError" }>> =>
-      Effect.fail(
-        isTransportFailure(error)
-          ? new Internal({ detail: String(error) })
-          : (error as Exclude<E, { readonly _tag: "RpcClientError" }>),
-      ),
+export const intoTaxonomy = <A, E, R>(
+  effect: Effect.Effect<A, E | RpcClientError.RpcClientError, R>,
+) =>
+  Effect.catchTag(effect, "RpcClientError", (error) =>
+    Effect.fail(new Internal({ detail: String(error) })),
   );
