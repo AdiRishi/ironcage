@@ -59,6 +59,14 @@ const checkBindings = (env: Env) =>
       worker,
       AGENTS: yield* dispatch.ping(),
       COMPUTE: yield* Effect.promise(() => env.COMPUTE.getByName("wiring").ping()),
+      // A connection string rather than a query: what a binding proves is that
+      // it resolves. Whether the database answers is the health route's job,
+      // once there is a driver to ask it with.
+      DB: { configured: env.DB.connectionString.length > 0 },
+      DB_CACHED: { configured: env.DB_CACHED.connectionString.length > 0 },
+      BLOBS: yield* Effect.promise(async () => ({
+        reachable: (await env.BLOBS.head("wiring")) === null,
+      })),
     };
   }).pipe(Effect.scoped);
 

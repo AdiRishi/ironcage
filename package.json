@@ -14,7 +14,8 @@
     "sync:repos": "node scripts/sync-reference-repos.ts",
     "test": "turbo test",
     "typecheck": "turbo typecheck",
-    "verify": "oxfmt --check && oxlint --disable-nested-config && turbo typecheck test build"
+    "verify": "oxfmt --check && oxlint --disable-nested-config && turbo typecheck test build",
+    "migrate": "node scripts/migrate.ts"
   },
   "devDependencies": {
     "@types/node": "catalog:",

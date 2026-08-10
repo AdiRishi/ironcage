@@ -32,4 +32,16 @@
       },
     ],
   },
+  // Two configurations over one PlanetScale database. `DB` is the default for
+  // everything; `DB_CACHED` is opt-in for analytics reads, because a cached
+  // read of a position or a cage counter would be a wrong number that looks
+  // right. Local development supplies a connection string through
+  // `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB*` in `.dev.vars`, which
+  // reaches the database directly and therefore exercises neither pooling nor
+  // caching.
+  "hyperdrive": [
+    { "binding": "DB", "id": "6714d6360b52427bb436b21b033530d8" },
+    { "binding": "DB_CACHED", "id": "882f69f6fd22419fa0db908e2dad14de" },
+  ],
+  "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "ironcage-private" }],
 }

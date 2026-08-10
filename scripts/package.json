@@ -4,14 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests",
+    "test": "vitest run"
   },
   "dependencies": {
+    "effect": "catalog:",
+    "pg": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {
     "@ironcage/tsconfig": "workspace:*",
     "@types/node": "catalog:",
-    "typescript": "catalog:"
+    "@types/pg": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

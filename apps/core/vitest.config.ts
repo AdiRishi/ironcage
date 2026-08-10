@@ -23,6 +23,15 @@ const stub = (name: string) => ({
   compatibilityDate: "2026-08-01",
 });
 
+// Unreachable on purpose, and never connected to: workerd refuses to start a
+// Hyperdrive binding without one. It goes here rather than in the Wrangler
+// config so that `pnpm dev` still resolves the real development branch from
+// `.dev.vars`. A test that needs the database belongs in the suite that runs
+// against a real branch.
+const unreachable = "postgres://ironcage:unreachable@127.0.0.1:5432/ironcage";
+process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB ??= unreachable;
+process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB_CACHED ??= unreachable;
+
 export default defineConfig({
   plugins: [
     cloudflareTest({
