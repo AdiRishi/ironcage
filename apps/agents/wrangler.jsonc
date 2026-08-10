@@ -14,4 +14,14 @@
     "port": 8788,
     "inspector_port": 9230,
   },
+  // The only binding agents holds. No database, bucket, or Durable Object here
+  // is deliberate: it is what makes "agents return data, never actions" wiring
+  // rather than policy.
+  "services": [
+    {
+      "binding": "CORE",
+      "service": "ironcage-core",
+      "entrypoint": "AgentReadApiEntrypoint",
+    },
+  ],
 }

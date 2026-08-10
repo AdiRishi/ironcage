@@ -14,3 +14,4 @@ dist-ssr/
 .env.local
 *.local
 .DS_Store
+.playwright-mcp/

@@ -28,7 +28,17 @@
     "vitest": true
   },
   "rules": {
-    "react/react-in-jsx-scope": "off"
+    "react/react-in-jsx-scope": "off",
+    // `Effect.catch(effect, handler)` is a member call named `catch` with two
+    // arguments, which this rule reads as a misuse of `Promise.catch`. It
+    // cannot tell the two apart, and the Effect form is everywhere.
+    "promise/valid-params": "off",
+    // `@effect/vitest` supplies `it.effect` and friends. Without listing them
+    // the rule treats every assertion inside one as standalone.
+    "vitest/no-standalone-expect": [
+      "error",
+      { "additionalTestBlockFunctions": ["it.effect", "it.live", "it.scoped", "it.scopedLive"] }
+    ]
   },
   "settings": {
     "react": {

@@ -1,11 +1,13 @@
-import { exports } from "cloudflare:workers";
+import { env } from "cloudflare:test";
 import { expect, test } from "vitest";
 
 import "../src/index";
 
-test("responds over the default fetch handler", async () => {
-  const response = await exports.default.fetch("https://ironcage.test/");
+test("the backtest object answers a stub call", async () => {
+  const stub = env.BACKTEST.getByName("test");
 
-  expect(response.status).toBe(200);
-  expect(await response.text()).toContain("ironcage-compute");
+  await expect(stub.ping()).resolves.toStrictEqual({
+    worker: "ironcage-compute",
+    object: "BacktestRunner",
+  });
 });

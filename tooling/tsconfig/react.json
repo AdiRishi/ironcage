@@ -1,7 +1,6 @@
 {
-  "extends": "./base.json",
+  "extends": "./web.json",
   "compilerOptions": {
-    "jsx": "react-jsx",
-    "lib": ["ESNext", "DOM", "DOM.Iterable"]
+    "jsx": "react-jsx"
   }
 }

@@ -9,10 +9,11 @@
     "noEmit": true
   },
   "include": [
+    "nitro.config.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
-    "nitro.config.ts",
     "vite.config.ts",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "worker-configuration.d.ts"
   ]
 }

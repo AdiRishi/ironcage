@@ -157,6 +157,13 @@ importers:
         version: 2.9.0
 
   apps/agents:
+    dependencies:
+      '@ironcage/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.0-beta.105
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: 'catalog:'
@@ -179,6 +186,9 @@ importers:
 
   apps/app:
     dependencies:
+      '@ironcage/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@ironcage/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -209,6 +219,9 @@ importers:
       '@tanstack/router-plugin':
         specifier: 'catalog:'
         version: 1.168.27(@tanstack/react-router@1.170.22(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(esbuild@0.28.1)(rolldown@1.2.3)(supports-color@10.2.2)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.0-beta.105
       nitro:
         specifier: 'catalog:'
         version: 3.0.260610-beta(chokidar@5.0.0)(dotenv@17.4.2)(jiti@2.7.0)(lru-cache@11.5.2)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(wrangler@4.120.0)
@@ -272,6 +285,13 @@ importers:
         version: 4.120.0
 
   apps/compute:
+    dependencies:
+      '@ironcage/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.0-beta.105
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: 'catalog:'
@@ -293,10 +313,20 @@ importers:
         version: 4.120.0
 
   apps/core:
+    dependencies:
+      '@ironcage/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.0-beta.105
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: 'catalog:'
         version: 0.20.3(@vitest/runner@4.1.10)(@vitest/snapshot@4.1.10)(vitest@4.1.10(@types/node@26.1.2)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
+      '@ironcage/compute':
+        specifier: workspace:*
+        version: link:../compute
       '@ironcage/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig

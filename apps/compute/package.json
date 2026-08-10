@@ -3,12 +3,21 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./entrypoints": {
+      "types": "./src/index.ts"
+    }
+  },
   "scripts": {
     "cf-typegen": "wrangler types",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests"
+  },
+  "dependencies": {
+    "@ironcage/contracts": "workspace:*",
+    "effect": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "catalog:",

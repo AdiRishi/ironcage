@@ -11,5 +11,7 @@ export default defineConfig({
     globals: true,
     include: ["tests/**/*.test.{ts,tsx}"],
     setupFiles: ["./tests/setup.ts"],
+    // Screens bring their tests with them; there is no logic here yet.
+    passWithNoTests: true,
   },
 });

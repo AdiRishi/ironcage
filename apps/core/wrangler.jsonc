@@ -14,4 +14,22 @@
     "port": 8787,
     "inspector_port": 9229,
   },
+  // Targeting the entrypoint, not just the Worker, is what stops this binding
+  // from reaching the conversation surface.
+  "services": [
+    {
+      "binding": "AGENTS",
+      "service": "ironcage-agents",
+      "entrypoint": "DispatchApiEntrypoint",
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "COMPUTE",
+        "class_name": "BacktestRunner",
+        "script_name": "ironcage-compute",
+      },
+    ],
+  },
 }

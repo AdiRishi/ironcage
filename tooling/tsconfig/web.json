@@ -1,0 +1,9 @@
+{
+  // For code that runs on web-standard runtimes and needs the platform's HTTP
+  // and stream types. TypeScript ships those inside `DOM`, alongside `window`
+  // and `document`, which shared packages must not touch.
+  "extends": "./base.json",
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM", "DOM.Iterable"]
+  }
+}

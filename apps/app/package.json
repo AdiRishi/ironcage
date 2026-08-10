@@ -10,9 +10,11 @@
     "preview": "vite preview",
     "preview:worker": "wrangler dev",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tests"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests",
+    "cf-typegen": "wrangler types"
   },
   "dependencies": {
+    "@ironcage/contracts": "workspace:*",
     "@ironcage/ui": "workspace:*",
     "@tailwindcss/vite": "catalog:",
     "@tanstack/react-devtools": "catalog:",
@@ -23,6 +25,7 @@
     "@tanstack/react-router-ssr-query": "catalog:",
     "@tanstack/react-start": "catalog:",
     "@tanstack/router-plugin": "catalog:",
+    "effect": "catalog:",
     "nitro": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",

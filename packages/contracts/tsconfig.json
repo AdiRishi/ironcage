@@ -1,5 +1,5 @@
 {
-  "extends": "@ironcage/tsconfig/base.json",
+  "extends": "@ironcage/tsconfig/web.json",
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src"

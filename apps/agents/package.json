@@ -10,6 +10,10 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests"
   },
+  "dependencies": {
+    "@ironcage/contracts": "workspace:*",
+    "effect": "catalog:"
+  },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "catalog:",
     "@ironcage/tsconfig": "workspace:*",

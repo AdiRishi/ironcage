@@ -14,4 +14,8 @@
     "port": 8789,
     "inspector_port": 9231,
   },
+  "durable_objects": {
+    "bindings": [{ "name": "BACKTEST", "class_name": "BacktestRunner" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BacktestRunner"] }],
 }
