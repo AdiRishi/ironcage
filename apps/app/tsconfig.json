@@ -1,0 +1,11 @@
+{
+  "extends": "@ironcage/tsconfig/react.json",
+  "compilerOptions": {
+    "types": ["vite/client", "vitest/globals", "vitest/jsdom", "@testing-library/jest-dom"],
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "verbatimModuleSyntax": false
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "vitest.config.ts"]
+}

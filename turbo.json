@@ -1,0 +1,25 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "ui": "tui",
+  "globalDependencies": [".nvmrc"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".output/**", ".nitro/**", "dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"]
+    },
+    "test": {
+      "dependsOn": ["^typecheck"]
+    },
+    "cf-typegen": {
+      "cache": false,
+      "outputs": ["worker-configuration.d.ts"]
+    }
+  }
+}

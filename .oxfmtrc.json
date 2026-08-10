@@ -1,4 +1,9 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "ignorePatterns": [".repos/**"]
+  "sortImports": true,
+  "sortPackageJson": true,
+  "sortTailwindcss": {
+    "stylesheet": "./packages/ui/src/styles/globals.css"
+  },
+  "ignorePatterns": [".repos/**", "**/*.gen.ts", "**/worker-configuration.d.ts", "pnpm-lock.yaml"]
 }

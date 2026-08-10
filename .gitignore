@@ -1,6 +1,9 @@
 node_modules/
 dist/
+dist-ssr/
 .output/
+.nitro/
+.tanstack/
 .turbo/
 *.tsbuildinfo
 *.log
@@ -9,4 +12,5 @@ dist/
 .dev.vars
 .env
 .env.local
+*.local
 .DS_Store

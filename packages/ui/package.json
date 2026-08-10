@@ -1,0 +1,35 @@
+{
+  "name": "@ironcage/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./globals.css": "./src/styles/globals.css",
+    "./components/*": "./src/components/*.tsx",
+    "./hooks/*": "./src/hooks/*.ts",
+    "./lib/*": "./src/lib/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "ui:add": "shadcn add"
+  },
+  "dependencies": {
+    "@base-ui/react": "catalog:",
+    "@fontsource-variable/inter": "catalog:",
+    "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
+    "lucide-react": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "shadcn": "catalog:",
+    "tailwind-merge": "catalog:",
+    "tailwindcss": "catalog:",
+    "tw-animate-css": "catalog:"
+  },
+  "devDependencies": {
+    "@ironcage/tsconfig": "workspace:*",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "catalog:"
+  }
+}
