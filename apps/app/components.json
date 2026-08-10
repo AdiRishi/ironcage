@@ -15,7 +15,7 @@
   "aliases": {
     "components": "@/components",
     "hooks": "@/hooks",
-    "lib": "@ironcage/ui/lib",
+    "lib": "@/lib",
     "ui": "@ironcage/ui/components",
     "utils": "@ironcage/ui/lib/utils"
   },
