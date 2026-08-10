@@ -14,9 +14,13 @@ Every boundary in the system, in one place: how Workers talk, who may call what,
 
 ## Transport
 
-Cross-Worker communication is HTTP over service bindings. Core defines its APIs as Effect `HttpApi` values in `packages/contracts`. A small adapter implements Effect's [`HttpClient`](https://effect-ts.github.io/effect/platform/HttpClient.ts.html) interface over the binding's `fetch`. [`HttpApiClient`](https://effect-ts.github.io/effect/platform/HttpApiClient.ts.html) is then constructed with that adapter.
+Cross-Worker communication is Effect RPC serialized as JSON over HTTP service bindings. Each surface is an Effect `RpcGroup` in `packages/contracts`; `RpcClient` derives the typed caller and `RpcServer` decodes and validates the same definitions on the receiving side. The package exposes three deliberate entrypoints: `@ironcage/contracts/schema` for wire values, `@ironcage/contracts/client` for callers, and `@ironcage/contracts/server` for Worker handlers. There is no catch-all package export.
 
-The adapter owns abort propagation, streaming bodies, headers, and transport-error mapping. Effect does not advertise this service-binding adapter, so one real endpoint must pass a conformance test before the contract is frozen. The resulting requests and responses are schema-validated at both ends over plain HTTP.
+The client adapter supplies the service binding's bound `fetch` as Effect's `FetchHttpClient` transport, applies the call budget while the failure is still an `HttpClientError`, and lets the RPC protocol map transport failures into `RpcClientError`. The public taxonomy folds that one protocol tag into `Internal`; it does not cast an unrelated error into the caller's error type. Abort propagation, streaming bodies, and headers remain Effect HTTP responsibilities.
+
+On the server, the `WorkerEntrypoint` passes its `Env` and `ExecutionContext` into the Effect context for that invocation. The RPC route and handler context are constructed inside the HTTP request scope, so a handler may yield the request service without any request-specific value living at module scope. Immutable Schemas, groups, and route definitions stay module-scoped and are reused.
+
+The service-binding conformance test runs the production core, agents, and compute Wrangler configurations in Cloudflare's test harness. It proves the real core → agents named-entrypoint call and the core → compute Durable Object binding, rather than replacing those seams with in-process functions. Requests and responses are schema-validated at both ends over ordinary HTTP.
 
 Native Workers RPC must not be used between Workers. RPC calls ignore Smart Placement, and core's latency budget is owned by its distance to Postgres. Inside core, Durable Object stubs keep their native method calls. A DO call goes to wherever the object lives, so placement is irrelevant there.
 
@@ -44,7 +48,7 @@ The internal seams carry no tokens. A service binding is not a network route; on
 
 ## The API surfaces
 
-Core exposes two named surfaces. Both are defined once in `packages/contracts`. Once that package exists, the operation catalogs below are generated from its definitions; until then they are maintained by hand and the package, when written, must match them. Each operation's full request and response Schema lives with the definition.
+Core exposes two named surfaces. Both are defined once in `packages/contracts`. The operation catalogs below are the normative surface specification, and each implemented operation carries its full request, success, and error Schema in the corresponding `RpcGroup`.
 
 ### `AppApi` — the operator surface, called only by the app Worker
 
@@ -187,7 +191,7 @@ Contracts evolve additively. One main-branch release deploys every Worker, but t
 
 ## Alternatives considered
 
-- **tRPC.** Rejected as redundant: Effect `HttpApi` already generates typed clients from a single definition and validates with the same Schema library the rest of the system uses.
+- **tRPC.** Rejected as redundant: Effect RPC already derives typed clients and servers from one `RpcGroup` and validates with the same Schema library the rest of the system uses.
 - **One combined API surface with role checks.** Rejected: two named surfaces make "agents cannot mutate" a property of what exists, not of what is checked at runtime.
 - **Native Workers RPC between Workers.** Rejected: RPC ignores Smart Placement, and core must sit near Postgres. Service bindings with typed HTTP keep placement control and lose nothing but call syntax.
 - **Retry on `Ambiguous`.** Rejected everywhere: ambiguity resolves by querying, never by resending. The venue chapter owns the algorithm.
@@ -202,9 +206,9 @@ Contracts evolve additively. One main-branch release deploys every Worker, but t
 
 ## Build checklist
 
-- [ ] `packages/contracts` with `AppApi`, `AgentReadApi`, the queue message Schema, the error union, and UUIDv7 codecs
-- [ ] Catalog generation: the operation tables in this chapter produced from `packages/contracts` definitions (hand-maintained until the package exists)
-- [ ] Generated clients wired through service bindings in app and agents
+- [ ] Complete `AppRpcs`, `AgentReadRpcs`, the queue message Schema, the error union, and UUIDv7 codecs in `packages/contracts`
+- [ ] Catalog generation: produce the operation tables in this chapter from the `RpcGroup` definitions
+- [x] Generated clients wired through service bindings in app, core, and agents, with a real multi-Worker conformance test
 - [ ] Origin-check middleware on every mutating route and on the WebSocket upgrade; expected application `aud` plus exact service-token `common_name` allowlist
 - [ ] The request-log table and `request_id` middleware for app mutations, including the collision → `Conflict` + critical-event path
 - [ ] Queue consumer with in-transaction dedupe, content-hash comparison, dispatch-deadline rejection, and individual acknowledgment

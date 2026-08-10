@@ -64,12 +64,12 @@ packages/
   engine/     strategy → cage → simulated fills, pure and deterministic.
               Imported by core (live and dry run) and compute (backtests).
   tax/        parcels, CGT, Division 775, FITO. Pure; imports domain only.
-  contracts/  the HttpApi definitions (AppApi, AgentReadApi), queue message schemas,
-              and generated clients. The only way Workers know each other.
+  contracts/  Effect RPC groups, wire Schemas, generated clients and server adapters,
+              exposed through explicit schema/client/server entrypoints.
   ui/         shared shadcn/ui-based components for the observatory.
 ```
 
-Dependency direction is one-way and enforced by lint. `apps → contracts → domain`, and `apps → engine → domain`. Nothing in `packages/` may import from `apps/`, and `domain` imports nothing of ours.
+Dependency direction is one-way: `apps → contracts → domain`, and `apps → engine → domain`. Nothing in `packages/` imports from `apps/`, and `domain` imports nothing of ours.
 
 `engine` and `tax` must stay free of Cloudflare APIs, I/O, clocks, and randomness. That purity is what lets one implementation serve live trading, dry run, and backtests.
 

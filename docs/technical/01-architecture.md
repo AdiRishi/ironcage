@@ -40,7 +40,7 @@ Three properties of this picture carry everything else.
 
 **The engine and the AI are different Workers.** `ironcage-core` contains the tick, the cage, order execution, and every safety mechanism. It contains no AI code. `ironcage-agents` contains every AI capability and has no path to an order. What crosses between them is data, and the engine validates it before it means anything. The full seam is specified in [Contracts](./04-contracts.md) and [AI](./07-ai.md).
 
-**Every single-writer is a named actor with an explicit critical section.** Cage checks must not race, Kraken's nonce must strictly increase, and exposure headroom must be granted one request at a time. Each gets one Durable Object identity. Durable Object handlers may interleave across `await`, so the venue actor uses a durable FIFO plus one in-flight drainer, and cage read/check/write sections execute in one storage or Postgres transaction with no external await. The object identity supplies ownership; the protocol supplies serialization.
+**Every single-writer is a named actor with an explicit serialization mechanism.** Kraken's nonce and venue calls use a durable FIFO with one in-flight drainer because external I/O cannot sit inside a database transaction. System-cage mutations use short Postgres transactions: every `reserve`, `commit`, and `release` first locks the singleton cage-control row, then reads and changes the ledger before committing. Durable Object handlers may interleave while awaiting Postgres; correctness comes from that row lock, not from assuming JavaScript requests run serially. `blockConcurrencyWhile` is reserved for local initialization and never spans Hyperdrive or venue I/O.
 
 **Postgres is the only permanent financial truth.** Every Ironcage trading actor's local state is either an in-flight marker or a projection that can be rebuilt from Postgres. R2 holds immutable bytes named by Postgres rows. Flue separately persists sensitive conversation and execution state in Durable Object SQLite; it is neither rebuildable from Postgres nor allowed to carry financial authority. Gateway and Workflow retention also follow their platform contracts. The inventory and commit-point rules are specified in [Data](./03-data.md) and [AI](./07-ai.md).
 
@@ -146,7 +146,7 @@ Vitals are computed from Postgres rows, so a dead engine shows dead rather than 
 
 - **One Worker for everything.** Impossible twice over: TanStack Start and Flue each demand ownership of a Worker's entry point, and mixing them has no supported configuration.
 - **One engine Durable Object running all sleeves.** Rejected: one slow venue call would stall every sleeve behind it, and one defect would wedge the object that runs everything. Sleeves are isolated tenants in the product; the actor split makes them isolated tenants in the runtime.
-- **Database-centric correctness (stateless Workers plus row locks).** Rejected: a cage check and its venue call would have to either hold a Postgres lock across an ocean-crossing HTTP request or split the transaction and re-check racily.
+- **Stateless Workers for every actor.** Rejected: a short row lock correctly serializes the system-cage ledger, but it cannot order venue calls, nonce allocation, ambiguity resolution, or alarms without being held across external I/O. Durable Objects own those workflows; Postgres owns financial truth and the short critical sections it can actually make atomic.
 - **Native Workers RPC between Workers.** Rejected: RPC calls ignore Smart Placement, and core's latency is dominated by its distance to Postgres. Typed HTTP over the same service bindings keeps the developer experience and the placement options.
 - **Routing AI conversations through core.** Rejected: it would put conversational traffic on the money-path Worker for no safety gain, since the conversation surface holds no mutation path and its model spend is bounded first by the application and backed by Gateway rules. A direct app-to-agents binding keeps core's surface small.
 - **Cloudflare Artifacts for proposal bundles.** Rejected: it added a platform dependency for what is content-addressed blob storage. A dedicated R2 quarantine bucket with bucket locks does the same job on infrastructure the system already runs; the bundle lifecycle is in [Workbench](./10-workbench.md) and [AI](./07-ai.md).
@@ -158,7 +158,7 @@ Vitals are computed from Postgres rows, so a dead engine shows dead rather than 
 ## Build checklist
 
 - [ ] Four wrangler configs with exactly the bindings in the table above, deployed by one root release command from `main`
-- [ ] `packages/contracts` exporting `AppApi`, `AgentReadApi`, the conversation-surface types, and the queue message schema
+- [ ] Complete the `AppRpcs`, `AgentReadRpcs`, conversation, dispatch, and queue contracts behind the explicit schema/client/server package entrypoints
 - [ ] Actor skeletons with `rebuild()` implemented and tested against a seeded Postgres
 - [ ] The watchdog cron keyed on the Postgres `next_due_at` row, with its re-arm feed event
 - [ ] A test that asserts the agents Worker's environment contains no Postgres, R2, or Durable Object bindings
