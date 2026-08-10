@@ -5,7 +5,7 @@ Ironcage is a personal wealth operating system: one engine running many investme
 This page is the front door. Three rules govern the whole set:
 
 1. **The documents form a hierarchy.** [VISION.md](./VISION.md) says why the system exists and states its principles. [PRODUCT.md](./PRODUCT.md) and the product chapters say what it does, observably. [TECHNICAL.md](./TECHNICAL.md) and the technical chapters say how it is built. A lower document that weakens a higher one is wrong and gets fixed — deliberately, with the change recorded.
-2. **Chapters are the authority for the current design.** The [decision appendix](./technical/appendix/decisions.md) is an archive of how choices were made and unmade. Read it for history or to avoid re-arguing a settled question — never to find out what the system does.
+2. **Chapters are the authority for the current design.** The [decision appendix](./technical/appendix/decisions.md) is an archive of how choices were made and unmade. Read it for history or to avoid re-arguing a settled question — never to find out what the system does. The [ADRs](./adr/) sit outside this hierarchy and describe the repository rather than the system: file layout, build and test wiring, tooling conventions.
 3. **Unsettled things are visible.** Proposed values are tagged in each chapter's values table; open questions sit in each chapter's Open questions section with their safe fallbacks. Nothing undecided hides inside a confident adjective.
 
 [STYLE.md](./STYLE.md) is the writing contract every file here follows.
@@ -36,4 +36,5 @@ This page is the front door. Three rules govern the whole set:
 | Observed CommBank formats and collection runbook                            | [technical/examples/commbank-exports](./technical/examples/commbank-exports.md)     |
 | Fictional CommBank parser shapes                                            | [technical/examples/commbank-fixtures](./technical/examples/commbank-fixtures.md)   |
 | Build order and dependencies                                                | [ROADMAP.md](./ROADMAP.md)                                                          |
+| Repository layout, build and test wiring, tooling conventions               | [adr/](./adr/)                                                                      |
 | The ubiquitous language                                                     | [../CONTEXT.md](../CONTEXT.md)                                                      |
