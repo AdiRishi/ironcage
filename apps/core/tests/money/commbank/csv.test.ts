@@ -3,7 +3,7 @@ import { BigDecimal, Effect, Option } from "effect";
 import { describe, expect } from "vitest";
 
 import { CommBankCsvRejected, decodeCommBankCsv } from "../../../src/money/commbank/csv";
-import type { CommBankProfileId } from "../../../src/money/commbank/profiles";
+import type { CommBankAccountProfileId } from "../../../src/money/commbank/profiles";
 import homeLoanA from "../../fixtures/money/commbank/home-loan/home-loan-a.csv?bytes";
 import mastercardA from "../../fixtures/money/commbank/mastercard/mastercard-a.csv?bytes";
 import savingsA from "../../fixtures/money/commbank/savings-offset/savings-offset-a.csv?bytes";
@@ -32,7 +32,7 @@ describe("the observed corpus", () => {
       Effect.gen(function* () {
         const file = yield* decodeCommBankCsv(bytes, profile);
 
-        expect(file.profile).toBe(profile);
+        expect(file.accountProfile).toBe(profile);
         expect(file.rows).toHaveLength(rows);
         expect(file.rows.map((row) => row.sourceOrdinal)).toEqual([...Array(rows).keys()]);
       }),
@@ -104,7 +104,7 @@ describe("the observed corpus", () => {
 });
 
 describe("refusing a file it cannot interpret", () => {
-  const rejectionOf = (bytes: Uint8Array, profile: CommBankProfileId = "spending-offset") =>
+  const rejectionOf = (bytes: Uint8Array, profile: CommBankAccountProfileId = "spending-offset") =>
     Effect.flip(decodeCommBankCsv(bytes, profile));
 
   it.effect("rejects a header row rather than reading it as a transaction", () =>
@@ -122,6 +122,14 @@ describe("refusing a file it cannot interpret", () => {
   it.effect("rejects line feeds without carriage returns", () =>
     Effect.gen(function* () {
       const rejected = yield* rejectionOf(new TextEncoder().encode(`${spendingRow}\n`));
+
+      expect(rejected.reason).toBe("line_endings");
+    }),
+  );
+
+  it.effect("rejects carriage returns without line feeds", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(new TextEncoder().encode(`${spendingRow}\r`));
 
       expect(rejected.reason).toBe("line_endings");
     }),

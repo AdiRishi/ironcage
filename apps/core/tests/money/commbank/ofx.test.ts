@@ -3,7 +3,7 @@ import { BigDecimal, Effect, Option } from "effect";
 import { describe, expect } from "vitest";
 
 import { CommBankOfxRejected, decodeCommBankOfx } from "../../../src/money/commbank/ofx";
-import type { CommBankProfileId } from "../../../src/money/commbank/profiles";
+import type { CommBankAccountProfileId } from "../../../src/money/commbank/profiles";
 import homeLoanA from "../../fixtures/money/commbank/home-loan/home-loan-a.ofx?bytes";
 import mastercardA from "../../fixtures/money/commbank/mastercard/mastercard-a.ofx?bytes";
 import savingsA from "../../fixtures/money/commbank/savings-offset/savings-offset-a.ofx?bytes";
@@ -226,7 +226,7 @@ describe("the observed corpus", () => {
 });
 
 describe("refusing a file it cannot interpret", () => {
-  const rejectionOf = (bytes: Uint8Array, profile: CommBankProfileId = "spending-offset") =>
+  const rejectionOf = (bytes: Uint8Array, profile: CommBankAccountProfileId = "spending-offset") =>
     Effect.flip(decodeCommBankOfx(bytes, profile));
 
   it.effect("rejects a version it has no grammar for", () =>
@@ -404,6 +404,28 @@ describe("refusing a file it cannot interpret", () => {
     }),
   );
 
+  it.effect("rejects a repeated stable FITID across distinct transactions", () =>
+    Effect.gen(function* () {
+      const repeatedIdentifier = `<STMTTRN>
+<TRNTYPE>DEBIT
+<DTPOSTED>20320128
+<DTUSER>20320128
+<TRNAMT>-10.00
+<FITID>fixture-fitid-1-000040
+<MEMO>FIXTURE SECOND TRANSACTION
+</STMTTRN>
+`;
+      const body = defaultBody.replace(
+        "</STMTTRN>\n</BANKTRANLIST>",
+        `</STMTTRN>\n${repeatedIdentifier}</BANKTRANLIST>`,
+      );
+      const rejected = yield* rejectionOf(document({ body }));
+
+      expect(rejected.reason).toBe("identifier_policy");
+      expect(rejected.sourceOrdinal).toBe(1);
+    }),
+  );
+
   it.effect("rejects an empty identifier on a profile that promises stable FITIDs", () =>
     Effect.gen(function* () {
       const rejected = yield* rejectionOf(
@@ -465,6 +487,37 @@ describe("refusing a file it cannot interpret", () => {
 
       expect(rejected.reason).toBe("transaction_outside_window");
       expect(rejected.sourceOrdinal).toBe(0);
+    }),
+  );
+
+  it.effect("rejects a transaction date carrying a time the profile would discard", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(
+        document({ body: bodyWithout("<DTPOSTED>20320129", "<DTPOSTED>20320129000000") }),
+      );
+
+      expect(rejected.reason).toBe("invalid_date");
+      expect(rejected.sourceOrdinal).toBe(0);
+    }),
+  );
+
+  it.effect("rejects a statement window without its observed midnight timestamp", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(
+        document({ body: bodyWithout("<DTSTART>20311211000000", "<DTSTART>20311211") }),
+      );
+
+      expect(rejected.reason).toBe("invalid_date");
+    }),
+  );
+
+  it.effect("rejects an invalid balance as-of time", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(
+        document({ body: bodyWithout("<DTASOF>20320129104618", "<DTASOF>20320129254618") }),
+      );
+
+      expect(rejected.reason).toBe("invalid_date");
     }),
   );
 

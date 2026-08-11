@@ -1,26 +1,41 @@
 import { Schema } from "effect";
 
-export const commBankPairedProfileVersion = "cba-netbank-paired-v1";
+export const commBankPairedProfileId = "cba-netbank-paired-v1";
 
-export const CommBankProfileId = Schema.Literals([
+export const CommBankAccountProfileId = Schema.Literals([
   "spending-offset",
   "savings-offset",
   "mastercard",
   "home-loan",
 ]);
-export type CommBankProfileId = typeof CommBankProfileId.Type;
+export type CommBankAccountProfileId = typeof CommBankAccountProfileId.Type;
 
-interface CommBankProfileShape {
-  readonly label: string;
-  readonly accountType: "deposit" | "credit_card" | "credit_line";
-  readonly rowBalance: "required" | "forbidden";
-  readonly identifier: "stable" | "absent";
-  readonly messageSet: "bank" | "credit_card";
-  readonly statementAggregate: {
-    readonly opening: "STMTRS" | "CCSTMTRS";
-    readonly closing: "STMTRS" | "CCSTMTRS";
-  };
-}
+type CommBankProfileShape = { readonly label: string } & (
+  | {
+      readonly accountType: "deposit";
+      readonly rowBalance: "required";
+      readonly identifier: "stable";
+      readonly messageSet: "bank";
+      readonly statementAggregate: { readonly opening: "STMTRS"; readonly closing: "STMTRS" };
+    }
+  | {
+      readonly accountType: "credit_card";
+      readonly rowBalance: "forbidden";
+      readonly identifier: "absent";
+      readonly messageSet: "credit_card";
+      readonly statementAggregate: {
+        readonly opening: "CCSTMTRS";
+        readonly closing: "CCSTMTRS";
+      };
+    }
+  | {
+      readonly accountType: "credit_line";
+      readonly rowBalance: "required";
+      readonly identifier: "absent";
+      readonly messageSet: "bank";
+      readonly statementAggregate: { readonly opening: "CCSTMTRS"; readonly closing: "STMTRS" };
+    }
+);
 
 export const commBankAccountProfiles = {
   "spending-offset": {
@@ -55,7 +70,7 @@ export const commBankAccountProfiles = {
     messageSet: "bank",
     statementAggregate: { opening: "CCSTMTRS", closing: "STMTRS" },
   },
-} as const satisfies Record<CommBankProfileId, CommBankProfileShape>;
+} as const satisfies Record<CommBankAccountProfileId, CommBankProfileShape>;
 
 export type CommBankAccountProfile =
   (typeof commBankAccountProfiles)[keyof typeof commBankAccountProfiles];

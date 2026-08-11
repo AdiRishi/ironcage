@@ -5,7 +5,7 @@ import { type SourceDate, sourceAmount, sourceDate } from "../values";
 import {
   type CommBankAccountProfile,
   commBankAccountProfiles,
-  type CommBankProfileId,
+  type CommBankAccountProfileId,
 } from "./profiles";
 
 export type CommBankOfxAccount =
@@ -271,7 +271,8 @@ const nonEmptyScalar = (
     return value;
   });
 
-const ofxDate = /^(\d{4})(\d{2})(\d{2})(?:\d{6})?$/;
+const ofxDate = /^(\d{4})(\d{2})(\d{2})$/;
+const ofxDateTime = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/;
 
 const asDate = (raw: string) => {
   const parts = ofxDate.exec(raw);
@@ -280,6 +281,25 @@ const asDate = (raw: string) => {
     ? Option.none<SourceDate>()
     : sourceDate(Number(parts[1]), Number(parts[2]), Number(parts[3]));
 };
+
+const asDateTime = (raw: string) => {
+  const parts = ofxDateTime.exec(raw);
+
+  if (parts === null) return Option.none<SourceDate>();
+
+  const hour = Number(parts[4]);
+  const minute = Number(parts[5]);
+  const second = Number(parts[6]);
+
+  if (hour > 23 || minute > 59 || second > 59) {
+    return Option.none<SourceDate>();
+  }
+
+  return sourceDate(Number(parts[1]), Number(parts[2]), Number(parts[3]));
+};
+
+const asMidnightDate = (raw: string) =>
+  raw.endsWith("000000") ? asDateTime(raw) : Option.none<SourceDate>();
 
 const messageSets = {
   bank: {
@@ -300,7 +320,7 @@ const balance = (statement: OfxNode, tag: "LEDGERBAL" | "AVAILBAL") =>
     const rawAmount = yield* nonEmptyScalar(node, "BALAMT", tag);
     const rawAsOf = yield* nonEmptyScalar(node, "DTASOF", tag);
     const amount = sourceAmount(rawAmount);
-    const asOfDate = asDate(rawAsOf);
+    const asOfDate = asDateTime(rawAsOf);
 
     if (Option.isNone(amount)) {
       return yield* reject("invalid_amount", `${tag}/BALAMT is ${JSON.stringify(rawAmount)}`);
@@ -315,9 +335,9 @@ const balance = (statement: OfxNode, tag: "LEDGERBAL" | "AVAILBAL") =>
 
 export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
   bytes: Uint8Array,
-  profileId: CommBankProfileId,
+  accountProfileId: CommBankAccountProfileId,
 ): Effect.fn.Return<CommBankOfxFile, CommBankOfxRejected> {
-  const profile = commBankAccountProfiles[profileId];
+  const profile = commBankAccountProfiles[accountProfileId];
   const bodyStart = bytes.indexOf(0x3c);
 
   if (bodyStart === -1) {
@@ -428,8 +448,8 @@ export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
   const list = yield* element(statement, "BANKTRANLIST", profile.statementAggregate.opening);
   const rawStart = yield* nonEmptyScalar(list, "DTSTART", "BANKTRANLIST");
   const rawEnd = yield* nonEmptyScalar(list, "DTEND", "BANKTRANLIST");
-  const start = asDate(rawStart);
-  const end = asDate(rawEnd);
+  const start = asMidnightDate(rawStart);
+  const end = asMidnightDate(rawEnd);
 
   if (Option.isNone(start)) {
     return yield* reject("invalid_date", `BANKTRANLIST/DTSTART is ${JSON.stringify(rawStart)}`);
@@ -447,6 +467,7 @@ export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
   }
 
   const transactions: CommBankOfxTransaction[] = [];
+  const identifiers = new Set<string>();
 
   for (const [sourceOrdinal, node] of childrenNamed(list, "STMTTRN").entries()) {
     const path = `BANKTRANLIST/STMTTRN[${sourceOrdinal}]`;
@@ -511,6 +532,16 @@ export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
         sourceOrdinal,
       );
     }
+
+    if (hasIdentifier && identifiers.has(rawIdentifier)) {
+      return yield* reject(
+        "identifier_policy",
+        `${profile.label} repeats FITID ${JSON.stringify(rawIdentifier)}`,
+        sourceOrdinal,
+      );
+    }
+
+    if (hasIdentifier) identifiers.add(rawIdentifier);
 
     transactions.push({
       sourceOrdinal,

@@ -10,7 +10,11 @@ import {
   type CommBankOfxTransaction,
   decodeCommBankOfx,
 } from "./ofx";
-import { commBankAccountProfiles, type CommBankProfileId } from "./profiles";
+import {
+  type CommBankAccountProfileId,
+  commBankAccountProfiles,
+  commBankPairedProfileId,
+} from "./profiles";
 
 export interface CommBankPairedRow {
   readonly occurrence: number;
@@ -38,7 +42,8 @@ export type CommBankLedgerReconciliation =
     };
 
 export interface CommBankPairedBundle {
-  readonly profile: CommBankProfileId;
+  readonly sourceProfile: typeof commBankPairedProfileId;
+  readonly accountProfile: CommBankAccountProfileId;
   readonly account: CommBankOfxAccount;
   readonly window: { readonly start: SourceDate; readonly end: SourceDate };
   readonly rows: readonly CommBankPairedRow[];
@@ -75,14 +80,14 @@ const pairingKey = (postedDate: SourceDate, amount: Money, narrative: string) =>
 export const decodeCommBankBundle = Effect.fn("decodeCommBankBundle")(function* (
   csvBytes: Uint8Array,
   ofxBytes: Uint8Array,
-  profileId: CommBankProfileId,
+  accountProfileId: CommBankAccountProfileId,
 ): Effect.fn.Return<
   CommBankPairedBundle,
   CommBankBundleBlocked | CommBankCsvRejected | CommBankOfxRejected
 > {
-  const profile = commBankAccountProfiles[profileId];
-  const csv = yield* decodeCommBankCsv(csvBytes, profileId);
-  const ofx = yield* decodeCommBankOfx(ofxBytes, profileId);
+  const profile = commBankAccountProfiles[accountProfileId];
+  const csv = yield* decodeCommBankCsv(csvBytes, accountProfileId);
+  const ofx = yield* decodeCommBankOfx(ofxBytes, accountProfileId);
 
   if (csv.rows.length !== ofx.transactions.length) {
     return yield* block(
@@ -92,10 +97,10 @@ export const decodeCommBankBundle = Effect.fn("decodeCommBankBundle")(function* 
   }
 
   // NetBank silently caps broad searches at 600 rows, so that count cannot prove coverage.
-  if (csv.rows.length === exportRowCeiling) {
+  if (csv.rows.length >= exportRowCeiling) {
     return yield* block(
       "export_truncated",
-      `a ${exportRowCeiling}-row export is at NetBank's search ceiling and cannot prove its window is complete`,
+      `an export with ${csv.rows.length} rows is at or above NetBank's ${exportRowCeiling}-row search ceiling and cannot prove its window is complete`,
     );
   }
 
@@ -188,7 +193,8 @@ export const decodeCommBankBundle = Effect.fn("decodeCommBankBundle")(function* 
   }
 
   return {
-    profile: profileId,
+    sourceProfile: commBankPairedProfileId,
+    accountProfile: accountProfileId,
     account: ofx.account,
     window: ofx.window,
     rows,

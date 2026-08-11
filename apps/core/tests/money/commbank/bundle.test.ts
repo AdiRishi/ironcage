@@ -3,7 +3,7 @@ import { BigDecimal, Effect, Option } from "effect";
 import { describe, expect } from "vitest";
 
 import { CommBankBundleBlocked, decodeCommBankBundle } from "../../../src/money/commbank/bundle";
-import type { CommBankProfileId } from "../../../src/money/commbank/profiles";
+import type { CommBankAccountProfileId } from "../../../src/money/commbank/profiles";
 import homeLoanACsv from "../../fixtures/money/commbank/home-loan/home-loan-a.csv?bytes";
 import homeLoanAOfx from "../../fixtures/money/commbank/home-loan/home-loan-a.ofx?bytes";
 import mastercardACsv from "../../fixtures/money/commbank/mastercard/mastercard-a.csv?bytes";
@@ -206,12 +206,12 @@ const spendingRows = [
 
 const decode = (
   [csv, ofx]: readonly [Uint8Array, Uint8Array],
-  profile: CommBankProfileId = "spending-offset",
+  profile: CommBankAccountProfileId = "spending-offset",
 ) => decodeCommBankBundle(csv, ofx, profile);
 
 const blocking = (
   bundle: readonly [Uint8Array, Uint8Array],
-  profile: CommBankProfileId = "spending-offset",
+  profile: CommBankAccountProfileId = "spending-offset",
 ) => Effect.flip(decode(bundle, profile));
 
 describe("the observed corpus", () => {
@@ -220,7 +220,8 @@ describe("the observed corpus", () => {
       Effect.gen(function* () {
         const bundle = yield* decodeCommBankBundle(csv, ofx, profile);
 
-        expect(bundle.profile).toBe(profile);
+        expect(bundle.sourceProfile).toBe("cba-netbank-paired-v1");
+        expect(bundle.accountProfile).toBe(profile);
         expect(bundle.rows).toHaveLength(rows);
         expect(bundle.ledger.status).toBe(ledger);
         // No observed export repeats a date, amount, and narrative together.
@@ -423,6 +424,15 @@ describe("the export ceiling", () => {
 
       expect(blocked.reason).toBe("export_truncated");
       expect(blocked.sourceOrdinal).toBeNull();
+    }),
+  );
+
+  it.effect("blocks a source claiming more rows than NetBank can export", () =>
+    Effect.gen(function* () {
+      const blocked = yield* blocking(bundleOf(series(601)));
+
+      expect(blocked.reason).toBe("export_truncated");
+      expect(blocked.detail).toContain("601 rows");
     }),
   );
 });

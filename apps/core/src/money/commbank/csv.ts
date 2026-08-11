@@ -3,7 +3,7 @@ import { parse } from "csv-parse/sync";
 import { Effect, Option, Schema } from "effect";
 
 import { type SourceDate, sourceAmount, sourceDate } from "../values";
-import { commBankAccountProfiles, type CommBankProfileId } from "./profiles";
+import { commBankAccountProfiles, type CommBankAccountProfileId } from "./profiles";
 
 export interface CommBankCsvRow {
   readonly sourceOrdinal: number;
@@ -19,7 +19,7 @@ export interface CommBankCsvRow {
 }
 
 export interface CommBankCsvFile {
-  readonly profile: CommBankProfileId;
+  readonly accountProfile: CommBankAccountProfileId;
   readonly rows: readonly CommBankCsvRow[];
 }
 
@@ -55,12 +55,18 @@ const australianDate = /^(\d{2})\/(\d{2})\/(\d{4})$/;
 
 export const decodeCommBankCsv = Effect.fn("decodeCommBankCsv")(function* (
   bytes: Uint8Array,
-  profileId: CommBankProfileId,
+  accountProfileId: CommBankAccountProfileId,
 ): Effect.fn.Return<CommBankCsvFile, CommBankCsvRejected> {
-  const profile = commBankAccountProfiles[profileId];
+  const profile = commBankAccountProfiles[accountProfileId];
   const text = new TextDecoder("windows-1252").decode(bytes);
 
-  for (let index = text.indexOf("\n"); index !== -1; index = text.indexOf("\n", index + 1)) {
+  for (let index = 0; index < text.length; index++) {
+    if (text[index] === "\r" && text[index + 1] !== "\n") {
+      return yield* reject("line_endings", `a carriage return at offset ${index} has no line feed`);
+    }
+
+    if (text[index] !== "\n") continue;
+
     if (text[index - 1] !== "\r") {
       return yield* reject("line_endings", `a line feed at offset ${index} has no carriage return`);
     }
@@ -180,5 +186,5 @@ export const decodeCommBankCsv = Effect.fn("decodeCommBankCsv")(function* (
     });
   }
 
-  return { profile: profileId, rows };
+  return { accountProfile: accountProfileId, rows };
 });

@@ -76,7 +76,7 @@ Observed fields include:
 
 - Deposit and loan files: `BANKID`, `ACCTID`, and `ACCTTYPE` inside `BANKACCTFROM`.
 - Mastercard files: `ACCTID` inside `CCACCTFROM`.
-- Transactions: `DTPOSTED`, `DTUSER`, `TRNAMT`, `FITID`, and `MEMO`.
+- Transactions: `TRNTYPE`, `DTPOSTED`, `DTUSER`, `TRNAMT`, `FITID`, and `MEMO`.
 - File-level balances: ledger and available balance with an as-of time.
 
 The samples contained no `NAME` field. `DTPOSTED` and `DTUSER` contained eight date digits rather than a transaction timestamp.

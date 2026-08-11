@@ -131,11 +131,11 @@ The bundle is also blocked when any of these conditions holds:
 - The OFX identity does not match the selected account.
 - `DTSTART` or `DTEND` disagrees with the upload's declared window.
 - The CSV and OFX row counts differ.
-- The logical transaction count is exactly 600.
+- The logical transaction count is 600 or greater.
 - A populated CSV balance chain fails.
 - The newest CSV balance disagrees with a comparable OFX ledger balance.
 
-NetBank returned exactly 600 rows and omitted older rows in a broad observed search. A 600-row file cannot prove whether the selected window had exactly 600 rows or was capped. The safe result is `ExportTruncated`, followed by a smaller re-export.
+NetBank returned exactly 600 rows and omitted older rows in a broad observed search. A 600-row file cannot prove whether the selected window had exactly 600 rows or was capped. A larger result is outside the proven profile entirely. Both produce `ExportTruncated`, followed by a smaller re-export.
 
 ### Balance-chain validation
 
@@ -516,7 +516,7 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 | OFX currency                       | `CURDEF` must be AUD                                                                 | importer              | decided  |
 | Bundle idempotency                 | SHA-256 over profile, account, and sorted source-role digests                        | importer              | decided  |
 | Structured row pairing             | exact date, signed amount, raw narrative, and equal-row occurrence                   | importer              | decided  |
-| Truncation signal                  | exactly 600 logical transactions blocks coverage                                     | importer              | decided  |
+| Truncation signal                  | 600 or more logical transactions block coverage                                      | importer              | decided  |
 | Dedupe order                       | bundle, verified ID, row balance, content occurrence, statement alignment            | importer              | decided  |
 | Description role                   | supporting evidence except in the content-occurrence fallback                        | importer              | decided  |
 | Balance equality                   | exact decimal equality                                                               | importer              | decided  |
