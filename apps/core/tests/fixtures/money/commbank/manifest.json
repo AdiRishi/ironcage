@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "provenance": {
+    "source": "Redacted from private NetBank exports; raw files are intentionally absent.",
+    "redaction": "All account identifiers, transaction identifiers, dates, amounts, balances, and narratives were replaced while preserving source order, profiles, tags, quoting, empty fields, encodings, and CRLF line endings."
+  },
+  "fixtures": [
+    {
+      "id": "spending-offset-a",
+      "profile": "spending-offset",
+      "files": ["spending-offset/spending-offset-a.csv", "spending-offset/spending-offset-a.ofx"],
+      "logicalTransactions": 40,
+      "physicalObservations": 80,
+      "sourceWindow": {
+        "start": "11/12/2031",
+        "end": "29/01/2032"
+      },
+      "csvRowBalances": "every-row",
+      "ofxFitids": "every-row",
+      "exactCsvOfxPairing": true,
+      "crlf": true
+    },
+    {
+      "id": "spending-offset-b",
+      "profile": "spending-offset",
+      "files": ["spending-offset/spending-offset-b.csv", "spending-offset/spending-offset-b.ofx"],
+      "logicalTransactions": 25,
+      "physicalObservations": 50,
+      "sourceWindow": {
+        "start": "22/12/2031",
+        "end": "21/01/2032"
+      },
+      "csvRowBalances": "every-row",
+      "ofxFitids": "every-row",
+      "exactCsvOfxPairing": true,
+      "crlf": true
+    },
+    {
+      "id": "spending-offset-c",
+      "profile": "spending-offset",
+      "files": ["spending-offset/spending-offset-c.csv", "spending-offset/spending-offset-c.ofx"],
+      "logicalTransactions": 23,
+      "physicalObservations": 46,
+      "sourceWindow": {
+        "start": "05/01/2032",
+        "end": "29/01/2032"
+      },
+      "csvRowBalances": "every-row",
+      "ofxFitids": "every-row",
+      "exactCsvOfxPairing": true,
+      "crlf": true
+    },
+    {
+      "id": "mastercard-a",
+      "profile": "mastercard",
+      "files": ["mastercard/mastercard-a.csv", "mastercard/mastercard-a.ofx"],
+      "logicalTransactions": 102,
+      "physicalObservations": 204,
+      "sourceWindow": {
+        "start": "22/12/2031",
+        "end": "21/01/2032"
+      },
+      "csvRowBalances": "none",
+      "ofxFitids": "empty",
+      "exactCsvOfxPairing": true,
+      "crlf": true
+    },
+    {
+      "id": "savings-offset-a",
+      "profile": "savings-offset",
+      "files": ["savings-offset/savings-offset-a.csv", "savings-offset/savings-offset-a.ofx"],
+      "logicalTransactions": 40,
+      "physicalObservations": 80,
+      "sourceWindow": {
+        "start": "26/05/2030",
+        "end": "16/09/2031"
+      },
+      "csvRowBalances": "every-row",
+      "ofxFitids": "every-row",
+      "exactCsvOfxPairing": true,
+      "crlf": true
+    },
+    {
+      "id": "home-loan-a",
+      "profile": "home-loan",
+      "files": ["home-loan/home-loan-a.csv", "home-loan/home-loan-a.ofx"],
+      "logicalTransactions": 36,
+      "physicalObservations": 72,
+      "sourceWindow": {
+        "start": "18/01/2031",
+        "end": "20/01/2032"
+      },
+      "csvRowBalances": "every-row",
+      "ofxFitids": "empty",
+      "exactCsvOfxPairing": true,
+      "crlf": true
+    }
+  ],
+  "relationships": {
+    "spendingOffsetOverlap": [
+      {
+        "fixtures": ["spending-offset-a", "spending-offset-b"],
+        "sharedTransactions": 25
+      },
+      {
+        "fixtures": ["spending-offset-a", "spending-offset-c"],
+        "sharedTransactions": 23
+      },
+      {
+        "fixtures": ["spending-offset-b", "spending-offset-c"],
+        "sharedTransactions": 16
+      }
+    ]
+  },
+  "statementEvidence": {
+    "profile": "spending-offset",
+    "pages": 8,
+    "pageSize": "A4",
+    "textBased": true,
+    "committedArtifact": false,
+    "reason": "The only observed statement contains private data. Statement parsing remains a later, separately redacted fixture tranche."
+  },
+  "missingEvidence": [
+    "same-day equal-row collision",
+    "quoted comma in a narrative",
+    "non-ASCII narrative bytes",
+    "empty structured export",
+    "true 600-row capped export",
+    "redacted statement PDF and structured-overlap pair",
+    "representative Mastercard statement",
+    "representative home-loan statement"
+  ]
+}

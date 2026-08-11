@@ -1,2 +1,4 @@
 # git autocrlf=true converts LF to CRLF on Windows, causing issues with oxfmt
 * text=auto eol=lf
+apps/core/tests/fixtures/money/commbank/**/*.csv text eol=crlf
+apps/core/tests/fixtures/money/commbank/**/*.ofx text eol=crlf

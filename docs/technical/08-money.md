@@ -547,7 +547,8 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 
 ## Build checklist
 
-- [ ] Add redacted, byte-preserving paired fixtures for all four account profiles and every difficult input named above.
+- [x] Add redacted, parser-shape-preserving paired fixtures for all four observed account profiles and the overlapping spending-offset windows.
+- [ ] Add fixture evidence for a same-day equal-row collision, quoted commas, non-ASCII text, an empty result, and the 600-row edge.
 - [ ] Implement direct CSV and OFX SGML decoders with exact source-cell preservation.
 - [ ] Implement account identity HMAC storage and require identity match before row processing.
 - [ ] Implement exact CSV/OFX multiset pairing, 600-row rejection, balance chains, and ledger reconciliation.

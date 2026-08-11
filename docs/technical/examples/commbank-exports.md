@@ -223,9 +223,8 @@ The filename is display metadata only. It never decides the account.
 
 ## Remaining fixture work
 
-This investigation closes the choice of recent-history format. It does not close every production parser gate.
+This investigation closes the choice of recent-history format. The first redacted observed corpus now covers paired samples for all four account profiles and the three overlapping spending-offset windows. It lives at [`apps/core/tests/fixtures/money/commbank`](../../../apps/core/tests/fixtures/money/commbank/README.md). It does not close every production parser gate.
 
-- Redact the observed paired samples for all four account types without changing parser-significant bytes.
 - Capture a Mastercard window containing identical same-day amounts and verify occurrence behavior across overlap.
 - Capture quoted commas, non-ASCII narrative text, an empty export, and a true 600-row export.
 - Verify the oldest statement layout for each account type; a seven-year archive may span multiple templates.

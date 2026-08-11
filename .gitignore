@@ -16,3 +16,4 @@ dist-ssr/
 *.local
 .DS_Store
 .playwright-mcp/
+/.private-fixtures/

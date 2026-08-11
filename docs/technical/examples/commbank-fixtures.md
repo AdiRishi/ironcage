@@ -2,7 +2,7 @@
 
 These examples preserve structures observed in the private sample corpus. Every name, account identifier, amount, date, reference, and balance below is invented. They are documentation examples, not production parser fixtures.
 
-Real parser fixtures must be redacted without changing delimiters, quoting, encodings, line endings, empty fields, or other byte-level syntax. Raw bank files never belong in the repository.
+The first redacted observed corpus lives in the core test tree at [`apps/core/tests/fixtures/money/commbank`](../../../apps/core/tests/fixtures/money/commbank/README.md). It covers all four structured account profiles plus three overlapping spending-offset windows without changing delimiters, quoting, encodings, line endings, empty fields, tag order, or other parser-significant syntax. Its manifest names the difficult input shapes that were absent from the private samples and therefore remain open fixture gates. Raw bank files never belong in the repository.
 
 ## Deposit CSV
 
