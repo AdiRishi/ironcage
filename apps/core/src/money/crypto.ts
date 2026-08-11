@@ -1,4 +1,4 @@
-import { BankAccountProfileId, BankIdentity, Sha256 } from "@ironcage/domain";
+import { BankAccountProfileId, BankIdentity, Sha256, uuidV7From } from "@ironcage/domain";
 import { Context, Effect, Layer, Schema } from "effect";
 
 export class MoneyCryptoError extends Schema.TaggedError<MoneyCryptoError>()("MoneyCryptoError", {
@@ -66,29 +66,11 @@ export class MoneyCryptography extends Context.Service<
               }).pipe(Effect.map((digest) => decodeSha256(bytesToHex(new Uint8Array(digest))))),
         randomUuidV7: Effect.clockWith((clock) =>
           Effect.try({
-            try: () => {
-              const bytes = crypto.getRandomValues(new Uint8Array(16));
-              const timestamp = clock.currentTimeMillisUnsafe();
-
-              bytes[0] = Math.floor(timestamp / 2 ** 40);
-              bytes[1] = Math.floor(timestamp / 2 ** 32) & 0xff;
-              bytes[2] = Math.floor(timestamp / 2 ** 24) & 0xff;
-              bytes[3] = Math.floor(timestamp / 2 ** 16) & 0xff;
-              bytes[4] = Math.floor(timestamp / 2 ** 8) & 0xff;
-              bytes[5] = timestamp & 0xff;
-              bytes[6] = (bytes[6]! & 0x0f) | 0x70;
-              bytes[8] = (bytes[8]! & 0x3f) | 0x80;
-
-              return [
-                bytes.subarray(0, 4),
-                bytes.subarray(4, 6),
-                bytes.subarray(6, 8),
-                bytes.subarray(8, 10),
-                bytes.subarray(10, 16),
-              ]
-                .map(bytesToHex)
-                .join("-");
-            },
+            try: () =>
+              uuidV7From(
+                clock.currentTimeMillisUnsafe(),
+                crypto.getRandomValues(new Uint8Array(16)),
+              ),
             catch: (cause) => new MoneyCryptoError({ operation: "random_uuid_v7", cause }),
           }),
         ),

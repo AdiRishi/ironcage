@@ -16,3 +16,4 @@ export * from "./values/decimal";
 export * from "./values/calendar";
 export * from "./values/digest";
 export * from "./values/time";
+export * from "./values/uuid";
