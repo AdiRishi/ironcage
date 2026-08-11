@@ -83,6 +83,8 @@ The samples contained no `NAME` field. `DTPOSTED` and `DTUSER` contained eight d
 
 `DTSTART` and `DTEND` contained midnight timestamps. Their date portions matched both tested explicit inclusive export windows.
 
+`LEDGERBAL/DTASOF` carried the time the file was produced, not the end of the requested window. In three of the six sampled exports it fell after `DTEND`. The spending-offset export requested through 31 July and taken on 8 August reports a ledger balance of A$21,561.27 against a newest row balance of A$21,800.42, because the account kept moving after the window closed. The ledger balance is therefore reconcilable against the newest row only when its as-of date falls inside the window the rows cover.
+
 `FITID` behavior differs by account type:
 
 - Both offset-account samples contained a non-empty `FITID` on every row.

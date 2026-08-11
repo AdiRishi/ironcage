@@ -133,7 +133,7 @@ The bundle is also blocked when any of these conditions holds:
 - The CSV and OFX row counts differ.
 - The logical transaction count is exactly 600.
 - A populated CSV balance chain fails.
-- The newest CSV balance disagrees with the OFX ledger balance.
+- The newest CSV balance disagrees with a comparable OFX ledger balance.
 
 NetBank returned exactly 600 rows and omitted older rows in a broad observed search. A 600-row file cannot prove whether the selected window had exactly 600 rows or was capped. The safe result is `ExportTruncated`, followed by a smaller re-export.
 
@@ -155,7 +155,13 @@ amount            -A$45.20
 row balance    A$1,954.80
 ```
 
-The newest row balance must equal the OFX ledger balance for deposit and home-loan profiles. Mastercard has no per-row CSV balance, so its latest balance comes from OFX alone.
+The OFX ledger balance is a moment rather than a window total. Every observed export stamped `DTASOF` with the time the file was produced rather than with `DTEND`. A window that closed before the export was taken leaves the account free to have moved since, so the newest row is not evidence about that balance.
+
+The newest row balance must equal the ledger balance when the ledger's as-of date falls inside what the rows themselves prove: on or after the newest posted row's date, and no later than `DTEND`. That condition holds whenever the requested window runs to the export day. When it does not hold, the ledger balance is retained as a balance observation and reconciled against nothing.
+
+The corpus contains the case, with real figures: a spending-offset export requested through 31 July and taken on 8 August recorded a newest row balance of A$21,800.42 and a ledger balance of A$21,561.27. Both are correct. Requiring them to agree would block a valid export.
+
+Mastercard has no per-row CSV balance, so its latest balance comes from OFX alone.
 
 The source value and normalized economic value are both retained when a liability format needs sign normalization. Portfolio reads the normalized ledger balance. Cash assets are positive and liabilities are negative.
 
@@ -514,6 +520,7 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 | Dedupe order                       | bundle, verified ID, row balance, content occurrence, statement alignment            | importer              | decided  |
 | Description role                   | supporting evidence except in the content-occurrence fallback                        | importer              | decided  |
 | Balance equality                   | exact decimal equality                                                               | importer              | decided  |
+| Ledger reconciliation scope        | required only when `DTASOF` falls between the newest posted row and `DTEND`          | importer              | decided  |
 | Structured-over-statement priority | structured observations control canonical fields inside complete structured coverage | importer              | decided  |
 | Routine import cadence             | fifth day of each month                                                              | operator              | proposed |
 | Routine import window              | first day of previous month through import day                                       | operator              | proposed |
