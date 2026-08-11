@@ -112,14 +112,9 @@ CREATE TABLE bank_transactions (
   posted_date                 date NOT NULL,
   amount                      numeric(20,8) NOT NULL,
   preferred_display_narrative text NOT NULL,
-  -- The source profile's payee grammar, applied once at import. Analysis reads
-  -- this column rather than re-deriving a payee in SQL.
-  derived_payee               text NOT NULL,
   creation_import_id          uuid NOT NULL REFERENCES bank_imports(id),
   created_at                  timestamptz NOT NULL
 );
-
-CREATE INDEX bank_transactions_payee_idx ON bank_transactions (derived_payee, posted_date);
 
 CREATE INDEX bank_transactions_account_date_idx
   ON bank_transactions (bank_account_id, posted_date, id);
@@ -160,11 +155,20 @@ CREATE TABLE bank_observation_links (
 CREATE INDEX bank_observation_links_transaction_idx
   ON bank_observation_links (transaction_id, observation_id);
 
+CREATE TABLE bank_transaction_identifiers (
+  bank_account_id uuid NOT NULL REFERENCES bank_accounts(id),
+  source_profile  text NOT NULL,
+  bank_identifier text NOT NULL,
+  transaction_id  uuid NOT NULL REFERENCES bank_transactions(id),
+  PRIMARY KEY (bank_account_id, source_profile, bank_identifier)
+);
+
 CREATE TABLE bank_balance_observations (
   id                    uuid PRIMARY KEY,
   bank_account_id       uuid NOT NULL REFERENCES bank_accounts(id),
   kind                  text NOT NULL CHECK (kind IN ('row','ledger','available','opening','closing')),
   value                 numeric(20,8) NOT NULL,
+  source_value          numeric(20,8) NOT NULL,
   as_of_date            date NOT NULL,
   as_of_at              timestamptz,
   source_observation_id uuid REFERENCES bank_observations(id),
