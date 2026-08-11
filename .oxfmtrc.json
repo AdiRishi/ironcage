@@ -5,5 +5,12 @@
   "sortTailwindcss": {
     "stylesheet": "./packages/ui/src/styles/globals.css"
   },
-  "ignorePatterns": [".repos/**", "**/*.gen.ts", "**/worker-configuration.d.ts", "pnpm-lock.yaml"]
+  "ignorePatterns": [
+    ".repos/**",
+    "**/*.gen.ts",
+    "**/worker-configuration.d.ts",
+    "pnpm-lock.yaml",
+    ".agents/**",
+    ".claude/**"
+  ]
 }
