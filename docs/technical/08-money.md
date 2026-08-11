@@ -562,10 +562,10 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 ## Build checklist
 
 - [x] Add minimally redacted source fixtures for all four observed account profiles and the overlapping spending-offset windows.
-- [ ] Add deterministic tests for a same-day equal-row collision, an empty result, and the 600-row edge as their consuming implementation lands. Quoted commas and Windows-1252 text are covered by the decoder suite.
+- [x] Add deterministic tests for a same-day equal-row collision, an empty result, and the 600-row edge as their consuming implementation lands. Quoted commas and Windows-1252 text are covered by the decoder suite.
 - [x] Implement direct CSV and OFX SGML decoders with exact source-cell preservation.
 - [ ] Implement account identity HMAC storage and require identity match before row processing.
-- [ ] Implement exact CSV/OFX multiset pairing, 600-row rejection, balance chains, and ledger reconciliation.
+- [x] Implement exact CSV/OFX multiset pairing, 600-row rejection, balance chains, and ledger reconciliation.
 - [ ] Package AnyDoc 0.1.7 in the isolated compute image and record its image digest with each extraction.
 - [ ] Implement the offset statement state machine and certify it only after the structured-overlap fixture passes.
 - [ ] Add Mastercard and home-loan statement profiles only after their own fixtures close the open questions.
