@@ -263,6 +263,45 @@ describe("money analysis", () => {
     expect(BigDecimal.format(analysis.recurringCharges[0]!.estimatedAnnualSpend)).toBe("340.545");
   });
 
+  test("treats a payee as new again only after the trailing window forgets it", () => {
+    const supplier = (id: number, postedDate: string) =>
+      transaction({
+        id,
+        postedDate,
+        amount: "-600",
+        payee: "Annual supplier",
+        categoryId: groceriesId,
+        categoryName: "Groceries",
+      });
+    const record = (transactions: readonly AnalysisTransaction[]): MoneyAnalysisRecord => ({
+      accounts: [account],
+      coverage: [{ accountId, start: date("2020-01-01"), end: date("2026-03-31") }],
+      transactions,
+    });
+    const newPayees = (analysed: MoneyAnalysisRecord) =>
+      analyzeMoney(analysed, month("2026-03"), month("2026-03")).anomalies.filter(
+        (anomaly) => anomaly._tag === "NewPayee",
+      );
+
+    // 2024-02-01 to 2025-06-01 is 486 days, and 2025-06-01 to 2026-03-05 is 642.
+    // The payee is known throughout.
+    expect(
+      newPayees(
+        record([
+          supplier(31, "2024-02-01"),
+          supplier(32, "2025-06-01"),
+          supplier(33, "2026-03-05"),
+        ]),
+      ),
+    ).toHaveLength(0);
+
+    // Without the middle occurrence the gap is 763 days, and the trailing
+    // window no longer holds any evidence of the payee.
+    expect(
+      newPayees(record([supplier(31, "2024-02-01"), supplier(33, "2026-03-05")])),
+    ).toHaveLength(1);
+  });
+
   test("grounds high-value anomaly rules in their full comparison windows", () => {
     const unusual = transaction({
       id: 11,

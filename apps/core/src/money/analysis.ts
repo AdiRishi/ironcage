@@ -228,24 +228,32 @@ const transactionAnomalies = (
   completeMonths: ReadonlySet<CalendarMonth>,
 ): readonly SpendingAnomaly[] => {
   const anomalies: SpendingAnomaly[] = [];
-  const byAccount = new Map<BankAccount["id"], AnalysedTransaction[]>();
-  const firstSeen = new Map<string, CalendarDate>();
-
-  for (const entry of expenses) {
-    const account = byAccount.get(entry.transaction.accountId);
-
-    if (account === undefined) byAccount.set(entry.transaction.accountId, [entry]);
-    else account.push(entry);
-
-    const seen = firstSeen.get(entry.payeeKey);
-
-    if (seen === undefined || entry.transaction.postedDate < seen) {
-      firstSeen.set(entry.payeeKey, entry.transaction.postedDate);
-    }
-  }
+  // Both rules compare a transaction against what came before it, so one pass
+  // in date order can carry the comparison windows with it.
+  const accountHistory = new Map<
+    BankAccount["id"],
+    { readonly entries: AnalysedTransaction[]; oldest: number }
+  >();
+  const lastSeenPayee = new Map<string, CalendarDate>();
 
   for (const entry of expenses) {
     const { transaction, absoluteExpense } = entry;
+    const trailingStart = shiftCalendarDate(transaction.postedDate, -largeExpenseWindow);
+    const history = accountHistory.get(transaction.accountId) ?? { entries: [], oldest: 0 };
+    const previousPayeeDate = lastSeenPayee.get(entry.payeeKey);
+
+    while (
+      history.oldest < history.entries.length &&
+      history.entries[history.oldest]!.transaction.postedDate < trailingStart
+    ) {
+      history.oldest += 1;
+    }
+
+    const trailing = history.entries.slice(history.oldest);
+
+    history.entries.push(entry);
+    accountHistory.set(transaction.accountId, history);
+    lastSeenPayee.set(entry.payeeKey, transaction.postedDate);
 
     if (
       transaction.postedDate < requested.start ||
@@ -255,24 +263,17 @@ const transactionAnomalies = (
       continue;
     }
 
-    if (
-      isFullyCovered(covered, {
-        start: shiftCalendarDate(transaction.postedDate, -largeExpenseWindow),
-        end: transaction.postedDate,
-      })
-    ) {
-      const trailing = (byAccount.get(transaction.accountId) ?? [])
-        .filter(
-          (candidate) =>
-            candidate.transaction.postedDate < transaction.postedDate &&
-            candidate.transaction.postedDate >=
-              shiftCalendarDate(transaction.postedDate, -largeExpenseWindow),
-        )
-        .map((candidate) => candidate.absoluteExpense);
+    if (isFullyCovered(covered, { start: trailingStart, end: transaction.postedDate })) {
       const threshold =
         trailing.length === 0
           ? fiveHundred
-          : BigDecimal.max(fiveHundred, BigDecimal.multiply(median(trailing), four));
+          : BigDecimal.max(
+              fiveHundred,
+              BigDecimal.multiply(
+                median(trailing.map((candidate) => candidate.absoluteExpense)),
+                four,
+              ),
+            );
 
       if (BigDecimal.isGreaterThan(absoluteExpense, threshold)) {
         anomalies.push({
@@ -284,7 +285,8 @@ const transactionAnomalies = (
     }
 
     if (
-      firstSeen.get(entry.payeeKey) === transaction.postedDate &&
+      (previousPayeeDate === undefined ||
+        previousPayeeDate < shiftCalendarDate(transaction.postedDate, -newPayeeWindow)) &&
       BigDecimal.isGreaterThanOrEqualTo(absoluteExpense, twoHundred) &&
       isFullyCovered(covered, {
         start: shiftCalendarDate(transaction.postedDate, -newPayeeWindow),
