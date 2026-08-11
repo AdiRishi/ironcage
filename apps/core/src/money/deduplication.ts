@@ -1,8 +1,9 @@
-import type {
+import {
   AmbiguityId,
   BankAccountId,
   BankTransactionId,
   CalendarDate,
+  formatMoney,
   Money,
 } from "@ironcage/domain";
 import { BigDecimal, Option } from "effect";
@@ -64,13 +65,11 @@ export type DedupeResult =
   | { readonly _tag: "Matched"; readonly verdicts: readonly UnidentifiedDedupeVerdict[] }
   | { readonly _tag: "SourceIdentifierConflict"; readonly conflict: SourceIdentifierConflict };
 
-const amountKey = (amount: Money) => BigDecimal.format(BigDecimal.normalize(amount));
-
 const balanceKey = (date: CalendarDate, amount: Money, balance: Money) =>
-  JSON.stringify([date, amountKey(amount), amountKey(balance)]);
+  JSON.stringify([date, formatMoney(amount), formatMoney(balance)]);
 
 const contentKey = (date: CalendarDate, amount: Money, fingerprint: string) =>
-  JSON.stringify([date, amountKey(amount), fingerprint]);
+  JSON.stringify([date, formatMoney(amount), fingerprint]);
 
 const identifierKey = (sourceProfile: string, identifier: string) =>
   JSON.stringify([sourceProfile, identifier]);

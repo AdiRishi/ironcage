@@ -13,7 +13,7 @@ import {
   type SavingsSuggestion,
   type SpendingAnomaly,
 } from "@ironcage/domain";
-import { BigDecimal, DateTime, Schema } from "effect";
+import { BigDecimal, DateTime } from "effect";
 
 import {
   calendarMonthForDate,
@@ -51,7 +51,7 @@ export interface MoneyAnalysisRecord {
   readonly transactions: readonly AnalysisTransaction[];
 }
 
-const zero = Schema.decodeUnknownSync(Money)("0");
+const zero = money(BigDecimal.fromBigInt(0n));
 const two = BigDecimal.fromBigInt(2n);
 const three = BigDecimal.fromBigInt(3n);
 const four = BigDecimal.fromBigInt(4n);

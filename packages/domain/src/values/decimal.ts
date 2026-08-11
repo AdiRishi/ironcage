@@ -63,6 +63,14 @@ export type Price = typeof Price.Type;
 export const Quantity = financialDecimal("Quantity", 38, 18);
 export type Quantity = typeof Quantity.Type;
 
+/**
+ * The canonical decimal string for an amount: what Postgres stores, what a
+ * matching key compares, and what a digest hashes. Normalizing first makes the
+ * string independent of how the value happened to be represented.
+ */
+export const formatMoney = (value: BigDecimal.BigDecimal) =>
+  BigDecimal.format(BigDecimal.normalize(value));
+
 export const Currency = Schema.String.check(Schema.isMinLength(1)).pipe(Schema.brand("Currency"));
 export type Currency = typeof Currency.Type;
 

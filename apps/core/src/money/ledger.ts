@@ -9,7 +9,7 @@ import {
   Category,
   CategoryId,
   FeedEventId,
-  Money,
+  formatMoney,
   MoneyAnalysis,
   MonthlySpendingReport,
   ReportId,
@@ -43,7 +43,6 @@ const MutationResult = Schema.Struct({ requestId: RequestId });
 const normalizedName = (name: string) => name.trim();
 const categoryNameKey = (name: string) =>
   normalizedName(name).normalize("NFKC").toLocaleLowerCase("en-AU");
-const formattedMoney = (value: Money) => BigDecimal.format(BigDecimal.normalize(value));
 const ledgerBoundaryError = (error: PersistenceError | MoneyBoundaryError) =>
   error._tag === "PersistenceError" ? infrastructureError(error) : error;
 
@@ -93,7 +92,7 @@ const splitEvidence = (splits: readonly CategorySplit[]) =>
     .sort((left, right) => left.categoryId.localeCompare(right.categoryId))
     .map((split) => ({
       categoryId: split.categoryId,
-      amount: formattedMoney(split.amount),
+      amount: formatMoney(split.amount),
     }));
 
 const sameSplits = (left: readonly CategorySplit[], right: readonly CategorySplit[]) => {
@@ -136,7 +135,7 @@ const validateAssignment = (snapshot: MoneyLedgerSnapshot, assignment: Categoriz
     if (!BigDecimal.equals(total, transaction.amount)) {
       return yield* new ValidationFailed({
         reason: "UnbalancedTransactionSplits",
-        detail: `${assignment.transactionId} splits total ${BigDecimal.format(total)} instead of ${formattedMoney(transaction.amount)}`,
+        detail: `${assignment.transactionId} splits total ${BigDecimal.format(total)} instead of ${formatMoney(transaction.amount)}`,
       });
     }
 
@@ -164,13 +163,9 @@ const predicateEvidence = (predicate: CategorizationRulePredicate) => ({
   payeeEquals: predicate.payeeEquals,
   narrativeIncludes: [...predicate.narrativeIncludes].sort(),
   minimumAbsoluteAmount:
-    predicate.minimumAbsoluteAmount === null
-      ? null
-      : formattedMoney(predicate.minimumAbsoluteAmount),
+    predicate.minimumAbsoluteAmount === null ? null : formatMoney(predicate.minimumAbsoluteAmount),
   maximumAbsoluteAmount:
-    predicate.maximumAbsoluteAmount === null
-      ? null
-      : formattedMoney(predicate.maximumAbsoluteAmount),
+    predicate.maximumAbsoluteAmount === null ? null : formatMoney(predicate.maximumAbsoluteAmount),
 });
 
 const validatePredicate = (snapshot: MoneyLedgerSnapshot, predicate: CategorizationRulePredicate) =>
@@ -781,7 +776,7 @@ export class MoneyLedger extends Context.Service<
                       id: eventId,
                       eventType: "recurring_price_change" as const,
                       severity: "notice" as const,
-                      summary: `${charge.payee} changed from ${formattedMoney(priceChange.previousAmount)} to ${formattedMoney(priceChange.currentAmount)}`,
+                      summary: `${charge.payee} changed from ${formatMoney(priceChange.previousAmount)} to ${formatMoney(priceChange.currentAmount)}`,
                       payload: { payee: charge.payee },
                     })),
                   ),
@@ -801,7 +796,7 @@ export class MoneyLedger extends Context.Service<
                           id: eventId,
                           eventType: "spending_anomaly" as const,
                           severity: "notice" as const,
-                          summary: `Large expense of ${formattedMoney(anomaly.amount)}`,
+                          summary: `Large expense of ${formatMoney(anomaly.amount)}`,
                           payload: { transactionId: anomaly.transactionId },
                         };
                       case "NewPayee":

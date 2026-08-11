@@ -12,11 +12,12 @@ import {
   CategorizationRulePredicate,
   ConfirmedBankImport,
   Currency,
+  formatMoney,
   Money,
   RequestId,
   Sha256,
 } from "@ironcage/domain";
-import { BigDecimal, DateTime, Effect, Layer, Schema } from "effect";
+import { DateTime, Effect, Layer, Schema } from "effect";
 
 import { PersistenceError } from "../persistence";
 import type { StoredTransactionEvidence } from "./deduplication";
@@ -401,7 +402,6 @@ const registerAccountWith = Effect.fn("MoneyPostgresRepository.registerAccountWi
 });
 
 const json = (value: unknown) => JSON.stringify(value);
-const money = (value: Money) => BigDecimal.format(BigDecimal.normalize(value));
 
 const commitCoverageStatusesWith = Effect.fn("MoneyPostgresRepository.commitCoverageStatusesWith")(
   function* (sql: SqlExecutor, plan: ConfirmedImportPlan, confirmedAt: Date) {
@@ -548,7 +548,7 @@ const commitImportWith = Effect.fn("MoneyPostgresRepository.commitImportWith")(f
           plan.transactions.map((transaction) => ({
             id: transaction.id,
             posted_date: transaction.postedDate,
-            amount: money(transaction.amount),
+            amount: formatMoney(transaction.amount),
             narrative: transaction.preferredNarrative,
             payee: transaction.payee,
           })),
@@ -585,8 +585,8 @@ const commitImportWith = Effect.fn("MoneyPostgresRepository.commitImportWith")(f
           raw_fields: observation.rawFields,
           parsed_fields: observation.parsedFields,
           posted_date: observation.postedDate,
-          amount: money(observation.amount),
-          row_balance: observation.rowBalance === null ? null : money(observation.rowBalance),
+          amount: formatMoney(observation.amount),
+          row_balance: observation.rowBalance === null ? null : formatMoney(observation.rowBalance),
           bank_identifier: observation.bankIdentifier,
           narrative_fingerprint: observation.narrativeFingerprint,
           equal_row_occurrence: observation.equalRowOccurrence,
@@ -636,7 +636,7 @@ const commitImportWith = Effect.fn("MoneyPostgresRepository.commitImportWith")(f
         plan.balances.map((balance) => ({
           id: balance.id,
           kind: balance.kind,
-          value: money(balance.value),
+          value: formatMoney(balance.value),
           as_of_date: balance.asOfDate,
           source_observation_id: balance.sourceObservationId,
           source_file_id: balance.sourceFileId,
@@ -683,7 +683,7 @@ const commitImportWith = Effect.fn("MoneyPostgresRepository.commitImportWith")(f
             provenance: classification.provenance,
             source_id: classification.sourceId,
             source_version: classification.sourceVersion,
-            expected_total: money(classification.amount),
+            expected_total: formatMoney(classification.amount),
           })),
         ),
       ],
@@ -701,7 +701,7 @@ const commitImportWith = Effect.fn("MoneyPostgresRepository.commitImportWith")(f
             id: classification.split.id,
             classification_id: classification.id,
             category_id: classification.split.categoryId,
-            amount: money(classification.split.amount),
+            amount: formatMoney(classification.split.amount),
           })),
         ),
       ],

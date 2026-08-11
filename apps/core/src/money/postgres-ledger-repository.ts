@@ -15,6 +15,7 @@ import {
   CategorizationRulePredicate,
   CategorySplit,
   DecisionRecordId,
+  formatMoney,
   Money,
   MonthlySpendingReport,
   RequestId,
@@ -22,7 +23,7 @@ import {
   TransferCandidate,
   uncategorizedCategoryId,
 } from "@ironcage/domain";
-import { BigDecimal, DateTime, Effect, Layer, Schema } from "effect";
+import { DateTime, Effect, Layer, Schema } from "effect";
 
 import { PersistenceError } from "../persistence";
 import type { AnalysisTransaction } from "./analysis";
@@ -48,7 +49,6 @@ import {
 import { listAccountsWith } from "./postgres-repository";
 
 const json = (value: unknown) => JSON.stringify(value);
-const money = (value: Money) => BigDecimal.format(BigDecimal.normalize(value));
 
 const TransactionRow = Schema.Struct({
   id: BankTransactionId,
@@ -528,7 +528,7 @@ const categorizeWith = Effect.fn("MoneyPostgresLedgerRepository.categorizeWith")
           provenance: classification.provenance,
           source_id: classification.sourceId,
           source_version: classification.sourceVersion,
-          expected_total: money(classification.amount),
+          expected_total: formatMoney(classification.amount),
         })),
       ),
     ],
@@ -547,7 +547,7 @@ const categorizeWith = Effect.fn("MoneyPostgresLedgerRepository.categorizeWith")
             id: split.id,
             classification_id: classification.id,
             category_id: split.categoryId,
-            amount: money(split.amount),
+            amount: formatMoney(split.amount),
           })),
         ),
       ),

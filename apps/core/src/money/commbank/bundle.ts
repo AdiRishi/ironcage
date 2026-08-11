@@ -1,4 +1,4 @@
-import type { Money } from "@ironcage/domain";
+import { formatMoney, type Money } from "@ironcage/domain";
 import { BigDecimal, Effect, Option, Schema } from "effect";
 
 import type { SourceDate } from "../values";
@@ -81,7 +81,7 @@ const block = (
 const exportRowCeiling = 600;
 
 const pairingKey = (postedDate: SourceDate, amount: Money, narrative: string) =>
-  JSON.stringify([postedDate, BigDecimal.format(BigDecimal.normalize(amount)), narrative]);
+  JSON.stringify([postedDate, formatMoney(amount), narrative]);
 
 export const decodeCommBankBundle = Effect.fn("decodeCommBankBundle")(function* (
   input: CommBankBundleInput,

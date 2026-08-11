@@ -15,6 +15,7 @@ import {
   ConfirmedBankImport,
   Currency,
   FeedEventId,
+  formatMoney,
   Money,
   RequestId,
   Sha256,
@@ -86,9 +87,6 @@ interface PreparedImport {
   readonly verdicts: readonly DedupeVerdict[];
   readonly identity: StructuredSourceIdentity;
 }
-
-const formatMoney = (value: BigDecimal.BigDecimal) =>
-  BigDecimal.format(BigDecimal.normalize(value));
 
 const sourceIdentity = Effect.fn("MoneyImports.sourceIdentity")(function* (
   cryptography: MoneyCryptography["Service"],
