@@ -1,9 +1,8 @@
-import type { CoverageGap, MoneyCoverage } from "@ironcage/domain";
+import { formatFullDay, type CoverageGap, type MoneyCoverage } from "@ironcage/domain";
 import { Alert, AlertDescription, AlertTitle } from "@ironcage/ui/components/alert";
 import { Skeleton } from "@ironcage/ui/components/skeleton";
 import { cn } from "@ironcage/ui/lib/utils";
 
-import { fullDayLabel } from "@/features/money/format";
 import type { BoundaryFailure } from "@/features/money/queries";
 import { boundaryFailure } from "@/features/money/queries";
 
@@ -121,8 +120,8 @@ export function CoverageNotice({
 
 const gapWindow = (gap: CoverageGap) =>
   gap.start === gap.end
-    ? fullDayLabel(gap.start)
-    : `${fullDayLabel(gap.start)} to ${fullDayLabel(gap.end)}`;
+    ? formatFullDay(gap.start)
+    : `${formatFullDay(gap.start)} to ${formatFullDay(gap.end)}`;
 
 const failureTitle = (failure: BoundaryFailure) => {
   switch (failure._tag) {

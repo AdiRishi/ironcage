@@ -1,4 +1,9 @@
-import { uncategorizedCategoryId, type CategorizationReviewItem } from "@ironcage/domain";
+import {
+  type CategorizationReviewItem,
+  formatFullDay,
+  formatSignedAud,
+  uncategorizedCategoryId,
+} from "@ironcage/domain";
 import { Badge } from "@ironcage/ui/components/badge";
 import { Button } from "@ironcage/ui/components/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@ironcage/ui/components/empty";
@@ -16,7 +21,6 @@ import { useState } from "react";
 
 import { keys } from "@/data/keys";
 import { CallFailure, Panel, PanelSkeleton } from "@/features/money/components/money-panels";
-import { fullDayLabel, signedAud } from "@/features/money/format";
 import { categoriesQuery, reviewQueueQuery, unwrap } from "@/features/money/queries";
 import { newRequestId } from "@/lib/request-id";
 import { categorizeTransactions } from "@/server/money";
@@ -140,7 +144,7 @@ function ReviewRow({
           {item.narrative}
         </span>
         <span className="font-mono text-xs text-muted-foreground tabular-nums">
-          {fullDayLabel(item.postedDate)} · {signedAud(item.amount)}
+          {formatFullDay(item.postedDate)} · {formatSignedAud(item.amount)}
         </span>
       </div>
 

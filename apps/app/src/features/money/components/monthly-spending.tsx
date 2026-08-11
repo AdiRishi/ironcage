@@ -1,4 +1,12 @@
-import { CalendarMonth, type CalendarDate, type MonthlyMoneyAnalysis } from "@ironcage/domain";
+import {
+  type CalendarDate,
+  CalendarMonth,
+  formatAud,
+  formatFullDay,
+  formatMonth,
+  formatRate,
+  type MonthlyMoneyAnalysis,
+} from "@ironcage/domain";
 import { Badge } from "@ironcage/ui/components/badge";
 import { Button } from "@ironcage/ui/components/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@ironcage/ui/components/empty";
@@ -21,7 +29,6 @@ import {
   Panel,
   PanelSkeleton,
 } from "@/features/money/components/money-panels";
-import { aud, fullDayLabel, monthLabel, percent } from "@/features/money/format";
 import { accountsQuery, analysisQuery, balancesQuery } from "@/features/money/queries";
 
 const decodeMonth = Schema.decodeUnknownSync(CalendarMonth);
@@ -61,7 +68,7 @@ export function MonthlySpending() {
             <Button variant="ghost" size="sm" onClick={() => setMonth(shiftMonth(month, -1))}>
               Earlier
             </Button>
-            <span className="min-w-36 text-center font-display text-sm">{monthLabel(month)}</span>
+            <span className="min-w-36 text-center font-display text-sm">{formatMonth(month)}</span>
             <Button variant="ghost" size="sm" onClick={() => setMonth(shiftMonth(month, 1))}>
               Later
             </Button>
@@ -75,7 +82,7 @@ export function MonthlySpending() {
         ) : analysed === undefined ? (
           <Empty className="border">
             <EmptyHeader>
-              <EmptyTitle>No analysis for {monthLabel(month)}</EmptyTitle>
+              <EmptyTitle>No analysis for {formatMonth(month)}</EmptyTitle>
             </EmptyHeader>
           </Empty>
         ) : (
@@ -109,8 +116,8 @@ export function MonthlySpending() {
                 <Metric
                   key={`${balance.accountId}-${balance.kind}`}
                   label={balance.label}
-                  value={aud(balance.amount)}
-                  note={`as of ${fullDayLabel(balance.asOfDate)}`}
+                  value={formatAud(balance.amount)}
+                  note={`as of ${formatFullDay(balance.asOfDate)}`}
                   tone={BigDecimal.isNegative(balance.amount) ? "halted" : "default"}
                 />
               ))}
@@ -131,7 +138,7 @@ function MonthDetail({
   readonly dataThrough: CalendarDate | null;
 }) {
   const through =
-    dataThrough === null ? "no covered day yet" : `data through ${fullDayLabel(dataThrough)}`;
+    dataThrough === null ? "no covered day yet" : `data through ${formatFullDay(dataThrough)}`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -140,19 +147,19 @@ function MonthDetail({
       <div className="grid gap-3 sm:grid-cols-3">
         <Metric
           label="Income"
-          value={month.income === null ? "—" : aud(month.income)}
+          value={month.income === null ? "—" : formatAud(month.income)}
           note={month.income === null ? "unavailable" : through}
           tone={month.income === null ? "muted" : "default"}
         />
         <Metric
           label="Net spend"
-          value={month.netSpend === null ? "—" : aud(month.netSpend)}
+          value={month.netSpend === null ? "—" : formatAud(month.netSpend)}
           note={month.netSpend === null ? "unavailable" : through}
           tone={month.netSpend === null ? "muted" : "default"}
         />
         <Metric
           label="Savings rate"
-          value={month.savingsRate === null ? "—" : percent(month.savingsRate)}
+          value={month.savingsRate === null ? "—" : formatRate(month.savingsRate)}
           note={month.savingsRate === null ? "needs income" : through}
           tone={month.savingsRate === null ? "muted" : "live"}
         />
@@ -175,12 +182,12 @@ function MonthDetail({
                 <TableRow key={category.categoryId} className="hover:bg-row-hover">
                   <TableCell className="font-medium">{category.name}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">
-                    {aud(category.netSpend)}
+                    {formatAud(category.netSpend)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-muted-foreground tabular-nums">
                     {category.trailingThreeMonthAverage === null
                       ? "—"
-                      : aud(category.trailingThreeMonthAverage)}
+                      : formatAud(category.trailingThreeMonthAverage)}
                   </TableCell>
                   <TableCell className="text-right">
                     <CategoryChange
@@ -223,7 +230,7 @@ function CategoryChange({
   return (
     <Badge variant="ghost" className={rising ? "text-warning" : "text-live"}>
       {rising ? "+" : ""}
-      {percent(change)}
+      {formatRate(change)}
     </Badge>
   );
 }

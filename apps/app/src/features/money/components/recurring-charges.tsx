@@ -1,4 +1,10 @@
-import { CalendarMonth, type MoneyAnalysis, type SpendingAnomaly } from "@ironcage/domain";
+import {
+  CalendarMonth,
+  formatAud,
+  formatFullDay,
+  formatMonth,
+  type SpendingAnomaly,
+} from "@ironcage/domain";
 import { Badge } from "@ironcage/ui/components/badge";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@ironcage/ui/components/empty";
 import {
@@ -13,7 +19,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Schema } from "effect";
 
 import { CallFailure, Panel, PanelSkeleton } from "@/features/money/components/money-panels";
-import { aud, fullDayLabel, monthLabel } from "@/features/money/format";
 import { analysisQuery } from "@/features/money/queries";
 
 const decodeMonth = Schema.decodeUnknownSync(CalendarMonth);
@@ -73,23 +78,23 @@ export function RecurringCharges() {
                         <span className="font-medium">{charge.payee}</span>
                         {charge.priceChange !== null && (
                           <Badge variant="ghost" className="self-start text-warning">
-                            {aud(charge.priceChange.previousAmount)} →{" "}
-                            {aud(charge.priceChange.currentAmount)}
+                            {formatAud(charge.priceChange.previousAmount)} →{" "}
+                            {formatAud(charge.priceChange.currentAmount)}
                           </Badge>
                         )}
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums">
-                      {aud(charge.typicalAmount)}
+                      {formatAud(charge.typicalAmount)}
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums">
-                      {aud(charge.latestAmount)}
+                      {formatAud(charge.latestAmount)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-muted-foreground tabular-nums">
                       {charge.cadenceDays}d
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums">
-                      {aud(charge.estimatedAnnualSpend)}
+                      {formatAud(charge.estimatedAnnualSpend)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs text-ink-faint tabular-nums">
                       {charge.transactionIds.length}
@@ -136,8 +141,8 @@ export function RecurringCharges() {
                 <p className="font-display text-sm">{suggestion.title}</p>
                 <p className="mt-1 text-sm text-muted-foreground">{suggestion.reasoning}</p>
                 <p className="mt-2 font-mono text-xs text-muted-foreground tabular-nums">
-                  {aud(suggestion.estimatedAnnualImpact)} a year · data through{" "}
-                  {fullDayLabel(suggestion.dataThrough)} · {suggestion.transactionIds.length}{" "}
+                  {formatAud(suggestion.estimatedAnnualImpact)} a year · data through{" "}
+                  {formatFullDay(suggestion.dataThrough)} · {suggestion.transactionIds.length}{" "}
                   transactions
                 </p>
               </li>
@@ -164,22 +169,22 @@ function AnomalyDescription({ anomaly }: { readonly anomaly: SpendingAnomaly }) 
   switch (anomaly._tag) {
     case "LargeExpense":
       return (
-        <span>An expense of {aud(anomaly.amount)}, well above this account's recent median.</span>
+        <span>
+          An expense of {formatAud(anomaly.amount)}, well above this account's recent median.
+        </span>
       );
     case "NewPayee":
       return (
         <span>
-          First payment to {anomaly.payee} in two years, at {aud(anomaly.amount)}.
+          First payment to {anomaly.payee} in two years, at {formatAud(anomaly.amount)}.
         </span>
       );
     case "CategorySpike":
       return (
         <span>
-          {monthLabel(anomaly.month)} spending reached {aud(anomaly.netSpend)} against a{" "}
-          {aud(anomaly.trailingAverage)} trailing average.
+          {formatMonth(anomaly.month)} spending reached {formatAud(anomaly.netSpend)} against a{" "}
+          {formatAud(anomaly.trailingAverage)} trailing average.
         </span>
       );
   }
 }
-
-export type { MoneyAnalysis };

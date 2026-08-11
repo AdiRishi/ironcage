@@ -1,7 +1,8 @@
 import {
+  type BankAccount,
   BankImportPreview,
   ConfirmedBankImport,
-  type BankAccount,
+  formatFullDay,
   type ImportRowVerdict,
 } from "@ironcage/domain";
 import { Alert, AlertDescription, AlertTitle } from "@ironcage/ui/components/alert";
@@ -30,7 +31,7 @@ import {
   PanelTitle,
 } from "@/features/money/components/money-panels";
 import { RegisterAccount } from "@/features/money/components/register-account";
-import { fullDayLabel, shortDigest } from "@/features/money/format";
+import { shortDigest } from "@/features/money/format";
 import { accountsQuery, importHistoryQuery, unwrap } from "@/features/money/queries";
 import { newRequestId } from "@/lib/request-id";
 import { confirmBankImport, previewBankImport } from "@/server/money";
@@ -116,7 +117,7 @@ export function ImportFlow() {
                 className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-border/60 p-4 text-sm last:border-0 hover:bg-row-hover"
               >
                 <span className="font-mono text-xs tabular-nums">
-                  {fullDayLabel(item.window.start)} → {fullDayLabel(item.window.end)}
+                  {formatFullDay(item.window.start)} → {formatFullDay(item.window.end)}
                 </span>
                 <span className="text-muted-foreground">
                   {item.sourceTransactions} rows · {item.newTransactions} new · {item.duplicates}{" "}
@@ -337,7 +338,7 @@ function AmbiguityChoice({
           {verdict.narrative}
         </span>
         <span className="font-mono text-xs whitespace-nowrap tabular-nums">
-          {fullDayLabel(verdict.postedDate)}
+          {formatFullDay(verdict.postedDate)}
         </span>
       </div>
       <div className="flex flex-wrap gap-2">

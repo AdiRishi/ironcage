@@ -1,4 +1,10 @@
-import type { BankImportPreview, ImportRowVerdict } from "@ironcage/domain";
+import {
+  formatDay,
+  formatFullDay,
+  formatSignedAud,
+  type BankImportPreview,
+  type ImportRowVerdict,
+} from "@ironcage/domain";
 import { Badge } from "@ironcage/ui/components/badge";
 import {
   Table,
@@ -10,7 +16,7 @@ import {
 } from "@ironcage/ui/components/table";
 
 import { Metric, PanelTitle } from "@/features/money/components/money-panels";
-import { dayLabel, fullDayLabel, shortDigest, signedAud } from "@/features/money/format";
+import { shortDigest } from "@/features/money/format";
 
 const verdictTone = {
   New: "text-live",
@@ -53,12 +59,12 @@ export function ImportPreviewReport({ preview }: { readonly preview: BankImportP
           {preview.account.label} · {preview.detectedProfile}
         </Fact>
         <Fact term="Source window">
-          {fullDayLabel(preview.window.start)} to {fullDayLabel(preview.window.end)}
+          {formatFullDay(preview.window.start)} to {formatFullDay(preview.window.end)}
         </Fact>
         <Fact term="Source profile">{preview.sourceProfile}</Fact>
         <Fact term="Observations">{preview.observationCount}</Fact>
         <Fact term="Ledger balance">
-          {signedAud(preview.reconciliation.ledgerBalance)}{" "}
+          {formatSignedAud(preview.reconciliation.ledgerBalance)}{" "}
           <span className={toneClass(reconciliation[preview.reconciliation.balance].tone)}>
             {reconciliation[preview.reconciliation.balance].label}
           </span>
@@ -86,19 +92,19 @@ export function ImportPreviewReport({ preview }: { readonly preview: BankImportP
           ) : (
             preview.coverage.added.map((window) => (
               <p key={window.start} className="text-live">
-                Adds {fullDayLabel(window.start)} to {fullDayLabel(window.end)}
+                Adds {formatFullDay(window.start)} to {formatFullDay(window.end)}
               </p>
             ))
           )}
           {preview.coverage.retainedOverlap.map((window) => (
             <p key={`overlap-${window.start}`} className="text-muted-foreground">
-              Overlaps {fullDayLabel(window.start)} to {fullDayLabel(window.end)}, already held
+              Overlaps {formatFullDay(window.start)} to {formatFullDay(window.end)}, already held
             </p>
           ))}
           {preview.coverage.gapsRemaining.map((gap) => (
             <p key={`${gap.accountId}-${gap.start}`} className="text-warning">
-              Still missing {fullDayLabel(gap.start)} to {fullDayLabel(gap.end)} on another required
-              account
+              Still missing {formatFullDay(gap.start)} to {formatFullDay(gap.end)} on another
+              required account
             </p>
           ))}
         </div>
@@ -135,10 +141,10 @@ export function ImportPreviewReport({ preview }: { readonly preview: BankImportP
                     {verdict.sourceOrdinal}
                   </TableCell>
                   <TableCell className="font-mono text-xs tabular-nums">
-                    {dayLabel(verdict.postedDate)}
+                    {formatDay(verdict.postedDate)}
                   </TableCell>
                   <TableCell className="text-right font-mono tabular-nums">
-                    {signedAud(verdict.amount)}
+                    {formatSignedAud(verdict.amount)}
                   </TableCell>
                   <TableCell className="max-w-md truncate text-xs" title={verdict.narrative}>
                     {verdict.narrative}

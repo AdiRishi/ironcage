@@ -65,11 +65,11 @@ export type Quantity = typeof Quantity.Type;
 
 /**
  * The canonical decimal string for an amount: what Postgres stores, what a
- * matching key compares, and what a digest hashes. Normalizing first makes the
- * string independent of how the value happened to be represented.
+ * matching key compares, and what a digest hashes. `format` normalizes first,
+ * so the string is independent of how the value happened to be represented and
+ * `1.50` and `1.5` hash alike. `formatAud` is what an operator reads.
  */
-export const formatMoney = (value: BigDecimal.BigDecimal) =>
-  BigDecimal.format(BigDecimal.normalize(value));
+export const formatMoney = (value: BigDecimal.BigDecimal) => BigDecimal.format(value);
 
 export const Currency = Schema.String.check(Schema.isMinLength(1)).pipe(Schema.brand("Currency"));
 export type Currency = typeof Currency.Type;
