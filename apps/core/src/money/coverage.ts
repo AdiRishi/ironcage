@@ -100,6 +100,46 @@ export const uncoveredIntervals = (
   return gaps;
 };
 
+const firstCalendarDate = decodeCalendarDate("0001-01-01");
+const lastCalendarDate = decodeCalendarDate("9999-12-31");
+
+/** Where one account carries no obligation to be covered, plus where it is. */
+const satisfiedIntervals = (account: BankAccount, segments: readonly CoverageSegment[]) =>
+  mergeIntervals([
+    { start: firstCalendarDate, end: shiftCalendarDate(account.effectiveFrom, -1) },
+    ...segments
+      .filter((segment) => segment.accountId === account.id)
+      .map(({ start, end }) => ({ start, end })),
+    ...(account.effectiveTo === null
+      ? []
+      : [{ start: shiftCalendarDate(account.effectiveTo, 1), end: lastCalendarDate }]),
+  ]);
+
+/**
+ * The intervals over which every required account is satisfied on every day.
+ * Computing this once turns each later "is this window complete?" question into
+ * a containment test instead of another pass over every segment.
+ */
+export const fullyCoveredIntervals = (
+  accounts: readonly BankAccount[],
+  segments: readonly CoverageSegment[],
+): readonly DateInterval[] =>
+  accounts
+    .filter((account) => account.required)
+    .reduce<readonly DateInterval[]>(
+      (covered, account) =>
+        covered.flatMap((interval) =>
+          satisfiedIntervals(account, segments).flatMap((satisfied) => {
+            const overlap = intersectIntervals(interval, satisfied);
+            return overlap === null ? [] : [overlap];
+          }),
+        ),
+      [{ start: firstCalendarDate, end: lastCalendarDate }],
+    );
+
+export const isFullyCovered = (covered: readonly DateInterval[], window: DateInterval) =>
+  covered.some((interval) => interval.start <= window.start && window.end <= interval.end);
+
 export const coverageGaps = (
   accounts: readonly BankAccount[],
   segments: readonly CoverageSegment[],
