@@ -36,6 +36,10 @@ const executor = (client: Client): SqlExecutor => ({
       try: () => client.query<QueryResultRow>(text, [...values]),
       catch: (cause) => new PersistenceError({ operation, cause }),
     }).pipe(
+      // The boundary reports the operation and nothing else, because a database
+      // message is not for the operator. It is exactly what an engineer needs,
+      // so it is logged here rather than discarded.
+      Effect.tapError((error) => Effect.logError(`${operation} failed`, error.cause)),
       Effect.map((result) =>
         result.rows.map((row) => {
           const record: Record<string, unknown> = {};
