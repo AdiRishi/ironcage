@@ -10,12 +10,19 @@ export const CommBankAccountProfileId = Schema.Literals([
 ]);
 export type CommBankAccountProfileId = typeof CommBankAccountProfileId.Type;
 
+/**
+ * A profile declares every rule its files are read under, so the decoder asks
+ * the profile rather than re-deriving policy from the account type.
+ * `ofxAccountType` is the `ACCTTYPE` the bank writes inside `BANKACCTFROM`; a
+ * credit-card file identifies itself through `CCACCTFROM`, which carries none.
+ */
 type CommBankProfileShape = { readonly label: string } & (
   | {
       readonly accountType: "deposit";
       readonly rowBalance: "required";
       readonly identifier: "stable";
       readonly messageSet: "bank";
+      readonly ofxAccountType: "SAVINGS";
       readonly narrative: "free_text";
       readonly statementAggregate: { readonly opening: "STMTRS"; readonly closing: "STMTRS" };
     }
@@ -24,6 +31,7 @@ type CommBankProfileShape = { readonly label: string } & (
       readonly rowBalance: "forbidden";
       readonly identifier: "absent";
       readonly messageSet: "credit_card";
+      readonly ofxAccountType: null;
       readonly narrative: "card_fixed_width";
       readonly statementAggregate: {
         readonly opening: "CCSTMTRS";
@@ -35,6 +43,7 @@ type CommBankProfileShape = { readonly label: string } & (
       readonly rowBalance: "required";
       readonly identifier: "absent";
       readonly messageSet: "bank";
+      readonly ofxAccountType: "CREDITLINE";
       readonly narrative: "free_text";
       readonly statementAggregate: { readonly opening: "CCSTMTRS"; readonly closing: "STMTRS" };
     }
@@ -47,6 +56,7 @@ export const commBankAccountProfiles = {
     rowBalance: "required",
     identifier: "stable",
     messageSet: "bank",
+    ofxAccountType: "SAVINGS",
     narrative: "free_text",
     statementAggregate: { opening: "STMTRS", closing: "STMTRS" },
   },
@@ -56,6 +66,7 @@ export const commBankAccountProfiles = {
     rowBalance: "required",
     identifier: "stable",
     messageSet: "bank",
+    ofxAccountType: "SAVINGS",
     narrative: "free_text",
     statementAggregate: { opening: "STMTRS", closing: "STMTRS" },
   },
@@ -65,6 +76,7 @@ export const commBankAccountProfiles = {
     rowBalance: "forbidden",
     identifier: "absent",
     messageSet: "credit_card",
+    ofxAccountType: null,
     narrative: "card_fixed_width",
     statementAggregate: { opening: "CCSTMTRS", closing: "CCSTMTRS" },
   },
@@ -74,6 +86,7 @@ export const commBankAccountProfiles = {
     rowBalance: "required",
     identifier: "absent",
     messageSet: "bank",
+    ofxAccountType: "CREDITLINE",
     narrative: "free_text",
     statementAggregate: { opening: "CCSTMTRS", closing: "STMTRS" },
   },

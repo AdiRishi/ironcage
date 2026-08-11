@@ -453,12 +453,11 @@ export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
   if (profile.messageSet === "bank") {
     const bankId = yield* nonEmptyScalar(from, "BANKID", shape.from);
     const accountType = yield* nonEmptyScalar(from, "ACCTTYPE", shape.from);
-    const expectedAccountType = profile.accountType === "credit_line" ? "CREDITLINE" : "SAVINGS";
 
-    if (accountType !== expectedAccountType) {
+    if (accountType !== profile.ofxAccountType) {
       return yield* reject(
         "account_type_mismatch",
-        `${profile.label} expects ACCTTYPE ${expectedAccountType}, found ${JSON.stringify(accountType)}`,
+        `${profile.label} expects ACCTTYPE ${profile.ofxAccountType}, found ${JSON.stringify(accountType)}`,
       );
     }
 
@@ -595,9 +594,13 @@ export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
     });
   }
 
-  const ledgerNode = yield* element(statement, "LEDGERBAL", "OFX");
+  const ledgerNode = yield* element(statement, "LEDGERBAL", profile.statementAggregate.opening);
   const ledgerBalance = yield* decodeBalance(ledgerNode, "LEDGERBAL");
-  const availableNode = yield* optionalElement(statement, "AVAILBAL", "OFX");
+  const availableNode = yield* optionalElement(
+    statement,
+    "AVAILBAL",
+    profile.statementAggregate.opening,
+  );
   const availableBalance = Option.isSome(availableNode)
     ? Option.some(yield* decodeBalance(availableNode.value, "AVAILBAL"))
     : Option.none<CommBankOfxBalance>();

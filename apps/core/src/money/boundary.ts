@@ -1,10 +1,10 @@
-import { Conflict, Internal } from "@ironcage/contracts/schema";
+import { Conflict, Internal, type BoundaryError } from "@ironcage/contracts/schema";
 import type { RequestId, Sha256 } from "@ironcage/domain";
 import { Effect, Schema } from "effect";
 
 import type { StoredRequest } from "../persistence";
 
-export type MoneyBoundaryError = import("@ironcage/contracts/schema").BoundaryError;
+export type MoneyBoundaryError = BoundaryError;
 
 export const infrastructureError = (error: {
   readonly _tag: string;

@@ -34,7 +34,12 @@ import {
 import { BigDecimal, Context, DateTime, Effect, Layer, Option, Schema } from "effect";
 
 import { MoneyBlobStore } from "./blob-store";
-import { decodeStored, infrastructureError, type MoneyBoundaryError } from "./boundary";
+import {
+  decodeStored,
+  infrastructureError,
+  type MoneyBoundaryError,
+  replayRequest,
+} from "./boundary";
 import { decodeCommBankBundle, type CommBankPairedBundle } from "./commbank/bundle";
 import { commBankPayee } from "./commbank/payee";
 import { commBankPairedProfileId } from "./commbank/profiles";
@@ -381,9 +386,6 @@ const profileAccountType = (profile: BankAccountProfileId): BankAccount["type"] 
   }
 };
 
-const requestFor = (snapshot: ImportSnapshot, requestId: RequestId) =>
-  snapshot.requests.find((request) => request.requestId === requestId);
-
 const confirmPayloadHash = (
   cryptography: MoneyCryptography["Service"],
   prepared: StructuredSourceIdentity,
@@ -604,7 +606,11 @@ const buildConfirmationPlan = Effect.fn("MoneyImports.buildConfirmationPlan")(fu
   // pass enforces that within a tier, but an ambiguity's candidate list is not
   // filtered by what a later tier claimed, so the two paths have to agree here.
   const claimedExistingTransactions = new Set<BankTransactionId>();
-  const claimExisting = (transactionId: BankTransactionId, matchTier: TransactionTarget["matchTier"], sourceOrdinal: number) => {
+  const claimExisting = (
+    transactionId: BankTransactionId,
+    matchTier: TransactionTarget["matchTier"],
+    sourceOrdinal: number,
+  ) => {
     if (claimedExistingTransactions.has(transactionId)) {
       return new ValidationFailed({
         reason: "TransactionClaimedTwice",
@@ -1121,24 +1127,15 @@ export class MoneyImports extends Context.Service<
                 input.expectedPreviewFingerprint,
                 input.resolutions,
               ).pipe(Effect.mapError(infrastructureError));
-              const previousRequest = requestFor(snapshot, input.requestId);
+              const replayed = yield* replayRequest({
+                requests: snapshot.requests,
+                requestId: input.requestId,
+                operation: "money.confirm_import",
+                payloadHash,
+                schema: ConfirmedBankImport,
+              });
 
-              if (previousRequest !== undefined) {
-                if (
-                  previousRequest.operation !== "money.confirm_import" ||
-                  previousRequest.payloadHash !== payloadHash
-                ) {
-                  return yield* new Conflict({
-                    reason: "RequestIdCollision",
-                    detail: `${input.requestId} was already used with different content`,
-                  });
-                }
-                return yield* decodeStored(
-                  ConfirmedBankImport,
-                  previousRequest.response,
-                  "confirmed import",
-                );
-              }
+              if (replayed !== null) return replayed;
 
               if (identity.bundleDigest !== input.expectedBundleDigest) {
                 return yield* new Conflict({
@@ -1231,24 +1228,15 @@ export class MoneyImports extends Context.Service<
                   mediaType: input.pdf.mediaType,
                 }),
               ).pipe(Effect.mapError(infrastructureError));
-              const previousRequest = requestFor(snapshot, input.requestId);
+              const replayed = yield* replayRequest({
+                requests: snapshot.requests,
+                requestId: input.requestId,
+                operation: "money.archive_statement",
+                payloadHash,
+                schema: ArchivedBankStatement,
+              });
 
-              if (previousRequest !== undefined) {
-                if (
-                  previousRequest.operation !== "money.archive_statement" ||
-                  previousRequest.payloadHash !== payloadHash
-                ) {
-                  return yield* new Conflict({
-                    reason: "RequestIdCollision",
-                    detail: `${input.requestId} was already used with different content`,
-                  });
-                }
-                return yield* decodeStored(
-                  ArchivedBankStatement,
-                  previousRequest.response,
-                  "statement archive",
-                );
-              }
+              if (replayed !== null) return replayed;
 
               const earlier = snapshot.statementArchives.find(
                 (archive) => archive.digest === digest,
