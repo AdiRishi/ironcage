@@ -2,7 +2,7 @@ import { BigDecimal, Schema } from "effect";
 import { describe, expect, expectTypeOf, test } from "vitest";
 
 import type { Money as MoneyType, Price as PriceType, Quantity as QuantityType } from "../../src";
-import { Money, Price, Quantity } from "../../src";
+import { money, Money, Price, Quantity } from "../../src";
 
 describe("financial decimals", () => {
   test("money fits numeric(20,8)", () => {
@@ -30,6 +30,19 @@ describe("financial decimals", () => {
     expect(BigDecimal.equals(decode(maximum), BigDecimal.fromStringUnsafe(maximum))).toBe(true);
     expect(() => decode("100000000000000000000")).toThrow(/numeric\(38,18\)/);
     expect(() => decode("0.0000000000000000001")).toThrow(/numeric\(38,18\)/);
+  });
+
+  test("money rounds an arithmetic result into the stored scale", () => {
+    const third = BigDecimal.divideUnsafe(
+      BigDecimal.fromStringUnsafe("100"),
+      BigDecimal.fromStringUnsafe("3"),
+    );
+
+    expect(BigDecimal.format(money(third))).toBe("33.33333333");
+    expect(BigDecimal.format(money(BigDecimal.fromStringUnsafe("-45.20")))).toBe("-45.2");
+    expect(() => money(BigDecimal.fromStringUnsafe("1000000000000"))).toThrow(
+      /Schema validation failed/,
+    );
   });
 
   test("money, price, and quantity are nominally distinct", () => {

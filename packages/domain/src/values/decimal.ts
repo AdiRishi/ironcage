@@ -34,6 +34,27 @@ const financialDecimal = <const Name extends string>(
 export const Money = financialDecimal("Money", 20, 8);
 export type Money = typeof Money.Type;
 
+/**
+ * Arithmetic produces a plain `BigDecimal`; storage and contracts demand a
+ * `Money`. Rounding to the stored scale is what makes a division result
+ * expressible as `numeric(20,8)` at all.
+ *
+ * The result carries the same representation `Money` decodes a string into, so
+ * a computed amount and the same amount read back from Postgres are one value
+ * rather than two that merely compare equal. `normalize` alone would not: it
+ * writes ten as 1×10¹, and decoding "10" writes it as 10×10⁰.
+ */
+export const money = (value: BigDecimal.BigDecimal): Money => {
+  const normalized = BigDecimal.normalize(BigDecimal.round(value, { scale: 8, mode: "half-even" }));
+  const stored =
+    normalized.scale < 0
+      ? BigDecimal.make(normalized.value * 10n ** BigInt(-normalized.scale), 0)
+      : normalized;
+
+  Schema.asserts(Money, stored);
+  return stored;
+};
+
 /** `numeric(24,8)`, wider in the integer part than `Money` for venue prices. */
 export const Price = financialDecimal("Price", 24, 8);
 export type Price = typeof Price.Type;
