@@ -1,7 +1,10 @@
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { type QueryClient } from "@tanstack/react-query";
-import { HeadContent, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
+import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+
+import { AppShell } from "@/components/shell/app-shell";
+import { themeInitScript } from "@/lib/theme";
 
 import appCss from "@ironcage/ui/globals.css?url";
 
@@ -25,14 +28,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
     ],
+    scripts: [
+      // Must run before first paint — see the comment on `themeInitScript`.
+      { children: themeInitScript },
+    ],
   }),
 
   shellComponent: RootDocument,
+  component: RootLayout,
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  // `dark` is the SSR default. The head script above corrects it to `light`
+  // before paint when that is what the operator chose, which by design makes
+  // the client's class attribute differ from the server's. That is the one
+  // mismatch we want, so it is suppressed here rather than avoided — the
+  // alternative is applying the theme in an effect and flashing dark first.
   return (
-    <html lang="en">
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
@@ -52,5 +65,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <Scripts />
       </body>
     </html>
+  );
+}
+
+function RootLayout() {
+  return (
+    <AppShell>
+      <Outlet />
+    </AppShell>
   );
 }

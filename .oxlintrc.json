@@ -56,9 +56,18 @@
   },
   "overrides": [
     {
+      // These files are written by the shadcn CLI and are never edited by
+      // hand, so a lint error here has no legal fix — it can only be silenced
+      // or it blocks the next `shadcn add`. The components are changed through
+      // theme tokens and composition instead; see
+      // `docs/adr/0003-frontend-file-and-folder-conventions.md`.
       "files": ["packages/ui/src/components/**"],
       "rules": {
-        "jsx-a11y/label-has-associated-control": "off"
+        "jsx-a11y/label-has-associated-control": "off",
+        // Base UI renders its own elements and sets the matching ARIA role on
+        // them; the rule cannot see through the primitive to know the role is
+        // already correct.
+        "jsx-a11y/prefer-tag-over-role": "off"
       }
     }
   ],

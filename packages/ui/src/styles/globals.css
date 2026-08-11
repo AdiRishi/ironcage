@@ -1,132 +1,238 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/inter";
+
+/* Three faces, each with one job: Space Grotesk names things, IBM Plex Sans
+   carries prose, IBM Plex Mono carries every number. The mono face matters
+   most — a column of figures that does not align is a column that gets
+   misread. IBM Plex Mono has no variable build upstream, so its three weights
+   are imported individually. */
+@import "@fontsource-variable/space-grotesk/wght.css";
+@import "@fontsource-variable/ibm-plex-sans/wght.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
 
 @source '../../src/**/*.{ts,tsx}';
 @source '../../../../apps/**/src/**/*.{ts,tsx}';
 
 @custom-variant dark (&:is(.dark *));
 
+/* Two layers of tokens live below.
+ *
+ * The first is shadcn's contract — `--background`, `--primary`, `--sidebar-*`
+ * and the rest. Every component in this package reads it and nothing else, so
+ * setting it here is what makes them look like Ironcage without a single edit
+ * to their source.
+ *
+ * The second is the handful of colours the design uses that shadcn has no slot
+ * for: the middle rungs of the text ramp, and the five signal colours. Those
+ * are registered as utilities in the `@theme inline` block further down.
+ *
+ * One rename to be aware of when reading this against the design project: the
+ * design calls #97A0AB `--muted`, meaning a text colour. shadcn's `--muted` is
+ * a surface. The design's text ramp is therefore spelled
+ * `foreground` / `ink-2` / `muted-foreground` / `ink-faint` here.
+ */
+
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.58 0.22 27);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
+  /* Light — paper and ink. */
+  --background: #f2efe7;
+  --foreground: #20262e;
+  --card: #fbfaf6;
+  --card-foreground: #20262e;
+  --popover: #fbfaf6;
+  --popover-foreground: #20262e;
+  --primary: #bc5312;
+  --primary-foreground: #fcfbf7;
+  --secondary: #eae5d9;
+  --secondary-foreground: #39414b;
+  --muted: #eae5d9;
+  --muted-foreground: #5b6470;
+  --accent: #eae5d8;
+  --accent-foreground: #20262e;
+  --destructive: #bc3931;
+  --destructive-foreground: #fcfbf7;
+  --border: #dfd9cb;
+  --input: #d2cbba;
+  --ring: #bc5312;
+  --surface: #f4f1e9;
+  --surface-foreground: #39414b;
+
+  --sidebar: #f2efe7;
+  --sidebar-foreground: #5b6470;
+  --sidebar-primary: #bc5312;
+  --sidebar-primary-foreground: #fcfbf7;
+  --sidebar-accent: #eae5d8;
+  --sidebar-accent-foreground: #20262e;
+  --sidebar-border: #dfd9cb;
+  --sidebar-ring: #bc5312;
+
+  --chart-1: #bc5312;
+  --chart-2: #27754b;
+  --chart-3: #1e6d9c;
+  --chart-4: #5b4cbe;
+  --chart-5: #8f650c;
+
+  /* Ironcage additions. */
+  --ink-2: #39414b;
+  --ink-faint: #8a919b;
+  --panel-2: #eae5d9;
+  --row-hover: #f4f1e8;
+  --live: #27754b;
+  --halted: #bc3931;
+  --warning: #8f650c;
+  --dry-run: #1e6d9c;
+  --ai: #5b4cbe;
+  --chart-fill: rgb(32 38 46 / 6%);
+
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.87 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.371 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Dark — the default. Warm-neutral rather than blue-grey: the page is
+     #0B0E11 and the text is a cream, not a white. */
+  --background: #0b0e11;
+  --foreground: #ede8dc;
+  --card: #11151a;
+  --card-foreground: #ede8dc;
+  --popover: #161b21;
+  --popover-foreground: #ede8dc;
+  --primary: #e8722a;
+  --primary-foreground: #0b0e11;
+  --secondary: #161b21;
+  --secondary-foreground: #c9cdd3;
+  --muted: #161b21;
+  --muted-foreground: #97a0ab;
+  --accent: #151a20;
+  --accent-foreground: #ede8dc;
+  --destructive: #e0564f;
+  --destructive-foreground: #0b0e11;
+  --border: #1a2027;
+  --input: #212932;
+  --ring: #e8722a;
+  --surface: #0e1216;
+  --surface-foreground: #c9cdd3;
+
+  --sidebar: #0b0e11;
+  --sidebar-foreground: #97a0ab;
+  --sidebar-primary: #e8722a;
+  --sidebar-primary-foreground: #0b0e11;
+  --sidebar-accent: #151a20;
+  --sidebar-accent-foreground: #ede8dc;
+  --sidebar-border: #1a2027;
+  --sidebar-ring: #e8722a;
+
+  --chart-1: #e8722a;
+  --chart-2: #4fb477;
+  --chart-3: #58a6d6;
+  --chart-4: #9b8cff;
+  --chart-5: #e3a94d;
+
+  /* Ironcage additions. */
+  --ink-2: #c9cdd3;
+  --ink-faint: #5c6670;
+  --panel-2: #161b21;
+  --row-hover: #141920;
+  --live: #4fb477;
+  --halted: #e0564f;
+  --warning: #e3a94d;
+  --dry-run: #58a6d6;
+  --ai: #9b8cff;
+  --chart-fill: rgb(237 232 220 / 4.5%);
 }
 
 @theme inline {
-  --font-sans: "Inter Variable", sans-serif;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
+  --font-display: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
   --color-background: var(--background);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-fill: var(--chart-fill);
+
+  /* The middle rungs of the text ramp. `foreground` and `muted-foreground` are
+     the outer two; these fill the gap the design needs and shadcn does not
+     have. */
+  --color-ink-2: var(--ink-2);
+  --color-ink-faint: var(--ink-faint);
+
+  /* Recessed surfaces. `panel-2` is the nested row inside a card; `row-hover`
+     is a table row under the cursor. */
+  --color-panel-2: var(--panel-2);
+  --color-row-hover: var(--row-hover);
+
+  /* The five signal colours. These are named for what they mean rather than
+     what colour they are, because the meaning is a product guarantee: dry-run
+     data must never render in a live colour. `text-dry-run` cannot be casually
+     swapped for another hue the way `text-cyan` can.
+
+     `halted` and `destructive` are the same red and are not interchangeable.
+     `destructive` styles an action the operator is about to take; `halted`
+     reports a state the system is already in. */
+  --color-live: var(--live);
+  --color-halted: var(--halted);
+  --color-warning: var(--warning);
+  --color-dry-run: var(--dry-run);
+  --color-ai: var(--ai);
+
+  /* The radius scale is anchored to the design rather than derived from a
+     single value: 4px tags, 6px navigation and buttons, 10px cards, 12px
+     panels, 14px dialogs. */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 0.875rem;
+  --radius-3xl: 1.125rem;
+  --radius-4xl: 1.375rem;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background font-sans text-foreground;
-  }
   html {
     @apply font-sans;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+  ::selection {
+    @apply bg-primary/35;
   }
 }

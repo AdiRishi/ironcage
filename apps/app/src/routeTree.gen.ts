@@ -10,33 +10,465 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ActivityIndexRouteImport } from './routes/activity/index'
+import { Route as MoneyIndexRouteImport } from './routes/money/index'
+import { Route as MoneyImportRouteImport } from './routes/money/import'
+import { Route as MoneyRecurringRouteImport } from './routes/money/recurring'
+import { Route as MoneyReviewRouteImport } from './routes/money/review'
+import { Route as PortfolioIndexRouteImport } from './routes/portfolio/index'
+import { Route as PortfolioCageRouteImport } from './routes/portfolio/cage'
+import { Route as PortfolioCapitalRouteImport } from './routes/portfolio/capital'
+import { Route as PortfolioCostsRouteImport } from './routes/portfolio/costs'
+import { Route as PortfolioTransfersRouteImport } from './routes/portfolio/transfers'
+import { Route as ReportsIndexRouteImport } from './routes/reports/index'
+import { Route as ReportsReportIdRouteImport } from './routes/reports/$reportId'
+import { Route as SleevesIndexRouteImport } from './routes/sleeves/index'
+import { Route as SleevesSleeveIdRouteRouteImport } from './routes/sleeves/$sleeveId/route'
+import { Route as TaxIndexRouteImport } from './routes/tax/index'
+import { Route as TaxReviewRouteImport } from './routes/tax/review'
+import { Route as WorkbenchIndexRouteImport } from './routes/workbench/index'
+import { Route as WorkbenchDataRouteImport } from './routes/workbench/data'
+import { Route as WorkbenchResearchRouteImport } from './routes/workbench/research'
+import { Route as ActivityDecisionDecisionIdRouteImport } from './routes/activity/decision.$decisionId'
+import { Route as ActivityTradeCorrelationIdRouteImport } from './routes/activity/trade.$correlationId'
+import { Route as DecideCeremonyKindSubjectIdRouteImport } from './routes/decide.$ceremonyKind.$subjectId'
+import { Route as SleevesSleeveIdIndexRouteImport } from './routes/sleeves/$sleeveId/index'
+import { Route as SleevesSleeveIdCapabilitiesRouteImport } from './routes/sleeves/$sleeveId/capabilities'
+import { Route as SleevesSleeveIdDecisionsRouteImport } from './routes/sleeves/$sleeveId/decisions'
+import { Route as SleevesSleeveIdMandateRouteImport } from './routes/sleeves/$sleeveId/mandate'
+import { Route as SleevesSleeveIdPerformanceRouteImport } from './routes/sleeves/$sleeveId/performance'
+import { Route as SleevesSleeveIdPositionsRouteImport } from './routes/sleeves/$sleeveId/positions'
+import { Route as SleevesSleeveIdTrialRouteImport } from './routes/sleeves/$sleeveId/trial'
+import { Route as TaxReportFinancialYearRouteImport } from './routes/tax/report.$financialYear'
+import { Route as TaxSourcesSourceIdRouteImport } from './routes/tax/sources.$sourceId'
+import { Route as WorkbenchBacktestsRunIdRouteImport } from './routes/workbench/backtests.$runId'
+import { Route as WorkbenchProposalsProposalIdRouteImport } from './routes/workbench/proposals.$proposalId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ActivityIndexRoute = ActivityIndexRouteImport.update({
+  id: '/activity/',
+  path: '/activity/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MoneyIndexRoute = MoneyIndexRouteImport.update({
+  id: '/money/',
+  path: '/money/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MoneyImportRoute = MoneyImportRouteImport.update({
+  id: '/money/import',
+  path: '/money/import',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MoneyRecurringRoute = MoneyRecurringRouteImport.update({
+  id: '/money/recurring',
+  path: '/money/recurring',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MoneyReviewRoute = MoneyReviewRouteImport.update({
+  id: '/money/review',
+  path: '/money/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortfolioIndexRoute = PortfolioIndexRouteImport.update({
+  id: '/portfolio/',
+  path: '/portfolio/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortfolioCageRoute = PortfolioCageRouteImport.update({
+  id: '/portfolio/cage',
+  path: '/portfolio/cage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortfolioCapitalRoute = PortfolioCapitalRouteImport.update({
+  id: '/portfolio/capital',
+  path: '/portfolio/capital',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortfolioCostsRoute = PortfolioCostsRouteImport.update({
+  id: '/portfolio/costs',
+  path: '/portfolio/costs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortfolioTransfersRoute = PortfolioTransfersRouteImport.update({
+  id: '/portfolio/transfers',
+  path: '/portfolio/transfers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsIndexRoute = ReportsIndexRouteImport.update({
+  id: '/reports/',
+  path: '/reports/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsReportIdRoute = ReportsReportIdRouteImport.update({
+  id: '/reports/$reportId',
+  path: '/reports/$reportId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SleevesIndexRoute = SleevesIndexRouteImport.update({
+  id: '/sleeves/',
+  path: '/sleeves/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SleevesSleeveIdRouteRoute = SleevesSleeveIdRouteRouteImport.update({
+  id: '/sleeves/$sleeveId',
+  path: '/sleeves/$sleeveId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TaxIndexRoute = TaxIndexRouteImport.update({
+  id: '/tax/',
+  path: '/tax/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TaxReviewRoute = TaxReviewRouteImport.update({
+  id: '/tax/review',
+  path: '/tax/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkbenchIndexRoute = WorkbenchIndexRouteImport.update({
+  id: '/workbench/',
+  path: '/workbench/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkbenchDataRoute = WorkbenchDataRouteImport.update({
+  id: '/workbench/data',
+  path: '/workbench/data',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkbenchResearchRoute = WorkbenchResearchRouteImport.update({
+  id: '/workbench/research',
+  path: '/workbench/research',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ActivityDecisionDecisionIdRoute =
+  ActivityDecisionDecisionIdRouteImport.update({
+    id: '/activity/decision/$decisionId',
+    path: '/activity/decision/$decisionId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ActivityTradeCorrelationIdRoute =
+  ActivityTradeCorrelationIdRouteImport.update({
+    id: '/activity/trade/$correlationId',
+    path: '/activity/trade/$correlationId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DecideCeremonyKindSubjectIdRoute =
+  DecideCeremonyKindSubjectIdRouteImport.update({
+    id: '/decide/$ceremonyKind/$subjectId',
+    path: '/decide/$ceremonyKind/$subjectId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const SleevesSleeveIdIndexRoute = SleevesSleeveIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SleevesSleeveIdRouteRoute,
+} as any)
+const SleevesSleeveIdCapabilitiesRoute =
+  SleevesSleeveIdCapabilitiesRouteImport.update({
+    id: '/capabilities',
+    path: '/capabilities',
+    getParentRoute: () => SleevesSleeveIdRouteRoute,
+  } as any)
+const SleevesSleeveIdDecisionsRoute =
+  SleevesSleeveIdDecisionsRouteImport.update({
+    id: '/decisions',
+    path: '/decisions',
+    getParentRoute: () => SleevesSleeveIdRouteRoute,
+  } as any)
+const SleevesSleeveIdMandateRoute = SleevesSleeveIdMandateRouteImport.update({
+  id: '/mandate',
+  path: '/mandate',
+  getParentRoute: () => SleevesSleeveIdRouteRoute,
+} as any)
+const SleevesSleeveIdPerformanceRoute =
+  SleevesSleeveIdPerformanceRouteImport.update({
+    id: '/performance',
+    path: '/performance',
+    getParentRoute: () => SleevesSleeveIdRouteRoute,
+  } as any)
+const SleevesSleeveIdPositionsRoute =
+  SleevesSleeveIdPositionsRouteImport.update({
+    id: '/positions',
+    path: '/positions',
+    getParentRoute: () => SleevesSleeveIdRouteRoute,
+  } as any)
+const SleevesSleeveIdTrialRoute = SleevesSleeveIdTrialRouteImport.update({
+  id: '/trial',
+  path: '/trial',
+  getParentRoute: () => SleevesSleeveIdRouteRoute,
+} as any)
+const TaxReportFinancialYearRoute = TaxReportFinancialYearRouteImport.update({
+  id: '/tax/report/$financialYear',
+  path: '/tax/report/$financialYear',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TaxSourcesSourceIdRoute = TaxSourcesSourceIdRouteImport.update({
+  id: '/tax/sources/$sourceId',
+  path: '/tax/sources/$sourceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkbenchBacktestsRunIdRoute = WorkbenchBacktestsRunIdRouteImport.update({
+  id: '/workbench/backtests/$runId',
+  path: '/workbench/backtests/$runId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkbenchProposalsProposalIdRoute =
+  WorkbenchProposalsProposalIdRouteImport.update({
+    id: '/workbench/proposals/$proposalId',
+    path: '/workbench/proposals/$proposalId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/sleeves/$sleeveId': typeof SleevesSleeveIdRouteRouteWithChildren
+  '/money/import': typeof MoneyImportRoute
+  '/money/recurring': typeof MoneyRecurringRoute
+  '/money/review': typeof MoneyReviewRoute
+  '/portfolio/cage': typeof PortfolioCageRoute
+  '/portfolio/capital': typeof PortfolioCapitalRoute
+  '/portfolio/costs': typeof PortfolioCostsRoute
+  '/portfolio/transfers': typeof PortfolioTransfersRoute
+  '/reports/$reportId': typeof ReportsReportIdRoute
+  '/tax/review': typeof TaxReviewRoute
+  '/workbench/data': typeof WorkbenchDataRoute
+  '/workbench/research': typeof WorkbenchResearchRoute
+  '/activity/': typeof ActivityIndexRoute
+  '/money/': typeof MoneyIndexRoute
+  '/portfolio/': typeof PortfolioIndexRoute
+  '/reports/': typeof ReportsIndexRoute
+  '/sleeves/': typeof SleevesIndexRoute
+  '/tax/': typeof TaxIndexRoute
+  '/workbench/': typeof WorkbenchIndexRoute
+  '/activity/decision/$decisionId': typeof ActivityDecisionDecisionIdRoute
+  '/activity/trade/$correlationId': typeof ActivityTradeCorrelationIdRoute
+  '/decide/$ceremonyKind/$subjectId': typeof DecideCeremonyKindSubjectIdRoute
+  '/sleeves/$sleeveId/capabilities': typeof SleevesSleeveIdCapabilitiesRoute
+  '/sleeves/$sleeveId/decisions': typeof SleevesSleeveIdDecisionsRoute
+  '/sleeves/$sleeveId/mandate': typeof SleevesSleeveIdMandateRoute
+  '/sleeves/$sleeveId/performance': typeof SleevesSleeveIdPerformanceRoute
+  '/sleeves/$sleeveId/positions': typeof SleevesSleeveIdPositionsRoute
+  '/sleeves/$sleeveId/trial': typeof SleevesSleeveIdTrialRoute
+  '/tax/report/$financialYear': typeof TaxReportFinancialYearRoute
+  '/tax/sources/$sourceId': typeof TaxSourcesSourceIdRoute
+  '/workbench/backtests/$runId': typeof WorkbenchBacktestsRunIdRoute
+  '/workbench/proposals/$proposalId': typeof WorkbenchProposalsProposalIdRoute
+  '/sleeves/$sleeveId/': typeof SleevesSleeveIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/money/import': typeof MoneyImportRoute
+  '/money/recurring': typeof MoneyRecurringRoute
+  '/money/review': typeof MoneyReviewRoute
+  '/portfolio/cage': typeof PortfolioCageRoute
+  '/portfolio/capital': typeof PortfolioCapitalRoute
+  '/portfolio/costs': typeof PortfolioCostsRoute
+  '/portfolio/transfers': typeof PortfolioTransfersRoute
+  '/reports/$reportId': typeof ReportsReportIdRoute
+  '/tax/review': typeof TaxReviewRoute
+  '/workbench/data': typeof WorkbenchDataRoute
+  '/workbench/research': typeof WorkbenchResearchRoute
+  '/activity': typeof ActivityIndexRoute
+  '/money': typeof MoneyIndexRoute
+  '/portfolio': typeof PortfolioIndexRoute
+  '/reports': typeof ReportsIndexRoute
+  '/sleeves': typeof SleevesIndexRoute
+  '/tax': typeof TaxIndexRoute
+  '/workbench': typeof WorkbenchIndexRoute
+  '/activity/decision/$decisionId': typeof ActivityDecisionDecisionIdRoute
+  '/activity/trade/$correlationId': typeof ActivityTradeCorrelationIdRoute
+  '/decide/$ceremonyKind/$subjectId': typeof DecideCeremonyKindSubjectIdRoute
+  '/sleeves/$sleeveId/capabilities': typeof SleevesSleeveIdCapabilitiesRoute
+  '/sleeves/$sleeveId/decisions': typeof SleevesSleeveIdDecisionsRoute
+  '/sleeves/$sleeveId/mandate': typeof SleevesSleeveIdMandateRoute
+  '/sleeves/$sleeveId/performance': typeof SleevesSleeveIdPerformanceRoute
+  '/sleeves/$sleeveId/positions': typeof SleevesSleeveIdPositionsRoute
+  '/sleeves/$sleeveId/trial': typeof SleevesSleeveIdTrialRoute
+  '/tax/report/$financialYear': typeof TaxReportFinancialYearRoute
+  '/tax/sources/$sourceId': typeof TaxSourcesSourceIdRoute
+  '/workbench/backtests/$runId': typeof WorkbenchBacktestsRunIdRoute
+  '/workbench/proposals/$proposalId': typeof WorkbenchProposalsProposalIdRoute
+  '/sleeves/$sleeveId': typeof SleevesSleeveIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/sleeves/$sleeveId': typeof SleevesSleeveIdRouteRouteWithChildren
+  '/money/import': typeof MoneyImportRoute
+  '/money/recurring': typeof MoneyRecurringRoute
+  '/money/review': typeof MoneyReviewRoute
+  '/portfolio/cage': typeof PortfolioCageRoute
+  '/portfolio/capital': typeof PortfolioCapitalRoute
+  '/portfolio/costs': typeof PortfolioCostsRoute
+  '/portfolio/transfers': typeof PortfolioTransfersRoute
+  '/reports/$reportId': typeof ReportsReportIdRoute
+  '/tax/review': typeof TaxReviewRoute
+  '/workbench/data': typeof WorkbenchDataRoute
+  '/workbench/research': typeof WorkbenchResearchRoute
+  '/activity/': typeof ActivityIndexRoute
+  '/money/': typeof MoneyIndexRoute
+  '/portfolio/': typeof PortfolioIndexRoute
+  '/reports/': typeof ReportsIndexRoute
+  '/sleeves/': typeof SleevesIndexRoute
+  '/tax/': typeof TaxIndexRoute
+  '/workbench/': typeof WorkbenchIndexRoute
+  '/activity/decision/$decisionId': typeof ActivityDecisionDecisionIdRoute
+  '/activity/trade/$correlationId': typeof ActivityTradeCorrelationIdRoute
+  '/decide/$ceremonyKind/$subjectId': typeof DecideCeremonyKindSubjectIdRoute
+  '/sleeves/$sleeveId/capabilities': typeof SleevesSleeveIdCapabilitiesRoute
+  '/sleeves/$sleeveId/decisions': typeof SleevesSleeveIdDecisionsRoute
+  '/sleeves/$sleeveId/mandate': typeof SleevesSleeveIdMandateRoute
+  '/sleeves/$sleeveId/performance': typeof SleevesSleeveIdPerformanceRoute
+  '/sleeves/$sleeveId/positions': typeof SleevesSleeveIdPositionsRoute
+  '/sleeves/$sleeveId/trial': typeof SleevesSleeveIdTrialRoute
+  '/tax/report/$financialYear': typeof TaxReportFinancialYearRoute
+  '/tax/sources/$sourceId': typeof TaxSourcesSourceIdRoute
+  '/workbench/backtests/$runId': typeof WorkbenchBacktestsRunIdRoute
+  '/workbench/proposals/$proposalId': typeof WorkbenchProposalsProposalIdRoute
+  '/sleeves/$sleeveId/': typeof SleevesSleeveIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/sleeves/$sleeveId'
+    | '/money/import'
+    | '/money/recurring'
+    | '/money/review'
+    | '/portfolio/cage'
+    | '/portfolio/capital'
+    | '/portfolio/costs'
+    | '/portfolio/transfers'
+    | '/reports/$reportId'
+    | '/tax/review'
+    | '/workbench/data'
+    | '/workbench/research'
+    | '/activity/'
+    | '/money/'
+    | '/portfolio/'
+    | '/reports/'
+    | '/sleeves/'
+    | '/tax/'
+    | '/workbench/'
+    | '/activity/decision/$decisionId'
+    | '/activity/trade/$correlationId'
+    | '/decide/$ceremonyKind/$subjectId'
+    | '/sleeves/$sleeveId/capabilities'
+    | '/sleeves/$sleeveId/decisions'
+    | '/sleeves/$sleeveId/mandate'
+    | '/sleeves/$sleeveId/performance'
+    | '/sleeves/$sleeveId/positions'
+    | '/sleeves/$sleeveId/trial'
+    | '/tax/report/$financialYear'
+    | '/tax/sources/$sourceId'
+    | '/workbench/backtests/$runId'
+    | '/workbench/proposals/$proposalId'
+    | '/sleeves/$sleeveId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/money/import'
+    | '/money/recurring'
+    | '/money/review'
+    | '/portfolio/cage'
+    | '/portfolio/capital'
+    | '/portfolio/costs'
+    | '/portfolio/transfers'
+    | '/reports/$reportId'
+    | '/tax/review'
+    | '/workbench/data'
+    | '/workbench/research'
+    | '/activity'
+    | '/money'
+    | '/portfolio'
+    | '/reports'
+    | '/sleeves'
+    | '/tax'
+    | '/workbench'
+    | '/activity/decision/$decisionId'
+    | '/activity/trade/$correlationId'
+    | '/decide/$ceremonyKind/$subjectId'
+    | '/sleeves/$sleeveId/capabilities'
+    | '/sleeves/$sleeveId/decisions'
+    | '/sleeves/$sleeveId/mandate'
+    | '/sleeves/$sleeveId/performance'
+    | '/sleeves/$sleeveId/positions'
+    | '/sleeves/$sleeveId/trial'
+    | '/tax/report/$financialYear'
+    | '/tax/sources/$sourceId'
+    | '/workbench/backtests/$runId'
+    | '/workbench/proposals/$proposalId'
+    | '/sleeves/$sleeveId'
+  id:
+    | '__root__'
+    | '/'
+    | '/sleeves/$sleeveId'
+    | '/money/import'
+    | '/money/recurring'
+    | '/money/review'
+    | '/portfolio/cage'
+    | '/portfolio/capital'
+    | '/portfolio/costs'
+    | '/portfolio/transfers'
+    | '/reports/$reportId'
+    | '/tax/review'
+    | '/workbench/data'
+    | '/workbench/research'
+    | '/activity/'
+    | '/money/'
+    | '/portfolio/'
+    | '/reports/'
+    | '/sleeves/'
+    | '/tax/'
+    | '/workbench/'
+    | '/activity/decision/$decisionId'
+    | '/activity/trade/$correlationId'
+    | '/decide/$ceremonyKind/$subjectId'
+    | '/sleeves/$sleeveId/capabilities'
+    | '/sleeves/$sleeveId/decisions'
+    | '/sleeves/$sleeveId/mandate'
+    | '/sleeves/$sleeveId/performance'
+    | '/sleeves/$sleeveId/positions'
+    | '/sleeves/$sleeveId/trial'
+    | '/tax/report/$financialYear'
+    | '/tax/sources/$sourceId'
+    | '/workbench/backtests/$runId'
+    | '/workbench/proposals/$proposalId'
+    | '/sleeves/$sleeveId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SleevesSleeveIdRouteRoute: typeof SleevesSleeveIdRouteRouteWithChildren
+  MoneyImportRoute: typeof MoneyImportRoute
+  MoneyRecurringRoute: typeof MoneyRecurringRoute
+  MoneyReviewRoute: typeof MoneyReviewRoute
+  PortfolioCageRoute: typeof PortfolioCageRoute
+  PortfolioCapitalRoute: typeof PortfolioCapitalRoute
+  PortfolioCostsRoute: typeof PortfolioCostsRoute
+  PortfolioTransfersRoute: typeof PortfolioTransfersRoute
+  ReportsReportIdRoute: typeof ReportsReportIdRoute
+  TaxReviewRoute: typeof TaxReviewRoute
+  WorkbenchDataRoute: typeof WorkbenchDataRoute
+  WorkbenchResearchRoute: typeof WorkbenchResearchRoute
+  ActivityIndexRoute: typeof ActivityIndexRoute
+  MoneyIndexRoute: typeof MoneyIndexRoute
+  PortfolioIndexRoute: typeof PortfolioIndexRoute
+  ReportsIndexRoute: typeof ReportsIndexRoute
+  SleevesIndexRoute: typeof SleevesIndexRoute
+  TaxIndexRoute: typeof TaxIndexRoute
+  WorkbenchIndexRoute: typeof WorkbenchIndexRoute
+  ActivityDecisionDecisionIdRoute: typeof ActivityDecisionDecisionIdRoute
+  ActivityTradeCorrelationIdRoute: typeof ActivityTradeCorrelationIdRoute
+  DecideCeremonyKindSubjectIdRoute: typeof DecideCeremonyKindSubjectIdRoute
+  TaxReportFinancialYearRoute: typeof TaxReportFinancialYearRoute
+  TaxSourcesSourceIdRoute: typeof TaxSourcesSourceIdRoute
+  WorkbenchBacktestsRunIdRoute: typeof WorkbenchBacktestsRunIdRoute
+  WorkbenchProposalsProposalIdRoute: typeof WorkbenchProposalsProposalIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +480,291 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/activity/': {
+      id: '/activity/'
+      path: '/activity'
+      fullPath: '/activity/'
+      preLoaderRoute: typeof ActivityIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/money/': {
+      id: '/money/'
+      path: '/money'
+      fullPath: '/money/'
+      preLoaderRoute: typeof MoneyIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/money/import': {
+      id: '/money/import'
+      path: '/money/import'
+      fullPath: '/money/import'
+      preLoaderRoute: typeof MoneyImportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/money/recurring': {
+      id: '/money/recurring'
+      path: '/money/recurring'
+      fullPath: '/money/recurring'
+      preLoaderRoute: typeof MoneyRecurringRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/money/review': {
+      id: '/money/review'
+      path: '/money/review'
+      fullPath: '/money/review'
+      preLoaderRoute: typeof MoneyReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portfolio/': {
+      id: '/portfolio/'
+      path: '/portfolio'
+      fullPath: '/portfolio/'
+      preLoaderRoute: typeof PortfolioIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portfolio/cage': {
+      id: '/portfolio/cage'
+      path: '/portfolio/cage'
+      fullPath: '/portfolio/cage'
+      preLoaderRoute: typeof PortfolioCageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portfolio/capital': {
+      id: '/portfolio/capital'
+      path: '/portfolio/capital'
+      fullPath: '/portfolio/capital'
+      preLoaderRoute: typeof PortfolioCapitalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portfolio/costs': {
+      id: '/portfolio/costs'
+      path: '/portfolio/costs'
+      fullPath: '/portfolio/costs'
+      preLoaderRoute: typeof PortfolioCostsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portfolio/transfers': {
+      id: '/portfolio/transfers'
+      path: '/portfolio/transfers'
+      fullPath: '/portfolio/transfers'
+      preLoaderRoute: typeof PortfolioTransfersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports/': {
+      id: '/reports/'
+      path: '/reports'
+      fullPath: '/reports/'
+      preLoaderRoute: typeof ReportsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports/$reportId': {
+      id: '/reports/$reportId'
+      path: '/reports/$reportId'
+      fullPath: '/reports/$reportId'
+      preLoaderRoute: typeof ReportsReportIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sleeves/': {
+      id: '/sleeves/'
+      path: '/sleeves'
+      fullPath: '/sleeves/'
+      preLoaderRoute: typeof SleevesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sleeves/$sleeveId': {
+      id: '/sleeves/$sleeveId'
+      path: '/sleeves/$sleeveId'
+      fullPath: '/sleeves/$sleeveId'
+      preLoaderRoute: typeof SleevesSleeveIdRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tax/': {
+      id: '/tax/'
+      path: '/tax'
+      fullPath: '/tax/'
+      preLoaderRoute: typeof TaxIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tax/review': {
+      id: '/tax/review'
+      path: '/tax/review'
+      fullPath: '/tax/review'
+      preLoaderRoute: typeof TaxReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workbench/': {
+      id: '/workbench/'
+      path: '/workbench'
+      fullPath: '/workbench/'
+      preLoaderRoute: typeof WorkbenchIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workbench/data': {
+      id: '/workbench/data'
+      path: '/workbench/data'
+      fullPath: '/workbench/data'
+      preLoaderRoute: typeof WorkbenchDataRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workbench/research': {
+      id: '/workbench/research'
+      path: '/workbench/research'
+      fullPath: '/workbench/research'
+      preLoaderRoute: typeof WorkbenchResearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/activity/decision/$decisionId': {
+      id: '/activity/decision/$decisionId'
+      path: '/activity/decision/$decisionId'
+      fullPath: '/activity/decision/$decisionId'
+      preLoaderRoute: typeof ActivityDecisionDecisionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/activity/trade/$correlationId': {
+      id: '/activity/trade/$correlationId'
+      path: '/activity/trade/$correlationId'
+      fullPath: '/activity/trade/$correlationId'
+      preLoaderRoute: typeof ActivityTradeCorrelationIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/decide/$ceremonyKind/$subjectId': {
+      id: '/decide/$ceremonyKind/$subjectId'
+      path: '/decide/$ceremonyKind/$subjectId'
+      fullPath: '/decide/$ceremonyKind/$subjectId'
+      preLoaderRoute: typeof DecideCeremonyKindSubjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sleeves/$sleeveId/': {
+      id: '/sleeves/$sleeveId/'
+      path: '/'
+      fullPath: '/sleeves/$sleeveId/'
+      preLoaderRoute: typeof SleevesSleeveIdIndexRouteImport
+      parentRoute: typeof SleevesSleeveIdRouteRoute
+    }
+    '/sleeves/$sleeveId/capabilities': {
+      id: '/sleeves/$sleeveId/capabilities'
+      path: '/capabilities'
+      fullPath: '/sleeves/$sleeveId/capabilities'
+      preLoaderRoute: typeof SleevesSleeveIdCapabilitiesRouteImport
+      parentRoute: typeof SleevesSleeveIdRouteRoute
+    }
+    '/sleeves/$sleeveId/decisions': {
+      id: '/sleeves/$sleeveId/decisions'
+      path: '/decisions'
+      fullPath: '/sleeves/$sleeveId/decisions'
+      preLoaderRoute: typeof SleevesSleeveIdDecisionsRouteImport
+      parentRoute: typeof SleevesSleeveIdRouteRoute
+    }
+    '/sleeves/$sleeveId/mandate': {
+      id: '/sleeves/$sleeveId/mandate'
+      path: '/mandate'
+      fullPath: '/sleeves/$sleeveId/mandate'
+      preLoaderRoute: typeof SleevesSleeveIdMandateRouteImport
+      parentRoute: typeof SleevesSleeveIdRouteRoute
+    }
+    '/sleeves/$sleeveId/performance': {
+      id: '/sleeves/$sleeveId/performance'
+      path: '/performance'
+      fullPath: '/sleeves/$sleeveId/performance'
+      preLoaderRoute: typeof SleevesSleeveIdPerformanceRouteImport
+      parentRoute: typeof SleevesSleeveIdRouteRoute
+    }
+    '/sleeves/$sleeveId/positions': {
+      id: '/sleeves/$sleeveId/positions'
+      path: '/positions'
+      fullPath: '/sleeves/$sleeveId/positions'
+      preLoaderRoute: typeof SleevesSleeveIdPositionsRouteImport
+      parentRoute: typeof SleevesSleeveIdRouteRoute
+    }
+    '/sleeves/$sleeveId/trial': {
+      id: '/sleeves/$sleeveId/trial'
+      path: '/trial'
+      fullPath: '/sleeves/$sleeveId/trial'
+      preLoaderRoute: typeof SleevesSleeveIdTrialRouteImport
+      parentRoute: typeof SleevesSleeveIdRouteRoute
+    }
+    '/tax/report/$financialYear': {
+      id: '/tax/report/$financialYear'
+      path: '/tax/report/$financialYear'
+      fullPath: '/tax/report/$financialYear'
+      preLoaderRoute: typeof TaxReportFinancialYearRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tax/sources/$sourceId': {
+      id: '/tax/sources/$sourceId'
+      path: '/tax/sources/$sourceId'
+      fullPath: '/tax/sources/$sourceId'
+      preLoaderRoute: typeof TaxSourcesSourceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workbench/backtests/$runId': {
+      id: '/workbench/backtests/$runId'
+      path: '/workbench/backtests/$runId'
+      fullPath: '/workbench/backtests/$runId'
+      preLoaderRoute: typeof WorkbenchBacktestsRunIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workbench/proposals/$proposalId': {
+      id: '/workbench/proposals/$proposalId'
+      path: '/workbench/proposals/$proposalId'
+      fullPath: '/workbench/proposals/$proposalId'
+      preLoaderRoute: typeof WorkbenchProposalsProposalIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface SleevesSleeveIdRouteRouteChildren {
+  SleevesSleeveIdCapabilitiesRoute: typeof SleevesSleeveIdCapabilitiesRoute
+  SleevesSleeveIdDecisionsRoute: typeof SleevesSleeveIdDecisionsRoute
+  SleevesSleeveIdMandateRoute: typeof SleevesSleeveIdMandateRoute
+  SleevesSleeveIdPerformanceRoute: typeof SleevesSleeveIdPerformanceRoute
+  SleevesSleeveIdPositionsRoute: typeof SleevesSleeveIdPositionsRoute
+  SleevesSleeveIdTrialRoute: typeof SleevesSleeveIdTrialRoute
+  SleevesSleeveIdIndexRoute: typeof SleevesSleeveIdIndexRoute
+}
+
+const SleevesSleeveIdRouteRouteChildren: SleevesSleeveIdRouteRouteChildren = {
+  SleevesSleeveIdCapabilitiesRoute: SleevesSleeveIdCapabilitiesRoute,
+  SleevesSleeveIdDecisionsRoute: SleevesSleeveIdDecisionsRoute,
+  SleevesSleeveIdMandateRoute: SleevesSleeveIdMandateRoute,
+  SleevesSleeveIdPerformanceRoute: SleevesSleeveIdPerformanceRoute,
+  SleevesSleeveIdPositionsRoute: SleevesSleeveIdPositionsRoute,
+  SleevesSleeveIdTrialRoute: SleevesSleeveIdTrialRoute,
+  SleevesSleeveIdIndexRoute: SleevesSleeveIdIndexRoute,
+}
+
+const SleevesSleeveIdRouteRouteWithChildren =
+  SleevesSleeveIdRouteRoute._addFileChildren(SleevesSleeveIdRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SleevesSleeveIdRouteRoute: SleevesSleeveIdRouteRouteWithChildren,
+  MoneyImportRoute: MoneyImportRoute,
+  MoneyRecurringRoute: MoneyRecurringRoute,
+  MoneyReviewRoute: MoneyReviewRoute,
+  PortfolioCageRoute: PortfolioCageRoute,
+  PortfolioCapitalRoute: PortfolioCapitalRoute,
+  PortfolioCostsRoute: PortfolioCostsRoute,
+  PortfolioTransfersRoute: PortfolioTransfersRoute,
+  ReportsReportIdRoute: ReportsReportIdRoute,
+  TaxReviewRoute: TaxReviewRoute,
+  WorkbenchDataRoute: WorkbenchDataRoute,
+  WorkbenchResearchRoute: WorkbenchResearchRoute,
+  ActivityIndexRoute: ActivityIndexRoute,
+  MoneyIndexRoute: MoneyIndexRoute,
+  PortfolioIndexRoute: PortfolioIndexRoute,
+  ReportsIndexRoute: ReportsIndexRoute,
+  SleevesIndexRoute: SleevesIndexRoute,
+  TaxIndexRoute: TaxIndexRoute,
+  WorkbenchIndexRoute: WorkbenchIndexRoute,
+  ActivityDecisionDecisionIdRoute: ActivityDecisionDecisionIdRoute,
+  ActivityTradeCorrelationIdRoute: ActivityTradeCorrelationIdRoute,
+  DecideCeremonyKindSubjectIdRoute: DecideCeremonyKindSubjectIdRoute,
+  TaxReportFinancialYearRoute: TaxReportFinancialYearRoute,
+  TaxSourcesSourceIdRoute: TaxSourcesSourceIdRoute,
+  WorkbenchBacktestsRunIdRoute: WorkbenchBacktestsRunIdRoute,
+  WorkbenchProposalsProposalIdRoute: WorkbenchProposalsProposalIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
