@@ -600,16 +600,32 @@ const buildConfirmationPlan = Effect.fn("MoneyImports.buildConfirmationPlan")(fu
 
   const targets = new Map<number, TransactionTarget>();
   const transactions: TransactionPlan[] = [];
+  // One canonical transaction cannot satisfy two incoming rows. The matching
+  // pass enforces that within a tier, but an ambiguity's candidate list is not
+  // filtered by what a later tier claimed, so the two paths have to agree here.
   const claimedExistingTransactions = new Set<BankTransactionId>();
+  const claimExisting = (transactionId: BankTransactionId, matchTier: TransactionTarget["matchTier"], sourceOrdinal: number) => {
+    if (claimedExistingTransactions.has(transactionId)) {
+      return new ValidationFailed({
+        reason: "TransactionClaimedTwice",
+        detail: `${transactionId} can satisfy only one source row`,
+      });
+    }
+
+    claimedExistingTransactions.add(transactionId);
+    targets.set(sourceOrdinal, { id: transactionId, isNew: false, matchTier });
+    return null;
+  };
 
   for (const verdict of prepared.verdicts) {
     if (verdict._tag === "Duplicate") {
-      claimedExistingTransactions.add(verdict.transactionId);
-      targets.set(verdict.row.csv.sourceOrdinal, {
-        id: verdict.transactionId,
-        isNew: false,
-        matchTier: verdict.matchTier,
-      });
+      const rejected = claimExisting(
+        verdict.transactionId,
+        verdict.matchTier,
+        verdict.row.csv.sourceOrdinal,
+      );
+
+      if (rejected !== null) return yield* rejected;
       continue;
     }
 
@@ -622,18 +638,14 @@ const buildConfirmationPlan = Effect.fn("MoneyImports.buildConfirmationPlan")(fu
             detail: `${resolution.decision.transactionId} is not a candidate for ${verdict.id}`,
           });
         }
-        if (claimedExistingTransactions.has(resolution.decision.transactionId)) {
-          return yield* new ValidationFailed({
-            reason: "AmbiguityCandidateAlreadyClaimed",
-            detail: `${resolution.decision.transactionId} can satisfy only one source row`,
-          });
-        }
-        claimedExistingTransactions.add(resolution.decision.transactionId);
-        targets.set(verdict.row.csv.sourceOrdinal, {
-          id: resolution.decision.transactionId,
-          isNew: false,
-          matchTier: "manual",
-        });
+
+        const rejected = claimExisting(
+          resolution.decision.transactionId,
+          "manual",
+          verdict.row.csv.sourceOrdinal,
+        );
+
+        if (rejected !== null) return yield* rejected;
         continue;
       }
     }
