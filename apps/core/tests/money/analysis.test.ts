@@ -195,6 +195,18 @@ describe("money analysis", () => {
     expect(analysis.suggestions).toHaveLength(1);
   });
 
+  test("treats a record with no required account as unavailable, not as zero", () => {
+    const analysis = analyzeMoney(
+      { accounts: [], coverage: [], transactions: [] },
+      month("2026-03"),
+      month("2026-03"),
+    );
+
+    expect(analysis.months[0]?.coverage._tag).toBe("Incomplete");
+    expect(analysis.months[0]?.netSpend).toBeNull();
+    expect(analysis.dataThrough).toBeNull();
+  });
+
   test("returns an unavailable month instead of treating a coverage hole as zero spending", () => {
     const record: MoneyAnalysisRecord = {
       ...completeRecord(baseTransactions),

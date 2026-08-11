@@ -123,19 +123,25 @@ const satisfiedIntervals = (account: BankAccount, segments: readonly CoverageSeg
 export const fullyCoveredIntervals = (
   accounts: readonly BankAccount[],
   segments: readonly CoverageSegment[],
-): readonly DateInterval[] =>
-  accounts
-    .filter((account) => account.required)
-    .reduce<readonly DateInterval[]>(
-      (covered, account) =>
-        covered.flatMap((interval) =>
-          satisfiedIntervals(account, segments).flatMap((satisfied) => {
-            const overlap = intersectIntervals(interval, satisfied);
-            return overlap === null ? [] : [overlap];
-          }),
-        ),
-      [{ start: firstCalendarDate, end: lastCalendarDate }],
-    );
+): readonly DateInterval[] => {
+  const required = accounts.filter((account) => account.required);
+
+  // A record with no required account has no evidence, not complete evidence.
+  // Reading the empty intersection as "everything is covered" would let a
+  // system that has imported nothing report a month of zero spending.
+  if (required.length === 0) return [];
+
+  return required.reduce<readonly DateInterval[]>(
+    (covered, account) =>
+      covered.flatMap((interval) =>
+        satisfiedIntervals(account, segments).flatMap((satisfied) => {
+          const overlap = intersectIntervals(interval, satisfied);
+          return overlap === null ? [] : [overlap];
+        }),
+      ),
+    [{ start: firstCalendarDate, end: lastCalendarDate }],
+  );
+};
 
 export const isFullyCovered = (covered: readonly DateInterval[], window: DateInterval) =>
   covered.some((interval) => interval.start <= window.start && window.end <= interval.end);
