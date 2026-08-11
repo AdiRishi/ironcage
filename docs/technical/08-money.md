@@ -358,7 +358,7 @@ The preview response contains:
 - narrative variants and other warnings; and
 - rows needing category review.
 
-Confirm resends the same files, expected bundle digest, expected preview fingerprint, and explicit ambiguity resolutions. Core recomputes the import against the current record while holding a per-account advisory lock.
+Confirm resends the same files, expected bundle digest, expected preview fingerprint, and explicit ambiguity resolutions. Core recomputes the import against the current record while holding the Money record's advisory lock. Phase 1 has one operator and low-frequency mutations, so this deliberately serializes imports with categorization and report generation as well as protecting same-account deduplication. The broader lock keeps cross-account transfer matching and the global request-ID registry coherent without a second locking protocol.
 
 If the digest changes, confirm returns `ImportBytesChanged`. If the database result differs from the preview, confirm returns `PreviewStale`. The app then runs preview again.
 
@@ -527,7 +527,7 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 | Weekly alternative window          | rolling 21 calendar days                                                             | operator              | proposed |
 | Backfill overlap                   | seven calendar days                                                                  | operator              | proposed |
 | Preview persistence                | none                                                                                 | importer              | decided  |
-| Confirm serialization              | advisory lock per bank account                                                       | importer              | decided  |
+| Confirm serialization              | one advisory lock for the Money record                                               | importer              | decided  |
 | AI categorization auto-apply       | off until review-corpus calibration                                                  | operator              | decided  |
 | Categorization batch size          | 200 transactions                                                                     | categorization config | proposed |
 | Owned-transfer date window         | three calendar days, exact amount                                                    | analysis config       | decided  |
@@ -564,17 +564,18 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 - [x] Add minimally redacted source fixtures for all four observed account profiles and the overlapping spending-offset windows.
 - [x] Add deterministic tests for a same-day equal-row collision, an empty result, and the 600-row edge as their consuming implementation lands. Quoted commas and Windows-1252 text are covered by the decoder suite.
 - [x] Implement direct CSV and OFX SGML decoders with exact source-cell preservation.
-- [ ] Implement account identity HMAC storage and require identity match before row processing.
+- [x] Implement account identity HMAC storage and require identity match before row processing.
 - [x] Implement exact CSV/OFX multiset pairing, 600-row rejection, balance chains, and ledger reconciliation.
 - [ ] Package AnyDoc 0.1.7 in the isolated compute image and record its image digest with each extraction.
 - [ ] Implement the offset statement state machine and certify it only after the structured-overlap fixture passes.
 - [ ] Add Mastercard and home-loan statement profiles only after their own fixtures close the open questions.
-- [ ] Create the source-file, observation, canonical-transaction, link, balance, and coverage tables.
-- [ ] Implement the ordered dedupe tiers with claim-once and explicit ambiguity results.
+- [x] Create the source-file, observation, canonical-transaction, link, balance, and coverage tables.
+- [x] Implement the ordered dedupe tiers with claim-once and explicit ambiguity results.
 - [ ] Property-test idempotency under repeated bundles, arbitrary overlapping windows, and repeated equal rows.
 - [ ] Property-test that deleting or changing a balanced row fails reconciliation.
-- [ ] Implement stateless preview and digest-verified confirm with stale-preview rejection and an account advisory lock.
-- [ ] Test that preview writes nothing and exact reconfirm writes nothing new.
-- [ ] Implement categories, exact splits, rule-first dispatch, review-only AI, and provenance.
-- [ ] Implement owned-transfer matching, refund treatment, home-loan principal treatment, and complete-month analysis.
-- [ ] Emit feed events for confirmed imports, coverage gaps and closures, recurring price changes, and anomalies; prove blocked previews emit none.
+- [x] Implement stateless preview and digest-verified confirm with stale-preview rejection and the Money-record advisory lock.
+- [x] Test that preview writes nothing and exact reconfirm writes nothing new.
+- [x] Implement categories, exact splits, rule-first dispatch, the review queue, and provenance.
+- [ ] Enable review-only AI suggestions after the pinned Flue/Gateway contract and model trial close the AI chapter's activation gates.
+- [x] Implement owned-transfer matching, refund treatment, home-loan principal treatment, and complete-month analysis.
+- [x] Emit feed events for confirmed imports, coverage gaps and closures, recurring price changes, and anomalies; prove blocked previews emit none.

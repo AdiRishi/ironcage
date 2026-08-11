@@ -34,6 +34,7 @@ Local never holds live venue keys. Core asserts that `ENVIRONMENT=local` accepts
 | `ironcage-core`    | `KRAKEN_KEY` / `_SECRET`                         | unset; fixtures + remote validate harness | live key, withdrawal permissions absent, asserted at boot          |
 | `ironcage-core`    | `KRAKEN_EXPORT_KEY` / `_SECRET`                  | unset                                     | read-only key for tax exports, own nonce sequence                  |
 | `ironcage-core`    | `ALPACA_KEY` / `_SECRET`                         | paper-account keys                        | live keys; wallet/transfer posture proven by launch gate           |
+| `ironcage-core`    | `MONEY_IDENTITY_KEY`                             | random local-only key                     | HMAC key for bank account identities                               |
 | `ironcage-core`    | `AGENTS` service binding                         | local dev registry                        | `ironcage-agents`                                                  |
 | `ironcage-core`    | `COMPUTE` DO (`script_name`)                     | external local compute Worker             | `ironcage-compute`                                                 |
 | `ironcage-core`    | `DECISION_RECORDS` consumer                      | local queue                               | production queue                                                   |
@@ -100,6 +101,7 @@ Secrets are Worker secrets set through Wrangler, except the dump credential, whi
 | `AI_GATEWAY_TOKEN`              | `ironcage-agents`                | quarterly (proposed) | authenticates requests; spend limits are separate gateway configuration                |
 | `DUMP_DSN`                      | trusted backup container profile | quarterly (proposed) | dedicated read-only Postgres role; never enters the untrusted backtest environment     |
 | `HEALTH_SIGNING_KEY`            | `ironcage-core`                  | on compromise only   | signs the health route's response                                                      |
+| `MONEY_IDENTITY_KEY`            | `ironcage-core`                  | on compromise only   | at least 32 bytes; rotation requires a deliberate bank-identity re-key job             |
 | Postgres credentials (engine)   | Hyperdrive configs               | PlanetScale-managed  | held by the Hyperdrive configuration, not by Workers                                   |
 | Access signing keys             | Cloudflare                       | Cloudflare-managed   | the Worker verifies against public JWKS                                                |
 
