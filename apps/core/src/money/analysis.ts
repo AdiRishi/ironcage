@@ -1,6 +1,7 @@
 import {
   CalendarDate,
   CalendarMonth,
+  formatAud,
   money,
   Money,
   MoneyAnalysis,
@@ -104,6 +105,20 @@ const cadenceFor = (medianGap: number) =>
   cadences.find(({ days, tolerance }) => Math.abs(medianGap - days) <= tolerance)?.days;
 
 /**
+ * What an amount at one cadence comes to over a year. Multiplying before
+ * dividing keeps the intermediate exact; dividing 365 by the cadence first
+ * produces a repeating decimal that only then gets scaled back to a stored
+ * amount.
+ */
+const annualised = (amount: Money, cadenceDays: number) =>
+  money(
+    BigDecimal.divideUnsafe(
+      BigDecimal.multiply(amount, year),
+      BigDecimal.fromBigInt(BigInt(cadenceDays)),
+    ),
+  );
+
+/**
  * One transaction's contribution to spending: the signed sum of its expense
  * splits, so a refund reduces its own category rather than reading as income.
  * An owned transfer contributes nothing to either side.
@@ -203,12 +218,7 @@ const recurringCharges = (
       cadenceDays,
       typicalAmount,
       latestAmount,
-      estimatedAnnualSpend: money(
-        BigDecimal.multiply(
-          typicalAmount,
-          BigDecimal.divideUnsafe(year, BigDecimal.fromBigInt(BigInt(cadenceDays))),
-        ),
-      ),
+      estimatedAnnualSpend: annualised(typicalAmount, cadenceDays),
       priceChange:
         BigDecimal.isGreaterThan(relativeChange, onePercent) &&
         BigDecimal.isGreaterThanOrEqualTo(absoluteChange, dollar)
@@ -219,6 +229,76 @@ const recurringCharges = (
   }
 
   return recurring.sort((left, right) => left.payee.localeCompare(right.payee));
+};
+
+/**
+ * Below this a year, a charge is not worth an operator's attention, and listing
+ * it costs the suggestions that are. Proposed analysis configuration, like the
+ * recurring thresholds it sits beside.
+ */
+const suggestionFloor = BigDecimal.fromBigInt(120n);
+
+/**
+ * What the record can recommend from what it has proved. A price rise leads,
+ * because it is the one thing here that changed and the operator did not choose
+ * it; the impact quoted is the rise annualised, not the whole subscription,
+ * because cancelling and paying the old price are different decisions.
+ *
+ * The remaining charges follow, largest first, so a short list is the expensive
+ * one. Every suggestion carries the transactions it was drawn from.
+ */
+const savingsSuggestions = (
+  recurring: readonly RecurringCharge[],
+  dataThrough: CalendarDate,
+): readonly SavingsSuggestion[] => {
+  const rise = (charge: RecurringCharge) =>
+    charge.priceChange !== null &&
+    BigDecimal.isGreaterThan(charge.priceChange.currentAmount, charge.priceChange.previousAmount)
+      ? {
+          previous: charge.priceChange.previousAmount,
+          current: charge.priceChange.currentAmount,
+          amount: money(
+            BigDecimal.subtract(
+              charge.priceChange.currentAmount,
+              charge.priceChange.previousAmount,
+            ),
+          ),
+        }
+      : null;
+
+  return recurring
+    .flatMap((charge): readonly SavingsSuggestion[] => {
+      const increase = rise(charge);
+
+      if (increase !== null) {
+        return [
+          {
+            title: `${charge.payee} costs more than it did`,
+            reasoning: `${charge.payee} went from ${formatAud(increase.previous)} to ${formatAud(increase.current)} every ${charge.cadenceDays} days. Cancelling or renegotiating recovers the rise.`,
+            estimatedAnnualImpact: annualised(increase.amount, charge.cadenceDays),
+            dataThrough,
+            transactionIds: charge.transactionIds,
+          },
+        ];
+      }
+
+      if (!BigDecimal.isGreaterThanOrEqualTo(charge.estimatedAnnualSpend, suggestionFloor)) {
+        return [];
+      }
+
+      return [
+        {
+          title: `Still paying ${charge.payee}?`,
+          reasoning: `${charge.payee} takes ${formatAud(charge.typicalAmount)} every ${charge.cadenceDays} days, and has for ${charge.transactionIds.length} charges.`,
+          estimatedAnnualImpact: charge.estimatedAnnualSpend,
+          dataThrough,
+          transactionIds: charge.transactionIds,
+        },
+      ];
+    })
+    .sort((left, right) =>
+      BigDecimal.Order(right.estimatedAnnualImpact, left.estimatedAnnualImpact),
+    );
 };
 
 const transactionAnomalies = (
@@ -498,16 +578,7 @@ export const analyzeMoney = (
     months,
     recurringCharges: recurring,
     anomalies,
-    suggestions:
-      complete && dataThrough !== null
-        ? recurring.map((charge): SavingsSuggestion => ({
-            title: `Review recurring charge: ${charge.payee}`,
-            reasoning: `${charge.payee} recurs about every ${charge.cadenceDays} days at ${BigDecimal.format(charge.typicalAmount)} a time.`,
-            estimatedAnnualImpact: charge.estimatedAnnualSpend,
-            dataThrough,
-            transactionIds: charge.transactionIds,
-          }))
-        : [],
+    suggestions: complete && dataThrough !== null ? savingsSuggestions(recurring, dataThrough) : [],
     dataThrough,
   };
 };
