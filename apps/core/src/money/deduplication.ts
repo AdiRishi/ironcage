@@ -8,7 +8,8 @@ import type {
 import { BigDecimal, Option } from "effect";
 
 import type { CommBankPairedRow } from "./commbank/bundle";
-import { narrativeFingerprint } from "./normalization";
+import { commBankPairedProfileId } from "./commbank/profiles";
+import { normalizeNarrative } from "./normalization";
 
 export interface StoredTransactionEvidence {
   readonly transactionId: BankTransactionId;
@@ -65,34 +66,42 @@ export type DedupeResult =
 
 const amountKey = (amount: Money) => BigDecimal.format(BigDecimal.normalize(amount));
 
-const rowBalanceKey = (row: CommBankPairedRow) => {
-  const balance = Option.getOrNull(row.csv.rowBalance);
-
-  return balance === null
-    ? null
-    : JSON.stringify([row.postedDate, amountKey(row.amount), amountKey(balance)]);
-};
+const balanceKey = (date: CalendarDate, amount: Money, balance: Money) =>
+  JSON.stringify([date, amountKey(amount), amountKey(balance)]);
 
 const contentKey = (date: CalendarDate, amount: Money, fingerprint: string) =>
   JSON.stringify([date, amountKey(amount), fingerprint]);
 
+const identifierKey = (sourceProfile: string, identifier: string) =>
+  JSON.stringify([sourceProfile, identifier]);
+
+const append = <Key, Value>(index: Map<Key, Value[]>, key: Key, value: Value) => {
+  const group = index.get(key);
+
+  if (group === undefined) index.set(key, [value]);
+  else group.push(value);
+};
+
 const transactionIds = (transactions: readonly StoredTransactionEvidence[]) =>
   [...new Set(transactions.map((transaction) => transaction.transactionId))].sort();
+
+const duplicate = (
+  row: CommBankPairedRow,
+  transaction: StoredTransactionEvidence,
+  matchTier: Extract<DedupeVerdict, { readonly _tag: "Duplicate" }>["matchTier"],
+): UnidentifiedDedupeVerdict => ({
+  _tag: "Duplicate",
+  row,
+  transactionId: transaction.transactionId,
+  matchTier,
+  narrativeChanged:
+    normalizeNarrative(transaction.preferredNarrative) !== normalizeNarrative(row.narrative),
+});
 
 interface ContentOccurrenceEvidence {
   readonly occurrence: number;
   readonly transaction: StoredTransactionEvidence;
 }
-
-const occurrenceTransactionIds = (
-  evidence: readonly ContentOccurrenceEvidence[],
-  occurrence: number,
-) =>
-  transactionIds(
-    evidence
-      .filter((candidate) => candidate.occurrence === occurrence)
-      .map((candidate) => candidate.transaction),
-  );
 
 export const deduplicateStructuredRows = (
   rows: readonly CommBankPairedRow[],
@@ -101,41 +110,38 @@ export const deduplicateStructuredRows = (
   const byIdentifier = new Map<string, StoredTransactionEvidence>();
   const byRowBalance = new Map<string, StoredTransactionEvidence[]>();
   const byContent = new Map<string, ContentOccurrenceEvidence[]>();
+  const balanceProven = new Set<BankTransactionId>();
 
   for (const transaction of stored) {
     for (const observation of transaction.observations) {
       if (observation.bankIdentifier !== null) {
         byIdentifier.set(
-          `${observation.sourceProfile}\u0000${observation.bankIdentifier}`,
+          identifierKey(observation.sourceProfile, observation.bankIdentifier),
           transaction,
         );
       }
 
       if (observation.rowBalance !== null) {
-        const key = JSON.stringify([
-          transaction.postedDate,
-          amountKey(transaction.amount),
-          amountKey(observation.rowBalance),
-        ]);
-        byRowBalance.set(key, [...(byRowBalance.get(key) ?? []), transaction]);
+        balanceProven.add(transaction.transactionId);
+        append(
+          byRowBalance,
+          balanceKey(transaction.postedDate, transaction.amount, observation.rowBalance),
+          transaction,
+        );
       }
 
-      const key = contentKey(
-        transaction.postedDate,
-        transaction.amount,
-        observation.narrativeFingerprint,
-      );
-      byContent.set(key, [
-        ...(byContent.get(key) ?? []),
+      append(
+        byContent,
+        contentKey(transaction.postedDate, transaction.amount, observation.narrativeFingerprint),
         { occurrence: observation.equalRowOccurrence, transaction },
-      ]);
+      );
     }
   }
 
   const incomingGroupCounts = new Map<string, number>();
 
   for (const row of rows) {
-    const key = contentKey(row.postedDate, row.amount, narrativeFingerprint(row.narrative));
+    const key = contentKey(row.postedDate, row.amount, normalizeNarrative(row.narrative));
     incomingGroupCounts.set(key, (incomingGroupCounts.get(key) ?? 0) + 1);
   }
 
@@ -146,7 +152,7 @@ export const deduplicateStructuredRows = (
     const identifier = Option.getOrNull(row.ofx.identifier);
 
     if (identifier !== null) {
-      const transaction = byIdentifier.get(`cba-netbank-paired-v1\u0000${identifier}`);
+      const transaction = byIdentifier.get(identifierKey(commBankPairedProfileId, identifier));
 
       if (transaction !== undefined) {
         if (
@@ -167,80 +173,73 @@ export const deduplicateStructuredRows = (
         }
 
         claimed.add(transaction.transactionId);
-        verdicts.push({
-          _tag: "Duplicate",
-          row,
-          transactionId: transaction.transactionId,
-          matchTier: "bank_identifier",
-          narrativeChanged:
-            narrativeFingerprint(transaction.preferredNarrative) !==
-            narrativeFingerprint(row.narrative),
-        });
+        verdicts.push(duplicate(row, transaction, "bank_identifier"));
         continue;
       }
     }
 
-    const balanceKey = rowBalanceKey(row);
+    const rowBalance = Option.getOrNull(row.csv.rowBalance);
     const balanceCandidates =
-      balanceKey === null
+      rowBalance === null
         ? []
-        : transactionIds(
-            (byRowBalance.get(balanceKey) ?? []).filter(
-              (transaction) => !claimed.has(transaction.transactionId),
-            ),
+        : (byRowBalance.get(balanceKey(row.postedDate, row.amount, rowBalance)) ?? []).filter(
+            (transaction) => !claimed.has(transaction.transactionId),
           );
 
     if (balanceCandidates.length === 1) {
-      const transactionId = balanceCandidates[0]!;
-      const transaction = stored.find((candidate) => candidate.transactionId === transactionId)!;
-      claimed.add(transactionId);
-      verdicts.push({
-        _tag: "Duplicate",
-        row,
-        transactionId,
-        matchTier: "row_balance",
-        narrativeChanged:
-          narrativeFingerprint(transaction.preferredNarrative) !==
-          narrativeFingerprint(row.narrative),
-      });
+      const transaction = balanceCandidates[0]!;
+
+      claimed.add(transaction.transactionId);
+      verdicts.push(duplicate(row, transaction, "row_balance"));
       continue;
     }
 
     if (balanceCandidates.length > 1) {
-      verdicts.push({ _tag: "Ambiguous", row, candidateTransactionIds: balanceCandidates });
-      continue;
-    }
-
-    const key = contentKey(row.postedDate, row.amount, narrativeFingerprint(row.narrative));
-    const contentEvidence = byContent.get(key) ?? [];
-    const contentTransactions = transactionIds(
-      contentEvidence.map((candidate) => candidate.transaction),
-    );
-    const incomingCount = incomingGroupCounts.get(key)!;
-
-    if (contentTransactions.length > 0 && contentTransactions.length !== incomingCount) {
-      verdicts.push({ _tag: "Ambiguous", row, candidateTransactionIds: contentTransactions });
-      continue;
-    }
-
-    const occurrenceCandidates = occurrenceTransactionIds(contentEvidence, row.occurrence).filter(
-      (transactionId) => !claimed.has(transactionId),
-    );
-
-    if (occurrenceCandidates.length === 1) {
-      const occurrenceCandidate = occurrenceCandidates[0]!;
-      claimed.add(occurrenceCandidate);
       verdicts.push({
-        _tag: "Duplicate",
+        _tag: "Ambiguous",
         row,
-        transactionId: occurrenceCandidate,
-        matchTier: "content_occurrence",
-        narrativeChanged: false,
+        candidateTransactionIds: transactionIds(balanceCandidates),
       });
       continue;
     }
 
-    if (occurrenceCandidates.length > 1 || contentTransactions.length > 0) {
+    // A row balance that matched nothing is decisive against any stored
+    // transaction whose own balance position is recorded: the bank placed the
+    // two rows at different points in one chain, so they are different
+    // movements however identically their narratives read. Content and
+    // occurrence decide only what no balance has already answered.
+    const key = contentKey(row.postedDate, row.amount, normalizeNarrative(row.narrative));
+    const contentEvidence = (byContent.get(key) ?? []).filter(
+      (candidate) => rowBalance === null || !balanceProven.has(candidate.transaction.transactionId),
+    );
+    const contentTransactions = transactionIds(
+      contentEvidence.map((candidate) => candidate.transaction),
+    );
+
+    if (
+      contentTransactions.length > 0 &&
+      contentTransactions.length !== incomingGroupCounts.get(key)
+    ) {
+      verdicts.push({ _tag: "Ambiguous", row, candidateTransactionIds: contentTransactions });
+      continue;
+    }
+
+    const occurrenceCandidates = contentEvidence
+      .filter(
+        (candidate) =>
+          candidate.occurrence === row.occurrence &&
+          !claimed.has(candidate.transaction.transactionId),
+      )
+      .map((candidate) => candidate.transaction);
+    const occurrenceIds = transactionIds(occurrenceCandidates);
+
+    if (occurrenceIds.length === 1) {
+      claimed.add(occurrenceIds[0]!);
+      verdicts.push(duplicate(row, occurrenceCandidates[0]!, "content_occurrence"));
+      continue;
+    }
+
+    if (occurrenceIds.length > 1 || contentTransactions.length > 0) {
       verdicts.push({ _tag: "Ambiguous", row, candidateTransactionIds: contentTransactions });
       continue;
     }

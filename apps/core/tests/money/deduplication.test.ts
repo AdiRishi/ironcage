@@ -27,17 +27,17 @@ const postedDate = decodeDate("2026-07-29");
 const amount = decodeMoney("-25");
 const narrative = "FIXTURE CAFE";
 
-const incomingRow = (occurrence: number): CommBankPairedRow => ({
+const incomingRow = (occurrence: number, rowBalance?: string): CommBankPairedRow => ({
   occurrence,
   postedDate,
   amount,
   narrative,
   csv: {
     sourceOrdinal: occurrence - 1,
-    raw: { date: "29/07/2026", amount: "-25.00", narrative, balance: "" },
+    raw: { date: "29/07/2026", amount: "-25.00", narrative, balance: rowBalance ?? "" },
     postedDate,
     amount,
-    rowBalance: Option.none(),
+    rowBalance: rowBalance === undefined ? Option.none() : Option.some(decodeMoney(rowBalance)),
   },
   ofx: {
     sourceOrdinal: occurrence - 1,
@@ -62,6 +62,7 @@ const storedTransaction = (
   transactionId: BankTransactionIdType,
   accountId: BankAccountIdType,
   occurrence: number,
+  rowBalance?: string,
 ): StoredTransactionEvidence => ({
   transactionId,
   accountId,
@@ -72,7 +73,7 @@ const storedTransaction = (
     {
       sourceProfile: "cba-netbank-paired-v1",
       bankIdentifier: null,
-      rowBalance: null,
+      rowBalance: rowBalance === undefined ? null : decodeMoney(rowBalance),
       narrativeFingerprint: "fixture cafe",
       equalRowOccurrence: occurrence,
     },
@@ -92,6 +93,39 @@ describe("structured import deduplication", () => {
         { _tag: "Duplicate", transactionId: firstId, matchTier: "content_occurrence" },
         { _tag: "Duplicate", transactionId: secondId, matchTier: "content_occurrence" },
       ],
+    });
+  });
+
+  it("counts a repeat purchase at a different balance position as its own transaction", () => {
+    const result = deduplicateStructuredRows(
+      [incomingRow(1, "-100")],
+      [storedTransaction(firstId, accountId, 1, "-75")],
+    );
+
+    expect(result).toMatchObject({ _tag: "Matched", verdicts: [{ _tag: "New" }] });
+  });
+
+  it("links a row to the stored transaction holding its balance position", () => {
+    const result = deduplicateStructuredRows(
+      [incomingRow(1, "-100")],
+      [storedTransaction(firstId, accountId, 1, "-100")],
+    );
+
+    expect(result).toMatchObject({
+      _tag: "Matched",
+      verdicts: [{ _tag: "Duplicate", transactionId: firstId, matchTier: "row_balance" }],
+    });
+  });
+
+  it("still falls back to content when the stored transaction proves no balance", () => {
+    const result = deduplicateStructuredRows(
+      [incomingRow(1, "-100")],
+      [storedTransaction(firstId, accountId, 1)],
+    );
+
+    expect(result).toMatchObject({
+      _tag: "Matched",
+      verdicts: [{ _tag: "Duplicate", transactionId: firstId, matchTier: "content_occurrence" }],
     });
   });
 });
