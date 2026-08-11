@@ -16,6 +16,7 @@ type CommBankProfileShape = { readonly label: string } & (
       readonly rowBalance: "required";
       readonly identifier: "stable";
       readonly messageSet: "bank";
+      readonly narrative: "free_text";
       readonly statementAggregate: { readonly opening: "STMTRS"; readonly closing: "STMTRS" };
     }
   | {
@@ -23,6 +24,7 @@ type CommBankProfileShape = { readonly label: string } & (
       readonly rowBalance: "forbidden";
       readonly identifier: "absent";
       readonly messageSet: "credit_card";
+      readonly narrative: "card_fixed_width";
       readonly statementAggregate: {
         readonly opening: "CCSTMTRS";
         readonly closing: "CCSTMTRS";
@@ -33,6 +35,7 @@ type CommBankProfileShape = { readonly label: string } & (
       readonly rowBalance: "required";
       readonly identifier: "absent";
       readonly messageSet: "bank";
+      readonly narrative: "free_text";
       readonly statementAggregate: { readonly opening: "CCSTMTRS"; readonly closing: "STMTRS" };
     }
 );
@@ -44,6 +47,7 @@ export const commBankAccountProfiles = {
     rowBalance: "required",
     identifier: "stable",
     messageSet: "bank",
+    narrative: "free_text",
     statementAggregate: { opening: "STMTRS", closing: "STMTRS" },
   },
   "savings-offset": {
@@ -52,6 +56,7 @@ export const commBankAccountProfiles = {
     rowBalance: "required",
     identifier: "stable",
     messageSet: "bank",
+    narrative: "free_text",
     statementAggregate: { opening: "STMTRS", closing: "STMTRS" },
   },
   mastercard: {
@@ -60,6 +65,7 @@ export const commBankAccountProfiles = {
     rowBalance: "forbidden",
     identifier: "absent",
     messageSet: "credit_card",
+    narrative: "card_fixed_width",
     statementAggregate: { opening: "CCSTMTRS", closing: "CCSTMTRS" },
   },
   "home-loan": {
@@ -68,6 +74,7 @@ export const commBankAccountProfiles = {
     rowBalance: "required",
     identifier: "absent",
     messageSet: "bank",
+    narrative: "free_text",
     statementAggregate: { opening: "CCSTMTRS", closing: "STMTRS" },
   },
 } as const satisfies Record<CommBankAccountProfileId, CommBankProfileShape>;

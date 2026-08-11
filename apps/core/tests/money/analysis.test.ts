@@ -17,6 +17,7 @@ import {
   type AnalysisTransaction,
   type MoneyAnalysisRecord,
 } from "../../src/money/analysis";
+import { commBankPayee } from "../../src/money/commbank/payee";
 
 const accountId = Schema.decodeUnknownSync(BankAccountId)("018f0000-0000-7000-8000-000000002001");
 const groceriesId = Schema.decodeUnknownSync(CategoryId)("018f0000-0000-7000-8000-000000002002");
@@ -215,6 +216,51 @@ describe("money analysis", () => {
     expect(analysis.recurringCharges).toHaveLength(0);
     expect(analysis.anomalies).toHaveLength(0);
     expect(analysis.suggestions).toHaveLength(0);
+  });
+
+  test("groups a subscription whose narrative carries a different reference each month", () => {
+    const subscription = (id: number, postedDate: string, narrative: string, amount: string) => ({
+      ...transaction({
+        id,
+        postedDate,
+        amount,
+        payee: narrative,
+        categoryId: subscriptionsId,
+        categoryName: "Subscriptions",
+      }),
+      narrative,
+      payee: commBankPayee("spending-offset", narrative),
+    });
+    const analysis = analyzeMoney(
+      completeRecord([
+        subscription(
+          21,
+          "2026-01-01",
+          "Spotify P4530B94C9 Sydney AU AUS Card xx0000 Value Date: 30/12/2025",
+          "-27.99",
+        ),
+        subscription(
+          22,
+          "2026-02-01",
+          "Spotify P441EF6205 Sydney AU AUS Card xx0000 Value Date: 30/01/2026",
+          "-27.99",
+        ),
+        subscription(
+          23,
+          "2026-03-01",
+          "Spotify P77CD10A44 Sydney AU AUS Card xx0000 Value Date: 27/02/2026",
+          "-27.99",
+        ),
+      ]),
+      month("2026-03"),
+      month("2026-03"),
+    );
+
+    expect(analysis.recurringCharges).toMatchObject([
+      { payee: "Spotify Sydney AU AUS", cadenceDays: 30 },
+    ]);
+    // 27.99 a month, twelve and one sixth times a year.
+    expect(BigDecimal.format(analysis.recurringCharges[0]!.estimatedAnnualSpend)).toBe("340.545");
   });
 
   test("grounds high-value anomaly rules in their full comparison windows", () => {
