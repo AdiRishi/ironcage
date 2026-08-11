@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect";
-import type { Client, QueryResultRow } from "pg";
+import type { Client, ClientConfig, QueryResultRow } from "pg";
 
 import { PersistenceError } from "../persistence";
 
@@ -12,6 +12,23 @@ export interface SqlExecutor {
     values?: readonly unknown[],
   ) => Effect.Effect<readonly Readonly<Record<string, unknown>>[], PersistenceError>;
 }
+
+const clientConfigFor = (connectionString: string): ClientConfig => {
+  const url = new URL(connectionString);
+  if (url.searchParams.get("sslrootcert") !== "system") return { connectionString };
+
+  const sslMode = url.searchParams.get("sslmode");
+  const permissive = ["require", "prefer", "allow"].includes(sslMode ?? "");
+
+  // node-postgres treats libpq's `sslrootcert=system` as a literal file path.
+  url.searchParams.delete("sslrootcert");
+  url.searchParams.delete("sslmode");
+
+  return {
+    connectionString: url.toString(),
+    ssl: sslMode === "disable" ? false : { rejectUnauthorized: !permissive },
+  };
+};
 
 const executor = (client: Client): SqlExecutor => ({
   query: (operation, text, values = []) =>
@@ -39,7 +56,10 @@ export const withClient = <A, E, R>(
         Effect.tryPromise({
           try: async () => {
             const { Client } = await import("pg");
-            const opened = new Client({ connectionString, application_name: "ironcage-core" });
+            const opened = new Client({
+              ...clientConfigFor(connectionString),
+              application_name: "ironcage-core",
+            });
             await opened.connect();
             return opened;
           },

@@ -11,14 +11,17 @@ export class DatabaseError extends Schema.TaggedError<DatabaseError>()("Database
 // the TLS settings move out of the URL and into the client configuration.
 const configFor = (connectionString: string): pg.ClientConfig => {
   const url = new URL(connectionString);
-  const permissive = ["require", "prefer", "allow"].includes(url.searchParams.get("sslmode") ?? "");
+  if (url.searchParams.get("sslrootcert") !== "system") return { connectionString };
+
+  const sslMode = url.searchParams.get("sslmode");
+  const permissive = ["require", "prefer", "allow"].includes(sslMode ?? "");
 
   url.searchParams.delete("sslrootcert");
   url.searchParams.delete("sslmode");
 
   return {
     connectionString: url.toString(),
-    ssl: { rejectUnauthorized: !permissive },
+    ssl: sslMode === "disable" ? false : { rejectUnauthorized: !permissive },
   };
 };
 
