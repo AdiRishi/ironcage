@@ -87,6 +87,9 @@ catalogs:
     clsx:
       specifier: ^2.1.1
       version: 2.1.1
+    csv-parse:
+      specifier: ^7.0.2
+      version: 7.0.2
     effect:
       specifier: 4.0.0-beta.105
       version: 4.0.0-beta.105
@@ -338,6 +341,12 @@ importers:
       '@ironcage/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@ironcage/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      csv-parse:
+        specifier: 'catalog:'
+        version: 7.0.2
       effect:
         specifier: 'catalog:'
         version: 4.0.0-beta.105
@@ -345,6 +354,9 @@ importers:
       '@cloudflare/vitest-pool-workers':
         specifier: 'catalog:'
         version: 0.20.3(@vitest/runner@4.1.10)(@vitest/snapshot@4.1.10)(vitest@4.1.10(@types/node@26.1.2)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
+      '@effect/vitest':
+        specifier: 'catalog:'
+        version: 4.0.0-beta.105(effect@4.0.0-beta.105)(vitest@4.1.10(@types/node@26.1.2)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
       '@ironcage/compute':
         specifier: workspace:*
         version: link:../compute
@@ -2662,6 +2674,9 @@ packages:
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
+
+  csv-parse@7.0.2:
+    resolution: {integrity: sha512-uKZghv9UmPkMVLYy//KZ9HFAIJsl7wkhoEdIL0+rhuSY9pZQlhaeGEDPIe+/w7eh81MOql8Q/9+inAGWG6ZHYA==}
 
   data-urls@7.0.0:
     resolution: {integrity: sha512-23XHcCF+coGYevirZceTVD7NdJOqVn+49IHyxgszm+JIiHLoB2TkmPtsYkNWT1pvRSGkc35L6NHs0yHkN2SumA==}
@@ -6317,6 +6332,8 @@ snapshots:
   cssesc@3.0.0: {}
 
   csstype@3.2.3: {}
+
+  csv-parse@7.0.2: {}
 
   data-urls@7.0.0:
     dependencies:

@@ -15,10 +15,13 @@
   },
   "dependencies": {
     "@ironcage/contracts": "workspace:*",
+    "@ironcage/domain": "workspace:*",
+    "csv-parse": "catalog:",
     "effect": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "catalog:",
+    "@effect/vitest": "catalog:",
     "@ironcage/compute": "workspace:*",
     "@ironcage/tsconfig": "workspace:*",
     "@types/node": "catalog:",
