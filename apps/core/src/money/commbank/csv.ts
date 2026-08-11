@@ -180,5 +180,5 @@ export const decodeCommBankCsv = Effect.fn("decodeCommBankCsv")(function* (
     });
   }
 
-  return { profile: profile.id, rows };
+  return { profile: profileId, rows };
 });

@@ -188,7 +188,7 @@ export const decodeCommBankBundle = Effect.fn("decodeCommBankBundle")(function* 
   }
 
   return {
-    profile: profile.id,
+    profile: profileId,
     account: ofx.account,
     window: ofx.window,
     rows,

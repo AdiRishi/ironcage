@@ -11,7 +11,6 @@ export const CommBankProfileId = Schema.Literals([
 export type CommBankProfileId = typeof CommBankProfileId.Type;
 
 interface CommBankProfileShape {
-  readonly id: CommBankProfileId;
   readonly label: string;
   readonly accountType: "deposit" | "credit_card" | "credit_line";
   readonly rowBalance: "required" | "forbidden";
@@ -25,7 +24,6 @@ interface CommBankProfileShape {
 
 export const commBankAccountProfiles = {
   "spending-offset": {
-    id: "spending-offset",
     label: "Spending offset",
     accountType: "deposit",
     rowBalance: "required",
@@ -34,7 +32,6 @@ export const commBankAccountProfiles = {
     statementAggregate: { opening: "STMTRS", closing: "STMTRS" },
   },
   "savings-offset": {
-    id: "savings-offset",
     label: "Savings offset",
     accountType: "deposit",
     rowBalance: "required",
@@ -43,7 +40,6 @@ export const commBankAccountProfiles = {
     statementAggregate: { opening: "STMTRS", closing: "STMTRS" },
   },
   mastercard: {
-    id: "mastercard",
     label: "Mastercard",
     accountType: "credit_card",
     rowBalance: "forbidden",
@@ -52,7 +48,6 @@ export const commBankAccountProfiles = {
     statementAggregate: { opening: "CCSTMTRS", closing: "CCSTMTRS" },
   },
   "home-loan": {
-    id: "home-loan",
     label: "Home loan",
     accountType: "credit_line",
     rowBalance: "required",
