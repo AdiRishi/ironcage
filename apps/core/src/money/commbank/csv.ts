@@ -3,29 +3,10 @@ import { parse } from "csv-parse/sync";
 import { Effect, Option, Schema } from "effect";
 
 import { type SourceDate, sourceAmount, sourceDate } from "../values";
-import type { CommBankAccountProfile, CommBankProfileId } from "./profiles";
+import { commBankAccountProfiles, type CommBankProfileId } from "./profiles";
 
-/**
- * The observed NetBank CSV is headerless, CRLF-delimited, and four columns
- * wide on every account type:
- *
- * ```text
- * DD/MM/YYYY,"signed decimal","narrative","running balance or empty"
- * ```
- *
- * This decoder turns those bytes into rows and refuses everything else. It
- * proves nothing about identity, pairing, or coverage — the file it accepts is
- * still only a claim until the OFX beside it proves the account and the two
- * multisets pair row for row.
- */
 export interface CommBankCsvRow {
-  /** Zero-based position in the file, which is newest-first in every observed export. */
   readonly sourceOrdinal: number;
-  /**
-   * The four cells exactly as the file wrote them, unquoted and otherwise
-   * untouched. Normalization produces new fields beside these; it never
-   * replaces them.
-   */
   readonly raw: {
     readonly date: string;
     readonly amount: string;
@@ -34,7 +15,6 @@ export interface CommBankCsvRow {
   };
   readonly postedDate: SourceDate;
   readonly amount: Money;
-  /** Absent on Mastercard, whose fourth cell is empty by profile. */
   readonly rowBalance: Option.Option<Money>;
 }
 
@@ -43,11 +23,6 @@ export interface CommBankCsvFile {
   readonly rows: readonly CommBankCsvRow[];
 }
 
-/**
- * One tag with a closed set of reasons, rather than a tag per failure. Every
- * reason is a refusal to interpret the file, and a caller that wants to report
- * which one reads the field.
- */
 export class CommBankCsvRejected extends Schema.TaggedError<CommBankCsvRejected>()(
   "CommBankCsvRejected",
   {
@@ -61,8 +36,8 @@ export class CommBankCsvRejected extends Schema.TaggedError<CommBankCsvRejected>
       "unexpected_balance",
       "missing_balance",
       "invalid_balance",
+      "source_order",
     ]),
-    /** The row that was refused, or `null` when the whole file was. */
     sourceOrdinal: Schema.NullOr(Schema.Int),
     detail: Schema.String,
   },
@@ -74,26 +49,24 @@ const reject = (
   sourceOrdinal: number | null = null,
 ) => new CommBankCsvRejected({ reason, sourceOrdinal, detail });
 
-const columns = 4;
+const CsvRecords = Schema.Array(Schema.Array(Schema.String));
+const decodeRecords = Schema.decodeUnknownOption(CsvRecords);
 const australianDate = /^(\d{2})\/(\d{2})\/(\d{4})$/;
 
 export const decodeCommBankCsv = Effect.fn("decodeCommBankCsv")(function* (
   bytes: Uint8Array,
-  profile: CommBankAccountProfile,
+  profileId: CommBankProfileId,
 ): Effect.fn.Return<CommBankCsvFile, CommBankCsvRejected> {
+  const profile = commBankAccountProfiles[profileId];
   const text = new TextDecoder("windows-1252").decode(bytes);
 
-  // Checked before parsing so that a lone-LF file is named as such, rather than
-  // arriving as one enormous row with the wrong column count.
   for (let index = text.indexOf("\n"); index !== -1; index = text.indexOf("\n", index + 1)) {
     if (text[index - 1] !== "\r") {
       return yield* reject("line_endings", `a line feed at offset ${index} has no carriage return`);
     }
   }
 
-  const records = yield* Effect.try({
-    // RFC 4180 quoting, not a split on commas: narratives are opaque source
-    // cells and commas inside them must not change the row shape.
+  const parsed: unknown = yield* Effect.try({
     try: () =>
       parse(text, {
         bom: false,
@@ -102,18 +75,20 @@ export const decodeCommBankCsv = Effect.fn("decodeCommBankCsv")(function* (
         escape: '"',
         quote: '"',
         recordDelimiter: "\r\n",
-        // The library would refuse an inconsistent row itself, but its refusal
-        // arrives as a message. The width check below owns that rejection so
-        // the reason and the row ordinal reach the operator as data.
         relaxColumnCount: true,
         relaxQuotes: false,
         skipEmptyLines: false,
         trim: false,
-      }) as string[][],
+      }),
     catch: (cause) => reject("malformed_csv", String(cause)),
   });
+  const decoded = decodeRecords(parsed);
 
-  const first = records[0]?.[0];
+  if (Option.isNone(decoded)) {
+    return yield* reject("malformed_csv", "the CSV parser returned non-text cells");
+  }
+
+  const first = decoded.value[0]?.[0];
 
   if (first !== undefined && /^[A-Za-z]/.test(first)) {
     return yield* reject("header_row", `the first row begins with ${JSON.stringify(first)}`, 0);
@@ -121,16 +96,19 @@ export const decodeCommBankCsv = Effect.fn("decodeCommBankCsv")(function* (
 
   const rows: CommBankCsvRow[] = [];
 
-  for (const [sourceOrdinal, record] of records.entries()) {
-    if (record.length !== columns) {
+  for (const [sourceOrdinal, record] of decoded.value.entries()) {
+    if (record.length !== 4) {
       return yield* reject(
         "column_count",
-        `expected ${columns} cells, found ${record.length}`,
+        `expected 4 cells, found ${record.length}`,
         sourceOrdinal,
       );
     }
 
-    const [date, amount, narrative, balance] = record as [string, string, string, string];
+    const date = record[0]!;
+    const amount = record[1]!;
+    const narrative = record[2]!;
+    const balance = record[3]!;
     const parts = australianDate.exec(date);
 
     if (parts === null) {
@@ -141,15 +119,25 @@ export const decodeCommBankCsv = Effect.fn("decodeCommBankCsv")(function* (
       );
     }
 
-    const posted = sourceDate(Number(parts[3]), Number(parts[2]), Number(parts[1]));
+    const postedDate = sourceDate(Number(parts[3]), Number(parts[2]), Number(parts[1]));
 
-    if (Option.isNone(posted)) {
+    if (Option.isNone(postedDate)) {
       return yield* reject("invalid_date", `${date} is not a calendar date`, sourceOrdinal);
     }
 
-    const signed = sourceAmount(amount);
+    const previous = rows.at(-1);
 
-    if (Option.isNone(signed)) {
+    if (previous !== undefined && previous.postedDate < postedDate.value) {
+      return yield* reject(
+        "source_order",
+        `${date} is newer than the preceding row ${previous.raw.date}`,
+        sourceOrdinal,
+      );
+    }
+
+    const signedAmount = sourceAmount(amount);
+
+    if (Option.isNone(signedAmount)) {
       return yield* reject(
         "invalid_amount",
         `${JSON.stringify(amount)} is not a signed decimal`,
@@ -175,7 +163,7 @@ export const decodeCommBankCsv = Effect.fn("decodeCommBankCsv")(function* (
 
     const rowBalance = balance === "" ? Option.none<Money>() : sourceAmount(balance);
 
-    if (balance !== "" && Option.isNone(rowBalance)) {
+    if (Option.isNone(rowBalance) && balance !== "") {
       return yield* reject(
         "invalid_balance",
         `${JSON.stringify(balance)} is not a signed decimal`,
@@ -186,8 +174,8 @@ export const decodeCommBankCsv = Effect.fn("decodeCommBankCsv")(function* (
     rows.push({
       sourceOrdinal,
       raw: { date, amount, narrative, balance },
-      postedDate: posted.value,
-      amount: signed.value,
+      postedDate: postedDate.value,
+      amount: signedAmount.value,
       rowBalance,
     });
   }

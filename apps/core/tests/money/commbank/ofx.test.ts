@@ -3,10 +3,7 @@ import { BigDecimal, Effect, Option } from "effect";
 import { describe, expect } from "vitest";
 
 import { CommBankOfxRejected, decodeCommBankOfx } from "../../../src/money/commbank/ofx";
-import {
-  type CommBankAccountProfile,
-  commBankAccountProfiles,
-} from "../../../src/money/commbank/profiles";
+import type { CommBankProfileId } from "../../../src/money/commbank/profiles";
 import homeLoanA from "../../fixtures/money/commbank/home-loan/home-loan-a.ofx?bytes";
 import mastercardA from "../../fixtures/money/commbank/mastercard/mastercard-a.ofx?bytes";
 import savingsA from "../../fixtures/money/commbank/savings-offset/savings-offset-a.ofx?bytes";
@@ -14,48 +11,46 @@ import spendingA from "../../fixtures/money/commbank/spending-offset/spending-of
 import spendingB from "../../fixtures/money/commbank/spending-offset/spending-offset-b.ofx?bytes";
 import spendingC from "../../fixtures/money/commbank/spending-offset/spending-offset-c.ofx?bytes";
 
-const profiles = commBankAccountProfiles;
-
 /** Independently reviewed counts and requested windows from the source exports. */
 const corpus = [
   {
     id: "spending-offset-a",
-    profile: profiles["spending-offset"],
+    profile: "spending-offset",
     bytes: spendingA,
     rows: 40,
     window: { start: "2026-06-20", end: "2026-08-08" },
   },
   {
     id: "spending-offset-b",
-    profile: profiles["spending-offset"],
+    profile: "spending-offset",
     bytes: spendingB,
     rows: 25,
     window: { start: "2026-07-01", end: "2026-07-31" },
   },
   {
     id: "spending-offset-c",
-    profile: profiles["spending-offset"],
+    profile: "spending-offset",
     bytes: spendingC,
     rows: 23,
     window: { start: "2026-07-15", end: "2026-08-08" },
   },
   {
     id: "savings-offset-a",
-    profile: profiles["savings-offset"],
+    profile: "savings-offset",
     bytes: savingsA,
     rows: 40,
     window: { start: "2024-12-03", end: "2026-03-26" },
   },
   {
     id: "mastercard-a",
-    profile: profiles.mastercard,
+    profile: "mastercard",
     bytes: mastercardA,
     rows: 102,
     window: { start: "2026-07-01", end: "2026-07-31" },
   },
   {
     id: "home-loan-a",
-    profile: profiles["home-loan"],
+    profile: "home-loan",
     bytes: homeLoanA,
     rows: 36,
     window: { start: "2024-08-08", end: "2026-08-08" },
@@ -133,31 +128,31 @@ describe("the observed corpus", () => {
 
   it.effect("reads the account identity the CSV beside it cannot supply", () =>
     Effect.gen(function* () {
-      const file = yield* decodeCommBankOfx(spendingA, profiles["spending-offset"]);
+      const file = yield* decodeCommBankOfx(spendingA, "spending-offset");
 
       expect(file.account).toEqual({
         messageSet: "bank",
-        bankId: Option.some("000000"),
+        bankId: "000000",
         accountId: "10000001",
-        accountType: Option.some("SAVINGS"),
+        accountType: "SAVINGS",
       });
     }),
   );
 
   it.effect("reads a card account from the credit-card message set", () =>
     Effect.gen(function* () {
-      const file = yield* decodeCommBankOfx(mastercardA, profiles.mastercard);
+      const file = yield* decodeCommBankOfx(mastercardA, "mastercard");
 
-      expect(file.account.messageSet).toBe("credit_card");
-      expect(file.account.accountId).toBe("4111111111111111");
-      expect(Option.isNone(file.account.bankId)).toBe(true);
-      expect(Option.isNone(file.account.accountType)).toBe(true);
+      expect(file.account).toEqual({
+        messageSet: "credit_card",
+        accountId: "4111111111111111",
+      });
     }),
   );
 
   it.effect("keeps every transaction field as the file wrote it", () =>
     Effect.gen(function* () {
-      const file = yield* decodeCommBankOfx(spendingA, profiles["spending-offset"]);
+      const file = yield* decodeCommBankOfx(spendingA, "spending-offset");
 
       expect(file.transactions.at(0)?.raw).toEqual({
         type: "DEBIT",
@@ -168,7 +163,7 @@ describe("the observed corpus", () => {
         narrative: "TFNSW OPAL FARE SYDNEY AUS Card xx0000 Value Date: 06/08/2026",
       });
       expect(file.transactions.at(0)?.postedDate).toBe("2026-08-08");
-      expect(file.transactions.at(0)?.userDate).toEqual(Option.some("2026-08-06"));
+      expect(file.transactions.at(0)?.userDate).toBe("2026-08-06");
     }),
   );
 
@@ -176,17 +171,16 @@ describe("the observed corpus", () => {
   // it is stable across the three overlapping windows by construction.
   it.effect("carries a FITID on every deposit row", () =>
     Effect.gen(function* () {
-      const file = yield* decodeCommBankOfx(spendingA, profiles["spending-offset"]);
+      const file = yield* decodeCommBankOfx(spendingA, "spending-offset");
 
-      expect(profiles["spending-offset"].identifier).toBe("stable");
       expect(file.transactions.every((entry) => Option.isSome(entry.identifier))).toBe(true);
     }),
   );
 
   it.effect("shares its FITID values across the overlapping windows", () =>
     Effect.gen(function* () {
-      const a = yield* decodeCommBankOfx(spendingA, profiles["spending-offset"]);
-      const b = yield* decodeCommBankOfx(spendingB, profiles["spending-offset"]);
+      const a = yield* decodeCommBankOfx(spendingA, "spending-offset");
+      const b = yield* decodeCommBankOfx(spendingB, "spending-offset");
       const identifiers = (file: typeof a) =>
         new Set(file.transactions.flatMap((entry) => Option.toArray(entry.identifier)));
       const shared = [...identifiers(b)].filter((value) => identifiers(a).has(value));
@@ -199,11 +193,9 @@ describe("the observed corpus", () => {
   // give every Mastercard row the same key.
   it.effect("reads an empty FITID as no identifier at all", () =>
     Effect.gen(function* () {
-      const card = yield* decodeCommBankOfx(mastercardA, profiles.mastercard);
-      const loan = yield* decodeCommBankOfx(homeLoanA, profiles["home-loan"]);
+      const card = yield* decodeCommBankOfx(mastercardA, "mastercard");
+      const loan = yield* decodeCommBankOfx(homeLoanA, "home-loan");
 
-      expect(profiles.mastercard.identifier).toBe("absent");
-      expect(profiles["home-loan"].identifier).toBe("absent");
       expect(card.transactions.every((entry) => Option.isNone(entry.identifier))).toBe(true);
       expect(loan.transactions.every((entry) => Option.isNone(entry.identifier))).toBe(true);
     }),
@@ -212,21 +204,17 @@ describe("the observed corpus", () => {
   it.effect("accepts the home-loan aggregate exactly as NetBank emitted it", () =>
     Effect.gen(function* () {
       const source = new TextDecoder().decode(homeLoanA);
-      const file = yield* decodeCommBankOfx(homeLoanA, profiles["home-loan"]);
+      const file = yield* decodeCommBankOfx(homeLoanA, "home-loan");
 
       expect(source).toContain("<CCSTMTRS>\r\n");
       expect(source).toContain("</STMTRS>\r\n");
-      expect(profiles["home-loan"].statementAggregate).toEqual({
-        opening: "CCSTMTRS",
-        closing: "STMTRS",
-      });
       expect(file.transactions).toHaveLength(36);
     }),
   );
 
   it.effect("keeps ledger and available balance apart", () =>
     Effect.gen(function* () {
-      const file = yield* decodeCommBankOfx(spendingA, profiles["spending-offset"]);
+      const file = yield* decodeCommBankOfx(spendingA, "spending-offset");
       const available = Option.getOrThrow(file.availableBalance);
 
       expect(BigDecimal.format(file.ledgerBalance.amount)).toBe("21561.27");
@@ -238,10 +226,8 @@ describe("the observed corpus", () => {
 });
 
 describe("refusing a file it cannot interpret", () => {
-  const rejectionOf = (
-    bytes: Uint8Array,
-    profile: CommBankAccountProfile = profiles["spending-offset"],
-  ) => Effect.flip(decodeCommBankOfx(bytes, profile));
+  const rejectionOf = (bytes: Uint8Array, profile: CommBankProfileId = "spending-offset") =>
+    Effect.flip(decodeCommBankOfx(bytes, profile));
 
   it.effect("rejects a version it has no grammar for", () =>
     Effect.gen(function* () {
@@ -269,6 +255,15 @@ describe("refusing a file it cannot interpret", () => {
 
       expect(rejected.reason).toBe("unsupported_header");
       expect(rejected.detail).toContain("COMPRESSION");
+    }),
+  );
+
+  it.effect("rejects duplicate header fields rather than accepting the last value", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(document({ header: `${defaultHeader}CHARSET:1252\n` }));
+
+      expect(rejected.reason).toBe("duplicate_header");
+      expect(rejected.detail).toContain("CHARSET");
     }),
   );
 
@@ -329,6 +324,14 @@ describe("refusing a file it cannot interpret", () => {
     }),
   );
 
+  it.effect("rejects a transaction aggregate whose closing tag is missing", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(document({ body: bodyWithout("</STMTTRN>\n", "") }));
+
+      expect(rejected.reason).toBe("malformed_sgml");
+    }),
+  );
+
   it.effect("rejects a transaction with no narrative element", () =>
     Effect.gen(function* () {
       const rejected = yield* rejectionOf(
@@ -339,6 +342,150 @@ describe("refusing a file it cannot interpret", () => {
 
       expect(rejected.reason).toBe("missing_element");
       expect(rejected.detail).toContain("MEMO");
+    }),
+  );
+
+  it.effect("preserves payload whitespace instead of trimming source evidence", () =>
+    Effect.gen(function* () {
+      const file = yield* decodeCommBankOfx(
+        document({
+          body: bodyWithout(
+            "<MEMO>FIXTURE SPENDING OFFSET TRANSACTION 0040\n",
+            "<MEMO>  FIXTURE SPENDING OFFSET TRANSACTION 0040  \n",
+          ),
+        }),
+        "spending-offset",
+      );
+
+      expect(file.transactions[0]?.narrative).toBe("  FIXTURE SPENDING OFFSET TRANSACTION 0040  ");
+      expect(file.transactions[0]?.raw.narrative).toBe(
+        "  FIXTURE SPENDING OFFSET TRANSACTION 0040  ",
+      );
+    }),
+  );
+
+  it.effect("rejects a transaction with no user date", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(
+        document({ body: bodyWithout("<DTUSER>20320127\n", "") }),
+      );
+
+      expect(rejected.reason).toBe("missing_element");
+      expect(rejected.sourceOrdinal).toBe(0);
+      expect(rejected.detail).toContain("DTUSER");
+    }),
+  );
+
+  it.effect("rejects a transaction with no FITID element", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(
+        document({ body: bodyWithout("<FITID>fixture-fitid-1-000040\n", "") }),
+      );
+
+      expect(rejected.reason).toBe("missing_element");
+      expect(rejected.sourceOrdinal).toBe(0);
+      expect(rejected.detail).toContain("FITID");
+    }),
+  );
+
+  it.effect("rejects duplicate transaction evidence rather than treating it as absent", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(
+        document({
+          body: bodyWithout(
+            "<FITID>fixture-fitid-1-000040\n",
+            "<FITID>fixture-fitid-1-000040\n<FITID>fixture-fitid-1-000041\n",
+          ),
+        }),
+      );
+
+      expect(rejected.reason).toBe("duplicate_element");
+      expect(rejected.sourceOrdinal).toBe(0);
+    }),
+  );
+
+  it.effect("rejects an empty identifier on a profile that promises stable FITIDs", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(
+        document({ body: bodyWithout("<FITID>fixture-fitid-1-000040", "<FITID>") }),
+      );
+
+      expect(rejected.reason).toBe("identifier_policy");
+      expect(rejected.sourceOrdinal).toBe(0);
+    }),
+  );
+
+  it.effect("rejects an identifier on a profile whose observed FITIDs are empty", () =>
+    Effect.gen(function* () {
+      const source = new TextDecoder("windows-1252").decode(mastercardA);
+      const mutated = new TextEncoder().encode(
+        source.replace("<FITID>\r\n", "<FITID>unexpected\r\n"),
+      );
+      const rejected = yield* rejectionOf(mutated, "mastercard");
+
+      expect(rejected.reason).toBe("identifier_policy");
+      expect(rejected.sourceOrdinal).toBe(0);
+    }),
+  );
+
+  it.effect("rejects a bank statement with incomplete account identity", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(document({ body: bodyWithout("<BANKID>999999\n", "") }));
+
+      expect(rejected.reason).toBe("missing_element");
+      expect(rejected.detail).toContain("BANKID");
+    }),
+  );
+
+  it.effect("rejects a source account type that contradicts the selected profile", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(
+        document({ body: bodyWithout("<ACCTTYPE>SAVINGS", "<ACCTTYPE>CREDITLINE") }),
+      );
+
+      expect(rejected.reason).toBe("account_type_mismatch");
+    }),
+  );
+
+  it.effect("rejects a statement window whose end precedes its start", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(
+        document({ body: bodyWithout("<DTSTART>20311211000000", "<DTSTART>20320130000000") }),
+      );
+
+      expect(rejected.reason).toBe("invalid_window");
+    }),
+  );
+
+  it.effect("rejects a transaction outside the statement window", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(
+        document({ body: bodyWithout("<DTPOSTED>20320129", "<DTPOSTED>20320130") }),
+      );
+
+      expect(rejected.reason).toBe("transaction_outside_window");
+      expect(rejected.sourceOrdinal).toBe(0);
+    }),
+  );
+
+  it.effect("rejects transactions that are not newest first", () =>
+    Effect.gen(function* () {
+      const newerTransaction = `<STMTTRN>
+<TRNTYPE>DEBIT
+<DTPOSTED>20320130
+<DTUSER>20320130
+<TRNAMT>-10.00
+<FITID>fixture-fitid-2
+<MEMO>FIXTURE NEWER TRANSACTION
+</STMTTRN>
+`;
+      const body = defaultBody
+        .replace("<DTEND>20320129000000", "<DTEND>20320130000000")
+        .replace("</STMTTRN>\n</BANKTRANLIST>", `</STMTTRN>\n${newerTransaction}</BANKTRANLIST>`);
+      const rejected = yield* rejectionOf(document({ body }));
+
+      expect(rejected.reason).toBe("source_order");
+      expect(rejected.sourceOrdinal).toBe(1);
     }),
   );
 

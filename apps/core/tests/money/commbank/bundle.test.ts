@@ -3,10 +3,7 @@ import { BigDecimal, Effect, Option } from "effect";
 import { describe, expect } from "vitest";
 
 import { CommBankBundleBlocked, decodeCommBankBundle } from "../../../src/money/commbank/bundle";
-import {
-  type CommBankAccountProfile,
-  commBankAccountProfiles,
-} from "../../../src/money/commbank/profiles";
+import type { CommBankProfileId } from "../../../src/money/commbank/profiles";
 import homeLoanACsv from "../../fixtures/money/commbank/home-loan/home-loan-a.csv?bytes";
 import homeLoanAOfx from "../../fixtures/money/commbank/home-loan/home-loan-a.ofx?bytes";
 import mastercardACsv from "../../fixtures/money/commbank/mastercard/mastercard-a.csv?bytes";
@@ -20,8 +17,6 @@ import spendingBOfx from "../../fixtures/money/commbank/spending-offset/spending
 import spendingCCsv from "../../fixtures/money/commbank/spending-offset/spending-offset-c.csv?bytes";
 import spendingCOfx from "../../fixtures/money/commbank/spending-offset/spending-offset-c.ofx?bytes";
 
-const profiles = commBankAccountProfiles;
-
 /**
  * The six downloaded pairs, with the row counts the investigation reviewed by
  * hand and the ledger result each window can actually prove.
@@ -33,7 +28,7 @@ const profiles = commBankAccountProfiles;
 const corpus = [
   {
     id: "spending-offset-a",
-    profile: profiles["spending-offset"],
+    profile: "spending-offset",
     csv: spendingACsv,
     ofx: spendingAOfx,
     rows: 40,
@@ -41,7 +36,7 @@ const corpus = [
   },
   {
     id: "spending-offset-b",
-    profile: profiles["spending-offset"],
+    profile: "spending-offset",
     csv: spendingBCsv,
     ofx: spendingBOfx,
     rows: 25,
@@ -49,7 +44,7 @@ const corpus = [
   },
   {
     id: "spending-offset-c",
-    profile: profiles["spending-offset"],
+    profile: "spending-offset",
     csv: spendingCCsv,
     ofx: spendingCOfx,
     rows: 23,
@@ -57,7 +52,7 @@ const corpus = [
   },
   {
     id: "savings-offset-a",
-    profile: profiles["savings-offset"],
+    profile: "savings-offset",
     csv: savingsACsv,
     ofx: savingsAOfx,
     rows: 40,
@@ -65,7 +60,7 @@ const corpus = [
   },
   {
     id: "mastercard-a",
-    profile: profiles.mastercard,
+    profile: "mastercard",
     csv: mastercardACsv,
     ofx: mastercardAOfx,
     rows: 102,
@@ -73,7 +68,7 @@ const corpus = [
   },
   {
     id: "home-loan-a",
-    profile: profiles["home-loan"],
+    profile: "home-loan",
     csv: homeLoanACsv,
     ofx: homeLoanAOfx,
     rows: 36,
@@ -211,12 +206,12 @@ const spendingRows = [
 
 const decode = (
   [csv, ofx]: readonly [Uint8Array, Uint8Array],
-  profile: CommBankAccountProfile = profiles["spending-offset"],
+  profile: CommBankProfileId = "spending-offset",
 ) => decodeCommBankBundle(csv, ofx, profile);
 
 const blocking = (
   bundle: readonly [Uint8Array, Uint8Array],
-  profile: CommBankAccountProfile = profiles["spending-offset"],
+  profile: CommBankProfileId = "spending-offset",
 ) => Effect.flip(decode(bundle, profile));
 
 describe("the observed corpus", () => {
@@ -225,7 +220,7 @@ describe("the observed corpus", () => {
       Effect.gen(function* () {
         const bundle = yield* decodeCommBankBundle(csv, ofx, profile);
 
-        expect(bundle.profile).toBe(profile.id);
+        expect(bundle.profile).toBe(profile);
         expect(bundle.rows).toHaveLength(rows);
         expect(bundle.ledger.status).toBe(ledger);
         // No observed export repeats a date, amount, and narrative together.
@@ -236,11 +231,7 @@ describe("the observed corpus", () => {
 
   it.effect("keeps both source observations on every candidate", () =>
     Effect.gen(function* () {
-      const bundle = yield* decodeCommBankBundle(
-        spendingACsv,
-        spendingAOfx,
-        profiles["spending-offset"],
-      );
+      const bundle = yield* decodeCommBankBundle(spendingACsv, spendingAOfx, "spending-offset");
       const first = bundle.rows[0];
 
       expect(first?.postedDate).toBe("2026-08-08");
@@ -258,11 +249,7 @@ describe("the observed corpus", () => {
 
   it.effect("reads the account identity from the file that carries one", () =>
     Effect.gen(function* () {
-      const bundle = yield* decodeCommBankBundle(
-        spendingACsv,
-        spendingAOfx,
-        profiles["spending-offset"],
-      );
+      const bundle = yield* decodeCommBankBundle(spendingACsv, spendingAOfx, "spending-offset");
 
       expect(bundle.account.accountId).toBe("10000001");
       expect(bundle.window).toEqual({ start: "2026-06-20", end: "2026-08-08" });
@@ -271,13 +258,13 @@ describe("the observed corpus", () => {
 
   it.effect("proves the newest row against the ledger balance where it can", () =>
     Effect.gen(function* () {
-      const bundle = yield* decodeCommBankBundle(homeLoanACsv, homeLoanAOfx, profiles["home-loan"]);
+      const bundle = yield* decodeCommBankBundle(homeLoanACsv, homeLoanAOfx, "home-loan");
 
       expect(bundle.ledger.status).toBe("matched");
+      if (bundle.ledger.status !== "matched") return;
+
       expect(BigDecimal.format(bundle.ledger.ledgerBalance.amount)).toBe("-631422.56");
-      expect(BigDecimal.format(Option.getOrThrow(bundle.ledger.newestRowBalance))).toBe(
-        "-631422.56",
-      );
+      expect(BigDecimal.format(bundle.ledger.newestRowBalance)).toBe("-631422.56");
     }),
   );
 
@@ -286,28 +273,22 @@ describe("the observed corpus", () => {
   // export that is entirely correct.
   it.effect("accepts a window that closed before the export was taken", () =>
     Effect.gen(function* () {
-      const bundle = yield* decodeCommBankBundle(
-        spendingBCsv,
-        spendingBOfx,
-        profiles["spending-offset"],
-      );
+      const bundle = yield* decodeCommBankBundle(spendingBCsv, spendingBOfx, "spending-offset");
 
       expect(bundle.ledger.status).toBe("outside_covered_window");
+      if (bundle.ledger.status !== "outside_covered_window") return;
+
       expect(BigDecimal.format(bundle.ledger.ledgerBalance.amount)).toBe("21561.27");
-      expect(BigDecimal.format(Option.getOrThrow(bundle.ledger.newestRowBalance))).toBe("21800.42");
+      expect(BigDecimal.format(bundle.ledger.newestRowBalance)).toBe("21800.42");
     }),
   );
 
   it.effect("has no ledger claim to make about a card with no row balances", () =>
     Effect.gen(function* () {
-      const bundle = yield* decodeCommBankBundle(
-        mastercardACsv,
-        mastercardAOfx,
-        profiles.mastercard,
-      );
+      const bundle = yield* decodeCommBankBundle(mastercardACsv, mastercardAOfx, "mastercard");
 
       expect(bundle.ledger.status).toBe("unavailable");
-      expect(Option.isNone(bundle.ledger.newestRowBalance)).toBe(true);
+      expect("newestRowBalance" in bundle.ledger).toBe(false);
       // The balance is still the card's, and still retained: only the CSV had
       // nothing to check it against.
       expect(BigDecimal.format(bundle.ledger.ledgerBalance.amount)).toBe("-4445.5");
@@ -324,7 +305,8 @@ describe("pairing the two files", () => {
       expect(bundle.rows).toHaveLength(2);
       expect(bundle.rows[1]?.csv.raw.amount).toBe("+1000.00");
       expect(bundle.rows[1]?.ofx.raw.amount).toBe("1000.00");
-      expect(BigDecimal.format(bundle.rows[1]?.amount as BigDecimal.BigDecimal)).toBe("1000");
+      expect(bundle.rows[1]).toBeDefined();
+      expect(BigDecimal.format(bundle.rows[1]!.amount)).toBe("1000");
     }),
   );
 
@@ -401,7 +383,7 @@ describe("pairing the two files", () => {
     Effect.gen(function* () {
       const blocked = yield* blocking(
         bundleOf(spendingRows, {
-          ofxRows: [{ ...spendingRows[0], date: "27/01/2032" }, spendingRows[1]],
+          ofxRows: [{ ...spendingRows[0], date: "28/01/2032" }, spendingRows[1]],
         }),
       );
 

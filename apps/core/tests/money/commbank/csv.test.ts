@@ -3,10 +3,7 @@ import { BigDecimal, Effect, Option } from "effect";
 import { describe, expect } from "vitest";
 
 import { CommBankCsvRejected, decodeCommBankCsv } from "../../../src/money/commbank/csv";
-import {
-  type CommBankAccountProfile,
-  commBankAccountProfiles,
-} from "../../../src/money/commbank/profiles";
+import type { CommBankProfileId } from "../../../src/money/commbank/profiles";
 import homeLoanA from "../../fixtures/money/commbank/home-loan/home-loan-a.csv?bytes";
 import mastercardA from "../../fixtures/money/commbank/mastercard/mastercard-a.csv?bytes";
 import savingsA from "../../fixtures/money/commbank/savings-offset/savings-offset-a.csv?bytes";
@@ -14,16 +11,14 @@ import spendingA from "../../fixtures/money/commbank/spending-offset/spending-of
 import spendingB from "../../fixtures/money/commbank/spending-offset/spending-offset-b.csv?bytes";
 import spendingC from "../../fixtures/money/commbank/spending-offset/spending-offset-c.csv?bytes";
 
-const profiles = commBankAccountProfiles;
-
 /** Independently reviewed row counts from the source exports. */
 const corpus = [
-  { id: "spending-offset-a", profile: profiles["spending-offset"], bytes: spendingA, rows: 40 },
-  { id: "spending-offset-b", profile: profiles["spending-offset"], bytes: spendingB, rows: 25 },
-  { id: "spending-offset-c", profile: profiles["spending-offset"], bytes: spendingC, rows: 23 },
-  { id: "savings-offset-a", profile: profiles["savings-offset"], bytes: savingsA, rows: 40 },
-  { id: "mastercard-a", profile: profiles.mastercard, bytes: mastercardA, rows: 102 },
-  { id: "home-loan-a", profile: profiles["home-loan"], bytes: homeLoanA, rows: 36 },
+  { id: "spending-offset-a", profile: "spending-offset", bytes: spendingA, rows: 40 },
+  { id: "spending-offset-b", profile: "spending-offset", bytes: spendingB, rows: 25 },
+  { id: "spending-offset-c", profile: "spending-offset", bytes: spendingC, rows: 23 },
+  { id: "savings-offset-a", profile: "savings-offset", bytes: savingsA, rows: 40 },
+  { id: "mastercard-a", profile: "mastercard", bytes: mastercardA, rows: 102 },
+  { id: "home-loan-a", profile: "home-loan", bytes: homeLoanA, rows: 36 },
 ] as const;
 
 const synthetic = (...lines: readonly string[]) =>
@@ -37,7 +32,7 @@ describe("the observed corpus", () => {
       Effect.gen(function* () {
         const file = yield* decodeCommBankCsv(bytes, profile);
 
-        expect(file.profile).toBe(profile.id);
+        expect(file.profile).toBe(profile);
         expect(file.rows).toHaveLength(rows);
         expect(file.rows.map((row) => row.sourceOrdinal)).toEqual([...Array(rows).keys()]);
       }),
@@ -46,7 +41,7 @@ describe("the observed corpus", () => {
 
   it.effect("keeps every cell exactly as the file wrote it", () =>
     Effect.gen(function* () {
-      const file = yield* decodeCommBankCsv(spendingA, profiles["spending-offset"]);
+      const file = yield* decodeCommBankCsv(spendingA, "spending-offset");
 
       expect(file.rows.at(0)?.raw).toEqual({
         date: "08/08/2026",
@@ -65,7 +60,7 @@ describe("the observed corpus", () => {
 
   it.effect("reads rows newest first, which is the order the export writes", () =>
     Effect.gen(function* () {
-      const file = yield* decodeCommBankCsv(savingsA, profiles["savings-offset"]);
+      const file = yield* decodeCommBankCsv(savingsA, "savings-offset");
       const dates = file.rows.map((row) => row.postedDate);
 
       expect(dates.at(0)).toBe("2026-03-26");
@@ -76,29 +71,31 @@ describe("the observed corpus", () => {
 
   it.effect("parses a signed amount as a decimal, never as a number", () =>
     Effect.gen(function* () {
-      const file = yield* decodeCommBankCsv(savingsA, profiles["savings-offset"]);
+      const file = yield* decodeCommBankCsv(savingsA, "savings-offset");
       const first = file.rows[0];
 
-      expect(BigDecimal.format(first?.amount as BigDecimal.BigDecimal)).toBe("13025.95");
-      expect(BigDecimal.format(Option.getOrThrow(first?.rowBalance ?? Option.none()))).toBe(
-        "54255.52",
-      );
+      expect(first).toBeDefined();
+      if (first === undefined) return;
+
+      expect(BigDecimal.format(first.amount)).toBe("13025.95");
+      expect(BigDecimal.format(Option.getOrThrow(first.rowBalance))).toBe("54255.52");
     }),
   );
 
   it.effect("carries the home loan's negative running balance through unchanged", () =>
     Effect.gen(function* () {
-      const file = yield* decodeCommBankCsv(homeLoanA, profiles["home-loan"]);
+      const file = yield* decodeCommBankCsv(homeLoanA, "home-loan");
       const balances = file.rows.map((row) => Option.getOrThrow(row.rowBalance));
 
-      expect(BigDecimal.format(balances[0] as BigDecimal.BigDecimal)).toBe("-631422.56");
+      expect(balances[0]).toBeDefined();
+      expect(BigDecimal.format(balances[0]!)).toBe("-631422.56");
       expect(balances.every((value) => BigDecimal.isNegative(value))).toBe(true);
     }),
   );
 
   it.effect("leaves the Mastercard's empty fourth cell as no balance at all", () =>
     Effect.gen(function* () {
-      const file = yield* decodeCommBankCsv(mastercardA, profiles.mastercard);
+      const file = yield* decodeCommBankCsv(mastercardA, "mastercard");
 
       expect(file.rows.every((row) => row.raw.balance === "")).toBe(true);
       expect(file.rows.every((row) => Option.isNone(row.rowBalance))).toBe(true);
@@ -107,10 +104,8 @@ describe("the observed corpus", () => {
 });
 
 describe("refusing a file it cannot interpret", () => {
-  const rejectionOf = (
-    bytes: Uint8Array,
-    profile: CommBankAccountProfile = profiles["spending-offset"],
-  ) => Effect.flip(decodeCommBankCsv(bytes, profile));
+  const rejectionOf = (bytes: Uint8Array, profile: CommBankProfileId = "spending-offset") =>
+    Effect.flip(decodeCommBankCsv(bytes, profile));
 
   it.effect("rejects a header row rather than reading it as a transaction", () =>
     Effect.gen(function* () {
@@ -174,6 +169,20 @@ describe("refusing a file it cannot interpret", () => {
     }),
   );
 
+  it.effect("rejects rows that are not newest first", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(
+        synthetic(
+          '28/01/2032,"-10.00","FIXTURE OLDER TRANSACTION","6572.53"',
+          '29/01/2032,"-64.17","FIXTURE NEWER TRANSACTION","6508.36"',
+        ),
+      );
+
+      expect(rejected.reason).toBe("source_order");
+      expect(rejected.sourceOrdinal).toBe(1);
+    }),
+  );
+
   it.effect("rejects an amount that is not a decimal", () =>
     Effect.gen(function* () {
       const rejected = yield* rejectionOf(
@@ -211,7 +220,7 @@ describe("refusing a file it cannot interpret", () => {
     Effect.gen(function* () {
       const rejected = yield* rejectionOf(
         synthetic('21/01/2032,"-185.37","FIXTURE MASTERCARD TRANSACTION 0102","1234.56"'),
-        profiles.mastercard,
+        "mastercard",
       );
 
       expect(rejected.reason).toBe("unexpected_balance");
@@ -234,7 +243,7 @@ describe("refusing a file it cannot interpret", () => {
       const prefix = new TextEncoder().encode('29/01/2032,"-64.17","CAF');
       const suffix = new TextEncoder().encode('","6508.36"\r\n');
       const bytes = Uint8Array.from([...prefix, 0xe9, ...suffix]);
-      const file = yield* decodeCommBankCsv(bytes, profiles["spending-offset"]);
+      const file = yield* decodeCommBankCsv(bytes, "spending-offset");
 
       expect(file.rows[0]?.raw.narrative).toBe("CAFé");
     }),
@@ -246,7 +255,7 @@ describe("RFC 4180 quoting", () => {
     Effect.gen(function* () {
       const file = yield* decodeCommBankCsv(
         synthetic('29/01/2032,"-64.17","FIXTURE GROCER, NEWTOWN","6508.36"'),
-        profiles["spending-offset"],
+        "spending-offset",
       );
 
       expect(file.rows[0]?.raw.narrative).toBe("FIXTURE GROCER, NEWTOWN");
@@ -257,7 +266,7 @@ describe("RFC 4180 quoting", () => {
     Effect.gen(function* () {
       const file = yield* decodeCommBankCsv(
         synthetic('29/01/2032,"-64.17","FIXTURE ""THE"" CAFE","6508.36"'),
-        profiles["spending-offset"],
+        "spending-offset",
       );
 
       expect(file.rows[0]?.raw.narrative).toBe('FIXTURE "THE" CAFE');

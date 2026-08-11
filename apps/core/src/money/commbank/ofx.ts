@@ -2,32 +2,26 @@ import type { Money } from "@ironcage/domain";
 import { Effect, Option, Schema } from "effect";
 
 import { type SourceDate, sourceAmount, sourceDate } from "../values";
-import type { CommBankAccountProfile } from "./profiles";
+import {
+  type CommBankAccountProfile,
+  commBankAccountProfiles,
+  type CommBankProfileId,
+} from "./profiles";
 
-/**
- * The observed NetBank OFX is 1.02 in SGML form, not XML: scalar elements carry
- * no closing tag, and the file opens with a colon-delimited header rather than
- * a declaration. An XML parser cannot read it, and neither can a tokenizer that
- * assumes every open tag is an aggregate — `<FITID>` on a Mastercard row is an
- * empty scalar, and the file never says so.
- *
- * What the OFX contributes to an import bundle is the account identity the CSV
- * lacks, the requested source window, and a transaction identifier where the
- * profile has proven one is stable.
- */
-export interface CommBankOfxAccount {
-  readonly messageSet: "bank" | "credit_card";
-  /** `BANKID`, present only in the bank message set. */
-  readonly bankId: Option.Option<string>;
-  readonly accountId: string;
-  /** `ACCTTYPE`, present only in the bank message set. */
-  readonly accountType: Option.Option<string>;
-}
+export type CommBankOfxAccount =
+  | {
+      readonly messageSet: "bank";
+      readonly bankId: string;
+      readonly accountId: string;
+      readonly accountType: string;
+    }
+  | {
+      readonly messageSet: "credit_card";
+      readonly accountId: string;
+    };
 
 export interface CommBankOfxTransaction {
-  /** Zero-based position in `BANKTRANLIST`, which is newest-first as the CSV is. */
   readonly sourceOrdinal: number;
-  /** Every field exactly as the file wrote it, before interpretation. */
   readonly raw: {
     readonly type: string;
     readonly postedDate: string;
@@ -36,12 +30,10 @@ export interface CommBankOfxTransaction {
     readonly identifier: string;
     readonly narrative: string;
   };
-  /** `TRNTYPE`, preserved as source metadata. No analysis rule reads it. */
   readonly type: string;
   readonly postedDate: SourceDate;
-  readonly userDate: Option.Option<SourceDate>;
+  readonly userDate: SourceDate;
   readonly amount: Money;
-  /** `FITID`, absent when the observed element is empty. An empty element is not an identifier. */
   readonly identifier: Option.Option<string>;
   readonly narrative: string;
 }
@@ -49,22 +41,15 @@ export interface CommBankOfxTransaction {
 export interface CommBankOfxBalance {
   readonly amount: Money;
   readonly asOfDate: SourceDate;
-  /**
-   * The full `DTASOF` value. The observed balances carry a time, but OFX writes
-   * no offset with it, so the time is kept as evidence rather than resolved
-   * into an instant this decoder would have to invent a zone for.
-   */
   readonly raw: string;
 }
 
 export interface CommBankOfxFile {
   readonly account: CommBankOfxAccount;
-  readonly currency: string;
-  /** `DTSTART` and `DTEND`, which the profile reads as the requested coverage window. */
+  readonly currency: "AUD";
   readonly window: { readonly start: SourceDate; readonly end: SourceDate };
   readonly transactions: readonly CommBankOfxTransaction[];
   readonly ledgerBalance: CommBankOfxBalance;
-  /** Kept separate on purpose: available balance never substitutes for ledger balance. */
   readonly availableBalance: Option.Option<CommBankOfxBalance>;
 }
 
@@ -74,17 +59,23 @@ export class CommBankOfxRejected extends Schema.TaggedError<CommBankOfxRejected>
     reason: Schema.Literals([
       "undecodable_bytes",
       "missing_header",
+      "duplicate_header",
       "unsupported_header",
       "malformed_sgml",
       "message_set_mismatch",
       "missing_element",
       "duplicate_element",
       "unexpected_children",
+      "unexpected_element",
       "invalid_date",
       "invalid_amount",
+      "invalid_window",
+      "transaction_outside_window",
+      "source_order",
+      "identifier_policy",
+      "account_type_mismatch",
       "unsupported_currency",
     ]),
-    /** The transaction that was refused, or `null` when the whole file was. */
     sourceOrdinal: Schema.NullOr(Schema.Int),
     detail: Schema.String,
   },
@@ -96,13 +87,7 @@ const reject = (
   sourceOrdinal: number | null = null,
 ) => new CommBankOfxRejected({ reason, sourceOrdinal, detail });
 
-/**
- * The header values this profile can read. `ENCODING` and `CHARSET` decide how
- * the body is decoded, and `COMPRESSION` and `SECURITY` decide whether the
- * bytes are the document at all, so an unrecognized value is a refusal rather
- * than a warning.
- */
-const supportedHeader: Record<string, string> = {
+const supportedHeader = {
   OFXHEADER: "100",
   DATA: "OFXSGML",
   VERSION: "102",
@@ -110,27 +95,37 @@ const supportedHeader: Record<string, string> = {
   ENCODING: "USASCII",
   CHARSET: "1252",
   COMPRESSION: "NONE",
-};
+} as const;
 
 interface OfxNode {
   readonly tag: string;
-  value: string | null;
-  children: OfxNode[];
+  readonly value: string | null;
+  readonly children: OfxNode[];
 }
 
-const documentStart = 0x3c;
-const asciiLimit = 0x7f;
+const aggregateTags = new Set([
+  "OFX",
+  "SIGNONMSGSRSV1",
+  "SONRS",
+  "STATUS",
+  "BANKMSGSRSV1",
+  "CREDITCARDMSGSRSV1",
+  "STMTTRNRS",
+  "CCSTMTTRNRS",
+  "STMTRS",
+  "CCSTMTRS",
+  "BANKACCTFROM",
+  "CCACCTFROM",
+  "BANKTRANLIST",
+  "STMTTRN",
+  "LEDGERBAL",
+  "AVAILBAL",
+]);
 
-/**
- * Reconstructs the element tree from SGML that closes only its aggregates.
- *
- * A tag with no text after it is ambiguous — an aggregate that is about to open
- * children, or a scalar whose value is empty — and the file carries no DTD to
- * settle it. The parser opens it optimistically and settles the question at the
- * first closing tag: everything still open above the element being closed was
- * an empty scalar, and its apparent children belong to its parent. Source order
- * survives because those children are re-appended in the order they arrived.
- */
+const tagName = /^\/?[A-Z][A-Z0-9]*$/;
+
+const sourceValue = (content: string) => content.replace(/\r?\n$/, "");
+
 const parseSgml = (
   body: string,
   statementAggregate: CommBankAccountProfile["statementAggregate"],
@@ -142,8 +137,12 @@ const parseSgml = (
   while (cursor < body.length) {
     const start = body.indexOf("<", cursor);
 
-    if (start === -1)
-      return body.slice(cursor).trim() === "" ? Option.some(document) : Option.none();
+    if (start === -1) {
+      return body.slice(cursor).trim() === "" && open.length === 1
+        ? Option.some(document)
+        : Option.none();
+    }
+
     if (body.slice(cursor, start).trim() !== "") return Option.none();
 
     const end = body.indexOf(">", start + 1);
@@ -151,40 +150,48 @@ const parseSgml = (
     if (end === -1) return Option.none();
 
     const tag = body.slice(start + 1, end);
+
+    if (!tagName.test(tag)) return Option.none();
+
     const next = body.indexOf("<", end + 1);
-    const text = (next === -1 ? body.slice(end + 1) : body.slice(end + 1, next)).trim();
+    const content = next === -1 ? body.slice(end + 1) : body.slice(end + 1, next);
+    const text = sourceValue(content);
 
     cursor = next === -1 ? body.length : next;
 
-    if (tag === "") return Option.none();
-
     if (tag.startsWith("/")) {
       const closing = tag.slice(1);
-      const expectedOpening =
-        closing === statementAggregate.closing ? statementAggregate.opening : closing;
-      const depth = open.findLastIndex((node) => node.tag === expectedOpening);
+      const current = open.at(-1);
+      const isProfileClose =
+        current?.tag === statementAggregate.opening && closing === statementAggregate.closing;
 
-      if (depth < 1 || text !== "") return Option.none();
-
-      for (let level = open.length - 1; level > depth; level--) {
-        const scalar = open[level] as OfxNode;
-        const parent = open[level - 1] as OfxNode;
-
-        scalar.value = "";
-        parent.children.push(...scalar.children);
-        scalar.children = [];
+      if (
+        current === undefined ||
+        (current.tag !== closing && !isProfileClose) ||
+        text.trim() !== ""
+      ) {
+        return Option.none();
       }
 
-      open.length = depth;
+      open.pop();
       continue;
     }
 
-    const parent = open.at(-1) as OfxNode;
-    const node: OfxNode = { tag, value: text === "" ? null : text, children: [] };
+    const parent = open.at(-1);
 
-    parent.children.push(node);
+    if (parent === undefined) return Option.none();
 
-    if (text === "") open.push(node);
+    if (aggregateTags.has(tag)) {
+      if (text.trim() !== "") return Option.none();
+
+      const node: OfxNode = { tag, value: null, children: [] };
+
+      parent.children.push(node);
+      open.push(node);
+      continue;
+    }
+
+    parent.children.push({ tag, value: text, children: [] });
   }
 
   return open.length === 1 ? Option.some(document) : Option.none();
@@ -193,39 +200,77 @@ const parseSgml = (
 const childrenNamed = (node: OfxNode, tag: string) =>
   node.children.filter((child) => child.tag === tag);
 
-const element = (node: OfxNode, tag: string, path: string) =>
+const element = (node: OfxNode, tag: string, path: string, sourceOrdinal: number | null = null) =>
   Effect.gen(function* () {
     const found = childrenNamed(node, tag);
-    const [first] = found;
+    const first = found[0];
 
-    if (first === undefined) return yield* reject("missing_element", `${path}/${tag} is absent`);
+    if (first === undefined) {
+      return yield* reject("missing_element", `${path}/${tag} is absent`, sourceOrdinal);
+    }
+
     if (found.length > 1) {
-      return yield* reject("duplicate_element", `${path}/${tag} appears ${found.length} times`);
+      return yield* reject(
+        "duplicate_element",
+        `${path}/${tag} appears ${found.length} times`,
+        sourceOrdinal,
+      );
     }
 
     return first;
   });
 
-const scalar = (node: OfxNode, tag: string, path: string) =>
+const optionalElement = (
+  node: OfxNode,
+  tag: string,
+  path: string,
+  sourceOrdinal: number | null = null,
+) =>
   Effect.gen(function* () {
-    const found = yield* element(node, tag, path);
+    const found = childrenNamed(node, tag);
 
-    if (found.children.length > 0) {
-      return yield* reject("unexpected_children", `${path}/${tag} is an aggregate, not a value`);
+    if (found.length > 1) {
+      return yield* reject(
+        "duplicate_element",
+        `${path}/${tag} appears ${found.length} times`,
+        sourceOrdinal,
+      );
     }
 
-    return found.value ?? "";
+    return Option.fromUndefinedOr(found[0]);
   });
 
-const optionalScalar = (node: OfxNode, tag: string) => {
-  const found = childrenNamed(node, tag);
+const scalar = (node: OfxNode, tag: string, path: string, sourceOrdinal: number | null = null) =>
+  Effect.gen(function* () {
+    const found = yield* element(node, tag, path, sourceOrdinal);
 
-  return found.length === 1 && found[0]?.children.length === 0
-    ? Option.some(found[0]?.value ?? "")
-    : Option.none<string>();
-};
+    if (found.children.length > 0 || found.value === null) {
+      return yield* reject(
+        "unexpected_children",
+        `${path}/${tag} is an aggregate, not a value`,
+        sourceOrdinal,
+      );
+    }
 
-/** `YYYYMMDD`, optionally followed by the `HHMMSS` the balance and window records carry. */
+    return found.value;
+  });
+
+const nonEmptyScalar = (
+  node: OfxNode,
+  tag: string,
+  path: string,
+  sourceOrdinal: number | null = null,
+) =>
+  Effect.gen(function* () {
+    const value = yield* scalar(node, tag, path, sourceOrdinal);
+
+    if (value === "") {
+      return yield* reject("missing_element", `${path}/${tag} is empty`, sourceOrdinal);
+    }
+
+    return value;
+  });
+
 const ofxDate = /^(\d{4})(\d{2})(\d{2})(?:\d{6})?$/;
 
 const asDate = (raw: string) => {
@@ -249,11 +294,11 @@ const messageSets = {
   },
 } as const;
 
-const balance = (statement: OfxNode, tag: string) =>
+const balance = (statement: OfxNode, tag: "LEDGERBAL" | "AVAILBAL") =>
   Effect.gen(function* () {
     const node = yield* element(statement, tag, "OFX");
-    const rawAmount = yield* scalar(node, "BALAMT", tag);
-    const rawAsOf = yield* scalar(node, "DTASOF", tag);
+    const rawAmount = yield* nonEmptyScalar(node, "BALAMT", tag);
+    const rawAsOf = yield* nonEmptyScalar(node, "DTASOF", tag);
     const amount = sourceAmount(rawAmount);
     const asOfDate = asDate(rawAsOf);
 
@@ -270,18 +315,17 @@ const balance = (statement: OfxNode, tag: string) =>
 
 export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
   bytes: Uint8Array,
-  profile: CommBankAccountProfile,
+  profileId: CommBankProfileId,
 ): Effect.fn.Return<CommBankOfxFile, CommBankOfxRejected> {
-  const bodyStart = bytes.indexOf(documentStart);
+  const profile = commBankAccountProfiles[profileId];
+  const bodyStart = bytes.indexOf(0x3c);
 
-  if (bodyStart === -1)
+  if (bodyStart === -1) {
     return yield* reject("missing_header", "the file contains no SGML document");
+  }
 
-  // The header has to be read before the body can be decoded, because the
-  // header is what declares the body's character set. OFX 1.x writes the header
-  // itself in ASCII.
   const headerBytes = bytes.subarray(0, bodyStart);
-  const highByte = headerBytes.findIndex((byte) => byte > asciiLimit);
+  const highByte = headerBytes.findIndex((byte) => byte > 0x7f);
 
   if (highByte !== -1) {
     return yield* reject("undecodable_bytes", `header byte at offset ${highByte} is outside ASCII`);
@@ -298,7 +342,13 @@ export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
       return yield* reject("missing_header", `${JSON.stringify(line)} is not a header field`);
     }
 
-    header.set(line.slice(0, separator).trim(), line.slice(separator + 1).trim());
+    const field = line.slice(0, separator).trim();
+
+    if (header.has(field)) {
+      return yield* reject("duplicate_header", `${field} appears more than once`);
+    }
+
+    header.set(field, line.slice(separator + 1).trim());
   }
 
   for (const [field, expected] of Object.entries(supportedHeader)) {
@@ -312,16 +362,14 @@ export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
     }
   }
 
-  // `ENCODING:USASCII` with `CHARSET:1252` is the observed declaration: the
-  // document is ASCII, and anything above it means Windows-1252. Obeying the
-  // declaration is the whole reason the header is validated first.
   const parsed = parseSgml(
     new TextDecoder("windows-1252").decode(bytes.subarray(bodyStart)),
     profile.statementAggregate,
   );
 
-  if (Option.isNone(parsed))
-    return yield* reject("malformed_sgml", "the element tree is unbalanced");
+  if (Option.isNone(parsed)) {
+    return yield* reject("malformed_sgml", "the SGML aggregate structure is invalid");
+  }
 
   const root = yield* element(parsed.value, "OFX", "");
   const shape = messageSets[profile.messageSet];
@@ -341,20 +389,45 @@ export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
     profile.statementAggregate.opening,
     `OFX/${shape.messages}/${shape.response}`,
   );
-  const currency = yield* scalar(statement, "CURDEF", profile.statementAggregate.opening);
+  const currency = yield* nonEmptyScalar(statement, "CURDEF", profile.statementAggregate.opening);
 
-  // Every cage comparison, every split, and every balance in this system is
-  // AUD. A file denominated in anything else would decode into numbers that
-  // silently mean something different.
   if (currency !== "AUD") {
     return yield* reject("unsupported_currency", `CURDEF is ${JSON.stringify(currency)}`);
   }
 
   const from = yield* element(statement, shape.from, profile.statementAggregate.opening);
-  const accountId = yield* scalar(from, "ACCTID", shape.from);
+  const accountId = yield* nonEmptyScalar(from, "ACCTID", shape.from);
+  let account: CommBankOfxAccount;
+
+  if (profile.messageSet === "bank") {
+    const bankId = yield* nonEmptyScalar(from, "BANKID", shape.from);
+    const accountType = yield* nonEmptyScalar(from, "ACCTTYPE", shape.from);
+    const expectedAccountType = profile.accountType === "credit_line" ? "CREDITLINE" : "SAVINGS";
+
+    if (accountType !== expectedAccountType) {
+      return yield* reject(
+        "account_type_mismatch",
+        `${profile.label} expects ACCTTYPE ${expectedAccountType}, found ${JSON.stringify(accountType)}`,
+      );
+    }
+
+    account = { messageSet: "bank", bankId, accountId, accountType };
+  } else {
+    const unexpected = ["BANKID", "ACCTTYPE"].filter((tag) => childrenNamed(from, tag).length > 0);
+
+    if (unexpected.length > 0) {
+      return yield* reject(
+        "unexpected_element",
+        `${shape.from} contains bank-only ${unexpected.join(", ")}`,
+      );
+    }
+
+    account = { messageSet: "credit_card", accountId };
+  }
+
   const list = yield* element(statement, "BANKTRANLIST", profile.statementAggregate.opening);
-  const rawStart = yield* scalar(list, "DTSTART", "BANKTRANLIST");
-  const rawEnd = yield* scalar(list, "DTEND", "BANKTRANLIST");
+  const rawStart = yield* nonEmptyScalar(list, "DTSTART", "BANKTRANLIST");
+  const rawEnd = yield* nonEmptyScalar(list, "DTEND", "BANKTRANLIST");
   const start = asDate(rawStart);
   const end = asDate(rawEnd);
 
@@ -366,23 +439,39 @@ export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
     return yield* reject("invalid_date", `BANKTRANLIST/DTEND is ${JSON.stringify(rawEnd)}`);
   }
 
+  if (start.value > end.value) {
+    return yield* reject(
+      "invalid_window",
+      `BANKTRANLIST starts ${start.value} after it ends ${end.value}`,
+    );
+  }
+
   const transactions: CommBankOfxTransaction[] = [];
 
   for (const [sourceOrdinal, node] of childrenNamed(list, "STMTTRN").entries()) {
     const path = `BANKTRANLIST/STMTTRN[${sourceOrdinal}]`;
-    const type = yield* scalar(node, "TRNTYPE", path);
-    const rawPosted = yield* scalar(node, "DTPOSTED", path);
-    const rawAmount = yield* scalar(node, "TRNAMT", path);
-    const narrative = yield* scalar(node, "MEMO", path);
-    const rawUser = optionalScalar(node, "DTUSER");
-    const rawIdentifier = optionalScalar(node, "FITID");
+    const type = yield* nonEmptyScalar(node, "TRNTYPE", path, sourceOrdinal);
+    const rawPosted = yield* nonEmptyScalar(node, "DTPOSTED", path, sourceOrdinal);
+    const rawUser = yield* nonEmptyScalar(node, "DTUSER", path, sourceOrdinal);
+    const rawAmount = yield* nonEmptyScalar(node, "TRNAMT", path, sourceOrdinal);
+    const rawIdentifier = yield* scalar(node, "FITID", path, sourceOrdinal);
+    const narrative = yield* scalar(node, "MEMO", path, sourceOrdinal);
     const postedDate = asDate(rawPosted);
+    const userDate = asDate(rawUser);
     const amount = sourceAmount(rawAmount);
 
     if (Option.isNone(postedDate)) {
       return yield* reject(
         "invalid_date",
         `${path}/DTPOSTED is ${JSON.stringify(rawPosted)}`,
+        sourceOrdinal,
+      );
+    }
+
+    if (Option.isNone(userDate)) {
+      return yield* reject(
+        "invalid_date",
+        `${path}/DTUSER is ${JSON.stringify(rawUser)}`,
         sourceOrdinal,
       );
     }
@@ -395,12 +484,30 @@ export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
       );
     }
 
-    const userDate = Option.flatMap(rawUser, asDate);
-
-    if (Option.isSome(rawUser) && rawUser.value !== "" && Option.isNone(userDate)) {
+    if (postedDate.value < start.value || postedDate.value > end.value) {
       return yield* reject(
-        "invalid_date",
-        `${path}/DTUSER is ${JSON.stringify(rawUser.value)}`,
+        "transaction_outside_window",
+        `${path}/DTPOSTED ${postedDate.value} is outside ${start.value} to ${end.value}`,
+        sourceOrdinal,
+      );
+    }
+
+    const previous = transactions.at(-1);
+
+    if (previous !== undefined && previous.postedDate < postedDate.value) {
+      return yield* reject(
+        "source_order",
+        `${postedDate.value} is newer than the preceding transaction ${previous.postedDate}`,
+        sourceOrdinal,
+      );
+    }
+
+    const hasIdentifier = rawIdentifier !== "";
+
+    if ((profile.identifier === "stable") !== hasIdentifier) {
+      return yield* reject(
+        "identifier_policy",
+        `${profile.label} requires FITID to be ${profile.identifier === "stable" ? "populated" : "empty"}`,
         sourceOrdinal,
       );
     }
@@ -410,34 +517,29 @@ export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
       raw: {
         type,
         postedDate: rawPosted,
-        userDate: Option.getOrElse(rawUser, () => ""),
+        userDate: rawUser,
         amount: rawAmount,
-        identifier: Option.getOrElse(rawIdentifier, () => ""),
+        identifier: rawIdentifier,
         narrative,
       },
       type,
       postedDate: postedDate.value,
-      userDate,
+      userDate: userDate.value,
       amount: amount.value,
-      identifier: Option.filter(rawIdentifier, (value) => value !== ""),
+      identifier: hasIdentifier ? Option.some(rawIdentifier) : Option.none(),
       narrative,
     });
   }
 
   const ledgerBalance = yield* balance(statement, "LEDGERBAL");
-  const availableBalance =
-    childrenNamed(statement, "AVAILBAL").length === 0
-      ? Option.none<CommBankOfxBalance>()
-      : Option.some(yield* balance(statement, "AVAILBAL"));
+  const availableNode = yield* optionalElement(statement, "AVAILBAL", "OFX");
+  const availableBalance = Option.isSome(availableNode)
+    ? Option.some(yield* balance(statement, "AVAILBAL"))
+    : Option.none<CommBankOfxBalance>();
 
   return {
-    account: {
-      messageSet: profile.messageSet,
-      bankId: optionalScalar(from, "BANKID"),
-      accountId,
-      accountType: optionalScalar(from, "ACCTTYPE"),
-    },
-    currency,
+    account,
+    currency: "AUD",
     window: { start: start.value, end: end.value },
     transactions,
     ledgerBalance,
