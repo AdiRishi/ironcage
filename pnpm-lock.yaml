@@ -210,6 +210,9 @@ importers:
       '@ironcage/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@ironcage/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@ironcage/ui':
         specifier: workspace:*
         version: link:../../packages/ui
