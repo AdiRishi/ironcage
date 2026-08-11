@@ -3,8 +3,14 @@ import { FetchHttpClient, HttpClient, HttpClientError } from "effect/unstable/ht
 import type { Rpc, RpcGroup } from "effect/unstable/rpc";
 import { RpcClient, RpcClientError, RpcSerialization } from "effect/unstable/rpc";
 
-import { Internal } from "./errors";
+import { Internal } from "../surfaces/errors";
 import { rpcPath } from "./protocol";
+
+/** The client a group produces. */
+export type ClientFor<Group> = RpcClient.RpcClient<
+  RpcGroup.Rpcs<Group>,
+  RpcClientError.RpcClientError
+>;
 
 /**
  * The slice of a Cloudflare service binding this module uses. A `Fetcher`
@@ -53,17 +59,19 @@ const withBudget = (
   HttpClient.transform(client, (effect, request) =>
     Effect.timeoutOrElse(effect, {
       duration: timeout,
-      orElse: () =>
-        Effect.fail(
+      orElse: () => {
+        const description = `no answer within ${Duration.format(Duration.fromInputUnsafe(timeout))}`;
+
+        return Effect.fail(
           new HttpClientError.HttpClientError({
             reason: new HttpClientError.TransportError({
               request,
-              cause: new Error(
-                `no answer within ${Duration.format(Duration.fromInputUnsafe(timeout))}`,
-              ),
+              description,
+              cause: new Error(description),
             }),
           }),
-        ),
+        );
+      },
     }),
   );
 
@@ -98,9 +106,22 @@ export const clientOverBinding = <Rpcs extends Rpc.Any>(
  * with the protocol's own transport error, which no caller should have to
  * match on; folding it into `Internal` leaves only our tags.
  */
+const rpcClientErrorDetail = (error: RpcClientError.RpcClientError): string => {
+  const reason = error.reason;
+
+  if (reason._tag !== "HttpError") {
+    return reason.message;
+  }
+
+  return reason.cause instanceof Error ? `${reason.kind}: ${reason.cause.message}` : reason.kind;
+};
+
 export const intoTaxonomy = <A, E, R>(
   effect: Effect.Effect<A, E | RpcClientError.RpcClientError, R>,
 ) =>
-  Effect.catchTag(effect, "RpcClientError", (error) =>
-    Effect.fail(new Internal({ detail: String(error) })),
+  Effect.catchIf(
+    effect,
+    (error): error is RpcClientError.RpcClientError =>
+      error instanceof RpcClientError.RpcClientError,
+    (error) => Effect.fail(new Internal({ detail: rpcClientErrorDetail(error) })),
   );

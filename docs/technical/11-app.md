@@ -83,7 +83,7 @@ A server function calls `AppApi` through the generated client in `packages/contr
 Every value that a human reads as a number crosses the wire wrapped. The wrapper is what makes the freshness guarantee structural rather than a habit.
 
 ```ts
-// packages/contracts/src/observed.ts
+// packages/contracts/src/values/observed.ts
 export type Observed<A> =
   | {
       readonly _tag: "Fresh";
@@ -136,7 +136,7 @@ The browser opens one same-origin WebSocket to `/api/feed.ws`. The app Worker va
 This section is the single home of the frame protocol. Other chapters reference it; they must not restate it. The feed record the protocol carries is defined in [Data](./03-data.md).
 
 ```ts
-// packages/contracts/src/feed-socket.ts
+// packages/contracts/src/feed/socket.ts
 export type ClientFrame =
   | { readonly _tag: "Subscribe"; readonly since: FeedEventId | null; readonly filter: FeedFilter }
   | { readonly _tag: "Ack"; readonly through: FeedEventId }
@@ -239,7 +239,7 @@ Two implementation rules make the shell's guarantees real.
 **Mode discipline is a type.** Every payload carrying sleeve data carries its mode, and the client's domain types preserve it.
 
 ```ts
-// packages/domain/src/mode.ts
+// packages/domain/src/portfolio/mode.ts
 export type Moded<A> =
   { readonly _tag: "DryRun"; readonly value: A } | { readonly _tag: "Live"; readonly value: A };
 ```

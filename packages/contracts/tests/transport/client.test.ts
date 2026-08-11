@@ -5,16 +5,19 @@ import { HttpRouter } from "effect/unstable/http";
 import type { Rpc, RpcGroup } from "effect/unstable/rpc";
 import { describe, expect } from "vitest";
 
-import { Internal } from "../src/errors";
-import { rpcHttpRoute, systemPingHandler } from "../src/serve";
-import { AppRpcs } from "../src/surfaces";
-import type { ServiceBinding } from "../src/transport";
-import { clientOverBinding, intoTaxonomy, timeouts } from "../src/transport";
+import {
+  AppRpcs,
+  clientOverBinding,
+  intoTaxonomy,
+  timeouts,
+  type ServiceBinding,
+} from "../../src/client";
+import { Internal } from "../../src/schema";
+import { rpcHttpRoute, systemPingHandler } from "../../src/server";
 
 const serverWith = (handlers: Layer.Layer<Rpc.ToHandler<RpcGroup.Rpcs<typeof AppRpcs>>>) =>
   HttpRouter.toWebHandler(rpcHttpRoute(AppRpcs, handlers), { disableLogger: true });
 
-// What workerd hands a caller: a `fetch` into another Worker's fetch handler.
 const bindingTo = (handler: (request: Request) => Promise<Response>): ServiceBinding => ({
   fetch: (input, init) => handler(new Request(input as RequestInfo, init)),
 });
@@ -68,6 +71,8 @@ describe("clientOverBinding", () => {
       const result = yield* Effect.flip(callPing(bindingTo(server.handler), "20 millis"));
 
       expect(result).toBeInstanceOf(Internal);
+      expect(result.detail).toContain("no answer within 20ms");
+      expect(result.detail).toContain("POST http://core.ironcage.internal/rpc");
 
       yield* Effect.promise(() => server.dispose());
     }),

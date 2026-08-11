@@ -51,7 +51,9 @@ const checkBindings = (env: Env) =>
     return {
       worker,
       AGENTS: yield* dispatch.ping(),
-      COMPUTE: yield* Effect.promise(() => env.COMPUTE.getByName("wiring").ping()),
+      COMPUTE: yield* Effect.promise(() =>
+        env.COMPUTE.getByName("wiring", { locationHint: "oc" }).ping(),
+      ),
       // A connection string rather than a query: what a binding proves is that
       // it resolves. Whether the database answers is the health route's job,
       // once there is a driver to ask it with.

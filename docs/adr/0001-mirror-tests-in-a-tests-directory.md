@@ -1,6 +1,6 @@
 # Mirror tests in a `tests/` directory beside `src/`
 
-Every workspace package keeps its tests in a `tests/` directory that mirrors the structure of its `src/` directory. Tests for `packages/engine/src/cage.ts` live at `packages/engine/tests/cage.test.ts`. Tests for `apps/app/src/routes/index.tsx` live at `apps/app/tests/routes/index.test.tsx`. Named suites keep the same rule: the `engine/cage.property` suite in [Operations](../technical/12-operations.md) is the directory `packages/engine/tests/cage.property/`.
+Every workspace package keeps its tests in a `tests/` directory that mirrors the structure of its `src/` directory. Tests for `packages/engine/src/cage/reservation.ts` live at `packages/engine/tests/cage/reservation.test.ts`. Tests for `apps/app/src/routes/index.tsx` live at `apps/app/tests/routes/index.test.tsx`. Named suites keep the same rule: the `engine/cage.property` suite in [Operations](../technical/12-operations.md) is the directory `packages/engine/tests/cage.property/`.
 
 The layout exists so that production and test code are separate TypeScript projects. `tests/tsconfig.json` extends the package's `tsconfig.json` and adds the types the test runner needs; the production project never lists them. Each package's `typecheck` script runs both projects, so coverage does not shrink.
 

@@ -49,7 +49,7 @@ The container has no Postgres credential and no general internet egress. Core ve
 Every run starts from a manifest, stored beside its result and sufficient to reproduce it. The manifest is the run's identity.
 
 ```ts
-// packages/contracts/src/backtest.ts
+// packages/contracts/src/workbench/backtest.ts
 export interface BacktestManifest {
   readonly manifestVersion: 1;
   readonly runId: RunId; // UUIDv7, minted before anything is read
@@ -139,7 +139,7 @@ kraken|BTC/AUD|4h|1659672000000|31245.5|31402|31180.25|31366|18.4213
 Backtests run in the `ironcage-compute` container, which executes `packages/engine` — the same strategy, clamp, cage, and fill code the live engine runs. The caller is a gate-pipeline Workflow or an operator action, the contract is the same for both, and the caller stores pointers rather than payloads.
 
 ```ts
-// packages/contracts/src/compute.ts
+// packages/contracts/src/workbench/compute.ts
 export interface BacktestRequest {
   readonly manifest: BacktestManifest;
   readonly candleInput: R2Key; // canonical lines from §2, written by the caller

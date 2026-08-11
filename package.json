@@ -24,6 +24,7 @@
     "@types/node": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "turbo": "catalog:",
     "typescript": "catalog:",
     "yaml": "catalog:"

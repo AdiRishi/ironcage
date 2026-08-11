@@ -1,8 +1,15 @@
 import { Schema } from "effect";
 import { Model } from "effect/unstable/schema";
 
-import { CeremonyId, SleeveId, TransitionId } from "./ids";
-import { Timestamp } from "./time";
+import { CeremonyId } from "../governance/ceremony";
+import { Timestamp } from "../values/time";
+import { uuidV7 } from "../values/uuid";
+
+export const SleeveId = uuidV7("SleeveId");
+export type SleeveId = typeof SleeveId.Type;
+
+export const TransitionId = uuidV7("TransitionId");
+export type TransitionId = typeof TransitionId.Type;
 
 export const Market = Schema.Literals(["crypto", "stocks"]);
 export type Market = typeof Market.Type;

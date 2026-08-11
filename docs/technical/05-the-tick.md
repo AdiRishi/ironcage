@@ -205,7 +205,7 @@ All pass. The intent may form.
 Above every sleeve, the system-cage actor owns total exposure. An entry must reserve headroom before it may execute, so that no interleaving of sleeves can exceed the system cap. The protocol is three messages:
 
 ```ts
-// packages/contracts/src/system-cage.ts
+// packages/contracts/src/cage/system.ts
 reserve:  { intent: IntentId; sleeve: SleeveId; amount: Money<"AUD"> }
        →  { _tag: "Granted"; reservation: ReservationId }
         | { _tag: "Refused"; rule: "total-exposure"; observed: Money<"AUD">; cap: Money<"AUD"> }

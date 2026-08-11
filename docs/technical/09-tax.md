@@ -79,7 +79,7 @@ The zero-basis flag still exists, but it marks a genuinely untracked disposal. I
 Nine event kinds, one shape. Every kind carries when, what, how much, what it is worth in AUD, how that value was determined, and which raw record it came from.
 
 ```ts
-// packages/domain/src/tax/TaxEvent.ts
+// packages/domain/src/tax/event.ts
 export interface EventBase {
   readonly id: TaxEventId; // UUIDv7
   readonly at: Instant; // the source's timestamp, UTC — never our clock

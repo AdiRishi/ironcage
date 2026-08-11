@@ -75,16 +75,13 @@ Dependency direction is one-way: `apps → contracts → domain`, and `apps → 
 
 ## 3. Local development
 
-Four independent processes, with service bindings resolved by the local dev registry.
+Run the monorepo's general development command:
 
-```
-apps/core:   wrangler dev
-apps/compute: wrangler dev
-apps/agents: vite dev
-apps/app:    vite dev
+```sh
+pnpm dev
 ```
 
-Current Wrangler can resolve an external Durable Object Worker running in a separate local process, so core and compute do not need a combined multi-config command. `pnpm dev` at the root starts all four processes.
+It starts all four development processes, with service bindings resolved by the local dev registry. Current Wrangler can resolve an external Durable Object Worker running in a separate local process, so core and compute do not need a combined multi-config command.
 
 The database story has three lanes. Ordinary local development uses Hyperdrive's `localConnectionString` to connect directly to a PlanetScale dev branch; that is convenient but explicitly bypasses Hyperdrive pooling and caching. CI uses a local Postgres container, so pipelines are hermetic, parallel-safe, and exercise a cold schema. A deployed dev Worker runs the same integration suite through real dev Hyperdrive configurations before any database-sensitive change can merge. All three lanes use the same migrations and public contract tests.
 

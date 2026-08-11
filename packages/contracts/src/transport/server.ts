@@ -1,4 +1,4 @@
-import { DateTime, Effect, Layer } from "effect";
+import { Effect, Layer } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 import type { Rpc, RpcGroup } from "effect/unstable/rpc";
 import { RpcSerialization, RpcServer } from "effect/unstable/rpc";
@@ -20,8 +20,3 @@ export const rpcHttpRoute = <Rpcs extends Rpc.Any, R>(
       Effect.flatMap((handler) => handler),
     ),
   );
-
-export const systemPingHandler = (identity: {
-  readonly worker: string;
-  readonly surface: string;
-}) => Effect.map(DateTime.now, (serverTime) => ({ ...identity, serverTime }));

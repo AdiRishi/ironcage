@@ -87,7 +87,7 @@ Agents have exactly two paths to the rest of the system: the read-only `AgentRea
 One message per capability run:
 
 ```ts
-// packages/contracts/src/queue.ts
+// packages/contracts/src/ai/capability-run.ts
 export const CapabilityRunMessage = Schema.Struct({
   runId: RunId, // application idempotency key backed by capability_outputs.id; Queues itself does not dedupe on it
   capability: Schema.String, // registry name

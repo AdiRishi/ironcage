@@ -1,7 +1,7 @@
 import { DateTime, Option, Schema } from "effect";
 import { describe, expect, test } from "vitest";
 
-import { Sleeve } from "../src/sleeve";
+import { Sleeve } from "../../src";
 
 const id = "01912d68-783e-7c66-9d4b-6c4b2e9a1a2b";
 const createdAt = new Date("2026-08-10T04:15:30.000Z");

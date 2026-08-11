@@ -29,8 +29,8 @@ every reader and writer stopped using the old representation.
 ## Applying them
 
 ```sh
-pnpm migrate           # apply everything pending
-pnpm migrate --plan    # show what would run, touch nothing
+pnpm migrate        # show what would run, touch nothing
+pnpm migrate:apply  # apply everything pending
 ```
 
 `DATABASE_URL` must be a **direct** connection to the branch. Hyperdrive pools

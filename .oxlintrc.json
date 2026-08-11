@@ -21,6 +21,11 @@
   "categories": {
     "correctness": "error"
   },
+  "options": {
+    // `tsc` remains the authoritative typecheck. This enables the semantic
+    // information needed by type-aware lint rules without duplicating it.
+    "typeAware": true
+  },
   "env": {
     "builtin": true,
     "browser": true,
@@ -29,6 +34,10 @@
   },
   "rules": {
     "react/react-in-jsx-scope": "off",
+    // Workers can be terminated after a response, so unhandled asynchronous
+    // work is a correctness error rather than a stylistic preference.
+    "typescript/no-floating-promises": ["error", { "ignoreVoid": false }],
+    "typescript/no-misused-promises": "error",
     // `Effect.catch(effect, handler)` is a member call named `catch` with two
     // arguments, which this rule reads as a misuse of `Promise.catch`. It
     // cannot tell the two apart, and the Effect form is everywhere.
