@@ -47,7 +47,7 @@ export const makeMoneyLedgerTestKit = (snapshot: MoneyLedgerSnapshot) =>
     const repository = MoneyLedgerRepository.of({
       snapshot: Ref.get(state).pipe(Effect.map((current) => current.snapshot)),
       transactions: (_ids) => Effect.succeed<readonly BankTransactionRecord[]>([]),
-      withTransaction: (use) =>
+      withTransaction: (_requestId, use) =>
         use({
           snapshot: Ref.get(state).pipe(Effect.map((current) => current.snapshot)),
           createCategory: (plan) =>

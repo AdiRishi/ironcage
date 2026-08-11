@@ -184,6 +184,51 @@ describe("MoneyImports", () => {
     }),
   );
 
+  it.effect("matches the loan repayment in both accounts as one owned transfer", () =>
+    Effect.gen(function* () {
+      const kit = yield* makeMoneyImportTestKit;
+
+      yield* Effect.gen(function* () {
+        const imports = yield* MoneyImports;
+        yield* imports.registerAccount({ account, requestId: requestId("31") });
+        yield* imports.registerAccount({ account: homeLoanAccount, requestId: requestId("32") });
+
+        const spending = yield* imports.preview(b);
+        yield* imports.confirm({
+          source: b,
+          expectedBundleDigest: spending.bundleDigest,
+          expectedPreviewFingerprint: spending.previewFingerprint,
+          resolutions: [],
+          requestId: requestId("33"),
+        });
+        expect((yield* Ref.get(kit.state)).transferPairs).toHaveLength(0);
+
+        const loan = yield* imports.preview(homeLoan);
+        yield* imports.confirm({
+          source: homeLoan,
+          expectedBundleDigest: loan.bundleDigest,
+          expectedPreviewFingerprint: loan.previewFingerprint,
+          resolutions: [],
+          requestId: requestId("34"),
+        });
+
+        // The corpus records one A$3,908.00 repayment leaving the offset on
+        // 28 July and the same amount arriving at the loan that day.
+        expect((yield* Ref.get(kit.state)).transferPairs).toMatchObject([{ status: "confirmed" }]);
+
+        const overlapping = yield* imports.preview(c);
+        yield* imports.confirm({
+          source: c,
+          expectedBundleDigest: overlapping.bundleDigest,
+          expectedPreviewFingerprint: overlapping.previewFingerprint,
+          resolutions: [],
+          requestId: requestId("35"),
+        });
+        expect((yield* Ref.get(kit.state)).transferPairs).toHaveLength(1);
+      }).pipe(Effect.provide(kit.layer));
+    }),
+  );
+
   it.effect("emits monthly coverage gaps once and closes them when the account catches up", () =>
     Effect.gen(function* () {
       const kit = yield* makeMoneyImportTestKit;

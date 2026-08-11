@@ -251,7 +251,7 @@ export const makeMoneyImportTestKit = Effect.gen(function* () {
         ];
       }),
     snapshot,
-    withAccountTransaction: (accountId, use) =>
+    withAccountTransaction: (accountId, _requestId, use) =>
       use({
         snapshot: snapshot(accountId),
         commitImport: (plan) =>

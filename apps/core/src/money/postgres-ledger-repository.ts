@@ -11,8 +11,10 @@ import {
   CategoryId,
   CategorizationReviewItem,
   CategorizationRule,
+  CategorizationSuggestionId,
   CategorizationRulePredicate,
   CategorySplit,
+  DecisionRecordId,
   Money,
   MonthlySpendingReport,
   RequestId,
@@ -48,8 +50,63 @@ import { listAccountsWith } from "./postgres-repository";
 const json = (value: unknown) => JSON.stringify(value);
 const money = (value: Money) => BigDecimal.format(BigDecimal.normalize(value));
 
+const TransactionRow = Schema.Struct({
+  id: BankTransactionId,
+  accountId: BankAccountId,
+  postedDate: CalendarDate,
+  amount: Money,
+  narrative: Schema.String,
+  payee: Schema.String,
+  ownedTransfer: Schema.Boolean,
+  categoryId: CategoryId,
+  categoryName: Schema.String,
+  categoryKind: Schema.Literals(["expense", "income"]),
+  splitAmount: Money,
+});
+
+const SuggestionRow = Schema.Struct({
+  id: CategorizationSuggestionId,
+  transactionId: BankTransactionId,
+  splits: Schema.Array(CategorySplit),
+  confidence: Schema.BigDecimalFromString,
+  rationale: Schema.String,
+  decisionRecordId: DecisionRecordId,
+});
+
+const SplitRow = Schema.Struct({
+  id: BankTransactionId,
+  accountId: BankAccountId,
+  postedDate: CalendarDate,
+  amount: Money,
+  preferredNarrative: Schema.String,
+  ownedTransfer: Schema.Boolean,
+  categoryId: CategoryId,
+  splitAmount: Money,
+});
+
+const ObservationRow = Schema.Struct({
+  transactionId: BankTransactionId,
+  id: BankObservationId,
+  sourceFileId: BankSourceFileId,
+  importId: BankImportId,
+  sourceRole: Schema.Literals(["csv", "ofx", "pdf", "extracted_markdown"]),
+  originalName: Schema.String,
+  sourceKind: Schema.Literals(["csv", "ofx", "statement"]),
+  sourceOrdinal: Schema.Int,
+  rawFields: Schema.Record(Schema.String, Schema.String),
+  parsedFields: Schema.Record(Schema.String, Schema.String),
+  matchTier: Schema.Literals([
+    "new",
+    "bank_identifier",
+    "row_balance",
+    "content_occurrence",
+    "manual",
+  ]),
+});
+
 const snapshotWith = Effect.fn("MoneyPostgresLedgerRepository.snapshotWith")(function* (
   sql: SqlExecutor,
+  requestId: RequestId | null,
 ): Effect.fn.Return<MoneyLedgerSnapshot, PersistenceError> {
   const accounts = yield* listAccountsWith(sql);
   const coverageRows = yield* sql.query(
@@ -113,7 +170,7 @@ const snapshotWith = Effect.fn("MoneyPostgresLedgerRepository.snapshotWith")(fun
             t.posted_date::text AS "postedDate",
             t.amount::text AS "amount",
             t.preferred_display_narrative AS "narrative",
-            lower(regexp_replace(trim(t.preferred_display_narrative), '\\s+', ' ', 'g')) AS "payee",
+            t.derived_payee AS "payee",
             EXISTS (
               SELECT 1 FROM transfer_matches tm
                WHERE tm.status = 'confirmed'
@@ -130,19 +187,6 @@ const snapshotWith = Effect.fn("MoneyPostgresLedgerRepository.snapshotWith")(fun
        JOIN category_names cn ON cn.category_id = c.id
       ORDER BY t.id, s.id`,
   );
-  const TransactionRow = Schema.Struct({
-    id: BankTransactionId,
-    accountId: BankAccountId,
-    postedDate: CalendarDate,
-    amount: Money,
-    narrative: Schema.String,
-    payee: Schema.String,
-    ownedTransfer: Schema.Boolean,
-    categoryId: CategoryId,
-    categoryName: Schema.String,
-    categoryKind: Schema.Literals(["expense", "income"]),
-    splitAmount: Money,
-  });
   const decodedTransactions = yield* decodeRows(
     "decode categorized bank transactions",
     TransactionRow,
@@ -186,14 +230,6 @@ const snapshotWith = Effect.fn("MoneyPostgresLedgerRepository.snapshotWith")(fun
       WHERE status = 'pending'
       ORDER BY transaction_id, created_at DESC, id DESC`,
   );
-  const SuggestionRow = Schema.Struct({
-    id: Schema.String.check(Schema.isUUID(7)).pipe(Schema.brand("CategorizationSuggestionId")),
-    transactionId: BankTransactionId,
-    splits: Schema.Array(CategorySplit),
-    confidence: Schema.BigDecimalFromString,
-    rationale: Schema.String,
-    decisionRecordId: Schema.String.check(Schema.isUUID(7)),
-  });
   const suggestions = yield* decodeRows(
     "decode categorization suggestions",
     SuggestionRow,
@@ -281,12 +317,16 @@ const snapshotWith = Effect.fn("MoneyPostgresLedgerRepository.snapshotWith")(fun
     MonthlySpendingReport,
     reportRows,
   );
-  const requestRows = yield* sql.query(
-    "read money ledger requests",
-    `SELECT request_id AS "requestId", operation, payload_hash AS "payloadHash", response
-       FROM app_requests
-      ORDER BY completed_at`,
-  );
+  const requestRows =
+    requestId === null
+      ? []
+      : yield* sql.query(
+          "read money ledger request",
+          `SELECT request_id AS "requestId", operation, payload_hash AS "payloadHash", response
+             FROM app_requests
+            WHERE request_id = $1`,
+          [requestId],
+        );
   const requests = yield* decodeRows(
     "decode money ledger requests",
     Schema.Struct({
@@ -341,16 +381,6 @@ const transactionsWith = Effect.fn("MoneyPostgresLedgerRepository.transactionsWi
       ORDER BY t.id, s.id`,
     [ids],
   );
-  const SplitRow = Schema.Struct({
-    id: BankTransactionId,
-    accountId: BankAccountId,
-    postedDate: CalendarDate,
-    amount: Money,
-    preferredNarrative: Schema.String,
-    ownedTransfer: Schema.Boolean,
-    categoryId: CategoryId,
-    splitAmount: Money,
-  });
   const splits = yield* decodeRows("decode bank transaction records", SplitRow, splitRows);
   const records = new Map<BankTransactionId, Omit<BankTransactionRecord, "observations">>();
   for (const row of splits) {
@@ -392,25 +422,6 @@ const transactionsWith = Effect.fn("MoneyPostgresLedgerRepository.transactionsWi
       ORDER BY l.transaction_id, f.role, o.source_ordinal, o.id`,
     [ids],
   );
-  const ObservationRow = Schema.Struct({
-    transactionId: BankTransactionId,
-    id: BankObservationId,
-    sourceFileId: BankSourceFileId,
-    importId: BankImportId,
-    sourceRole: Schema.Literals(["csv", "ofx", "pdf", "extracted_markdown"]),
-    originalName: Schema.String,
-    sourceKind: Schema.Literals(["csv", "ofx", "statement"]),
-    sourceOrdinal: Schema.Int,
-    rawFields: Schema.Record(Schema.String, Schema.String),
-    parsedFields: Schema.Record(Schema.String, Schema.String),
-    matchTier: Schema.Literals([
-      "new",
-      "bank_identifier",
-      "row_balance",
-      "content_occurrence",
-      "manual",
-    ]),
-  });
   const observations = yield* decodeRows(
     "decode bank transaction observations",
     ObservationRow,
@@ -641,6 +652,7 @@ const saveReportWith = Effect.fn("MoneyPostgresLedgerRepository.saveReportWith")
   plan: SaveReportPlan,
 ) {
   const report = plan.response;
+  const encoded = Schema.encodeSync(MonthlySpendingReport)(report);
   const generatedAt = DateTime.toDateUtc(report.generatedAt);
   yield* sql.query(
     "insert monthly spending report",
@@ -653,10 +665,10 @@ const saveReportWith = Effect.fn("MoneyPostgresLedgerRepository.saveReportWith")
       report.month,
       generatedAt,
       report.dataThrough,
-      json(Schema.encodeSync(MonthlySpendingReport)(report).analysis),
-      json(Schema.encodeSync(MonthlySpendingReport)(report).recurringCharges),
-      json(Schema.encodeSync(MonthlySpendingReport)(report).anomalies),
-      json(Schema.encodeSync(MonthlySpendingReport)(report).suggestions),
+      json(encoded.analysis),
+      json(encoded.recurringCharges),
+      json(encoded.anomalies),
+      json(encoded.suggestions),
       report.supportingTransactionIds,
       report.bodyKey,
     ],
@@ -697,7 +709,7 @@ const saveReportWith = Effect.fn("MoneyPostgresLedgerRepository.saveReportWith")
     "money.generate_monthly_report",
     plan.requestId,
     plan.payloadHash,
-    Schema.encodeSync(MonthlySpendingReport)(report),
+    encoded,
   );
   return report;
 });
@@ -727,13 +739,13 @@ export const postgresMoneyLedgerRepositoryLayer = (connectionString: string) =>
   Layer.succeed(
     MoneyLedgerRepository,
     MoneyLedgerRepository.of({
-      snapshot: inReadTransaction(connectionString, snapshotWith),
+      snapshot: inReadTransaction(connectionString, (sql) => snapshotWith(sql, null)),
       transactions: (ids) =>
         inReadTransaction(connectionString, (sql) => transactionsWith(sql, ids)),
-      withTransaction: (use) =>
+      withTransaction: (requestId, use) =>
         inTransaction(connectionString, moneyRecordLock, (sql) => {
           const transaction: MoneyLedgerTransaction = {
-            snapshot: snapshotWith(sql),
+            snapshot: snapshotWith(sql, requestId),
             createCategory: (plan) => createCategoryWith(sql, plan),
             renameCategory: (plan) => renameCategoryWith(sql, plan),
             categorize: (plan) => categorizeWith(sql, plan),

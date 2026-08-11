@@ -35,6 +35,7 @@ import { BigDecimal, Context, DateTime, Effect, Layer, Option, Schema } from "ef
 import { MoneyBlobStore } from "./blob-store";
 import { decodeStored, infrastructureError, type MoneyBoundaryError } from "./boundary";
 import { decodeCommBankBundle, type CommBankPairedBundle } from "./commbank/bundle";
+import { commBankPayee } from "./commbank/payee";
 import { commBankPairedProfileId } from "./commbank/profiles";
 import {
   calendarMonthForDate,
@@ -47,7 +48,6 @@ import {
 } from "./coverage";
 import {
   canonicalJson,
-  constantTimeDigestEqual,
   mintUuidV7,
   MoneyCryptography,
   sha256Text,
@@ -58,7 +58,7 @@ import {
   type DedupeVerdict,
   type UnidentifiedDedupeVerdict,
 } from "./deduplication";
-import { derivedPayee, narrativeFingerprint, normalizeNarrative } from "./normalization";
+import { normalizeNarrative } from "./normalization";
 import {
   type BalanceObservationPlan,
   type ClassificationPlan,
@@ -87,7 +87,8 @@ interface PreparedImport {
   readonly identity: StructuredSourceIdentity;
 }
 
-const formatMoney = (value: Money) => BigDecimal.format(BigDecimal.normalize(value));
+const formatMoney = (value: BigDecimal.BigDecimal) =>
+  BigDecimal.format(BigDecimal.normalize(value));
 
 const sourceIdentity = Effect.fn("MoneyImports.sourceIdentity")(function* (
   cryptography: MoneyCryptography["Service"],
@@ -105,34 +106,36 @@ const sourceIdentity = Effect.fn("MoneyImports.sourceIdentity")(function* (
   return { csvDigest, ofxDigest, bundleDigest };
 });
 
-const activeRuleFor = (
-  accountId: BankAccount["id"],
-  date: CalendarDate,
-  amount: Money,
-  narrative: string,
-  rules: readonly StoredCategorizationRule[],
-) => {
-  const payee = derivedPayee(narrative);
-  const normalizedNarrative = normalizeNarrative(narrative);
-  const absoluteAmount = BigDecimal.abs(amount);
-  const direction = BigDecimal.sign(amount) < 0 ? "debit" : "credit";
+interface ClassifiableRow {
+  readonly accountId: BankAccount["id"];
+  readonly postedDate: CalendarDate;
+  readonly amount: Money;
+  readonly narrative: string;
+  readonly payee: string;
+}
 
-  return [...rules]
-    .sort((left, right) => left.id.localeCompare(right.id))
-    .find(
-      (rule) =>
-        rule.effectiveFrom <= date &&
-        (rule.accountIds.length === 0 || rule.accountIds.includes(accountId)) &&
-        (rule.direction === "either" || rule.direction === direction) &&
-        (rule.payeeEquals === null || normalizeNarrative(rule.payeeEquals) === payee) &&
-        rule.narrativeIncludes.every((token) =>
-          normalizedNarrative.includes(normalizeNarrative(token)),
-        ) &&
-        (rule.minimumAbsoluteAmount === null ||
-          BigDecimal.isGreaterThanOrEqualTo(absoluteAmount, rule.minimumAbsoluteAmount)) &&
-        (rule.maximumAbsoluteAmount === null ||
-          BigDecimal.isLessThanOrEqualTo(absoluteAmount, rule.maximumAbsoluteAmount)),
-    );
+/**
+ * Rules are ordered by ID, which is UUIDv7 and therefore creation order: the
+ * first rule the operator wrote for a payee wins over one written later.
+ */
+const activeRuleFor = (row: ClassifiableRow, rules: readonly StoredCategorizationRule[]) => {
+  const payee = normalizeNarrative(row.payee);
+  const narrative = normalizeNarrative(row.narrative);
+  const absoluteAmount = BigDecimal.abs(row.amount);
+  const direction = BigDecimal.sign(row.amount) < 0 ? "debit" : "credit";
+
+  return rules.find(
+    (rule) =>
+      rule.effectiveFrom <= row.postedDate &&
+      (rule.accountIds.length === 0 || rule.accountIds.includes(row.accountId)) &&
+      (rule.direction === "either" || rule.direction === direction) &&
+      (rule.payeeEquals === null || normalizeNarrative(rule.payeeEquals) === payee) &&
+      rule.narrativeIncludes.every((token) => narrative.includes(normalizeNarrative(token))) &&
+      (rule.minimumAbsoluteAmount === null ||
+        BigDecimal.isGreaterThanOrEqualTo(absoluteAmount, rule.minimumAbsoluteAmount)) &&
+      (rule.maximumAbsoluteAmount === null ||
+        BigDecimal.isLessThanOrEqualTo(absoluteAmount, rule.maximumAbsoluteAmount)),
+  );
 };
 
 const publicVerdict = (verdict: DedupeVerdict): BankImportPreview["verdicts"][number] => {
@@ -180,7 +183,7 @@ const identifyAmbiguities = Effect.fn("MoneyImports.identifyAmbiguities")(functi
         sourceOrdinal: verdict.row.csv.sourceOrdinal,
         postedDate: verdict.row.postedDate,
         amount: formatMoney(verdict.row.amount),
-        narrative: narrativeFingerprint(verdict.row.narrative),
+        narrative: normalizeNarrative(verdict.row.narrative),
         candidates: [...verdict.candidateTransactionIds].sort(),
       }),
     ).pipe(
@@ -256,7 +259,7 @@ const prepareImport = Effect.fn("MoneyImports.prepareImport")(function* (
     .accountIdentityHmac(snapshot.selectedAccount.account.profile, bundle.account)
     .pipe(Effect.mapError(infrastructureError));
 
-  if (!constantTimeDigestEqual(detectedIdentityHmac, snapshot.selectedAccount.identityHmac)) {
+  if (detectedIdentityHmac !== snapshot.selectedAccount.identityHmac) {
     return yield* new ValidationFailed({
       reason: "AccountIdentityMismatch",
       detail: `the detected account does not match ${snapshot.selectedAccount.account.label}`,
@@ -344,10 +347,13 @@ const prepareImport = Effect.fn("MoneyImports.prepareImport")(function* (
       (verdict) =>
         verdict._tag === "New" &&
         activeRuleFor(
-          snapshot.selectedAccount.account.id,
-          verdict.row.postedDate,
-          verdict.row.amount,
-          verdict.row.narrative,
+          {
+            accountId: snapshot.selectedAccount.account.id,
+            postedDate: verdict.row.postedDate,
+            amount: verdict.row.amount,
+            narrative: verdict.row.narrative,
+            payee: commBankPayee(snapshot.selectedAccount.account.profile, verdict.row.narrative),
+          },
           snapshot.rules,
         ) === undefined,
     ).length,
@@ -403,15 +409,6 @@ const confirmPayloadHash = (
     }),
   );
 
-const normalizeBalance = (
-  account: BankAccount,
-  kind: BalanceObservationPlan["kind"],
-  amount: Money,
-): Money =>
-  kind === "available" || account.type === "deposit" || BigDecimal.sign(amount) <= 0
-    ? amount
-    : Schema.decodeUnknownSync(Money)(BigDecimal.format(BigDecimal.negate(BigDecimal.abs(amount))));
-
 const dayDistance = (left: CalendarDate, right: CalendarDate) =>
   Math.abs(
     DateTime.toEpochMillis(DateTime.makeUnsafe(`${left}T00:00:00Z`)) -
@@ -424,13 +421,23 @@ interface TransactionTarget {
   readonly matchTier: ObservationPlan["matchTier"];
 }
 
+interface TransferLeg {
+  readonly id: BankTransactionId;
+  readonly accountId: BankAccount["id"];
+  readonly postedDate: CalendarDate;
+  readonly amount: Money;
+}
+
+const pairKey = (debit: BankTransactionId, credit: BankTransactionId) =>
+  JSON.stringify([debit, credit]);
+
 const buildTransferPlans = Effect.fn("MoneyImports.buildTransferPlans")(function* (
   cryptography: MoneyCryptography["Service"],
   snapshot: ImportSnapshot,
   accountId: BankAccount["id"],
   newTransactions: readonly TransactionPlan[],
 ): Effect.fn.Return<readonly TransferPlan[], Internal> {
-  const summaries = [
+  const legs: TransferLeg[] = [
     ...snapshot.transactions.map((transaction) => ({
       id: transaction.transactionId,
       accountId: transaction.accountId,
@@ -440,34 +447,44 @@ const buildTransferPlans = Effect.fn("MoneyImports.buildTransferPlans")(function
     ...newTransactions.map((transaction) => ({ ...transaction, accountId })),
   ];
   const newIds = new Set(newTransactions.map((transaction) => transaction.id));
-  const existingPairs = new Set(
-    snapshot.transferPairs
-      .filter((pair) => pair.status !== "rejected")
-      .map((pair) => `${pair.debitTransactionId}\u0000${pair.creditTransactionId}`),
+  // Every pairing the record has already reached a verdict on, so a later
+  // import can never re-open one the operator answered.
+  const judgedPairs = new Set(
+    snapshot.transferPairs.map((pair) =>
+      pairKey(pair.debitTransactionId, pair.creditTransactionId),
+    ),
   );
   const confirmedIds = new Set(
     snapshot.transferPairs
       .filter((pair) => pair.status === "confirmed")
       .flatMap((pair) => [pair.debitTransactionId, pair.creditTransactionId]),
   );
+  const creditsByAmount = new Map<string, TransferLeg[]>();
+
+  for (const leg of legs) {
+    if (BigDecimal.sign(leg.amount) <= 0 || confirmedIds.has(leg.id)) continue;
+
+    const key = formatMoney(BigDecimal.abs(leg.amount));
+    const group = creditsByAmount.get(key);
+
+    if (group === undefined) creditsByAmount.set(key, [leg]);
+    else group.push(leg);
+  }
+
   const candidates: {
     readonly debitTransactionId: BankTransactionId;
     readonly creditTransactionId: BankTransactionId;
   }[] = [];
 
-  for (const debit of summaries) {
-    if (BigDecimal.sign(debit.amount) >= 0) continue;
+  for (const debit of legs) {
+    if (BigDecimal.sign(debit.amount) >= 0 || confirmedIds.has(debit.id)) continue;
 
-    for (const credit of summaries) {
+    for (const credit of creditsByAmount.get(formatMoney(BigDecimal.abs(debit.amount))) ?? []) {
       if (
-        BigDecimal.sign(credit.amount) <= 0 ||
-        confirmedIds.has(debit.id) ||
-        confirmedIds.has(credit.id) ||
         debit.accountId === credit.accountId ||
-        !BigDecimal.equals(BigDecimal.abs(debit.amount), BigDecimal.abs(credit.amount)) ||
         dayDistance(debit.postedDate, credit.postedDate) > 3 ||
         (!newIds.has(debit.id) && !newIds.has(credit.id)) ||
-        existingPairs.has(`${debit.id}\u0000${credit.id}`)
+        judgedPairs.has(pairKey(debit.id, credit.id))
       ) {
         continue;
       }
@@ -637,6 +654,7 @@ const buildConfirmationPlan = Effect.fn("MoneyImports.buildConfirmationPlan")(fu
       postedDate: row.postedDate,
       amount: row.amount,
       preferredNarrative: row.narrative,
+      payee: commBankPayee(snapshot.selectedAccount.account.profile, row.narrative),
     });
   }
 
@@ -705,7 +723,7 @@ const buildConfirmationPlan = Effect.fn("MoneyImports.buildConfirmationPlan")(fu
         amount: row.amount,
         rowBalance: Option.getOrNull(row.csv.rowBalance),
         bankIdentifier: null,
-        narrativeFingerprint: narrativeFingerprint(row.narrative),
+        narrativeFingerprint: normalizeNarrative(row.narrative),
         equalRowOccurrence: row.occurrence,
         transactionId: target.id,
         matchTier: target.matchTier,
@@ -728,7 +746,7 @@ const buildConfirmationPlan = Effect.fn("MoneyImports.buildConfirmationPlan")(fu
         amount: row.amount,
         rowBalance: null,
         bankIdentifier: Option.getOrNull(row.ofx.identifier),
-        narrativeFingerprint: narrativeFingerprint(row.narrative),
+        narrativeFingerprint: normalizeNarrative(row.narrative),
         equalRowOccurrence: row.occurrence,
         transactionId: target.id,
         matchTier: target.matchTier,
@@ -745,8 +763,7 @@ const buildConfirmationPlan = Effect.fn("MoneyImports.buildConfirmationPlan")(fu
         Effect.mapError(infrastructureError),
       ),
       kind: "row",
-      value: normalizeBalance(snapshot.selectedAccount.account, "row", row.csv.rowBalance.value),
-      sourceValue: row.csv.rowBalance.value,
+      value: row.csv.rowBalance.value,
       asOfDate: row.postedDate,
       sourceObservationId: csvObservationByOrdinal.get(row.csv.sourceOrdinal)!,
       sourceFileId: null,
@@ -757,12 +774,7 @@ const buildConfirmationPlan = Effect.fn("MoneyImports.buildConfirmationPlan")(fu
       Effect.mapError(infrastructureError),
     ),
     kind: "ledger",
-    value: normalizeBalance(
-      snapshot.selectedAccount.account,
-      "ledger",
-      prepared.bundle.ledger.ledgerBalance.amount,
-    ),
-    sourceValue: prepared.bundle.ledger.ledgerBalance.amount,
+    value: prepared.bundle.ledger.ledgerBalance.amount,
     asOfDate: prepared.bundle.ledger.ledgerBalance.asOfDate,
     sourceObservationId: null,
     sourceFileId: ofxFileId,
@@ -773,12 +785,7 @@ const buildConfirmationPlan = Effect.fn("MoneyImports.buildConfirmationPlan")(fu
         Effect.mapError(infrastructureError),
       ),
       kind: "available",
-      value: normalizeBalance(
-        snapshot.selectedAccount.account,
-        "available",
-        prepared.bundle.availableBalance.value.amount,
-      ),
-      sourceValue: prepared.bundle.availableBalance.value.amount,
+      value: prepared.bundle.availableBalance.value.amount,
       asOfDate: prepared.bundle.availableBalance.value.asOfDate,
       sourceObservationId: null,
       sourceFileId: ofxFileId,
@@ -788,10 +795,13 @@ const buildConfirmationPlan = Effect.fn("MoneyImports.buildConfirmationPlan")(fu
   const classifications: ClassificationPlan[] = [];
   for (const transaction of transactions) {
     const rule = activeRuleFor(
-      snapshot.selectedAccount.account.id,
-      transaction.postedDate,
-      transaction.amount,
-      transaction.preferredNarrative,
+      {
+        accountId: snapshot.selectedAccount.account.id,
+        postedDate: transaction.postedDate,
+        amount: transaction.amount,
+        narrative: transaction.preferredNarrative,
+        payee: transaction.payee,
+      },
       snapshot.rules,
     );
     classifications.push({
@@ -1088,7 +1098,7 @@ export class MoneyImports extends Context.Service<
         }
 
         return yield* repository
-          .withAccountTransaction(source.accountId, (transaction) =>
+          .withAccountTransaction(source.accountId, input.requestId, (transaction) =>
             Effect.gen(function* () {
               const snapshot = yield* transaction.snapshot;
               const identity = yield* sourceIdentity(cryptography, source.accountId, source).pipe(
@@ -1196,7 +1206,7 @@ export class MoneyImports extends Context.Service<
         yield* validateStatement(input.pdf);
 
         return yield* repository
-          .withAccountTransaction(input.accountId, (transaction) =>
+          .withAccountTransaction(input.accountId, input.requestId, (transaction) =>
             Effect.gen(function* () {
               const snapshot = yield* transaction.snapshot;
               const digest = yield* cryptography

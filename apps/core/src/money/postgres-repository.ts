@@ -3,6 +3,7 @@ import {
   BankAccount,
   BankAccountId,
   BankImportHistoryItem,
+  BankImportId,
   BankImportPreview,
   BankTransactionId,
   CalendarDate,
@@ -51,6 +52,34 @@ const AccountRow = Schema.Struct({
   identityHmac: Sha256,
 });
 
+const EvidenceRow = Schema.Struct({
+  transactionId: BankTransactionId,
+  accountId: BankAccountId,
+  postedDate: CalendarDate,
+  amount: Money,
+  preferredNarrative: Schema.String,
+  sourceProfile: Schema.String,
+  bankIdentifier: Schema.NullOr(Schema.String),
+  rowBalance: Schema.NullOr(Money),
+  narrativeFingerprint: Schema.String,
+  equalRowOccurrence: Schema.Int,
+});
+
+const CoverageRow = Schema.Struct({
+  accountId: BankAccountId,
+  start: CalendarDate,
+  end: CalendarDate,
+});
+
+const RuleRow = Schema.Struct({
+  id: CategorizationRuleId,
+  version: Schema.Int,
+  predicate: CategorizationRulePredicate,
+  categoryId: CategoryId,
+  effectiveFrom: CalendarDate,
+  retiredAt: Schema.NullOr(Schema.DateTimeUtcFromDate),
+});
+
 const accountSql = `
   SELECT id,
          product_profile AS "profile",
@@ -75,6 +104,7 @@ export const listAccountsWith = Effect.fn("MoneyPostgresRepository.listAccountsW
 const snapshotWith = Effect.fn("MoneyPostgresRepository.snapshotWith")(function* (
   sql: SqlExecutor,
   accountId: BankAccountId,
+  requestId: RequestId | null,
 ): Effect.fn.Return<ImportSnapshot, PersistenceError | MoneyAccountMissing> {
   const accountRows = yield* sql.query("read bank account", `${accountSql} WHERE id = $1`, [
     accountId,
@@ -101,20 +131,10 @@ const snapshotWith = Effect.fn("MoneyPostgresRepository.snapshotWith")(function*
        JOIN bank_observations o ON o.id = l.observation_id
        JOIN bank_source_files f ON f.id = o.source_file_id
        JOIN bank_imports i ON i.id = f.bank_import_id
+      WHERE t.bank_account_id = $1
       ORDER BY t.id, o.id`,
+    [accountId],
   );
-  const EvidenceRow = Schema.Struct({
-    transactionId: BankTransactionId,
-    accountId: BankAccountId,
-    postedDate: CalendarDate,
-    amount: Money,
-    preferredNarrative: Schema.String,
-    sourceProfile: Schema.String,
-    bankIdentifier: Schema.NullOr(Schema.String),
-    rowBalance: Schema.NullOr(Money),
-    narrativeFingerprint: Schema.String,
-    equalRowOccurrence: Schema.Int,
-  });
   const evidence = yield* decodeRows("decode transaction evidence", EvidenceRow, evidenceRows);
   const grouped = new Map<BankTransactionId, StoredTransactionEvidence>();
 
@@ -154,11 +174,6 @@ const snapshotWith = Effect.fn("MoneyPostgresRepository.snapshotWith")(function*
       WHERE status = 'complete'
       ORDER BY bank_account_id, start_date, end_date`,
   );
-  const CoverageRow = Schema.Struct({
-    accountId: BankAccountId,
-    start: CalendarDate,
-    end: CalendarDate,
-  });
   const coverage = yield* decodeRows("decode bank coverage", CoverageRow, coverageRows);
   const ruleRows = yield* sql.query(
     "read categorization rules",
@@ -172,14 +187,6 @@ const snapshotWith = Effect.fn("MoneyPostgresRepository.snapshotWith")(function*
        FROM categorization_rules
       ORDER BY id, version DESC`,
   );
-  const RuleRow = Schema.Struct({
-    id: CategorizationRuleId,
-    version: Schema.Int,
-    predicate: CategorizationRulePredicate,
-    categoryId: CategoryId,
-    effectiveFrom: CalendarDate,
-    retiredAt: Schema.NullOr(Schema.DateTimeUtcFromDate),
-  });
   const decodedRules = yield* decodeRows("decode categorization rules", RuleRow, ruleRows);
   const rules = decodedRules.flatMap((rule) =>
     rule.retiredAt === null
@@ -236,12 +243,16 @@ const snapshotWith = Effect.fn("MoneyPostgresRepository.snapshotWith")(function*
     Schema.Struct({ digest: Sha256, result: Schema.Unknown }),
     archiveRows,
   );
-  const requestRows = yield* sql.query(
-    "read money requests",
-    `SELECT request_id AS "requestId", operation, payload_hash AS "payloadHash", response
-       FROM app_requests
-      ORDER BY completed_at`,
-  );
+  const requestRows =
+    requestId === null
+      ? []
+      : yield* sql.query(
+          "read money request",
+          `SELECT request_id AS "requestId", operation, payload_hash AS "payloadHash", response
+             FROM app_requests
+            WHERE request_id = $1`,
+          [requestId],
+        );
   const requests = yield* decodeRows(
     "decode money requests",
     Schema.Struct({
@@ -522,12 +533,12 @@ const commitImportWith = Effect.fn("MoneyPostgresRepository.commitImportWith")(f
       "insert bank transactions",
       `INSERT INTO bank_transactions (
          id, bank_account_id, posted_date, amount, preferred_display_narrative,
-         creation_import_id, created_at
+         derived_payee, creation_import_id, created_at
        )
        SELECT x.id::uuid, $1::uuid, x.posted_date::date, x.amount::numeric,
-              x.narrative, $2::uuid, $3::timestamptz
+              x.narrative, x.payee, $2::uuid, $3::timestamptz
          FROM jsonb_to_recordset($4::jsonb) AS x(
-           id text, posted_date text, amount text, narrative text
+           id text, posted_date text, amount text, narrative text, payee text
          )`,
       [
         accountId,
@@ -539,6 +550,7 @@ const commitImportWith = Effect.fn("MoneyPostgresRepository.commitImportWith")(f
             posted_date: transaction.postedDate,
             amount: money(transaction.amount),
             narrative: transaction.preferredNarrative,
+            payee: transaction.payee,
           })),
         ),
       ],
@@ -604,40 +616,17 @@ const commitImportWith = Effect.fn("MoneyPostgresRepository.commitImportWith")(f
       ),
     ],
   );
-  const identifiers = plan.observations.filter(
-    (observation) => observation.bankIdentifier !== null && observation.matchTier === "new",
-  );
-  if (identifiers.length > 0) {
-    yield* sql.query(
-      "insert bank transaction identifiers",
-      `INSERT INTO bank_transaction_identifiers (
-         bank_account_id, source_profile, bank_identifier, transaction_id
-       )
-       SELECT $1::uuid, $2, x.bank_identifier, x.transaction_id::uuid
-         FROM jsonb_to_recordset($3::jsonb) AS x(bank_identifier text, transaction_id text)`,
-      [
-        accountId,
-        plan.sourceProfile,
-        json(
-          identifiers.map((observation) => ({
-            bank_identifier: observation.bankIdentifier,
-            transaction_id: observation.transactionId,
-          })),
-        ),
-      ],
-    );
-  }
   yield* sql.query(
     "insert bank balance observations",
     `INSERT INTO bank_balance_observations (
-       id, bank_account_id, kind, value, source_value, as_of_date,
+       id, bank_account_id, kind, value, as_of_date,
        source_observation_id, source_file_id, recorded_at
      )
-     SELECT x.id::uuid, $1::uuid, x.kind, x.value::numeric, x.source_value::numeric,
+     SELECT x.id::uuid, $1::uuid, x.kind, x.value::numeric,
             x.as_of_date::date, x.source_observation_id::uuid, x.source_file_id::uuid,
             $2::timestamptz
        FROM jsonb_to_recordset($3::jsonb) AS x(
-         id text, kind text, value text, source_value text, as_of_date text,
+         id text, kind text, value text, as_of_date text,
          source_observation_id text, source_file_id text
        )`,
     [
@@ -648,7 +637,6 @@ const commitImportWith = Effect.fn("MoneyPostgresRepository.commitImportWith")(f
           id: balance.id,
           kind: balance.kind,
           value: money(balance.value),
-          source_value: money(balance.sourceValue),
           as_of_date: balance.asOfDate,
           source_observation_id: balance.sourceObservationId,
           source_file_id: balance.sourceFileId,
@@ -820,11 +808,11 @@ export const postgresMoneyImportRepositoryLayer = (connectionString: string) =>
       registerAccount: (input) =>
         inTransaction(connectionString, moneyRecordLock, (sql) => registerAccountWith(sql, input)),
       snapshot: (accountId) =>
-        inReadTransaction(connectionString, (sql) => snapshotWith(sql, accountId)),
-      withAccountTransaction: (accountId, use) =>
+        inReadTransaction(connectionString, (sql) => snapshotWith(sql, accountId, null)),
+      withAccountTransaction: (accountId, requestId, use) =>
         inTransaction(connectionString, moneyRecordLock, (sql) => {
           const transaction: MoneyTransaction = {
-            snapshot: snapshotWith(sql, accountId),
+            snapshot: snapshotWith(sql, accountId, requestId),
             commitImport: (plan) => commitImportWith(sql, accountId, plan),
             commitStatementArchive: (plan) => commitArchiveWith(sql, accountId, plan),
           };
@@ -853,7 +841,7 @@ export const postgresMoneyImportRepositoryLayer = (connectionString: string) =>
               [accountId],
             );
             const HistoryRow = Schema.Struct({
-              importId: Schema.String.check(Schema.isUUID(7)).pipe(Schema.brand("BankImportId")),
+              importId: BankImportId,
               accountId: BankAccountId,
               profile: Schema.String,
               bundleDigest: Sha256,

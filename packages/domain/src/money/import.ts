@@ -69,7 +69,7 @@ export const BankImportFileDigest = Schema.Struct({
 export type BankImportFileDigest = typeof BankImportFileDigest.Type;
 
 export const ImportWarning = Schema.Struct({
-  reason: Schema.Literals(["narrative_changed", "statement_parser_unavailable"]),
+  reason: Schema.Literal("narrative_changed"),
   detail: Schema.String,
 });
 export type ImportWarning = typeof ImportWarning.Type;

@@ -11,6 +11,8 @@ import type {
   BankTransactionId,
   CalendarDate,
   CalendarMonth,
+  CategorizationRuleId,
+  CategorizationRulePredicate,
   CategoryId,
   ConfirmedBankImport,
   FeedEventId,
@@ -48,15 +50,9 @@ export interface StoredStatementArchive {
   readonly result: unknown;
 }
 
-export interface StoredCategorizationRule {
-  readonly id: string;
+export interface StoredCategorizationRule extends CategorizationRulePredicate {
+  readonly id: CategorizationRuleId;
   readonly version: number;
-  readonly accountIds: readonly string[];
-  readonly direction: "debit" | "credit" | "either";
-  readonly payeeEquals: string | null;
-  readonly narrativeIncludes: readonly string[];
-  readonly minimumAbsoluteAmount: Money | null;
-  readonly maximumAbsoluteAmount: Money | null;
   readonly categoryId: CategoryId;
   readonly effectiveFrom: CalendarDate;
 }
@@ -66,9 +62,11 @@ export interface ImportSnapshot {
   readonly accounts: readonly BankAccount[];
   readonly transactions: readonly StoredTransactionEvidence[];
   readonly coverage: readonly CoverageSegment[];
+  /** Ordered by rule ID, which is UUIDv7 and therefore the order they were written. */
   readonly rules: readonly StoredCategorizationRule[];
   readonly imports: readonly StoredImport[];
   readonly statementArchives: readonly StoredStatementArchive[];
+  /** The one request being replayed, when this snapshot was taken inside a mutation. */
   readonly requests: readonly StoredRequest[];
   readonly transferPairs: readonly {
     readonly debitTransactionId: BankTransactionId;
@@ -103,6 +101,7 @@ export interface TransactionPlan {
   readonly postedDate: CalendarDate;
   readonly amount: Money;
   readonly preferredNarrative: string;
+  readonly payee: string;
 }
 
 export interface ObservationPlan {
@@ -127,7 +126,6 @@ export interface BalanceObservationPlan {
   readonly id: BankBalanceObservationId;
   readonly kind: "row" | "ledger" | "available";
   readonly value: Money;
-  readonly sourceValue: Money;
   readonly asOfDate: CalendarDate;
   readonly sourceObservationId: BankObservationId | null;
   readonly sourceFileId: BankSourceFileId | null;
@@ -222,6 +220,7 @@ export class MoneyImportRepository extends Context.Service<
     ) => Effect.Effect<ImportSnapshot, PersistenceError | MoneyAccountMissing>;
     readonly withAccountTransaction: <A, E, R>(
       accountId: BankAccount["id"],
+      requestId: RequestId,
       use: (transaction: MoneyTransaction) => Effect.Effect<A, E, R>,
     ) => Effect.Effect<A, E | PersistenceError | MoneyAccountMissing, R>;
     readonly importHistory: (

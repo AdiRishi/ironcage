@@ -28,6 +28,7 @@ export interface MoneyLedgerSnapshot {
   readonly confirmedTransferTransactionIds: readonly BankTransactionId[];
   readonly balances: readonly AccountBalance[];
   readonly reports: readonly MonthlySpendingReport[];
+  /** The one request being replayed, when this snapshot was taken inside a mutation. */
   readonly requests: readonly StoredRequest[];
 }
 
@@ -113,6 +114,7 @@ export class MoneyLedgerRepository extends Context.Service<
       ids: readonly BankTransactionId[],
     ) => Effect.Effect<readonly BankTransactionRecord[], PersistenceError>;
     readonly withTransaction: <A, E, R>(
+      requestId: RequestId,
       use: (transaction: MoneyLedgerTransaction) => Effect.Effect<A, E, R>,
     ) => Effect.Effect<A, E | PersistenceError, R>;
   }

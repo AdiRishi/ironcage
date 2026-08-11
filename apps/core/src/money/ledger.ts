@@ -352,7 +352,7 @@ export class MoneyLedger extends Context.Service<
         });
 
         return yield* repository
-          .withTransaction((transaction) =>
+          .withTransaction(input.requestId, (transaction) =>
             Effect.gen(function* () {
               const snapshot = yield* transaction.snapshot;
               const previous = yield* replay({
@@ -401,7 +401,7 @@ export class MoneyLedger extends Context.Service<
         });
 
         return yield* repository
-          .withTransaction((transaction) =>
+          .withTransaction(input.requestId, (transaction) =>
             Effect.gen(function* () {
               const snapshot = yield* transaction.snapshot;
               const previous = yield* replay({
@@ -459,7 +459,7 @@ export class MoneyLedger extends Context.Service<
         });
 
         return yield* repository
-          .withTransaction((transaction) =>
+          .withTransaction(input.requestId, (transaction) =>
             Effect.gen(function* () {
               const snapshot = yield* transaction.snapshot;
               const previous = yield* replay({
@@ -551,7 +551,7 @@ export class MoneyLedger extends Context.Service<
         });
 
         return yield* repository
-          .withTransaction((transaction) =>
+          .withTransaction(input.requestId, (transaction) =>
             Effect.gen(function* () {
               const snapshot = yield* transaction.snapshot;
               const previous = yield* replay({
@@ -627,7 +627,7 @@ export class MoneyLedger extends Context.Service<
           decision: input.decision,
         });
         return yield* repository
-          .withTransaction((transaction) =>
+          .withTransaction(input.requestId, (transaction) =>
             Effect.gen(function* () {
               const snapshot = yield* transaction.snapshot;
               const previous = yield* replay({
@@ -685,7 +685,7 @@ export class MoneyLedger extends Context.Service<
         const payloadHash = yield* payloadDigest(cryptography, { month: input.month });
 
         return yield* repository
-          .withTransaction((transaction) =>
+          .withTransaction(input.requestId, (transaction) =>
             Effect.gen(function* () {
               const snapshot = yield* transaction.snapshot;
               const previous = yield* replay({
@@ -873,7 +873,7 @@ export class MoneyLedger extends Context.Service<
         const payloadHash = yield* payloadDigest(cryptography, { id: input.id });
 
         return yield* repository
-          .withTransaction((transaction) =>
+          .withTransaction(input.requestId, (transaction) =>
             Effect.gen(function* () {
               const snapshot = yield* transaction.snapshot;
               const previous = yield* replay({

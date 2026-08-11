@@ -115,16 +115,6 @@ export const canonicalJson = (value: CanonicalValue): string => {
     .join(",")}}`;
 };
 
-export const constantTimeDigestEqual = (left: Sha256, right: Sha256) => {
-  let difference = 0;
-
-  for (let index = 0; index < left.length; index++) {
-    difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
-  }
-
-  return difference === 0;
-};
-
 export const sha256Text = (cryptography: MoneyCryptography["Service"], value: string) =>
   cryptography.sha256(new TextEncoder().encode(value));
 
