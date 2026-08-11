@@ -18,7 +18,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Schema } from "effect";
 
-import { CallFailure, Panel, PanelSkeleton } from "@/features/money/components/money-panels";
+import { CallFailure, Panel, PanelSkeleton } from "@/components/common/panels";
 import { analysisQuery } from "@/features/money/queries";
 
 const decodeMonth = Schema.decodeUnknownSync(CalendarMonth);

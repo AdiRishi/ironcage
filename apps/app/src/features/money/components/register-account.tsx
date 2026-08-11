@@ -13,9 +13,9 @@ import { Spinner } from "@ironcage/ui/components/spinner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { CallFailure, Panel } from "@/components/common/panels";
+import { unwrap } from "@/data/core-call";
 import { keys } from "@/data/keys";
-import { CallFailure, Panel } from "@/features/money/components/money-panels";
-import { unwrap } from "@/features/money/queries";
 import { newRequestId } from "@/lib/request-id";
 import { registerBankAccount } from "@/server/money";
 

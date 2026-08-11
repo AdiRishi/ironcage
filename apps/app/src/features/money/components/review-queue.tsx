@@ -19,9 +19,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BigDecimal, Schema } from "effect";
 import { useState } from "react";
 
+import { CallFailure, Panel, PanelSkeleton } from "@/components/common/panels";
+import { unwrap } from "@/data/core-call";
 import { keys } from "@/data/keys";
-import { CallFailure, Panel, PanelSkeleton } from "@/features/money/components/money-panels";
-import { categoriesQuery, reviewQueueQuery, unwrap } from "@/features/money/queries";
+import { categoriesQuery, reviewQueueQuery } from "@/features/money/queries";
 import { newRequestId } from "@/lib/request-id";
 import { categorizeTransactions } from "@/server/money";
 

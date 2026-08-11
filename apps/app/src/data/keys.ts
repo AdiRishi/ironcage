@@ -1,4 +1,4 @@
-import type { CalendarMonth } from "@ironcage/domain";
+import type { CalendarMonth, ReportId } from "@ironcage/domain";
 
 /**
  * The query-key catalog from `docs/technical/11-app.md` §2. Keys are
@@ -22,6 +22,7 @@ export const keys = {
   moneyRules: () => ["money", "rules"] as const,
   moneyTransfers: () => ["money", "transfers"] as const,
   reports: () => ["reports"] as const,
+  report: (id: ReportId) => ["reports", id] as const,
 } as const;
 
 /** Every key family, for the exhaustiveness the invalidation table depends on. */

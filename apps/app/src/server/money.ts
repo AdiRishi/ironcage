@@ -16,7 +16,9 @@ import {
   CategorizeTransactions,
   ConfirmedBankImport,
   MoneyAnalysis,
+  MonthlySpendingReport,
   RegisterBankAccount,
+  ReportId,
   RequestId,
   Sha256,
   UploadedBytes,
@@ -140,6 +142,36 @@ export const getAccountBalances = createServerFn().handler(() =>
 export const listCategories = createServerFn().handler(() =>
   callCore(Schema.Array(Category), (client) => intoTaxonomy(client.listCategories())),
 );
+
+export const listMonthlySpendingReports = createServerFn().handler(() =>
+  callCore(Schema.Array(MonthlySpendingReport), (client) =>
+    intoTaxonomy(client.listMonthlySpendingReports()),
+  ),
+);
+
+export const getMonthlySpendingReport = createServerFn({ method: "POST" })
+  .validator(input(Schema.Struct({ id: ReportId })))
+  .handler(({ data }) =>
+    callCore(Schema.Struct({ report: MonthlySpendingReport, html: Schema.String }), (client) =>
+      intoTaxonomy(client.getMonthlySpendingReport(data)),
+    ),
+  );
+
+export const generateMonthlySpendingReport = createServerFn({ method: "POST" })
+  .validator(input(Schema.Struct({ month: CalendarMonth, requestId: RequestId })))
+  .handler(({ data }) =>
+    callCore(MonthlySpendingReport, (client) =>
+      intoTaxonomy(client.generateMonthlySpendingReport(data)),
+    ),
+  );
+
+export const markMonthlySpendingReportRead = createServerFn({ method: "POST" })
+  .validator(input(Schema.Struct({ id: ReportId, requestId: RequestId })))
+  .handler(({ data }) =>
+    callCore(MonthlySpendingReport, (client) =>
+      intoTaxonomy(client.markMonthlySpendingReportRead(data)),
+    ),
+  );
 
 export const getCategorizationReview = createServerFn().handler(() =>
   callCore(Schema.Array(CategorizationReviewItem), (client) =>

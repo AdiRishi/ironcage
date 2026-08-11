@@ -3,8 +3,8 @@ import { Alert, AlertDescription, AlertTitle } from "@ironcage/ui/components/ale
 import { Skeleton } from "@ironcage/ui/components/skeleton";
 import { cn } from "@ironcage/ui/lib/utils";
 
-import type { BoundaryFailure } from "@/features/money/queries";
-import { boundaryFailure } from "@/features/money/queries";
+import type { BoundaryFailure } from "@/data/core-call";
+import { boundaryFailure } from "@/data/core-call";
 
 /** The eyebrow every panel on this surface is titled with. */
 export function PanelTitle({ children }: { children: React.ReactNode }) {

@@ -4,8 +4,8 @@ import { render, screen } from "@testing-library/react";
 import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { CallFailure, CoverageNotice } from "@/features/money/components/money-panels";
-import { CoreCallFailed } from "@/features/money/queries";
+import { CallFailure, CoverageNotice } from "@/components/common/panels";
+import { CoreCallFailed } from "@/data/core-call";
 
 const accountId = Schema.decodeUnknownSync(BankAccountId)("018f0000-0000-7000-8000-000000004001");
 const date = Schema.decodeUnknownSync(CalendarDate);

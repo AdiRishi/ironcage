@@ -28,7 +28,7 @@ import {
   Metric,
   Panel,
   PanelSkeleton,
-} from "@/features/money/components/money-panels";
+} from "@/components/common/panels";
 import { accountsQuery, analysisQuery, balancesQuery } from "@/features/money/queries";
 
 const decodeMonth = Schema.decodeUnknownSync(CalendarMonth);

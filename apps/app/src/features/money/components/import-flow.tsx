@@ -22,17 +22,13 @@ import { Spinner } from "@ironcage/ui/components/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { CallFailure, Panel, PanelSkeleton, PanelTitle } from "@/components/common/panels";
+import { unwrap } from "@/data/core-call";
 import { keys } from "@/data/keys";
 import { ImportPreviewReport } from "@/features/money/components/import-preview";
-import {
-  CallFailure,
-  Panel,
-  PanelSkeleton,
-  PanelTitle,
-} from "@/features/money/components/money-panels";
 import { RegisterAccount } from "@/features/money/components/register-account";
 import { shortDigest } from "@/features/money/format";
-import { accountsQuery, importHistoryQuery, unwrap } from "@/features/money/queries";
+import { accountsQuery, importHistoryQuery } from "@/features/money/queries";
 import { newRequestId } from "@/lib/request-id";
 import { confirmBankImport, previewBankImport } from "@/server/money";
 

@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@ironcage/ui/components/table";
 
-import { Metric, PanelTitle } from "@/features/money/components/money-panels";
+import { Metric, PanelTitle } from "@/components/common/panels";
 import { shortDigest } from "@/features/money/format";
 
 const verdictTone = {
