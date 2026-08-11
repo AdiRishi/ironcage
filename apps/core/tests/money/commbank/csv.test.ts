@@ -85,8 +85,10 @@ describe("the observed corpus", () => {
   it.effect("carries the home loan's negative running balance through unchanged", () =>
     Effect.gen(function* () {
       const file = yield* decodeCommBankCsv(homeLoanA, "home-loan");
-      const balances = file.rows.map((row) => Option.getOrThrow(row.rowBalance));
+      const chain = Option.getOrThrow(file.balanceChain);
+      const balances = chain.map((row) => row.rowBalance.value);
 
+      expect(chain).toHaveLength(file.rows.length);
       expect(balances[0]).toBeDefined();
       expect(BigDecimal.format(balances[0]!)).toBe("-631422.56");
       expect(balances.every((value) => BigDecimal.isNegative(value))).toBe(true);
@@ -99,6 +101,8 @@ describe("the observed corpus", () => {
 
       expect(file.rows.every((row) => row.raw.balance === "")).toBe(true);
       expect(file.rows.every((row) => Option.isNone(row.rowBalance))).toBe(true);
+      // No chain to reconcile, so nothing downstream can ask for one.
+      expect(Option.isNone(file.balanceChain)).toBe(true);
     }),
   );
 });

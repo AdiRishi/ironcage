@@ -2,7 +2,12 @@ import { formatMoney, type Money } from "@ironcage/domain";
 import { BigDecimal, Effect, Option, Schema } from "effect";
 
 import type { SourceDate } from "../values";
-import { type CommBankCsvRejected, type CommBankCsvRow, decodeCommBankCsv } from "./csv";
+import {
+  type BalancedCommBankCsvRow,
+  type CommBankCsvRejected,
+  type CommBankCsvRow,
+  decodeCommBankCsv,
+} from "./csv";
 import {
   type CommBankOfxAccount,
   type CommBankOfxBalance,
@@ -10,11 +15,7 @@ import {
   type CommBankOfxTransaction,
   decodeCommBankOfx,
 } from "./ofx";
-import {
-  type CommBankAccountProfileId,
-  commBankAccountProfiles,
-  commBankPairedProfileId,
-} from "./profiles";
+import { type CommBankAccountProfileId, commBankPairedProfileId } from "./profiles";
 
 export interface CommBankPairedRow {
   readonly occurrence: number;
@@ -89,7 +90,6 @@ export const decodeCommBankBundle = Effect.fn("decodeCommBankBundle")(function* 
   CommBankPairedBundle,
   CommBankBundleBlocked | CommBankCsvRejected | CommBankOfxRejected
 > {
-  const profile = commBankAccountProfiles[input.accountProfile];
   const csv = yield* decodeCommBankCsv(input.csv, input.accountProfile);
   const ofx = yield* decodeCommBankOfx(input.ofx, input.accountProfile);
 
@@ -146,35 +146,34 @@ export const decodeCommBankBundle = Effect.fn("decodeCommBankBundle")(function* 
     });
   }
 
-  if (profile.rowBalance === "required") {
-    let earlierBalance: Money | undefined;
+  const chain = Option.getOrElse(csv.balanceChain, (): readonly BalancedCommBankCsvRow[] => []);
+  let earlierBalance: Money | undefined;
 
-    for (const row of [...csv.rows].reverse()) {
-      const rowBalance = Option.getOrThrow(row.rowBalance);
+  for (const row of [...chain].reverse()) {
+    const rowBalance = row.rowBalance.value;
 
-      if (earlierBalance !== undefined) {
-        const expected = BigDecimal.sum(earlierBalance, row.amount);
+    if (earlierBalance !== undefined) {
+      const expected = BigDecimal.sum(earlierBalance, row.amount);
 
-        if (!BigDecimal.equals(expected, rowBalance)) {
-          return yield* block(
-            "balance_chain",
-            `${row.raw.date} ${row.raw.amount} runs ${BigDecimal.format(earlierBalance)} to ${BigDecimal.format(expected)}, but the row records ${row.raw.balance}`,
-            row.sourceOrdinal,
-          );
-        }
+      if (!BigDecimal.equals(expected, rowBalance)) {
+        return yield* block(
+          "balance_chain",
+          `${row.raw.date} ${row.raw.amount} runs ${BigDecimal.format(earlierBalance)} to ${BigDecimal.format(expected)}, but the row records ${row.raw.balance}`,
+          row.sourceOrdinal,
+        );
       }
-
-      earlierBalance = rowBalance;
     }
+
+    earlierBalance = rowBalance;
   }
 
-  const newest = csv.rows[0];
+  const newest = chain[0];
   let ledger: CommBankLedgerReconciliation;
 
-  if (newest === undefined || profile.rowBalance === "forbidden") {
+  if (newest === undefined) {
     ledger = { status: "unavailable", ledgerBalance: ofx.ledgerBalance };
   } else {
-    const newestRowBalance = Option.getOrThrow(newest.rowBalance);
+    const newestRowBalance = newest.rowBalance.value;
 
     // An export-time ledger balance is comparable only while the newest row proves that moment.
     const comparable =

@@ -18,9 +18,20 @@ export interface CommBankCsvRow {
   readonly rowBalance: Option.Option<Money>;
 }
 
+/** A row from a profile whose every row records a running balance. */
+export interface BalancedCommBankCsvRow extends CommBankCsvRow {
+  readonly rowBalance: Option.Some<Money>;
+}
+
 export interface CommBankCsvFile {
   readonly accountProfile: CommBankAccountProfileId;
   readonly rows: readonly CommBankCsvRow[];
+  /**
+   * The same rows, present exactly when the profile records a balance on every
+   * one of them. Reconciliation reads this instead of re-deriving the profile's
+   * policy and unwrapping each row on trust.
+   */
+  readonly balanceChain: Option.Option<readonly BalancedCommBankCsvRow[]>;
 }
 
 export class CommBankCsvRejected extends Schema.TaggedError<CommBankCsvRejected>()(
@@ -101,6 +112,7 @@ export const decodeCommBankCsv = Effect.fn("decodeCommBankCsv")(function* (
   }
 
   const rows: CommBankCsvRow[] = [];
+  const balanced: BalancedCommBankCsvRow[] = [];
 
   for (const [sourceOrdinal, record] of decoded.value.entries()) {
     if (record.length !== 4) {
@@ -177,14 +189,24 @@ export const decodeCommBankCsv = Effect.fn("decodeCommBankCsv")(function* (
       );
     }
 
-    rows.push({
+    const row: CommBankCsvRow = {
       sourceOrdinal,
       raw: { date, amount, narrative, balance },
       postedDate: postedDate.value,
       amount: signedAmount.value,
       rowBalance,
-    });
+    };
+
+    rows.push(row);
+    if (Option.isSome(rowBalance)) balanced.push({ ...row, rowBalance });
   }
 
-  return { accountProfile: accountProfileId, rows };
+  return {
+    accountProfile: accountProfileId,
+    rows,
+    balanceChain:
+      profile.rowBalance === "required"
+        ? Option.some<readonly BalancedCommBankCsvRow[]>(balanced)
+        : Option.none(),
+  };
 });
