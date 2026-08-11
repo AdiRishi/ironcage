@@ -1,7 +1,11 @@
-import type { Money, MonthlySpendingReport } from "@ironcage/domain";
-import { BigDecimal, DateTime } from "effect";
-
-const oneHundred = BigDecimal.fromBigInt(100n);
+import {
+  formatAud,
+  formatFullDay,
+  formatMonth,
+  formatRate,
+  type MonthlySpendingReport,
+} from "@ironcage/domain";
+import { DateTime } from "effect";
 
 const escapeHtml = (value: string) =>
   value
@@ -10,11 +14,6 @@ const escapeHtml = (value: string) =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
-
-const aud = (value: Money) => {
-  const normalized = BigDecimal.round(value, { scale: 2, mode: "half-even" });
-  return `A$${BigDecimal.format(normalized)}`;
-};
 
 const transactionLinks = (ids: readonly string[]) =>
   ids
@@ -25,12 +24,17 @@ const transactionLinks = (ids: readonly string[]) =>
     .join(" ");
 
 export const renderMonthlySpendingReport = (report: MonthlySpendingReport) => {
+  // A spike names a category by ID. The month's own rows are where that ID has
+  // a name, so a reader sees "Groceries" rather than a UUID.
+  const categoryNames = new Map(
+    report.analysis.categories.map((category) => [category.categoryId, category.name] as const),
+  );
   const categoryRows = report.analysis.categories
     .map(
       (category) => `<tr>
         <td>${escapeHtml(category.name)}</td>
-        <td class="number">${aud(category.netSpend)}</td>
-        <td class="number">${category.trailingThreeMonthAverage === null ? "—" : aud(category.trailingThreeMonthAverage)}</td>
+        <td class="number">${formatAud(category.netSpend)}</td>
+        <td class="number">${category.trailingThreeMonthAverage === null ? "—" : formatAud(category.trailingThreeMonthAverage)}</td>
         <td>${transactionLinks(category.transactionIds)}</td>
       </tr>`,
     )
@@ -38,9 +42,9 @@ export const renderMonthlySpendingReport = (report: MonthlySpendingReport) => {
   const recurring = report.recurringCharges
     .map(
       (charge) => `<li>
-        <strong>${escapeHtml(charge.payee)}</strong> — ${aud(charge.latestAmount)} every ~${charge.cadenceDays} days,
-        about ${aud(charge.estimatedAnnualSpend)} a year.
-        ${charge.priceChange === null ? "" : `Changed from ${aud(charge.priceChange.previousAmount)} to ${aud(charge.priceChange.currentAmount)}.`}
+        <strong>${escapeHtml(charge.payee)}</strong> — ${formatAud(charge.latestAmount)} every ~${charge.cadenceDays} days,
+        about ${formatAud(charge.estimatedAnnualSpend)} a year.
+        ${charge.priceChange === null ? "" : `Changed from ${formatAud(charge.priceChange.previousAmount)} to ${formatAud(charge.priceChange.currentAmount)}.`}
         <span>${transactionLinks(charge.transactionIds)}</span>
       </li>`,
     )
@@ -49,11 +53,11 @@ export const renderMonthlySpendingReport = (report: MonthlySpendingReport) => {
     .map((anomaly) => {
       switch (anomaly._tag) {
         case "LargeExpense":
-          return `<li>Large expense of ${aud(anomaly.amount)}. ${transactionLinks([anomaly.transactionId])}</li>`;
+          return `<li>Large expense of ${formatAud(anomaly.amount)}. ${transactionLinks([anomaly.transactionId])}</li>`;
         case "NewPayee":
-          return `<li>First high-value payment to ${escapeHtml(anomaly.payee)}: ${aud(anomaly.amount)}. ${transactionLinks([anomaly.transactionId])}</li>`;
+          return `<li>First high-value payment to ${escapeHtml(anomaly.payee)}: ${formatAud(anomaly.amount)}. ${transactionLinks([anomaly.transactionId])}</li>`;
         case "CategorySpike":
-          return `<li>Category ${escapeHtml(anomaly.categoryId)} rose to ${aud(anomaly.netSpend)}, from a ${aud(anomaly.trailingAverage)} trailing average.</li>`;
+          return `<li>${escapeHtml(categoryNames.get(anomaly.categoryId) ?? anomaly.categoryId)} rose to ${formatAud(anomaly.netSpend)}, from a ${formatAud(anomaly.trailingAverage)} trailing average.</li>`;
       }
     })
     .join("");
@@ -61,22 +65,21 @@ export const renderMonthlySpendingReport = (report: MonthlySpendingReport) => {
     .map(
       (suggestion) => `<li>
         <strong>${escapeHtml(suggestion.title)}</strong> — ${escapeHtml(suggestion.reasoning)}
-        Potential annual impact: ${aud(suggestion.estimatedAnnualImpact)}.
+        Potential annual impact: ${formatAud(suggestion.estimatedAnnualImpact)}.
         ${transactionLinks(suggestion.transactionIds)}
       </li>`,
     )
     .join("");
   const savingsRate =
-    report.analysis.savingsRate === null
-      ? "—"
-      : `${BigDecimal.format(BigDecimal.round(BigDecimal.multiply(report.analysis.savingsRate, oneHundred), { scale: 1, mode: "half-even" }))}%`;
+    report.analysis.savingsRate === null ? "—" : formatRate(report.analysis.savingsRate);
+  const monthName = formatMonth(report.month);
 
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Spending report — ${report.month}</title>
+  <title>Spending report — ${monthName}</title>
   <style>
     :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #17211b; background: #f3f1e9; }
     body { margin: 0; }
@@ -102,13 +105,13 @@ export const renderMonthlySpendingReport = (report: MonthlySpendingReport) => {
 <body>
 <main>
   <header>
-    <div class="eyebrow">Ironcage · recorded data through ${report.dataThrough}</div>
-    <h1>${report.month}</h1>
+    <div class="eyebrow">Ironcage · AUD · recorded data through ${formatFullDay(report.dataThrough)}</div>
+    <h1>${monthName}</h1>
     <p>Your complete-month spending record, with every conclusion linked back to its transactions.</p>
   </header>
   <section class="summary">
-    <div class="metric"><span>Income</span><strong>${report.analysis.income === null ? "—" : aud(report.analysis.income)}</strong></div>
-    <div class="metric"><span>Net spend</span><strong>${report.analysis.netSpend === null ? "—" : aud(report.analysis.netSpend)}</strong></div>
+    <div class="metric"><span>Income</span><strong>${report.analysis.income === null ? "—" : formatAud(report.analysis.income)}</strong></div>
+    <div class="metric"><span>Net spend</span><strong>${report.analysis.netSpend === null ? "—" : formatAud(report.analysis.netSpend)}</strong></div>
     <div class="metric"><span>Savings rate</span><strong>${savingsRate}</strong></div>
   </section>
   <h2>Spending by category</h2>
