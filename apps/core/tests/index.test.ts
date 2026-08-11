@@ -1,17 +1,14 @@
-import { AgentReadRpcs, AppRpcs, clientOverBinding, timeouts } from "@ironcage/contracts/client";
+import { clientOverBinding, SystemRpcs, timeouts } from "@ironcage/contracts/client";
 import { exports } from "cloudflare:workers";
 import { Effect } from "effect";
 import { expect, test } from "vitest";
 
 import "../src/index";
 
-const ping = (
-  entrypoint: { fetch: (request: Request) => Promise<Response> },
-  group: typeof AppRpcs,
-) =>
+const ping = (entrypoint: { fetch: (request: Request) => Promise<Response> }) =>
   Effect.runPromise(
     Effect.gen(function* () {
-      const client = yield* clientOverBinding(group, {
+      const client = yield* clientOverBinding(SystemRpcs, {
         binding: {
           fetch: (input, init) => entrypoint.fetch(new Request(input as RequestInfo, init)),
         },
@@ -24,14 +21,14 @@ const ping = (
   );
 
 test("the operator surface identifies itself", async () => {
-  await expect(ping(exports.AppApiEntrypoint, AppRpcs)).resolves.toMatchObject({
+  await expect(ping(exports.AppApiEntrypoint)).resolves.toMatchObject({
     worker: "ironcage-core",
     surface: "AppApi",
   });
 });
 
 test("the agent surface identifies itself", async () => {
-  await expect(ping(exports.AgentReadApiEntrypoint, AgentReadRpcs)).resolves.toMatchObject({
+  await expect(ping(exports.AgentReadApiEntrypoint)).resolves.toMatchObject({
     worker: "ironcage-core",
     surface: "AgentReadApi",
   });

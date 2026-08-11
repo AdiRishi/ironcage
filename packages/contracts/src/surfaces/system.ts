@@ -1,5 +1,6 @@
 import { DateTime, Effect, Schema } from "effect";
 import { Rpc as RpcModule } from "effect/unstable/rpc";
+import { RpcGroup } from "effect/unstable/rpc";
 
 import { Internal } from "./errors";
 
@@ -16,6 +17,7 @@ export const SystemPing = Schema.Struct({
 export type SystemPing = typeof SystemPing.Type;
 
 export const systemPingRpc = RpcModule.make("ping", { success: SystemPing, error: Internal });
+export const SystemRpcs = RpcGroup.make(systemPingRpc);
 
 export const systemPingHandler = (identity: {
   readonly worker: string;

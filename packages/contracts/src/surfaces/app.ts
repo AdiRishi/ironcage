@@ -1,6 +1,60 @@
 import { RpcGroup } from "effect/unstable/rpc";
 
+import { acknowledgeFeedEventRpc, getAttentionItemsRpc, getFeedRpc } from "./activity";
+import {
+  archiveBankStatementRpc,
+  categorizeTransactionsRpc,
+  confirmBankImportRpc,
+  createCategoryRpc,
+  editCategorizationRuleRpc,
+  generateMonthlySpendingReportRpc,
+  getAccountBalancesRpc,
+  getBankCoverageRpc,
+  getBankTransactionsRpc,
+  getCategorizationReviewRpc,
+  getCategorizationRulesRpc,
+  getImportHistoryRpc,
+  getMoneyAnalysisRpc,
+  getMonthlySpendingReportRpc,
+  getTransferReviewRpc,
+  listBankAccountsRpc,
+  listCategoriesRpc,
+  listMonthlySpendingReportsRpc,
+  markMonthlySpendingReportReadRpc,
+  previewBankImportRpc,
+  registerBankAccountRpc,
+  renameCategoryRpc,
+  resolveTransferMatchRpc,
+} from "./money";
 import { systemPingRpc } from "./system";
 
 /** Served by core, called by the app. The operator surface. */
-export const AppRpcs = RpcGroup.make(systemPingRpc);
+export const AppRpcs = RpcGroup.make(
+  systemPingRpc,
+  getFeedRpc,
+  getAttentionItemsRpc,
+  acknowledgeFeedEventRpc,
+  registerBankAccountRpc,
+  listBankAccountsRpc,
+  previewBankImportRpc,
+  confirmBankImportRpc,
+  archiveBankStatementRpc,
+  getImportHistoryRpc,
+  getBankCoverageRpc,
+  listCategoriesRpc,
+  createCategoryRpc,
+  renameCategoryRpc,
+  getCategorizationReviewRpc,
+  categorizeTransactionsRpc,
+  getCategorizationRulesRpc,
+  editCategorizationRuleRpc,
+  getTransferReviewRpc,
+  resolveTransferMatchRpc,
+  getMoneyAnalysisRpc,
+  getAccountBalancesRpc,
+  getBankTransactionsRpc,
+  generateMonthlySpendingReportRpc,
+  listMonthlySpendingReportsRpc,
+  getMonthlySpendingReportRpc,
+  markMonthlySpendingReportReadRpc,
+);

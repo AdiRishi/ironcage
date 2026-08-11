@@ -5,9 +5,12 @@ import type { DispatchRpcs } from "./surfaces/dispatch";
 import type { ClientFor } from "./transport/client";
 
 export * from "./surfaces/agent-read";
+export * from "./surfaces/activity";
 export * from "./surfaces/app";
 export * from "./surfaces/conversation";
 export * from "./surfaces/dispatch";
+export * from "./surfaces/money";
+export { SystemRpcs } from "./surfaces/system";
 export * from "./surfaces/types";
 export * from "./transport/client";
 

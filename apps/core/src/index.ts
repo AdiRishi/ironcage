@@ -7,8 +7,17 @@ import {
   systemPingHandler,
 } from "@ironcage/contracts/server";
 import { WorkerEntrypoint } from "cloudflare:workers";
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
 import { HttpRouter } from "effect/unstable/http";
+
+import { ActivityFeed } from "./activity/activity";
+import { postgresActivityRepositoryLayer } from "./activity/postgres-repository";
+import { MoneyBlobStore } from "./money/blob-store";
+import { MoneyCryptography } from "./money/crypto";
+import { MoneyImports } from "./money/importer";
+import { MoneyLedger } from "./money/ledger";
+import { postgresMoneyLedgerRepositoryLayer } from "./money/postgres-ledger-repository";
+import { postgresMoneyImportRepositoryLayer } from "./money/postgres-repository";
 
 const worker = "ironcage-core";
 const workerRequest = makeWorkerRequestContext<Env, ExecutionContext>(
@@ -17,8 +26,85 @@ const workerRequest = makeWorkerRequestContext<Env, ExecutionContext>(
 const ping = (surface: string) =>
   Effect.flatMap(workerRequest.service, () => systemPingHandler({ worker, surface }));
 
+const appLayer = (env: Env) => {
+  const dependencies = Layer.mergeAll(
+    postgresActivityRepositoryLayer(env.DB.connectionString),
+    postgresMoneyImportRepositoryLayer(env.DB.connectionString),
+    postgresMoneyLedgerRepositoryLayer(env.DB.connectionString),
+    MoneyCryptography.layer(env.MONEY_IDENTITY_KEY),
+    MoneyBlobStore.layer(env.BLOBS),
+  );
+
+  return Layer.mergeAll(MoneyImports.layer, MoneyLedger.layer, ActivityFeed.layer).pipe(
+    Layer.provide(dependencies),
+  );
+};
+
+const withApp = <A, E>(effect: Effect.Effect<A, E, MoneyImports | MoneyLedger | ActivityFeed>) =>
+  workerRequest.service.pipe(
+    Effect.flatMap(({ env }) => effect.pipe(Effect.provide(appLayer(env)))),
+  );
+
 const appSurface = HttpRouter.toWebHandler(
-  rpcHttpRoute(AppRpcs, AppRpcs.toLayer({ ping: () => ping("AppApi") })),
+  rpcHttpRoute(
+    AppRpcs,
+    AppRpcs.toLayer({
+      ping: () => ping("AppApi"),
+      getFeed: (query) => withApp(Effect.flatMap(ActivityFeed, (activity) => activity.list(query))),
+      getAttentionItems: () =>
+        withApp(Effect.flatMap(ActivityFeed, (activity) => activity.attention)),
+      acknowledgeFeedEvent: (input) =>
+        withApp(Effect.flatMap(ActivityFeed, (activity) => activity.acknowledge(input))),
+      registerBankAccount: ({ account, requestId }) =>
+        withApp(
+          Effect.flatMap(MoneyImports, (money) => money.registerAccount({ account, requestId })),
+        ),
+      listBankAccounts: () => withApp(Effect.flatMap(MoneyImports, (money) => money.listAccounts)),
+      previewBankImport: ({ source }) =>
+        withApp(Effect.flatMap(MoneyImports, (money) => money.preview(source))),
+      confirmBankImport: (input) =>
+        withApp(Effect.flatMap(MoneyImports, (money) => money.confirm(input))),
+      archiveBankStatement: (input) =>
+        withApp(Effect.flatMap(MoneyImports, (money) => money.archiveStatement(input))),
+      getImportHistory: ({ accountId }) =>
+        withApp(Effect.flatMap(MoneyImports, (money) => money.history(accountId))),
+      getBankCoverage: ({ start, end }) =>
+        withApp(
+          Effect.flatMap(MoneyLedger, (money) =>
+            money.coverage(start, end).pipe(Effect.map((gaps) => ({ gaps }))),
+          ),
+        ),
+      listCategories: () => withApp(Effect.flatMap(MoneyLedger, (money) => money.listCategories)),
+      createCategory: (input) =>
+        withApp(Effect.flatMap(MoneyLedger, (money) => money.createCategory(input))),
+      renameCategory: (input) =>
+        withApp(Effect.flatMap(MoneyLedger, (money) => money.renameCategory(input))),
+      getCategorizationReview: () =>
+        withApp(Effect.flatMap(MoneyLedger, (money) => money.categorizationReview)),
+      categorizeTransactions: (input) =>
+        withApp(Effect.flatMap(MoneyLedger, (money) => money.categorize(input))),
+      getCategorizationRules: () => withApp(Effect.flatMap(MoneyLedger, (money) => money.rules)),
+      editCategorizationRule: (input) =>
+        withApp(Effect.flatMap(MoneyLedger, (money) => money.editRule(input))),
+      getTransferReview: () =>
+        withApp(Effect.flatMap(MoneyLedger, (money) => money.transferReview)),
+      resolveTransferMatch: (input) =>
+        withApp(Effect.flatMap(MoneyLedger, (money) => money.resolveTransfer(input))),
+      getMoneyAnalysis: ({ startMonth, endMonth }) =>
+        withApp(Effect.flatMap(MoneyLedger, (money) => money.analyze(startMonth, endMonth))),
+      getAccountBalances: () => withApp(Effect.flatMap(MoneyLedger, (money) => money.balances)),
+      getBankTransactions: ({ ids }) =>
+        withApp(Effect.flatMap(MoneyLedger, (money) => money.transactions(ids))),
+      generateMonthlySpendingReport: (input) =>
+        withApp(Effect.flatMap(MoneyLedger, (money) => money.generateReport(input))),
+      listMonthlySpendingReports: () =>
+        withApp(Effect.flatMap(MoneyLedger, (money) => money.listReports)),
+      markMonthlySpendingReportRead: (input) =>
+        withApp(Effect.flatMap(MoneyLedger, (money) => money.markReportRead(input))),
+      getMonthlySpendingReport: ({ id }) =>
+        withApp(Effect.flatMap(MoneyLedger, (money) => money.getReport(id))),
+    }),
+  ),
 );
 
 const agentSurface = HttpRouter.toWebHandler(

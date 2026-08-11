@@ -1,8 +1,10 @@
 export * from "./surfaces/agent-read";
+export * from "./surfaces/activity";
 export * from "./surfaces/app";
 export * from "./surfaces/conversation";
 export * from "./surfaces/dispatch";
+export * from "./surfaces/money";
 export * from "./surfaces/types";
-export { systemPingHandler } from "./surfaces/system";
+export { systemPingHandler, SystemRpcs } from "./surfaces/system";
 export * from "./transport/server";
 export * from "./transport/worker-request";

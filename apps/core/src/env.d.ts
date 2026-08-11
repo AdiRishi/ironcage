@@ -5,5 +5,6 @@ import type { BacktestRunner } from "@ironcage/compute/entrypoints";
 declare global {
   interface Env {
     COMPUTE: DurableObjectNamespace<BacktestRunner>;
+    MONEY_IDENTITY_KEY: string;
   }
 }

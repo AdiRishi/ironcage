@@ -17,7 +17,8 @@
     "@ironcage/contracts": "workspace:*",
     "@ironcage/domain": "workspace:*",
     "csv-parse": "catalog:",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "pg": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "catalog:",
@@ -25,6 +26,7 @@
     "@ironcage/compute": "workspace:*",
     "@ironcage/tsconfig": "workspace:*",
     "@types/node": "catalog:",
+    "@types/pg": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "wrangler": "catalog:"
