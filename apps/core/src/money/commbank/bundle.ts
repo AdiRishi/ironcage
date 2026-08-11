@@ -51,6 +51,12 @@ export interface CommBankPairedBundle {
   readonly availableBalance: Option.Option<CommBankOfxBalance>;
 }
 
+export interface CommBankBundleInput {
+  readonly csv: Uint8Array;
+  readonly ofx: Uint8Array;
+  readonly accountProfile: CommBankAccountProfileId;
+}
+
 export class CommBankBundleBlocked extends Schema.TaggedError<CommBankBundleBlocked>()(
   "CommBankBundleBlocked",
   {
@@ -78,16 +84,14 @@ const pairingKey = (postedDate: SourceDate, amount: Money, narrative: string) =>
   JSON.stringify([postedDate, BigDecimal.format(BigDecimal.normalize(amount)), narrative]);
 
 export const decodeCommBankBundle = Effect.fn("decodeCommBankBundle")(function* (
-  csvBytes: Uint8Array,
-  ofxBytes: Uint8Array,
-  accountProfileId: CommBankAccountProfileId,
+  input: CommBankBundleInput,
 ): Effect.fn.Return<
   CommBankPairedBundle,
   CommBankBundleBlocked | CommBankCsvRejected | CommBankOfxRejected
 > {
-  const profile = commBankAccountProfiles[accountProfileId];
-  const csv = yield* decodeCommBankCsv(csvBytes, accountProfileId);
-  const ofx = yield* decodeCommBankOfx(ofxBytes, accountProfileId);
+  const profile = commBankAccountProfiles[input.accountProfile];
+  const csv = yield* decodeCommBankCsv(input.csv, input.accountProfile);
+  const ofx = yield* decodeCommBankOfx(input.ofx, input.accountProfile);
 
   if (csv.rows.length !== ofx.transactions.length) {
     return yield* block(
@@ -194,7 +198,7 @@ export const decodeCommBankBundle = Effect.fn("decodeCommBankBundle")(function* 
 
   return {
     sourceProfile: commBankPairedProfileId,
-    accountProfile: accountProfileId,
+    accountProfile: input.accountProfile,
     account: ofx.account,
     window: ofx.window,
     rows,

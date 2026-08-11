@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { URL, fileURLToPath, pathToFileURL } from "node:url";
 
 import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
 import { configDefaults, defineConfig } from "vitest/config";
@@ -14,7 +15,7 @@ const fixtureBytes = {
   enforce: "pre" as const,
   resolveId(id: string, importer: string | undefined) {
     return id.endsWith(suffix) && importer !== undefined
-      ? `${new URL(id.slice(0, -suffix.length), `file://${importer}`).pathname}${suffix}`
+      ? `${fileURLToPath(new URL(id.slice(0, -suffix.length), pathToFileURL(importer)))}${suffix}`
       : null;
   },
   async load(id: string) {

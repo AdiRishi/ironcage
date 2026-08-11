@@ -207,7 +207,7 @@ const spendingRows = [
 const decode = (
   [csv, ofx]: readonly [Uint8Array, Uint8Array],
   profile: CommBankAccountProfileId = "spending-offset",
-) => decodeCommBankBundle(csv, ofx, profile);
+) => decodeCommBankBundle({ csv, ofx, accountProfile: profile });
 
 const blocking = (
   bundle: readonly [Uint8Array, Uint8Array],
@@ -218,7 +218,7 @@ describe("the observed corpus", () => {
   for (const { id, profile, csv, ofx, rows, ledger } of corpus) {
     it.effect(`${id} pairs row for row`, () =>
       Effect.gen(function* () {
-        const bundle = yield* decodeCommBankBundle(csv, ofx, profile);
+        const bundle = yield* decodeCommBankBundle({ csv, ofx, accountProfile: profile });
 
         expect(bundle.sourceProfile).toBe("cba-netbank-paired-v1");
         expect(bundle.accountProfile).toBe(profile);
@@ -232,7 +232,11 @@ describe("the observed corpus", () => {
 
   it.effect("keeps both source observations on every candidate", () =>
     Effect.gen(function* () {
-      const bundle = yield* decodeCommBankBundle(spendingACsv, spendingAOfx, "spending-offset");
+      const bundle = yield* decodeCommBankBundle({
+        csv: spendingACsv,
+        ofx: spendingAOfx,
+        accountProfile: "spending-offset",
+      });
       const first = bundle.rows[0];
 
       expect(first?.postedDate).toBe("2026-08-08");
@@ -250,7 +254,11 @@ describe("the observed corpus", () => {
 
   it.effect("reads the account identity from the file that carries one", () =>
     Effect.gen(function* () {
-      const bundle = yield* decodeCommBankBundle(spendingACsv, spendingAOfx, "spending-offset");
+      const bundle = yield* decodeCommBankBundle({
+        csv: spendingACsv,
+        ofx: spendingAOfx,
+        accountProfile: "spending-offset",
+      });
 
       expect(bundle.account.accountId).toBe("10000001");
       expect(bundle.window).toEqual({ start: "2026-06-20", end: "2026-08-08" });
@@ -259,7 +267,11 @@ describe("the observed corpus", () => {
 
   it.effect("proves the newest row against the ledger balance where it can", () =>
     Effect.gen(function* () {
-      const bundle = yield* decodeCommBankBundle(homeLoanACsv, homeLoanAOfx, "home-loan");
+      const bundle = yield* decodeCommBankBundle({
+        csv: homeLoanACsv,
+        ofx: homeLoanAOfx,
+        accountProfile: "home-loan",
+      });
 
       expect(bundle.ledger.status).toBe("matched");
       if (bundle.ledger.status !== "matched") return;
@@ -274,7 +286,11 @@ describe("the observed corpus", () => {
   // export that is entirely correct.
   it.effect("accepts a window that closed before the export was taken", () =>
     Effect.gen(function* () {
-      const bundle = yield* decodeCommBankBundle(spendingBCsv, spendingBOfx, "spending-offset");
+      const bundle = yield* decodeCommBankBundle({
+        csv: spendingBCsv,
+        ofx: spendingBOfx,
+        accountProfile: "spending-offset",
+      });
 
       expect(bundle.ledger.status).toBe("outside_covered_window");
       if (bundle.ledger.status !== "outside_covered_window") return;
@@ -286,7 +302,11 @@ describe("the observed corpus", () => {
 
   it.effect("has no ledger claim to make about a card with no row balances", () =>
     Effect.gen(function* () {
-      const bundle = yield* decodeCommBankBundle(mastercardACsv, mastercardAOfx, "mastercard");
+      const bundle = yield* decodeCommBankBundle({
+        csv: mastercardACsv,
+        ofx: mastercardAOfx,
+        accountProfile: "mastercard",
+      });
 
       expect(bundle.ledger.status).toBe("unavailable");
       expect("newestRowBalance" in bundle.ledger).toBe(false);
