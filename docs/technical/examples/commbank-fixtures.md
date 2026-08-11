@@ -2,7 +2,7 @@
 
 These examples preserve structures observed in the private sample corpus. Every name, account identifier, amount, date, reference, and balance below is invented. They are documentation examples, not production parser fixtures.
 
-The first redacted observed corpus lives in the core test tree at [`apps/core/tests/fixtures/money/commbank`](../../../apps/core/tests/fixtures/money/commbank/README.md). It covers all four structured account profiles plus three overlapping spending-offset windows without changing delimiters, quoting, encodings, line endings, empty fields, tag order, or other parser-significant syntax. Its manifest names the difficult input shapes that were absent from the private samples and therefore remain open fixture gates. Raw bank files never belong in the repository.
+The production parser corpus lives in the core test tree at [`apps/core/tests/fixtures/money/commbank`](../../../apps/core/tests/fixtures/money/commbank/README.md). It contains minimally redacted copies of the six downloaded CSV/OFX pairs: direct identifiers are substituted, while the bank's dates, amounts, balances, windows, narratives, ordering, delimiters, quoting, encoding, empty fields, tags, and line endings are retained. Deterministic synthetic cases complement that corpus when an edge condition is not present in the account history.
 
 ## Deposit CSV
 

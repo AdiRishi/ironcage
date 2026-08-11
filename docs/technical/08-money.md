@@ -43,7 +43,7 @@ The diagram shows a many-to-one evidence relationship. A source observation is n
 
 ## 1. Account profiles and source profiles
 
-Every import is interpreted by one named and versioned source profile. A profile declares the account types it accepts, file grammar, character decoding, sign normalization, identifier policy, statement layout, and fixture hashes that prove those rules.
+Every import is interpreted by one named and versioned source profile. A profile declares the account types it accepts, file grammar, character decoding, sign normalization, identifier policy, statement layout, and fixture corpus that proves those rules.
 
 The first account profiles are:
 
@@ -94,6 +94,8 @@ Observed behavior is part of the fixture contract:
 
 The raw text of every cell and the zero-based source row ordinal are retained. Decimals are parsed directly to `BigDecimal`. A JavaScript `number` never holds a financial value.
 
+The CSV carries no encoding declaration. The paired profile decodes it as Windows-1252, matching the character set declared by NetBank's OFX export and preserving every byte value without an ASCII-only implementation gate.
+
 ### OFX grammar
 
 The observed OFX is SGML 1.02, not XML. Scalar elements do not have closing tags. The parser must therefore use an OFX SGML parser or a profile-specific tokenizer rather than an XML parser.
@@ -101,6 +103,8 @@ The observed OFX is SGML 1.02, not XML. Scalar elements do not have closing tags
 The observed header declares `OFXHEADER:100`, `VERSION:102`, `ENCODING:USASCII`, and `CHARSET:1252`. The decoder obeys the declared character set.
 
 Deposit and home-loan files use `BANKMSGSRSV1`. Mastercard uses `CREDITCARDMSGSRSV1`. Account identity comes from `BANKACCTFROM` or `CCACCTFROM` as appropriate.
+
+The observed home-loan file contains a bank-writer quirk: inside `BANKMSGSRSV1` it opens `CCSTMTRS` and closes `STMTRS`. The home-loan profile accepts exactly that pair. Other mismatched aggregates remain malformed; the fixture is not normalized into a shape the bank did not emit.
 
 Each observed transaction carries `DTPOSTED`, `DTUSER`, `TRNAMT`, `FITID`, `MEMO`, and `TRNTYPE`. The samples contain no `NAME` field. Both transaction date fields contain eight date digits rather than a transaction time.
 
@@ -500,6 +504,10 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 | Statement source                   | one PDF under an account-specific fixture-proven profile                             | importer              | decided  |
 | PDF extractor                      | AnyDoc 0.1.7 in an isolated, network-disabled compute image                          | compute image         | decided  |
 | CSV and OFX parser                 | direct RFC 4180 CSV and OFX SGML parsers                                             | importer              | decided  |
+| CSV line endings                   | CRLF only; a bare line feed blocks the file                                          | importer              | decided  |
+| CSV character decoding             | Windows-1252                                                                         | importer              | decided  |
+| OFX character decoding             | the file's declared pair, `ENCODING:USASCII` with `CHARSET:1252` and no other        | importer              | decided  |
+| OFX currency                       | `CURDEF` must be AUD                                                                 | importer              | decided  |
 | Bundle idempotency                 | SHA-256 over profile, account, and sorted source-role digests                        | importer              | decided  |
 | Structured row pairing             | exact date, signed amount, raw narrative, and equal-row occurrence                   | importer              | decided  |
 | Truncation signal                  | exactly 600 logical transactions blocks coverage                                     | importer              | decided  |
@@ -542,14 +550,13 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 1. **Mastercard statement profile.** What row and balance structure does a representative Mastercard PDF expose? Safe fallback: archive the PDFs without importing them. Must close before: Mastercard history older than the structured window is added. Closing evidence: redacted PDFs from at least two layout periods, including one structured overlap, with all statement equations passing.
 2. **Home-loan statement profile.** Does the home-loan archive preserve per-row balances and principal/interest detail consistently? Safe fallback: archive the PDFs without importing them. Must close before: home-loan history older than the structured window is added. Closing evidence: redacted PDFs from at least two layout periods and a structured overlap.
 3. **Offset statement date alignment.** Which printed date or value-date rule maps statement rows to structured rows when their transaction dates differ? Safe fallback: the statement parser can reconcile a PDF but cannot add canonical history. Must close before: enabling `cba-offset-statement-v1` in production. Closing evidence: a statement and paired export for the same period with a one-to-one, balance-consistent mapping.
-4. **Difficult structured fixtures.** How does NetBank encode non-ASCII text, quoted commas, an empty result, and a true capped result? Safe fallback: the parser rejects unrecognized bytes and 600-row files. Must close before: that input shape is accepted in production. Closing evidence: redacted byte-preserving fixtures for each case.
-5. **Categorization calibration.** What measured precision justifies automatic application? Safe fallback: every AI suggestion remains review-only. Must close before: enabling automatic application. Closing evidence: a held-out correction corpus with precision measured per candidate threshold.
+4. **Categorization calibration.** What measured precision justifies automatic application? Safe fallback: every AI suggestion remains review-only. Must close before: enabling automatic application. Closing evidence: a held-out correction corpus with precision measured per candidate threshold.
 
 ## Build checklist
 
-- [x] Add redacted, parser-shape-preserving paired fixtures for all four observed account profiles and the overlapping spending-offset windows.
-- [ ] Add fixture evidence for a same-day equal-row collision, quoted commas, non-ASCII text, an empty result, and the 600-row edge.
-- [ ] Implement direct CSV and OFX SGML decoders with exact source-cell preservation.
+- [x] Add minimally redacted source fixtures for all four observed account profiles and the overlapping spending-offset windows.
+- [ ] Add deterministic tests for a same-day equal-row collision, an empty result, and the 600-row edge as their consuming implementation lands. Quoted commas and Windows-1252 text are covered by the decoder suite.
+- [x] Implement direct CSV and OFX SGML decoders with exact source-cell preservation.
 - [ ] Implement account identity HMAC storage and require identity match before row processing.
 - [ ] Implement exact CSV/OFX multiset pairing, 600-row rejection, balance chains, and ledger reconciliation.
 - [ ] Package AnyDoc 0.1.7 in the isolated compute image and record its image digest with each extraction.

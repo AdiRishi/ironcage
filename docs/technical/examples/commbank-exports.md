@@ -221,12 +221,14 @@ Before presenting any row verdict, preview must:
 
 The filename is display metadata only. It never decides the account.
 
-## Remaining fixture work
+## Fixture coverage
 
-This investigation closes the choice of recent-history format. The first redacted observed corpus now covers paired samples for all four account profiles and the three overlapping spending-offset windows. It lives at [`apps/core/tests/fixtures/money/commbank`](../../../apps/core/tests/fixtures/money/commbank/README.md). It does not close every production parser gate.
+This investigation closes the choice of recent-history format. The minimally redacted source corpus covers paired samples for all four account profiles and the three overlapping spending-offset windows. It lives at [`apps/core/tests/fixtures/money/commbank`](../../../apps/core/tests/fixtures/money/commbank/README.md). Dates, amounts, balances, windows, ordering, and source grammar are retained from the downloaded files.
 
-- Capture a Mastercard window containing identical same-day amounts and verify occurrence behavior across overlap.
-- Capture quoted commas, non-ASCII narrative text, an empty export, and a true 600-row export.
+Synthetic fixtures are sufficient evidence for deterministic parser and reconciliation behavior that does not require another bank export: equal-row occurrence, CSV quoting and character decoding, empty results, and 600-row rejection. A newly observed bank shape should become an additional regression fixture, but its absence does not block those implementations.
+
+Statement work remains source-dependent:
+
 - Verify the oldest statement layout for each account type; a seven-year archive may span multiple templates.
 - Download a representative Mastercard and home-loan statement for parser assessment.
 - Prove offset statement-to-structured date alignment on a shared period before enabling statement imports.
