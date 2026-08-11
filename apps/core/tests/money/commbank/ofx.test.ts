@@ -267,6 +267,17 @@ describe("refusing a file it cannot interpret", () => {
     }),
   );
 
+  it.effect("rejects a header field outside the proven source profile", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(
+        document({ header: `${defaultHeader}UNOBSERVED:VALUE\n` }),
+      );
+
+      expect(rejected.reason).toBe("unsupported_header");
+      expect(rejected.detail).toContain("UNOBSERVED");
+    }),
+  );
+
   it.effect("rejects a file with no document at all", () =>
     Effect.gen(function* () {
       const rejected = yield* rejectionOf(encode("OFXHEADER:100\nDATA:OFXSGML\n"));
@@ -430,6 +441,17 @@ describe("refusing a file it cannot interpret", () => {
     Effect.gen(function* () {
       const rejected = yield* rejectionOf(
         document({ body: bodyWithout("<FITID>fixture-fitid-1-000040", "<FITID>") }),
+      );
+
+      expect(rejected.reason).toBe("identifier_policy");
+      expect(rejected.sourceOrdinal).toBe(0);
+    }),
+  );
+
+  it.effect("does not treat whitespace as a stable identifier", () =>
+    Effect.gen(function* () {
+      const rejected = yield* rejectionOf(
+        document({ body: bodyWithout("<FITID>fixture-fitid-1-000040", "<FITID>   ") }),
       );
 
       expect(rejected.reason).toBe("identifier_policy");

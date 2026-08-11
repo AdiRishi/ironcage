@@ -97,6 +97,17 @@ const supportedHeader = {
   COMPRESSION: "NONE",
 } as const;
 
+const optionalHeader = {
+  OLDFILEUID: "NONE",
+  NEWFILEUID: "NONE",
+} as const;
+
+const headerField = /^[A-Z][A-Z0-9]*$/;
+const supportedHeaderFields = new Set([
+  ...Object.keys(supportedHeader),
+  ...Object.keys(optionalHeader),
+]);
+
 interface OfxNode {
   readonly tag: string;
   readonly value: string | null;
@@ -264,7 +275,7 @@ const nonEmptyScalar = (
   Effect.gen(function* () {
     const value = yield* scalar(node, tag, path, sourceOrdinal);
 
-    if (value === "") {
+    if (value.trim() === "") {
       return yield* reject("missing_element", `${path}/${tag} is empty`, sourceOrdinal);
     }
 
@@ -314,9 +325,8 @@ const messageSets = {
   },
 } as const;
 
-const balance = (statement: OfxNode, tag: "LEDGERBAL" | "AVAILBAL") =>
+const decodeBalance = (node: OfxNode, tag: "LEDGERBAL" | "AVAILBAL") =>
   Effect.gen(function* () {
-    const node = yield* element(statement, tag, "OFX");
     const rawAmount = yield* nonEmptyScalar(node, "BALAMT", tag);
     const rawAsOf = yield* nonEmptyScalar(node, "DTASOF", tag);
     const amount = sourceAmount(rawAmount);
@@ -364,11 +374,21 @@ export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
 
     const field = line.slice(0, separator).trim();
 
+    if (!headerField.test(field)) {
+      return yield* reject("unsupported_header", `${JSON.stringify(field)} is not a header name`);
+    }
+
     if (header.has(field)) {
       return yield* reject("duplicate_header", `${field} appears more than once`);
     }
 
     header.set(field, line.slice(separator + 1).trim());
+  }
+
+  for (const field of header.keys()) {
+    if (!supportedHeaderFields.has(field)) {
+      return yield* reject("unsupported_header", `${field} is outside this source profile`);
+    }
   }
 
   for (const [field, expected] of Object.entries(supportedHeader)) {
@@ -378,6 +398,17 @@ export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
       return yield* reject(
         "unsupported_header",
         `${field} is ${declared === undefined ? "absent" : JSON.stringify(declared)}, expected ${expected}`,
+      );
+    }
+  }
+
+  for (const [field, expected] of Object.entries(optionalHeader)) {
+    const declared = header.get(field);
+
+    if (declared !== undefined && declared !== expected) {
+      return yield* reject(
+        "unsupported_header",
+        `${field} is ${JSON.stringify(declared)}, expected ${expected}`,
       );
     }
   }
@@ -523,9 +554,11 @@ export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
       );
     }
 
-    const hasIdentifier = rawIdentifier !== "";
+    const hasIdentifier = rawIdentifier.trim() !== "";
+    const identifierMatchesProfile =
+      profile.identifier === "stable" ? hasIdentifier : rawIdentifier === "";
 
-    if ((profile.identifier === "stable") !== hasIdentifier) {
+    if (!identifierMatchesProfile) {
       return yield* reject(
         "identifier_policy",
         `${profile.label} requires FITID to be ${profile.identifier === "stable" ? "populated" : "empty"}`,
@@ -562,10 +595,11 @@ export const decodeCommBankOfx = Effect.fn("decodeCommBankOfx")(function* (
     });
   }
 
-  const ledgerBalance = yield* balance(statement, "LEDGERBAL");
+  const ledgerNode = yield* element(statement, "LEDGERBAL", "OFX");
+  const ledgerBalance = yield* decodeBalance(ledgerNode, "LEDGERBAL");
   const availableNode = yield* optionalElement(statement, "AVAILBAL", "OFX");
   const availableBalance = Option.isSome(availableNode)
-    ? Option.some(yield* balance(statement, "AVAILBAL"))
+    ? Option.some(yield* decodeBalance(availableNode.value, "AVAILBAL"))
     : Option.none<CommBankOfxBalance>();
 
   return {
