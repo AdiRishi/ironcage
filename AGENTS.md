@@ -1,4 +1,6 @@
-# Working in this repository
+# AGENTS.md
+
+## Working in this repository
 
 `CONTEXT.md` holds the ubiquitous language, `docs/` holds the specification, and
 `docs/adr/` holds the repository conventions. Read those before changing code.
@@ -64,3 +66,9 @@ would prove those.
 
 R2 is simulated locally in `.wrangler/state` and does not touch
 `ironcage-private` unless the binding is marked `"remote": true`.
+
+## Vendored Repositories
+
+`.repos/` holds read-only vendored reference repos. See `.repos/AGENTS.md` for more details.
+
+- When writing Effect code, read `.repos/effect/LLMS.md` first and inspect `.repos/effect/` for examples of idiomatic usage, tests, module structure, and API design.
