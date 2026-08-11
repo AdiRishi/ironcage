@@ -3,6 +3,7 @@ import { SidebarInset, SidebarProvider } from "@ironcage/ui/components/sidebar";
 import { AppSidebar } from "@/components/shell/app-sidebar";
 import { AppTopbar } from "@/components/shell/app-topbar";
 import { OverrideBanner } from "@/components/shell/override-banner";
+import { SurfaceNav } from "@/components/shell/surface-nav";
 
 /** 208px, from the design. Passed as a style rather than edited into the
  *  shadcn source, so `sidebar.tsx` stays a clean upstream file. */
@@ -20,7 +21,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         <OverrideBanner />
         <AppTopbar />
-        <div className="mx-auto flex w-full max-w-[1220px] flex-col gap-7 p-7">{children}</div>
+        <div className="mx-auto flex w-full max-w-[1220px] flex-col gap-7 p-7">
+          <SurfaceNav />
+          {children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );
