@@ -40,8 +40,9 @@ export function ReportDetail({ reportId }: { readonly reportId: ReportId }) {
     <div className="flex flex-col gap-7">
       <Panel
         title={`Spending report · ${formatMonth(report.month)}`}
+        // A Link renders an anchor, so Base UI has to be told not to expect a native button.
         action={
-          <Button variant="ghost" size="sm" render={<Link to="/reports" />}>
+          <Button variant="ghost" size="sm" nativeButton={false} render={<Link to="/reports" />}>
             All reports
           </Button>
         }

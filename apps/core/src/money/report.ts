@@ -1,11 +1,11 @@
 import {
   formatAud,
   formatFullDay,
+  formatMoment,
   formatMonth,
   formatRate,
   type MonthlySpendingReport,
 } from "@ironcage/domain";
-import { DateTime } from "effect";
 
 const escapeHtml = (value: string) =>
   value
@@ -119,7 +119,7 @@ export const renderMonthlySpendingReport = (report: MonthlySpendingReport) => {
   <h2>Recurring charges</h2><ul>${recurring || "<li>None met the recurring-charge evidence threshold.</li>"}</ul>
   <h2>Anomalies</h2><ul>${anomalies || "<li>No configured anomaly rule fired.</li>"}</ul>
   <h2>Suggestions</h2><ul>${suggestions || "<li>No grounded savings suggestion is available for this month.</li>"}</ul>
-  <footer>Generated ${DateTime.formatIso(report.generatedAt)}. This report recommends; it never acts.</footer>
+  <footer>Generated ${formatMoment(report.generatedAt)}. This report recommends; it never acts.</footer>
 </main>
 </body>
 </html>`;

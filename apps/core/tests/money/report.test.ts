@@ -80,6 +80,14 @@ describe("the monthly spending report", () => {
     expect(html).not.toContain(groceriesId);
   });
 
+  test("dates every line the way a reader reads a date", () => {
+    const html = renderMonthlySpendingReport(report);
+
+    expect(html).toContain("31 July 2026");
+    expect(html).toContain("Generated 5 Aug 2026");
+    expect(html).not.toContain("2026-08-05T09:30:00");
+  });
+
   test("escapes source text so a narrative cannot become markup", () => {
     const html = renderMonthlySpendingReport({
       ...report,

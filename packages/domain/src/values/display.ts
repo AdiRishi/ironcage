@@ -1,4 +1,4 @@
-import { BigDecimal } from "effect";
+import { BigDecimal, DateTime } from "effect";
 
 import type { CalendarDate, CalendarMonth } from "./calendar";
 import type { Money } from "./decimal";
@@ -59,3 +59,17 @@ export const formatDay = (value: CalendarDate) => day.format(new Date(`${value}T
 
 export const formatFullDay = (value: CalendarDate) =>
   fullDay.format(new Date(`${value}T00:00:00Z`));
+
+const moment = new Intl.DateTimeFormat("en-AU", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "Australia/Sydney",
+  timeZoneName: "short",
+});
+
+/** An instant, in the operator's own zone, for a "generated at" or "as of" line. */
+export const formatMoment = (value: DateTime.Utc) =>
+  moment.format(new Date(DateTime.toEpochMillis(value)));
