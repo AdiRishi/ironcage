@@ -572,6 +572,8 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 | Price-change notice                | >1% and ≥A$1.00                                                                      | analysis config       | proposed |
 | Anomaly thresholds                 | A$500/4× median; A$200/730 days; 1.5× average plus A$150                             | analysis config       | proposed |
 | Anomaly event identity             | rule, subject, calendar month                                                        | analysis config       | proposed |
+| Savings suggestion floor           | A$120 a year for a steady charge; a price rise carries no floor                      | analysis config       | proposed |
+| Savings suggestion impact          | a price rise quotes the rise annualised, not the charge's annual spend               | analysis config       | decided  |
 
 ## Alternatives considered
 
