@@ -82,7 +82,9 @@ const append = <Key, Value>(index: Map<Key, Value[]>, key: Key, value: Value) =>
 };
 
 const transactionIds = (transactions: readonly StoredTransactionEvidence[]) =>
-  [...new Set(transactions.map((transaction) => transaction.transactionId))].sort();
+  [...new Set(transactions.map((transaction) => transaction.transactionId))].sort((left, right) =>
+    left.localeCompare(right),
+  );
 
 const duplicate = (
   row: CommBankPairedRow,

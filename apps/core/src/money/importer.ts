@@ -187,7 +187,9 @@ const identifyAmbiguities = Effect.fn("MoneyImports.identifyAmbiguities")(functi
         postedDate: verdict.row.postedDate,
         amount: formatMoney(verdict.row.amount),
         narrative: normalizeNarrative(verdict.row.narrative),
-        candidates: [...verdict.candidateTransactionIds].sort(),
+        candidates: [...verdict.candidateTransactionIds].sort((left, right) =>
+          left.localeCompare(right),
+        ),
       }),
     ).pipe(
       Effect.map((digest) => ({

@@ -65,7 +65,7 @@ describe("the observed corpus", () => {
 
       expect(dates.at(0)).toBe("2026-03-26");
       expect(dates.at(-1)).toBe("2024-12-03");
-      expect([...dates].sort().reverse()).toEqual(dates);
+      expect([...dates].sort((left, right) => left.localeCompare(right)).reverse()).toEqual(dates);
     }),
   );
 

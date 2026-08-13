@@ -158,10 +158,12 @@ const validateAssignment = (snapshot: MoneyLedgerSnapshot, assignment: Categoriz
   });
 
 const predicateEvidence = (predicate: CategorizationRulePredicate) => ({
-  accountIds: [...predicate.accountIds].sort(),
+  accountIds: [...predicate.accountIds].sort((left, right) => left.localeCompare(right)),
   direction: predicate.direction,
   payeeEquals: predicate.payeeEquals,
-  narrativeIncludes: [...predicate.narrativeIncludes].sort(),
+  narrativeIncludes: [...predicate.narrativeIncludes].sort((left, right) =>
+    left.localeCompare(right),
+  ),
   minimumAbsoluteAmount:
     predicate.minimumAbsoluteAmount === null ? null : formatMoney(predicate.minimumAbsoluteAmount),
   maximumAbsoluteAmount:
@@ -728,7 +730,7 @@ export class MoneyLedger extends Context.Service<
                   ...anomalyTransactionIds(analysis),
                   ...analysis.suggestions.flatMap((suggestion) => suggestion.transactionIds),
                 ]),
-              ].sort();
+              ].sort((left, right) => left.localeCompare(right));
               const report: MonthlySpendingReport = {
                 id,
                 month: input.month,
