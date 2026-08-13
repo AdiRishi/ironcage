@@ -76,12 +76,16 @@ Observed fields include:
 
 - Deposit and loan files: `BANKID`, `ACCTID`, and `ACCTTYPE` inside `BANKACCTFROM`.
 - Mastercard files: `ACCTID` inside `CCACCTFROM`.
-- Transactions: `DTPOSTED`, `DTUSER`, `TRNAMT`, `FITID`, and `MEMO`.
+- Transactions: `TRNTYPE`, `DTPOSTED`, `DTUSER`, `TRNAMT`, `FITID`, and `MEMO`.
 - File-level balances: ledger and available balance with an as-of time.
 
 The samples contained no `NAME` field. `DTPOSTED` and `DTUSER` contained eight date digits rather than a transaction timestamp.
 
 `DTSTART` and `DTEND` contained midnight timestamps. Their date portions matched both tested explicit inclusive export windows.
+
+`LEDGERBAL/DTASOF` records when the export was produced, not necessarily the end of the requested window. Several observed exports were produced after `DTEND`, after the account had continued to move. The ledger balance is therefore comparable with the newest row balance only when its as-of date falls between the newest posted row and `DTEND`.
+
+The observed home-loan file also contains a bank-writer quirk: inside `BANKMSGSRSV1` it opens `CCSTMTRS` and closes `STMTRS`. The home-loan profile accepts exactly that aggregate pair. Other mismatched aggregates remain malformed.
 
 `FITID` behavior differs by account type:
 
@@ -102,7 +106,7 @@ The investigation compared each CSV with the OFX downloaded from the same accoun
 | Mastercard      |      102 |      102 |                               102 |
 | Home loan       |       36 |       36 |                                36 |
 
-These observations establish the initial profile. A production parser still rejects any byte shape not represented by its redacted fixture corpus.
+These observations establish the initial profile. Deterministic fixtures may prove parser behavior such as quoting, character decoding, equal-row occurrence, empty results, and truncation. A newly observed bank shape becomes an additional regression fixture.
 
 Across one sample from each account, 218 rows contained no repeated `(posted date, signed amount)` pair. Date and amount will therefore often narrow a match to one row. Deduplication still handles repeated pairs because this sample cannot prove they never occur.
 
@@ -138,7 +142,7 @@ If weekly freshness later becomes valuable, use the same procedure with a rollin
 
 ## Structured backfill: the last two years
 
-The transaction search explicitly limits custom dates to the last two years. A broad spending-offset search returned exactly 600 rows and stopped at the cap, omitting older rows in the requested window. A 600-row result is therefore incomplete until proven otherwise and must never be imported as complete coverage.
+The transaction search explicitly limits custom dates to the last two years. A broad spending-offset search returned exactly 600 rows and stopped at the cap, omitting older rows in the requested window. A result of 600 rows or more is therefore outside the proven profile and must never be imported as complete coverage.
 
 Backfill one account at a time:
 
@@ -212,21 +216,22 @@ interface CommBankExportBundle {
 Before presenting any row verdict, preview must:
 
 1. decode the OFX account fingerprint and map it to exactly one stored account;
-2. decode both date windows and require them to agree;
-3. pair every CSV row to exactly one OFX row on date, amount, and narrative;
-4. reject a missing, extra, or conflicting row in either file;
-5. retain the CSV running balance where present;
-6. retain the OFX `FITID` where non-empty; and
-7. run the account-specific deduplication and reconciliation rules.
+2. read the source window from OFX `DTSTART` and `DTEND` and require it to fall within the account's configured lifetime;
+3. require both row streams to be newest first;
+4. pair every CSV row to exactly one OFX row on date, amount, and narrative;
+5. reject a missing, extra, or conflicting row in either file;
+6. retain the CSV running balance where present;
+7. retain the OFX `FITID` where non-empty; and
+8. run the account-specific deduplication and reconciliation rules.
 
 The filename is display metadata only. It never decides the account.
 
-## Remaining fixture work
+## Fixture coverage
 
-This investigation closes the choice of recent-history format. The first redacted observed corpus now covers paired samples for all four account profiles and the three overlapping spending-offset windows. It lives at [`apps/core/tests/fixtures/money/commbank`](../../../apps/core/tests/fixtures/money/commbank/README.md). It does not close every production parser gate.
+This investigation closes the choice of recent-history format. The redacted observed corpus covers paired samples for all four account profiles and three overlapping spending-offset windows. It lives at [`apps/core/tests/fixtures/money/commbank`](../../../apps/core/tests/fixtures/money/commbank/README.md). Deterministic fixtures are sufficient evidence for behavior that does not require another bank export: equal-row occurrence, CSV quoting and character decoding, empty results, and truncation rejection.
 
-- Capture a Mastercard window containing identical same-day amounts and verify occurrence behavior across overlap.
-- Capture quoted commas, non-ASCII narrative text, an empty export, and a true 600-row export.
+Statement work remains source-dependent:
+
 - Verify the oldest statement layout for each account type; a seven-year archive may span multiple templates.
 - Download a representative Mastercard and home-loan statement for parser assessment.
 - Prove offset statement-to-structured date alignment on a shared period before enabling statement imports.

@@ -44,6 +44,18 @@ _Avoid_: transaction (when referring to evidence), raw transaction
 The files submitted together for one account and source window. A CommBank structured bundle contains paired CSV and OFX, while a statement bundle contains one PDF.
 _Avoid_: upload, import file (for a multi-file source)
 
+**Coverage gap**:
+An inclusive date interval for which a required bank account has no confirmed complete source window. Analysis treats the affected month as unavailable, never as zero spending.
+_Avoid_: missing transactions, empty period
+
+**Transaction classification**:
+One effective, provenance-bearing set of signed category splits for a bank transaction. Its splits sum exactly to the transaction amount.
+_Avoid_: category (when the transaction is split), tag
+
+**Owned transfer**:
+A confirmed pair of equal and opposite bank transactions in two owned accounts. Analysis excludes both legs from income and spending.
+_Avoid_: expense, income, duplicate
+
 ## AI capabilities
 
 **Capability**:
