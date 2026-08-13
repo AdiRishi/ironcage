@@ -9,16 +9,19 @@ export class DatabaseError extends Schema.TaggedError<DatabaseError>()("Database
 // `sslrootcert=system` tells libpq to trust the operating system's store.
 // node-postgres reads it as a filename and fails on a file called `system`, so
 // the TLS settings move out of the URL and into the client configuration.
-const configFor = (connectionString: string): pg.ClientConfig => {
+export const configFor = (connectionString: string): pg.ClientConfig => {
   const url = new URL(connectionString);
-  const permissive = ["require", "prefer", "allow"].includes(url.searchParams.get("sslmode") ?? "");
+  if (url.searchParams.get("sslrootcert") !== "system") return { connectionString };
+
+  const sslMode = url.searchParams.get("sslmode");
+  const permissive = ["require", "prefer", "allow"].includes(sslMode ?? "");
 
   url.searchParams.delete("sslrootcert");
   url.searchParams.delete("sslmode");
 
   return {
     connectionString: url.toString(),
-    ssl: { rejectUnauthorized: !permissive },
+    ssl: sslMode === "disable" ? false : { rejectUnauthorized: !permissive },
   };
 };
 
