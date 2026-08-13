@@ -6,7 +6,7 @@
     "build": "turbo build",
     "cf-typegen": "turbo cf-typegen",
     "cf-typegen:check": "turbo cf-typegen:check",
-    "check": "oxfmt && oxlint --disable-nested-config --fix && turbo typecheck",
+    "check": "oxfmt && pnpm compile && oxlint --disable-nested-config --fix && turbo typecheck",
     "compile": "turbo compile",
     "dev": "turbo dev",
     "format": "oxfmt",
@@ -16,7 +16,7 @@
     "test": "turbo test",
     "test:integration": "turbo test:integration",
     "typecheck": "turbo typecheck",
-    "verify": "oxfmt --check && oxlint --disable-nested-config && turbo cf-typegen:check typecheck test build test:integration",
+    "verify": "oxfmt --check && pnpm compile && oxlint --disable-nested-config && turbo cf-typegen:check typecheck test build test:integration",
     "migrate": "node scripts/migrate.ts",
     "migrate:apply": "node scripts/migrate.ts --apply"
   },
