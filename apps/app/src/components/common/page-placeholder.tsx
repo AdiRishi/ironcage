@@ -7,11 +7,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@ironcage/ui/components/empty";
-import { useRouterState } from "@tanstack/react-router";
 import { CompassIcon } from "lucide-react";
-
-import { activeSection } from "@/components/shell/nav";
-import { SurfaceTabs } from "@/components/shell/surface-tabs";
 
 /**
  * What an unbuilt surface renders.
@@ -32,26 +28,20 @@ export function PagePlaceholder({
   /** The product document that specifies this surface. */
   readonly doc: string;
 }) {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const { tabs } = activeSection(pathname);
-
   return (
-    <>
-      <SurfaceTabs tabs={tabs} />
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <CompassIcon />
-          </EmptyMedia>
-          <EmptyTitle>{title}</EmptyTitle>
-          <EmptyDescription>{description}</EmptyDescription>
-        </EmptyHeader>
-        <EmptyContent>
-          <Badge variant="outline" className="font-mono">
-            {doc}
-          </Badge>
-        </EmptyContent>
-      </Empty>
-    </>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <CompassIcon />
+        </EmptyMedia>
+        <EmptyTitle>{title}</EmptyTitle>
+        <EmptyDescription>{description}</EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <Badge variant="outline" className="font-mono">
+          {doc}
+        </Badge>
+      </EmptyContent>
+    </Empty>
   );
 }
