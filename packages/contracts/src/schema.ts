@@ -1,2 +1,2 @@
-export { Internal } from "./surfaces/errors";
+export * from "./surfaces/errors";
 export { SystemPing } from "./surfaces/system";

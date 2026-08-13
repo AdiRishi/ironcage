@@ -1,0 +1,129 @@
+import { Context, Effect, Layer, Schema } from "effect";
+import type { Client, ClientConfig, QueryResultRow } from "pg";
+
+import { PersistenceError } from "./error";
+
+export type SqlRow = Readonly<Record<string, unknown>>;
+
+export interface SqlExecutor {
+  readonly query: (
+    operation: string,
+    statement: string,
+    parameters?: readonly unknown[],
+  ) => Effect.Effect<readonly SqlRow[], PersistenceError>;
+}
+
+export interface PostgresService extends SqlExecutor {
+  readonly transaction: <A, E, R>(
+    use: (sql: SqlExecutor) => Effect.Effect<A, E, R>,
+  ) => Effect.Effect<A, E | PersistenceError, R>;
+  readonly readTransaction: <A, E, R>(
+    use: (sql: SqlExecutor) => Effect.Effect<A, E, R>,
+  ) => Effect.Effect<A, E | PersistenceError, R>;
+}
+
+// Hyperdrive's local connection string can carry libpq's system-store flag,
+// which node-postgres otherwise treats as a literal certificate filename.
+export const clientConfigFor = (connectionString: string): ClientConfig => {
+  const url = new URL(connectionString);
+  if (url.searchParams.get("sslrootcert") !== "system") return { connectionString };
+
+  const sslMode = url.searchParams.get("sslmode");
+  const permissive = ["require", "prefer", "allow"].includes(sslMode ?? "");
+
+  url.searchParams.delete("sslrootcert");
+  url.searchParams.delete("sslmode");
+
+  return {
+    connectionString: url.toString(),
+    ssl: sslMode === "disable" ? false : { rejectUnauthorized: !permissive },
+  };
+};
+
+const executor = (client: Client): SqlExecutor => ({
+  query: (operation, statement, parameters = []) =>
+    Effect.tryPromise({
+      try: () => client.query<QueryResultRow>(statement, [...parameters]),
+      catch: (cause) => new PersistenceError({ operation, cause }),
+    }).pipe(
+      Effect.map((result) =>
+        result.rows.map((row) => {
+          const record: Record<string, unknown> = {};
+          for (const [key, value] of Object.entries(row)) record[key] = value;
+          return record;
+        }),
+      ),
+    ),
+});
+
+const transactional = <A, E, R>(
+  sql: SqlExecutor,
+  begin: string,
+  use: (sql: SqlExecutor) => Effect.Effect<A, E, R>,
+): Effect.Effect<A, E | PersistenceError, R> =>
+  Effect.gen(function* () {
+    yield* sql.query("begin transaction", begin);
+
+    return yield* use(sql).pipe(
+      Effect.matchCauseEffect({
+        onFailure: (cause) =>
+          sql.query("rollback transaction", "ROLLBACK").pipe(
+            Effect.catchCause(() => Effect.void),
+            Effect.andThen(Effect.failCause(cause)),
+          ),
+        onSuccess: (value) => sql.query("commit transaction", "COMMIT").pipe(Effect.as(value)),
+      }),
+    );
+  });
+
+const serviceFor = (client: Client): PostgresService => {
+  const sql = executor(client);
+
+  return {
+    ...sql,
+    transaction: (use) => transactional(sql, "BEGIN", use),
+    readTransaction: (use) =>
+      transactional(sql, "BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY", use),
+  };
+};
+
+export class Postgres extends Context.Service<Postgres, PostgresService>()(
+  "ironcage/core/persistence/Postgres",
+) {
+  static readonly layerForRequest = (
+    connectionString: string,
+  ): Layer.Layer<Postgres, PersistenceError> =>
+    Layer.effect(
+      Postgres,
+      Effect.gen(function* () {
+        const client = yield* Effect.acquireRelease(
+          Effect.tryPromise({
+            try: async () => {
+              const { Client } = await import("pg");
+              const opened = new Client({
+                ...clientConfigFor(connectionString),
+                application_name: "ironcage-core",
+              });
+              await opened.connect();
+              return opened;
+            },
+            catch: (cause) => new PersistenceError({ operation: "connect to Postgres", cause }),
+          }),
+          (opened) => Effect.promise(() => opened.end()),
+        );
+
+        return serviceFor(client);
+      }),
+    );
+}
+
+export const decodeRows = <A>(
+  operation: string,
+  schema: Schema.Decoder<A, never>,
+  rows: readonly SqlRow[],
+): Effect.Effect<readonly A[], PersistenceError> =>
+  Effect.forEach(rows, (row) =>
+    Schema.decodeUnknownEffect(schema)(row).pipe(
+      Effect.mapError((cause) => new PersistenceError({ operation, cause })),
+    ),
+  );

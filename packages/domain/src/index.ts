@@ -8,4 +8,7 @@ export * from "./portfolio/sleeve";
 export * from "./trading/fill";
 export * from "./trading/intent";
 export * from "./values/decimal";
+export * from "./values/digest";
+export * from "./values/request";
 export * from "./values/time";
+export * from "./values/uuid";

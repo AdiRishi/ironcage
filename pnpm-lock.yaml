@@ -338,9 +338,15 @@ importers:
       '@ironcage/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@ironcage/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       effect:
         specifier: 'catalog:'
         version: 4.0.0-beta.105
+      pg:
+        specifier: 'catalog:'
+        version: 8.23.0
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: 'catalog:'
@@ -354,6 +360,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.1.2
+      '@types/pg':
+        specifier: 'catalog:'
+        version: 8.21.0
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
