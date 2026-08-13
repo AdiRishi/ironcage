@@ -1,5 +1,28 @@
+import { readFile } from "node:fs/promises";
+import { URL, fileURLToPath, pathToFileURL } from "node:url";
+
 import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
 import { configDefaults, defineConfig } from "vitest/config";
+
+// `?raw` decodes a fixture as UTF-8 before a parser sees it. Bank fixtures are
+// byte contracts whose declared character set may be Windows-1252.
+const suffix = "?bytes";
+const fixtureBytes = {
+  name: "ironcage:fixture-bytes",
+  enforce: "pre" as const,
+  resolveId(id: string, importer: string | undefined) {
+    return id.endsWith(suffix) && importer !== undefined
+      ? `${fileURLToPath(new URL(id.slice(0, -suffix.length), pathToFileURL(importer)))}${suffix}`
+      : null;
+  },
+  async load(id: string) {
+    if (!id.endsWith(suffix)) return null;
+
+    const base64 = (await readFile(id.slice(0, -suffix.length))).toString("base64");
+
+    return `export default Uint8Array.from(atob(${JSON.stringify(base64)}), (character) => character.charCodeAt(0));`;
+  },
+};
 
 // workerd refuses to start with an unresolved binding, so the siblings have to
 // exist. They throw rather than answer, so a unit test cannot quietly become an
@@ -34,6 +57,7 @@ process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB_CACHED ??= unreacha
 
 export default defineConfig({
   plugins: [
+    fixtureBytes,
     cloudflareTest({
       wrangler: { configPath: "./wrangler.jsonc" },
       miniflare: {
