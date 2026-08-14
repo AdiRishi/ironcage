@@ -3,27 +3,34 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./worker-bindings": {
+      "types": "./src/worker-bindings.ts",
+      "default": "./src/worker-bindings.ts"
+    }
+  },
   "scripts": {
     "build": "tsc --noEmit",
     "deploy": "alchemy deploy --stage prod",
     "dev": "alchemy dev --stage dev",
     "plan": "alchemy plan --stage prod",
-    "typecheck": "tsc --noEmit"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests"
   },
   "dependencies": {
     "@distilled.cloud/cloudflare": "catalog:",
-    "@ironcage/agents": "workspace:*",
-    "@ironcage/app": "workspace:*",
-    "@ironcage/compute": "workspace:*",
-    "@ironcage/core": "workspace:*",
     "alchemy": "catalog:",
     "effect": "catalog:",
     "pg": "catalog:",
     "vite": "catalog:"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "catalog:",
+    "@effect/platform-node": "catalog:",
+    "@effect/vitest": "catalog:",
     "@ironcage/tsconfig": "workspace:*",
     "@types/node": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

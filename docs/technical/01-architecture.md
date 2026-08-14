@@ -157,7 +157,8 @@ Vitals are computed from Postgres rows, so a dead engine shows dead rather than 
 
 ## Build checklist
 
-- [x] One Alchemy Effect stack with all four Workers and exactly the bindings in the table above, deployed by one root release command
+- [x] One Alchemy Effect stack with all four Workers and the currently implemented service and Durable Object bindings, deployed by one root release command
+- [ ] Add the remaining binding matrix as its Workflow, Queue consumer, and container handlers are implemented
 - [ ] Complete the `AppRpcs`, `AgentReadRpcs`, conversation, dispatch, and queue contracts behind the explicit schema/client/server package entrypoints
 - [ ] Actor skeletons with `rebuild()` implemented and tested against a seeded Postgres
 - [ ] The watchdog cron keyed on the Postgres `next_due_at` row, with its re-arm feed event

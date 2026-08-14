@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",
+    "@ironcage/infra": "workspace:*",
     "@ironcage/tsconfig": "workspace:*",
     "@tanstack/devtools-vite": "catalog:",
     "@testing-library/dom": "catalog:",

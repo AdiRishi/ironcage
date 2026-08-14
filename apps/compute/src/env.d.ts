@@ -1,11 +1,4 @@
-import type { BacktestRunner, StatementExtractor } from "./index";
-
-interface ComputeEnv {
-  BACKTEST: DurableObjectNamespace<BacktestRunner>;
-  STATEMENT_EXTRACTION: DurableObjectNamespace<StatementExtractor>;
-  BLOBS: R2Bucket;
-  ENVIRONMENT: string;
-}
+import type { ComputeEnv } from "@ironcage/infra/worker-bindings";
 
 declare global {
   namespace Cloudflare {

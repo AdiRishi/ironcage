@@ -28,6 +28,15 @@
       "persistent": true,
       "dependsOn": ["^compile"]
     },
+    "@ironcage/infra#dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": [
+        "@ironcage/contracts#compile",
+        "@ironcage/engine#compile",
+        "@ironcage/tax#compile"
+      ]
+    },
     "typecheck": {
       "dependsOn": ["^compile"]
     },
