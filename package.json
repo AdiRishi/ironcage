@@ -8,12 +8,18 @@
     "compile": "turbo compile",
     "deploy": "pnpm --filter @ironcage/infra deploy",
     "dev": "turbo dev --filter @ironcage/infra",
+    "docs:build": "blume build",
+    "docs:dev": "blume dev",
+    "docs:doctor": "blume doctor",
     "fix": "pnpm compile && oxlint --disable-nested-config --fix && oxfmt",
     "plan": "pnpm --filter @ironcage/infra plan",
     "sync:repos": "node scripts/sync-reference-repos.ts",
     "test": "turbo test test:integration",
     "test:integration": "turbo test:integration",
     "typecheck": "turbo typecheck"
+  },
+  "dependencies": {
+    "blume": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
