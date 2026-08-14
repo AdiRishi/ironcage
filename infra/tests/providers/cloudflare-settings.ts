@@ -8,21 +8,16 @@ import { CloudflareSettings } from "../../src/providers/cloudflare-settings.ts";
 import { cloudflareSettingsProviders } from "../../src/providers/index.ts";
 import {
   DEFAULT_QUEUE_RETENTION_SECONDS,
-  type BucketLockRule,
   type OperatorAccessPolicyAttributes,
 } from "../../src/providers/types.ts";
 
 const accountId = "00000000000000000000000000000000";
 
-export const bucketLocks = new Map<string, readonly BucketLockRule[]>();
 export const queueRetention = new Map<string, number>();
 export const accessPolicies = new Map<string, OperatorAccessPolicyAttributes>();
 let nextPolicyId = 1;
 
 const settings = CloudflareSettings.of({
-  getBucketLocks: (_accountId, bucketName) => Effect.succeed(bucketLocks.get(bucketName) ?? []),
-  putBucketLocks: (_accountId, bucketName, rules) =>
-    Effect.sync(() => bucketLocks.set(bucketName, [...rules])).pipe(Effect.asVoid),
   getQueueRetention: (_accountId, queueId) =>
     Effect.succeed(queueRetention.get(queueId) ?? DEFAULT_QUEUE_RETENTION_SECONDS),
   setQueueRetention: (_accountId, queueId, seconds) =>
@@ -63,7 +58,6 @@ const api = Test.make({ providers });
 
 api.beforeEach(
   Effect.sync(() => {
-    bucketLocks.clear();
     queueRetention.clear();
     accessPolicies.clear();
     nextPolicyId = 1;

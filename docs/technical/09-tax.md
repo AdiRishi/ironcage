@@ -46,7 +46,7 @@ Each source has a sync Workflow, running on schedule or on demand. The step shap
 
 1. **Plan.** Read the source's coverage rows, compute the windows still missing, and emit one work item per window.
 2. **Fetch.** Pull one page, with the source's own pagination or export mechanism.
-3. **Archive.** Write the page verbatim to a content-addressed key under `tax/{source}/{sync_id}/…` in R2. The object is immutable once written; the bucket-lock and key conventions are in [Data](./03-data.md).
+3. **Archive.** Write the page verbatim to a content-addressed key under `tax/{source}/{sync_id}/…` in R2. Application code treats the object as immutable once written; the key conventions are in [Data](./03-data.md).
 4. **Record coverage.** Append a `tax_source_coverage` row for the window just fetched.
 5. **Normalize.** Map each raw record to events or a review item.
 6. **Upsert.** Write events idempotently, keyed on `(system, account, record_id, leg)`.

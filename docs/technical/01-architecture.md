@@ -149,7 +149,7 @@ Vitals are computed from Postgres rows, so a dead engine shows dead rather than 
 - **Stateless Workers for every actor.** Rejected: a short row lock correctly serializes the system-cage ledger, but it cannot order venue calls, nonce allocation, ambiguity resolution, or alarms without being held across external I/O. Durable Objects own those workflows; Postgres owns financial truth and the short critical sections it can actually make atomic.
 - **Native Workers RPC between Workers.** Rejected: RPC calls ignore Smart Placement, and core's latency is dominated by its distance to Postgres. Typed HTTP over the same service bindings keeps the developer experience and the placement options.
 - **Routing AI conversations through core.** Rejected: it would put conversational traffic on the money-path Worker for no safety gain, since the conversation surface holds no mutation path and its model spend is bounded first by the application and backed by Gateway rules. A direct app-to-agents binding keeps core's surface small.
-- **Cloudflare Artifacts for proposal bundles.** Rejected: it added a platform dependency for what is content-addressed blob storage. A dedicated R2 quarantine bucket with bucket locks does the same job on infrastructure the system already runs; the bundle lifecycle is in [Workbench](./10-workbench.md) and [AI](./07-ai.md).
+- **Cloudflare Artifacts for proposal bundles.** Rejected: it added a platform dependency for what is content-addressed blob storage. A dedicated R2 quarantine bucket does the same job on infrastructure the system already runs; the bundle lifecycle is in [Workbench](./10-workbench.md) and [AI](./07-ai.md).
 
 ## Open questions
 

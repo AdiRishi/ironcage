@@ -34,24 +34,24 @@ verification required for safe automatic deployment from `main`.
 
 ## Managed topology
 
-| Area        | Resources                                                                                                                       |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Runtime     | app, core, agents, and compute Workers; named service entrypoints; actor and compute Durable Objects                            |
-| Database    | adopted PlanetScale Postgres database and `dev` branch; isolated runtime roles; cached and uncached Hyperdrive configurations   |
-| Storage     | private blob, agent-artifact quarantine, and backup R2 buckets; incomplete-upload cleanup and production aggregate bucket locks |
-| Messaging   | decision-record Queue and DLQ with 14-day production retention                                                                  |
-| AI controls | authenticated AI Gateways with response caching disabled, bounded logs, spend caps, and production/development separation       |
-| Safety      | production and development Flagship apps; global live-trading brake defaulted off                                               |
-| Edge        | TanStack Start Website, custom domain, Cloudflare Access application and one operator policy with phishing-resistant MFA        |
-| State       | encrypted remote Cloudflare state for deployed stacks; local state ignored by git                                               |
+| Area        | Resources                                                                                                                     |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Runtime     | app, core, agents, and compute Workers; named service entrypoints; actor and compute Durable Objects                          |
+| Database    | adopted PlanetScale Postgres database and `dev` branch; isolated runtime roles; cached and uncached Hyperdrive configurations |
+| Storage     | private blob, agent-artifact quarantine, and backup R2 buckets with incomplete-upload cleanup                                 |
+| Messaging   | decision-record Queue and DLQ with 14-day production retention                                                                |
+| AI controls | authenticated AI Gateways with response caching disabled, bounded logs, spend caps, and production/development separation     |
+| Safety      | production and development Flagship apps; global live-trading brake defaulted off                                             |
+| Edge        | TanStack Start Website, custom domain, Cloudflare Access application and one operator policy with phishing-resistant MFA      |
+| State       | encrypted remote Cloudflare state for deployed stacks; local state ignored by git                                             |
 
 Alchemy has first-class providers for the topology itself. The small providers
-in [`src/providers/`](./src/providers/) cover three
-Cloudflare settings that Alchemy does not yet expose directly: R2 bucket locks,
-Queue message retention, and Access MFA configuration. They participate in the
-same plan/reconcile/state lifecycle as first-class resources. Each provider owns
-the complete remote document it writes, and its create, update, and delete
-lifecycle is covered by local provider tests.
+in [`src/providers/`](./src/providers/) cover two Cloudflare settings that
+Alchemy does not yet expose directly: Queue message retention and Access MFA
+configuration. They participate in the same plan/reconcile/state lifecycle as
+first-class resources. Each provider owns the complete remote document it
+writes, and its create, update, and delete lifecycle is covered by local
+provider tests.
 
 [`src/worker-bindings.ts`](./src/worker-bindings.ts) is the single definition of
 every Worker environment. The Alchemy resources consume its binding builders,
