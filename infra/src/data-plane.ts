@@ -36,9 +36,8 @@ export const dataPlane = Effect.fn("Ironcage.DataPlane")(function* (config: Depl
           name: "dev",
           database,
           parentBranch: "main",
-          clusterSize: "PS_DEV",
+          clusterSize: "PS_DEV_AWS_ARM",
           replicas: 0,
-          safeMigrations: true,
           migrationsDir,
           migrationsTable: "__alchemy_migrations",
         }).pipe(adopt(true), retain());

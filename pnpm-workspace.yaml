@@ -83,6 +83,7 @@ minimumReleaseAge: 1440
 overrides:
   "@effect/sql-d1": 4.0.0-beta.105
   "@effect/sql-sqlite-do": 4.0.0-beta.105
+  workerd: 1.20260801.1
 
 peerDependencyRules:
   allowedVersions:
