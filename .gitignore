@@ -6,6 +6,8 @@ dist-ssr/
 .tanstack/
 .turbo/
 .alchemy/
+.blume/
+.blume-verify/
 *.tsbuildinfo
 *.log
 .logs/
