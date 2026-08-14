@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ironcage/contracts": "workspace:*",
+    "@ironcage/domain": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {

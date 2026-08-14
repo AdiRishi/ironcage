@@ -1,3 +1,4 @@
+export * from "./ai/capability-run";
 export * from "./surfaces/errors";
 export { FeedEventView, FeedSeverity } from "./surfaces/feed";
 export {

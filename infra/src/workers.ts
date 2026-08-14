@@ -62,6 +62,20 @@ export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
     ],
   });
 
+  // Core consumes capability runs one message at a time; exhausted deliveries
+  // route to the dead-letter queue, whose consumer records the loss.
+  yield* Cloudflare.Queues.Consumer("DecisionRecordConsumer", {
+    queueId: platform.decisionRecords.queueId,
+    scriptName: core.workerName,
+    deadLetterQueue: platform.decisionRecordDeadLetters.name,
+    settings: { batchSize: 1, maxRetries: 9 },
+  });
+  yield* Cloudflare.Queues.Consumer("DecisionRecordDeadLetterConsumer", {
+    queueId: platform.decisionRecordDeadLetters.queueId,
+    scriptName: core.workerName,
+    settings: { batchSize: 1 },
+  });
+
   return { agents, compute, core };
 });
 

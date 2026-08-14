@@ -1,4 +1,5 @@
 import { AgentReadRpcs, clientOverBinding, timeouts } from "@ironcage/contracts/client";
+import { Internal } from "@ironcage/contracts/schema";
 import {
   ConversationRpcs,
   DispatchRpcs,
@@ -9,6 +10,8 @@ import {
 import { WorkerEntrypoint } from "cloudflare:workers";
 import { Effect } from "effect";
 import { HttpRouter } from "effect/unstable/http";
+
+import { runCategorization } from "./categorization";
 
 const worker = "ironcage-agents";
 const workerRequest = makeWorkerRequestContext<Env, ExecutionContext>(
@@ -21,8 +24,39 @@ const conversationSurface = HttpRouter.toWebHandler(
   rpcHttpRoute(ConversationRpcs, ConversationRpcs.toLayer({ ping: () => ping("ConversationApi") })),
 );
 
+/** The pinned model behind the categorization capability's configuration. */
+const categorizationModel = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+
 const dispatchSurface = HttpRouter.toWebHandler(
-  rpcHttpRoute(DispatchRpcs, DispatchRpcs.toLayer({ ping: () => ping("DispatchApi") })),
+  rpcHttpRoute(
+    DispatchRpcs,
+    DispatchRpcs.toLayer({
+      ping: () => ping("DispatchApi"),
+      dispatchCategorization: (payload) =>
+        Effect.flatMap(workerRequest.service, ({ env }) =>
+          Effect.tryPromise({
+            try: () =>
+              runCategorization(payload, {
+                model: categorizationModel,
+                infer: async (prompt) => {
+                  const answer = await env.AI_GATEWAY.run(categorizationModel, {
+                    messages: [{ role: "user", content: prompt }],
+                    max_tokens: 4096,
+                  });
+                  return typeof answer === "object" && answer !== null && "response" in answer
+                    ? String((answer as { response: unknown }).response)
+                    : JSON.stringify(answer);
+                },
+                send: (message) => env.DECISION_RECORDS.send(message),
+              }),
+            catch: (cause) =>
+              new Internal({
+                detail: cause instanceof Error ? cause.message : "categorization dispatch failed",
+              }),
+          }),
+        ),
+    }),
+  ),
 );
 
 export class ConversationApiEntrypoint extends WorkerEntrypoint<Env> {

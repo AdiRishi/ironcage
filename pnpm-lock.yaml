@@ -203,6 +203,9 @@ importers:
       '@ironcage/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@ironcage/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       effect:
         specifier: 'catalog:'
         version: 4.0.0-beta.105

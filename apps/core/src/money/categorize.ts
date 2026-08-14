@@ -33,7 +33,7 @@ const CategoryRow = CategorySummary;
 
 const categoryColumns = `id, name, kind, system, archived`;
 
-const listCategoryRows = (sql: SqlExecutor) =>
+export const listCategoryRows = (sql: SqlExecutor) =>
   Effect.gen(function* () {
     const rows = yield* sql.query(
       "list categories",
@@ -329,6 +329,16 @@ export const categorizeTransactions = (input: {
               ],
             );
           }
+
+          // The correction settles any pending AI suggestion: accepted when
+          // the operator chose the suggested category, superseded otherwise.
+          yield* sql.query(
+            "settle pending suggestion",
+            `UPDATE categorization_suggestions
+                SET status = CASE WHEN category_id = ANY($2::uuid[]) THEN 'accepted' ELSE 'superseded' END
+              WHERE transaction_id = $1 AND status = 'pending'`,
+            [transaction.id, change.splits.map((split) => split.categoryId)],
+          );
         }
 
         for (const rule of input.createRules) {
@@ -348,6 +358,9 @@ const ReviewRow = Schema.Struct({
   amount: Aud,
   narrative: Schema.String,
   payee: Schema.String,
+  suggestedCategoryId: Schema.NullOr(CategoryId),
+  suggestedCategoryName: Schema.NullOr(Schema.String),
+  suggestionRationale: Schema.NullOr(Schema.String),
 });
 
 export const getReviewQueue = (): Effect.Effect<
@@ -362,9 +375,14 @@ export const getReviewQueue = (): Effect.Effect<
         "load review queue",
         `SELECT t.id AS "transactionId", t.account_id AS "accountId", a.product_label AS "productLabel",
                 t.posted_date AS "postedDate", t.amount::text AS amount,
-                t.display_narrative AS narrative, t.derived_payee AS payee
+                t.display_narrative AS narrative, t.derived_payee AS payee,
+                cs.category_id AS "suggestedCategoryId", sc.name AS "suggestedCategoryName",
+                cs.rationale AS "suggestionRationale"
            FROM bank_transactions t
            JOIN bank_accounts a ON a.id = t.account_id
+           LEFT JOIN categorization_suggestions cs
+             ON cs.transaction_id = t.id AND cs.status = 'pending'
+           LEFT JOIN categories sc ON sc.id = cs.category_id
           WHERE EXISTS (
                   SELECT 1 FROM transaction_splits s
                    WHERE s.transaction_id = t.id
@@ -379,5 +397,17 @@ export const getReviewQueue = (): Effect.Effect<
     );
     const decoded = yield* decodeRows("decode review queue", ReviewRow, rows);
 
-    return decoded.map((row) => ({ ...row, suggestion: null }));
+    return decoded.map(
+      ({ suggestedCategoryId, suggestedCategoryName, suggestionRationale, ...row }) => ({
+        ...row,
+        suggestion:
+          suggestedCategoryId === null || suggestedCategoryName === null
+            ? null
+            : {
+                categoryId: suggestedCategoryId,
+                categoryName: suggestedCategoryName,
+                rationale: suggestionRationale ?? "",
+              },
+      }),
+    );
   }).pipe(persistenceToBoundary);
