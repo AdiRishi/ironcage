@@ -5,14 +5,7 @@ import * as Effect from "effect/Effect";
 
 import { bucketLifecycleRules } from "./cloudflare-config.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
-import { BucketLocks, QueueSettings, type BucketLockRule } from "./providers/index.ts";
-
-const indefiniteLock = (id: string): BucketLockRule => ({
-  id,
-  enabled: true,
-  prefix: "",
-  condition: { type: "Indefinite" },
-});
+import { QueueSettings } from "./providers/index.ts";
 
 export const platformControls = Effect.fn("Ironcage.PlatformControls")(function* (
   config: DeploymentConfig,
@@ -70,24 +63,6 @@ export const platformControls = Effect.fn("Ironcage.PlatformControls")(function*
   }).pipe(retain());
 
   if (config._tag === "Production") {
-    yield* Effect.all(
-      [
-        BucketLocks("BlobsLock", {
-          bucketName: blobs.bucketName,
-          rules: [indefiniteLock("immutable-blobs")],
-        }).pipe(retain()),
-        BucketLocks("AgentArtifactsLock", {
-          bucketName: agentArtifacts.bucketName,
-          rules: [indefiniteLock("immutable-agent-artifacts")],
-        }).pipe(retain()),
-        BucketLocks("BackupsLock", {
-          bucketName: backups.bucketName,
-          rules: [indefiniteLock("immutable-backups")],
-        }).pipe(retain()),
-      ],
-      { discard: true },
-    );
-
     yield* Effect.all(
       [
         QueueSettings("DecisionRecordRetention", {

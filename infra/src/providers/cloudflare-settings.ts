@@ -1,5 +1,5 @@
+import type { CloudflareOpContext } from "@distilled.cloud/cloudflare";
 import * as queues from "@distilled.cloud/cloudflare/queues";
-import * as r2 from "@distilled.cloud/cloudflare/r2";
 import * as zeroTrust from "@distilled.cloud/cloudflare/zero-trust";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -10,21 +10,11 @@ import * as Stream from "effect/Stream";
 
 import {
   DEFAULT_QUEUE_RETENTION_SECONDS,
-  type BucketLockRule,
   type OperatorAccessPolicyAttributes,
   type OperatorAccessPolicyProps,
 } from "./types.ts";
 
 interface CloudflareSettingsService {
-  readonly getBucketLocks: (
-    accountId: string,
-    bucketName: string,
-  ) => Effect.Effect<readonly BucketLockRule[], unknown>;
-  readonly putBucketLocks: (
-    accountId: string,
-    bucketName: string,
-    rules: readonly BucketLockRule[],
-  ) => Effect.Effect<void, unknown>;
   readonly getQueueRetention: (
     accountId: string,
     queueId: string,
@@ -114,26 +104,11 @@ const requirePolicyId = (id: string | null | undefined) =>
 export const cloudflareSettingsLive = Layer.effect(
   CloudflareSettings,
   Effect.gen(function* () {
-    const context = yield* Effect.context<r2.CloudflareOpContext>();
-    const provide = <A, E>(effect: Effect.Effect<A, E, r2.CloudflareOpContext>) =>
+    const context = yield* Effect.context<CloudflareOpContext>();
+    const provide = <A, E>(effect: Effect.Effect<A, E, CloudflareOpContext>) =>
       effect.pipe(Effect.provide(context));
 
     return CloudflareSettings.of({
-      getBucketLocks: (accountId, bucketName) =>
-        provide(
-          r2.getBucketLock({ accountId, bucketName }).pipe(
-            Effect.map((response) =>
-              (response.rules ?? []).map((rule) => ({
-                id: rule.id,
-                enabled: rule.enabled,
-                prefix: rule.prefix ?? "",
-                condition: rule.condition,
-              })),
-            ),
-          ),
-        ),
-      putBucketLocks: (accountId, bucketName, rules) =>
-        provide(r2.putBucketLock({ accountId, bucketName, rules: [...rules] }).pipe(Effect.asVoid)),
       getQueueRetention: (accountId, queueId) =>
         provide(
           queues

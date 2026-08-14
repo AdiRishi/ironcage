@@ -367,7 +367,7 @@ tax/{source}/{sync_id}/…              raw API pages and statements behind tax 
 dumps/{date}/…                        scheduled logical Postgres dumps
 ```
 
-Raw external files are immutable once written, and nothing in R2 is the only record of a fact; Postgres always holds the row that names the key. Content-addressed keys and bucket locks protect against accidental overwrite/delete by ordinary object-write credentials. A bucket administrator can remove even an indefinite lock rule, so bucket-configuration credentials are isolated from runtime credentials and a lock-change alert is mandatory; locks are not protection from a compromised administrator. R2 does not offer object versioning, so no design here may lean on it. The exact prefix rules and current limits are verified when the bucket is created.
+Raw external files are treated as immutable once written, and nothing in R2 is the only record of a fact; Postgres always holds the row that names the key. Application write paths use content-addressed keys and never overwrite referenced objects. R2 is not protected against operator deletion, and losing an object is an accepted failure mode: the missing artifact or evidence is surfaced rather than silently reconstructed or allowed to change the financial record.
 
 ## Migrations
 
@@ -381,7 +381,7 @@ Ironcage actor SQLite schemas carry a version number. A mismatch at wake trigger
 
 Nothing in the financial record is deleted. Corrections append; retirement archives; permanent product retention avoids collapsing the different tax and asset-record clocks into one slogan. There are exactly two named exceptions, both mechanism tables whose rows are machinery rather than record: `queue_dedupe` rows older than 30 days, and `pending_effects` rows delivered more than 90 days ago (both proposed). At one operator's volume the entire record for years fits in single-digit gigabytes; the only genuine growth item, fine-timeframe candles, stays within comfort (a year of 1-minute candles for twenty instruments is roughly 10 million rows).
 
-The data side of backups: PlanetScale point-in-time recovery covers only the purchased retention window and stops five minutes before the present. A scheduled logical dump runs in a separate trusted backup-container profile (Workers cannot run `pg_dump`) under a dedicated read-only dump credential, landing under `dumps/{date}/` behind the bucket lock. Untrusted backtest code never sees that credential. The dump schedule, exact PITR window/RPO, restore runbook, and periodic edge-window restore tests are [Operations](./12-operations.md).
+The data side of backups: PlanetScale point-in-time recovery covers only the purchased retention window and stops five minutes before the present. A scheduled logical dump runs in a separate trusted backup-container profile (Workers cannot run `pg_dump`) under a dedicated read-only dump credential, landing under `dumps/{date}/`. Untrusted backtest code never sees that credential. The dump schedule, exact PITR window/RPO, restore runbook, and periodic edge-window restore tests are [Operations](./12-operations.md).
 
 ## Values set in this chapter
 
@@ -406,7 +406,6 @@ The data side of backups: PlanetScale point-in-time recovery covers only the pur
 - **Positions as a maintained table.** Rejected. A stored position is a second truth that can drift from the fills. A projection cannot disagree with the record, only lag it.
 - **Cloudflare D1 as the record.** Rejected: no exact `NUMERIC` type and a 10 GB ceiling are disqualifying for this financial ledger. No supported CDC contract was found at the audit date, but the decision does not rely on that absence remaining true.
 - **One Hyperdrive binding with caching on and per-query bypass.** Rejected. Hyperdrive has no per-query cache control. Two bindings is the documented pattern, and uncached-as-default makes the failure mode slow instead of wrong.
-- **R2 object versioning as the accident guard.** Rejected because it does not exist; R2 has no object versioning. Bucket locks plus content-addressed keys provide the same protection with primitives the platform actually offers.
 - **Append-only by convention.** Rejected in favor of revoking `UPDATE` and `DELETE` from the application role. A rule the database enforces cannot be forgotten under deadline.
 
 ## Open questions
@@ -427,5 +426,5 @@ The data side of backups: PlanetScale point-in-time recovery covers only the pur
 - [ ] The feed-event union as a generated type shared with the app, so an unknown `event_type` is a compile error, not a rendering surprise
 - [ ] Prune jobs for the two mechanism tables, and nothing else deletable
 - [ ] The nightly balance-sheet assertion job over the ledger defined in [Domain](./02-domain.md)
-- [ ] R2 bucket created with locks configured, bucket-admin credentials isolated, lock-change alert tested, and the layout above; dump credential scoped to the trusted backup profile only
+- [ ] R2 buckets created with the layout above; dump credential scoped to the trusted backup profile only
 - [ ] Pinned Flue state inventory proving which conversation, attachment, submission, workflow, result, error, and event fields persist and who can read them
