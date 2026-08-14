@@ -6,11 +6,17 @@ export {
   BankImportPreview,
   BankImportSource,
   CandidateEffect,
+  CategorySummary,
   ConfirmBankImportResult,
   CoverageSpan,
+  EffectiveSplit,
   ImportEffectCounts,
   ImportHistoryEntry,
   PreviewBankImportResult,
+  ReviewQueueEntry,
+  RuleInput,
+  RuleSummary,
+  SplitInput,
   UploadedBytes,
 } from "./surfaces/money";
 export { SystemPing } from "./surfaces/system";

@@ -1,11 +1,18 @@
 import { RpcGroup } from "effect/unstable/rpc";
 
 import {
+  categorizeTransactionsRpc,
   configureBankAccountRpc,
   confirmBankImportRpc,
+  createCategoryRpc,
+  editCategorizationRuleRpc,
+  editCategoryRpc,
   getBankAccountsRpc,
   getBankCoverageRpc,
+  getCategorizationRulesRpc,
   getImportHistoryRpc,
+  getReviewQueueRpc,
+  listCategoriesRpc,
   previewBankImportRpc,
 } from "./money";
 import { systemPingRpc } from "./system";
@@ -19,4 +26,11 @@ export const AppRpcs = RpcGroup.make(
   configureBankAccountRpc,
   getBankCoverageRpc,
   getImportHistoryRpc,
+  listCategoriesRpc,
+  createCategoryRpc,
+  editCategoryRpc,
+  getCategorizationRulesRpc,
+  editCategorizationRuleRpc,
+  categorizeTransactionsRpc,
+  getReviewQueueRpc,
 );

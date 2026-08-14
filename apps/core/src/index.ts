@@ -13,6 +13,15 @@ import { Effect, Schema } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 
 import { sha256Hex } from "./money/bytes";
+import {
+  categorizeTransactions,
+  createCategory,
+  editCategorizationRule,
+  editCategory,
+  getCategorizationRules,
+  getReviewQueue,
+  listCategories,
+} from "./money/categorize";
 import { confirmBankImport, previewBankImport, type ImportDeps } from "./money/import";
 import {
   configureBankAccount,
@@ -53,6 +62,21 @@ const payloadHash = (value: unknown) =>
     Effect.map(decodeSha),
   );
 
+/**
+ * Wraps a mutation handler with the app request-id idempotency contract: the
+ * payload (minus the request ID itself) is hashed so a replayed request with
+ * different content raises `Conflict` instead of silently absorbing.
+ */
+const idempotently = <P extends { readonly requestId: unknown }, A, E>(
+  payload: P,
+  handler: (input: P & { readonly payloadHash: Sha256 }) => Effect.Effect<A, E, Postgres>,
+) =>
+  Effect.gen(function* () {
+    const { requestId: _, ...content } = payload;
+    const hash = yield* payloadHash(content);
+    return yield* withMoney(() => handler({ ...payload, payloadHash: hash }));
+  });
+
 const appSurface = HttpRouter.toWebHandler(
   rpcHttpRoute(
     AppRpcs,
@@ -63,17 +87,14 @@ const appSurface = HttpRouter.toWebHandler(
       getBankAccounts: () => withMoney(() => getBankAccounts()),
       getBankCoverage: () => withMoney(() => getBankCoverage()),
       getImportHistory: () => withMoney(() => getImportHistory()),
-      configureBankAccount: (payload) =>
-        Effect.gen(function* () {
-          const hash = yield* payloadHash({
-            productLabel: payload.productLabel,
-            accountType: payload.accountType,
-            required: payload.required,
-            openedOn: payload.openedOn,
-            closedOn: payload.closedOn,
-          });
-          return yield* withMoney(() => configureBankAccount({ ...payload, payloadHash: hash }));
-        }),
+      configureBankAccount: (payload) => idempotently(payload, configureBankAccount),
+      listCategories: () => withMoney(() => listCategories()),
+      createCategory: (payload) => idempotently(payload, createCategory),
+      editCategory: (payload) => idempotently(payload, editCategory),
+      getCategorizationRules: () => withMoney(() => getCategorizationRules()),
+      editCategorizationRule: (payload) => idempotently(payload, editCategorizationRule),
+      categorizeTransactions: (payload) => idempotently(payload, categorizeTransactions),
+      getReviewQueue: () => withMoney(() => getReviewQueue()),
     }),
   ),
 );

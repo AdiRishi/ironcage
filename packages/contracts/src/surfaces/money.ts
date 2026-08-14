@@ -6,13 +6,18 @@ import {
   BankTransactionId,
   CalendarDate,
   CandidateStatus,
+  CategorizationRuleId,
+  CategoryId,
+  CategoryKind,
   ImportBlock,
   Instant,
   MatchTier,
   RequestId,
+  RulePredicate,
   Sha256,
   SourceFileRole,
   SourceProfile,
+  SplitProvenance,
 } from "@ironcage/domain";
 import { Schema } from "effect";
 import { Rpc as RpcModule } from "effect/unstable/rpc";
@@ -181,6 +186,130 @@ export const ImportHistoryEntry = Schema.Struct({
   confirmedAt: Instant,
 });
 export type ImportHistoryEntry = typeof ImportHistoryEntry.Type;
+
+export const CategorySummary = Schema.Struct({
+  id: CategoryId,
+  name: Schema.String,
+  kind: CategoryKind,
+  system: Schema.Boolean,
+  archived: Schema.Boolean,
+});
+export type CategorySummary = typeof CategorySummary.Type;
+
+export const SplitInput = Schema.Struct({
+  categoryId: CategoryId,
+  amount: Aud,
+});
+export type SplitInput = typeof SplitInput.Type;
+
+export const EffectiveSplit = Schema.Struct({
+  categoryId: CategoryId,
+  categoryName: Schema.String,
+  amount: Aud,
+  provenance: SplitProvenance,
+});
+export type EffectiveSplit = typeof EffectiveSplit.Type;
+
+export const RuleInput = Schema.Struct({
+  predicate: RulePredicate,
+  categoryId: CategoryId,
+});
+export type RuleInput = typeof RuleInput.Type;
+
+export const RuleSummary = Schema.Struct({
+  id: CategorizationRuleId,
+  predicate: RulePredicate,
+  categoryId: CategoryId,
+  categoryName: Schema.String,
+  createdBy: Schema.Literals(["operator", "correction"]),
+  effectiveFrom: Instant,
+  effectiveTo: Schema.NullOr(Instant),
+});
+export type RuleSummary = typeof RuleSummary.Type;
+
+export const ReviewQueueEntry = Schema.Struct({
+  transactionId: BankTransactionId,
+  accountId: BankAccountId,
+  productLabel: Schema.String,
+  postedDate: CalendarDate,
+  amount: Aud,
+  narrative: Schema.String,
+  payee: Schema.String,
+  /** A pending AI suggestion, when one exists; auto-apply stays off. */
+  suggestion: Schema.NullOr(
+    Schema.Struct({
+      categoryId: CategoryId,
+      categoryName: Schema.String,
+      rationale: Schema.String,
+    }),
+  ),
+});
+export type ReviewQueueEntry = typeof ReviewQueueEntry.Type;
+
+export const listCategoriesRpc = RpcModule.make("listCategories", {
+  success: Schema.Array(CategorySummary),
+  error: ReadError,
+});
+
+export const createCategoryRpc = RpcModule.make("createCategory", {
+  payload: { requestId: RequestId, name: Schema.String, kind: CategoryKind },
+  success: CategorySummary,
+  error: MutationError,
+});
+
+export const editCategoryRpc = RpcModule.make("editCategory", {
+  payload: {
+    requestId: RequestId,
+    categoryId: CategoryId,
+    name: Schema.NullOr(Schema.String),
+    archived: Schema.NullOr(Schema.Boolean),
+  },
+  success: CategorySummary,
+  error: MutationError,
+});
+
+export const getCategorizationRulesRpc = RpcModule.make("getCategorizationRules", {
+  success: Schema.Array(RuleSummary),
+  error: ReadError,
+});
+
+export const editCategorizationRuleRpc = RpcModule.make("editCategorizationRule", {
+  payload: {
+    requestId: RequestId,
+    action: Schema.Union([
+      Schema.Struct({ kind: Schema.Literal("create"), rule: RuleInput }),
+      Schema.Struct({ kind: Schema.Literal("close"), ruleId: CategorizationRuleId }),
+      Schema.Struct({
+        kind: Schema.Literal("replace"),
+        ruleId: CategorizationRuleId,
+        rule: RuleInput,
+      }),
+    ]),
+  },
+  success: RuleSummary,
+  error: MutationError,
+});
+
+export const categorizeTransactionsRpc = RpcModule.make("categorizeTransactions", {
+  payload: {
+    requestId: RequestId,
+    changes: Schema.Array(
+      Schema.Struct({
+        transactionId: BankTransactionId,
+        splits: Schema.Array(SplitInput),
+      }),
+    ),
+    /** Exact-payee rules created from these corrections, applying forward only. */
+    createRules: Schema.Array(RuleInput),
+  },
+  success: Schema.Struct({ updated: Schema.Int, rulesCreated: Schema.Int }),
+  error: MutationError,
+});
+
+export const getReviewQueueRpc = RpcModule.make("getReviewQueue", {
+  success: Schema.Array(ReviewQueueEntry),
+  error: ReadError,
+});
 
 export const previewBankImportRpc = RpcModule.make("previewBankImport", {
   payload: { source: BankImportSource },
