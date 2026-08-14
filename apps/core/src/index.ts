@@ -23,6 +23,7 @@ import {
   getReviewQueue,
   listCategories,
 } from "./money/categorize";
+import { acknowledge, getFeed } from "./money/feed";
 import { confirmBankImport, previewBankImport, type ImportDeps } from "./money/import";
 import {
   configureBankAccount,
@@ -100,6 +101,8 @@ const appSurface = HttpRouter.toWebHandler(
       getTransferMatches: () => withMoney(() => getTransferMatches()),
       decideTransferMatch: (payload) => idempotently(payload, decideTransferMatch),
       getMoneyAnalysis: () => withMoney(() => getMoneyAnalysis()),
+      getFeed: (payload) => withMoney(() => getFeed(payload)),
+      acknowledge: (payload) => idempotently(payload, acknowledge),
     }),
   ),
 );

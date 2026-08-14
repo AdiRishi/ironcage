@@ -19,6 +19,7 @@ import {
   BankSourceFileId,
   BankTransactionId,
   FeedEventId,
+  monthOf,
   Sha256,
   uncategorizedCategoryId,
   type BankAccountId,
@@ -37,6 +38,7 @@ import { sha256Hex } from "./bytes";
 import { matchCandidates, type MatchOutcome } from "./cascade";
 import { coverageGaps, mergeSpans, type CoveredSpan } from "./coverage";
 import { parseBankCsv } from "./csv";
+import { emitCoverageEvents, emitDerivedEvents } from "./feed";
 import {
   derivePayee,
   displayNarrative,
@@ -100,6 +102,7 @@ interface Computation {
     readonly segment: CoveredSpan | null;
     readonly added: readonly CoveredSpan[];
     readonly overlapRetained: readonly CoveredSpan[];
+    readonly gapsBefore: readonly CoveredSpan[];
     readonly gapsRemaining: readonly CoveredSpan[];
   };
   readonly warnings: readonly string[];
@@ -161,6 +164,7 @@ const compute = Effect.fn("computeBankImport")(function* (
     segment: null,
     added: [],
     overlapRetained: [],
+    gapsBefore: [],
     gapsRemaining: [],
   } as const;
 
@@ -274,6 +278,13 @@ const compute = Effect.fn("computeBankImport")(function* (
     const shared = intersect(span, segment);
     return shared === null ? [] : [shared];
   });
+  const gapsBefore =
+    existing.length === 0
+      ? []
+      : coverageGaps(existing, {
+          start: existing[0]!.start,
+          end: existing[existing.length - 1]!.end,
+        });
   const union = mergeSpans([...existing, segment]);
   const gapsRemaining =
     union.length === 0
@@ -310,7 +321,7 @@ const compute = Effect.fn("computeBankImport")(function* (
     identityHmac,
     candidates,
     ruleHits,
-    coverage: { segment, added, overlapRetained, gapsRemaining },
+    coverage: { segment, added, overlapRetained, gapsBefore, gapsRemaining },
     warnings,
     fingerprint,
   };
@@ -577,6 +588,16 @@ export const confirmBankImport = (
           yield* detectOwnedTransfers(
             sql,
             graph.transactions.map((transaction) => transaction.id),
+          );
+          yield* emitCoverageEvents(
+            sql,
+            computation.account,
+            computation.coverage.gapsBefore,
+            computation.coverage.gapsRemaining,
+          );
+          yield* emitDerivedEvents(
+            sql,
+            new Set(graph.transactions.map((transaction) => monthOf(transaction.postedDate))),
           );
 
           if (computation.account.identityHmac === null && computation.identityHmac !== null) {

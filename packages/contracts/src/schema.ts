@@ -1,4 +1,5 @@
 export * from "./surfaces/errors";
+export { FeedEventView, FeedSeverity } from "./surfaces/feed";
 export {
   AmbiguityResolution,
   BankAccountSummary,

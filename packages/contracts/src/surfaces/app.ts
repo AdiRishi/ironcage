@@ -1,5 +1,6 @@
 import { RpcGroup } from "effect/unstable/rpc";
 
+import { acknowledgeRpc, getFeedRpc } from "./feed";
 import {
   categorizeTransactionsRpc,
   configureBankAccountRpc,
@@ -39,4 +40,6 @@ export const AppRpcs = RpcGroup.make(
   getTransferMatchesRpc,
   decideTransferMatchRpc,
   getMoneyAnalysisRpc,
+  getFeedRpc,
+  acknowledgeRpc,
 );
