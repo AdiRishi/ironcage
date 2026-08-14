@@ -128,7 +128,10 @@ Specified where it is executed: [Venues](/technical/venues) has the state machin
 stateDiagram-v2
     [*] --> submitted: bundle lands in the R2 quarantine bucket
     submitted --> validating: gate pipeline picks it up
-    validating --> backtesting --> walk_forward --> shadow --> awaiting_approval
+    validating --> backtesting
+    backtesting --> walk_forward
+    walk_forward --> shadow
+    shadow --> awaiting_approval
     validating --> killed: schema/corridor violation
     backtesting --> killed: claimed results don't reproduce
     walk_forward --> killed: fails corrected thresholds
