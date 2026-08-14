@@ -215,6 +215,30 @@ export const loadEvidence = (
     return { transactions, identifiers };
   });
 
+/**
+ * Tier 4's stored side: every transaction in the date range, in creation
+ * order. Statement dates may drift from structured dates, so the range is
+ * wider than the statement period and matching keys on amount and balance.
+ */
+export const loadBalanceEvidenceRange = (
+  sql: SqlExecutor,
+  accountId: BankAccountId,
+  from: CalendarDate,
+  to: CalendarDate,
+): Effect.Effect<readonly StoredTransaction[], PersistenceError> =>
+  Effect.gen(function* () {
+    const rows = yield* sql.query(
+      "load stored transactions by range",
+      `SELECT id, posted_date AS "postedDate", amount::text AS amount,
+              narrative_fingerprint AS "fingerprint", row_balance::text AS "rowBalance"
+         FROM bank_transactions
+        WHERE account_id = $1 AND posted_date BETWEEN $2 AND $3
+        ORDER BY id`,
+      [accountId, from, to],
+    );
+    return yield* decodeRows("decode stored transactions", EvidenceRow, rows);
+  });
+
 const SpanRow = Schema.Struct({ start: CalendarDate, end: CalendarDate });
 
 export const loadCoverageSpans = (
@@ -331,7 +355,7 @@ export interface IdentifierInsert {
 
 export interface BalanceInsert {
   readonly id: string;
-  readonly kind: "row" | "ledger" | "available";
+  readonly kind: "row" | "ledger" | "available" | "opening" | "closing";
   readonly value: BigDecimal.BigDecimal;
   readonly asOfDate: CalendarDate;
   readonly observationId: BankObservationId | null;

@@ -28,6 +28,7 @@ const deps: ImportDeps = {
       return Promise.resolve();
     },
   },
+  extractStatement: () => Promise.reject(new Error("no statement extraction in this test")),
 };
 
 const withDatabase = <A, E>(effect: Effect.Effect<A, E, Postgres>) =>
@@ -105,7 +106,7 @@ it.effect("imports, dedupes, and covers the spending offset end to end", () =>
     expect(yield* count("bank_source_identifiers")).toBe(25);
     expect(yield* count("transaction_splits")).toBe(25);
     expect(yield* count("bank_coverage_segments")).toBe(1);
-    expect(yield* count("feed_events")).toBe(1);
+    expect(yield* count("feed_events WHERE event_type = 'bank_import_completed'")).toBe(1);
     expect(artifacts.size).toBe(2);
 
     // The wider overlapping window adds only the rows the record lacks.

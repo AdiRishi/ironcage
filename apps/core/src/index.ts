@@ -54,6 +54,8 @@ const withMoney = <A, E>(use: (deps: ImportDeps) => Effect.Effect<A, E, Postgres
     use({
       identityKey: env.MONEY_IDENTITY_KEY,
       artifacts: { put: (key, bytes) => env.BLOBS.put(key, bytes) },
+      extractStatement: (pdf) =>
+        env.STATEMENT_EXTRACTION.getByName("statement-extractor").extract(pdf),
     }).pipe(
       Effect.provide(Postgres.layerForRequest(env.DB.connectionString)),
       persistenceToBoundary,

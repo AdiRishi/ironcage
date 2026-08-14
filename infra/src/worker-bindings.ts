@@ -8,6 +8,14 @@ export interface ComputeObjectBinding extends Workers.Rpc.DurableObjectBranded {
   ping(): Promise<{ readonly worker: string; readonly object: string }>;
 }
 
+/** The isolated PDF-to-Markdown seam; the extractor identity travels with every result. */
+export interface StatementExtractorBinding extends ComputeObjectBinding {
+  extract(pdf: Uint8Array): Promise<{
+    readonly markdown: string;
+    readonly extractor: { readonly package: string; readonly version: string };
+  }>;
+}
+
 export interface ActorBinding extends Workers.Rpc.DurableObjectBranded {
   ping(): Promise<{ readonly worker: string; readonly object: string }>;
 }
@@ -40,7 +48,7 @@ export const computeBindings = (platform: PlatformBindings, environment: string)
   BACKTEST: Cloudflare.DurableObject<ComputeObjectBinding>("BacktestRunner", {
     className: "BacktestRunner",
   }),
-  STATEMENT_EXTRACTION: Cloudflare.DurableObject<ComputeObjectBinding>("StatementExtractor", {
+  STATEMENT_EXTRACTION: Cloudflare.DurableObject<StatementExtractorBinding>("StatementExtractor", {
     className: "StatementExtractor",
   }),
   BLOBS: platform.blobs,
@@ -64,7 +72,7 @@ export const coreBindings = (
     className: "BacktestRunner",
     scriptName: compute.workerName,
   }),
-  STATEMENT_EXTRACTION: Cloudflare.DurableObject<ComputeObjectBinding>("StatementExtractor", {
+  STATEMENT_EXTRACTION: Cloudflare.DurableObject<StatementExtractorBinding>("StatementExtractor", {
     className: "StatementExtractor",
     scriptName: compute.workerName,
   }),

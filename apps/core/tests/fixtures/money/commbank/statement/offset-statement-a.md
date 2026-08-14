@@ -2,7 +2,7 @@
 
 Statement 12 Page 1 of 4)
 
-Account Number 06 9999 12345678 Statement Period 25 Mar 2032 - 24 Jun 2032 MR F IXTURE UNIT 1 1 SAMPLE ST Closing Balance 13,469.21 CR SAMPLETOWN NSW 2999 Enquiries 13 2221
+Account Number 99 9999 10000001 Statement Period 25 Mar 2032 - 24 Jun 2032 MR F IXTURE UNIT 1 1 SAMPLE ST Closing Balance 13,469.21 CR SAMPLETOWN NSW 2999 Enquiries 13 2221
 
 ## =ÉXN
 

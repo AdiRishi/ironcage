@@ -21,7 +21,7 @@ describe("the offset statement profile", () => {
   test("reconstructs rows across every page shape and reconciles", () => {
     const statement = parse(markdown());
 
-    expect(statement.accountNumber).toBe("06 9999 12345678");
+    expect(statement.accountNumber).toBe("99 9999 10000001");
     expect(statement.period).toEqual({ start: "2032-03-25", end: "2032-06-24" });
     expect(statement.rows).toHaveLength(11);
     expect(format(statement.opening)).toBe("10000");

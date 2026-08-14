@@ -337,6 +337,9 @@ importers:
 
   apps/compute:
     dependencies:
+      '@firecrawl/anydoc-wasm':
+        specifier: 0.1.7
+        version: 0.1.7
       '@ironcage/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -1513,6 +1516,9 @@ packages:
     peerDependenciesMeta:
       '@noble/hashes':
         optional: true
+
+  '@firecrawl/anydoc-wasm@0.1.7':
+    resolution: {integrity: sha512-FkuHl7K8Cl/kyt1ZS9DbX/0GubvW7dHPgiDWrmMoFDFI3GGAtyWsyvAnoqncbFA6yW/ZCjSiZ8jjhH0zeeBxfQ==}
 
   '@floating-ui/core@1.8.0':
     resolution: {integrity: sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ==}
@@ -9632,6 +9638,8 @@ snapshots:
     optional: true
 
   '@exodus/bytes@1.15.1': {}
+
+  '@firecrawl/anydoc-wasm@0.1.7': {}
 
   '@floating-ui/core@1.8.0':
     dependencies:
