@@ -1,0 +1,70 @@
+---
+title: Technical
+description: How Ironcage is built — twelve chapters a competent engineer could build the system from without asking what was meant.
+sidebar:
+  label: Introduction
+---
+
+The [vision](/vision) says why Ironcage exists. The [product specification](/product) says what it does. This specification says how it is built. A technical choice that cannot honor a product guarantee is wrong, and the fix is to change the technical choice or to deliberately revise the product — never to let the two drift apart silently.
+
+The test of this specification: a competent engineer should be able to read it and build the system without asking what was meant. Each chapter opens with what it guarantees and closes with the values it sets, the alternatives it rejected, its open questions, and a build checklist. A chapter with an unmet checklist is unfinished, and says so.
+
+## The chapters
+
+Read them in order for the whole system, or jump by subject — each chapter stands on its own.
+
+| #   | Chapter                                 | The question it answers                                               |
+| --- | --------------------------------------- | --------------------------------------------------------------------- |
+| 01  | [Architecture](/technical/architecture) | What are the components, and who may talk to whom?                    |
+| 02  | [Domain](/technical/domain)             | What are the objects, their lifecycles, and who owns each invariant?  |
+| 03  | [Data](/technical/data)                 | What is stored where, in what shape, and what commits together?       |
+| 04  | [Contracts](/technical/contracts)       | What crosses every boundary, and how do calls fail?                   |
+| 05  | [The tick](/technical/the-tick)         | How does one trading decision happen, from alarm to persisted intent? |
+| 06  | [Venues](/technical/venues)             | How do we talk to Kraken and Alpaca without ever double-ordering?     |
+| 07  | [AI](/technical/ai)                     | How does AI participate without ever touching the order path?         |
+| 08  | [Money](/technical/money)               | How does bank history get imported, deduplicated, and understood?     |
+| 09  | [Tax](/technical/tax)                   | How does every source become one verified Australian tax picture?     |
+| 10  | [Workbench](/technical/workbench)       | How are strategies tested, and how do proposals earn their way in?    |
+| 11  | [App](/technical/app)                   | How does the observatory render, update live, and authenticate?       |
+| 12  | [Operations](/technical/operations)     | How is the system developed, deployed, tested, and kept honest?       |
+
+## Supporting material
+
+<CardGroup cols={2}>
+  <Card title="Crypto trend order" href="/technical/examples/crypto-trend-order" icon="route">
+    One fixed trade threaded through chapters 05–07; the integration test replays it.
+  </Card>
+  <Card title="Tax cases" href="/technical/examples/tax-cases" icon="calculator">
+    Hand-computed tax scenarios that double as golden test fixtures.
+  </Card>
+  <Card title="CommBank exports" href="/technical/examples/commbank-exports" icon="landmark">
+    Observed NetBank formats, collection cadence, backfill procedure, and extractor evaluation.
+  </Card>
+  <Card title="CommBank fixtures" href="/technical/examples/commbank-fixtures" icon="file-json">
+    Fictional, structure-preserving examples for the CommBank parser contracts.
+  </Card>
+  <Card title="Decision appendix" href="/technical/appendix/decisions" icon="archive">
+    The decision archive: history, supersessions, and rejected alternatives. You never need it to
+    build the system; you need it to avoid re-arguing settled questions.
+  </Card>
+  <Card title="Roadmap" href="/roadmap" icon="signpost">
+    The build order (Money → Tax → the investing engine) and the dependency map.
+  </Card>
+</CardGroup>
+
+## The stack
+
+| Layer                   | Choice                                                                   | Specified in                            |
+| ----------------------- | ------------------------------------------------------------------------ | --------------------------------------- |
+| Language & core library | TypeScript with Effect V4 (pinned beta; vendored source is ground truth) | [Architecture](/technical/architecture) |
+| Runtime platform        | Cloudflare: Workers, Durable Objects, Workflows, Queues, Containers, R2  | [Architecture](/technical/architecture) |
+| System of record        | PlanetScale Postgres via dual Hyperdrive bindings                        | [Data](/technical/data)                 |
+| AI framework & routing  | Flue for all AI code; AI Gateway for all model traffic                   | [AI](/technical/ai)                     |
+| Statement extraction    | AnyDoc 0.1.7 in the isolated compute container                           | [Money](/technical/money)               |
+| Durable pipelines       | Cloudflare Workflows, Effect inside each step                            | [Workbench](/technical/workbench)       |
+| Web application         | TanStack Start, shadcn/ui, behind Cloudflare Access                      | [App](/technical/app)                   |
+| Venues                  | Kraken (crypto spot) and Alpaca (US stocks/ETFs)                         | [Venues](/technical/venues)             |
+
+:::note[Status]
+This specification is actively worked. Where a chapter is silent, raise the question rather than assuming. Values tagged _proposed_ are defaults awaiting the operator's veto, and each chapter's Open questions section is the honest list of what is not yet decided.
+:::

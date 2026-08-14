@@ -1,0 +1,21 @@
+---
+title: ADRs
+description: Architecture Decision Records — how the repository is worked in, what an ADR records here, the format, and when to write one.
+sidebar:
+  label: About ADRs
+  icon: scroll-text
+---
+
+Architecture Decision Records document decisions that future maintainers or agents may be tempted to revisit without the current context.
+
+ADRs in this directory record how the repository is worked in: file layout, build and test wiring, tooling choices, and conventions that code must follow but no chapter describes. They do not record system design. Anything about what Ironcage does, or how it is built as a system, belongs in a [technical chapter](/technical) with its rationale inline, and its history in the [decision appendix](/technical/appendix/decisions). If an ADR and a chapter disagree about the system, the chapter wins.
+
+ADRs use sequential numbering: `0001-slug.mdx`, `0002-slug.mdx`, and so on. Keep each ADR small. A title and a short paragraph covering the context, the decision, and why it was chosen is usually enough. Optional sections such as status, considered options, and consequences are added only when they genuinely help.
+
+Create a new ADR when a decision is hard to reverse, surprising without context, and the result of a real trade-off. Good candidates include repository shape, build and test wiring, deliberate deviations from a tool's default, hidden constraints, and non-obvious rejected alternatives.
+
+When an ADR no longer describes the repository, update or replace it so this directory stays current. Superseded records are not kept for historical tracking; that is the decision appendix's job.
+
+[Style](/style) governs the prose here as it does everywhere else in `docs/`.
+
+This format follows the ADR guidance from Matt Pocock's skills repo: [ADR-FORMAT.md](https://github.com/mattpocock/skills/blob/main/skills/engineering/grill-with-docs/ADR-FORMAT.md).

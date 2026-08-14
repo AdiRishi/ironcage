@@ -1,10 +1,87 @@
 ---
-title: Introduction
-description: Welcome to the Ironcage documentation.
+title: Ironcage
+description: A personal wealth operating system — one engine running many investment strategies, every one caged by deterministic risk rules, every one earning its capital through evidence.
+sidebar:
+  label: Home
+  icon: house
 ---
 
-# Introduction
+Ironcage is a personal wealth operating system: one engine running many investment strategies, each constrained by deterministic risk rules it cannot override, each earning its capital through evidence. AI informs decisions and designs improvements; deterministic code enforces limits; evidence decides what scales.
 
-Welcome to **Ironcage** — markdown-first documentation powered by Blume.
+This page is the front door to the specification. Three rules govern the whole set:
 
-Edit `docs/index.mdx` to get started, then run `pnpm docs:dev`.
+<Steps>
+  <Step title="The documents form a hierarchy">
+    [Vision](/vision) says why the system exists and states its principles. The [product
+    chapters](/product) say what it does, observably. The [technical chapters](/technical) say how
+    it is built. A lower document that weakens a higher one is wrong and gets fixed — deliberately,
+    with the change recorded.
+  </Step>
+  <Step title="Chapters are the authority for the current design">
+    The [decision appendix](/technical/appendix/decisions) is an archive of how choices were made
+    and unmade. Read it for history or to avoid re-arguing a settled question — never to find out
+    what the system does. The [ADRs](/adr) sit outside this hierarchy and describe the repository
+    rather than the system: file layout, build and test wiring, tooling conventions.
+  </Step>
+  <Step title="Unsettled things are visible">
+    Proposed values are tagged in each chapter's values table; open questions sit in each chapter's
+    Open questions section with their safe fallbacks. Nothing undecided hides inside a confident
+    adjective.
+  </Step>
+</Steps>
+
+[Style](/style) is the writing contract every page here follows.
+
+## Start here
+
+<CardGroup cols={2}>
+  <Card title="Vision" href="/vision" icon="landmark">
+    Why Ironcage exists, what it is, and the six principles that bind every other document.
+  </Card>
+  <Card title="Product" href="/product" icon="layout-dashboard">
+    What the system does, observably — the specification a stranger could test the built system
+    against.
+  </Card>
+  <Card title="Technical" href="/technical" icon="cpu">
+    How it is built — twelve chapters a competent engineer could build the system from.
+  </Card>
+  <Card title="Roadmap" href="/roadmap" icon="signpost">
+    The build order — Money first, Tax second, the investing engine third — and the dependency map
+    behind it.
+  </Card>
+  <Card title="Glossary" href="/glossary" icon="book-a">
+    The ubiquitous language: every term of the domain, with the words to avoid beside it.
+  </Card>
+  <Card title="ADRs" href="/adr" icon="scroll-text">
+    How the repository is worked in: layout, build and test wiring, tooling conventions.
+  </Card>
+</CardGroup>
+
+## Reading routes
+
+**New to the project** — read linearly: [Vision](/vision) → [Product](/product) → the product chapters in order → [Technical](/technical) → the technical chapters in order. Chapters open with the context they need and hand off to the next, so the linear read builds.
+
+**Looking something up** — every concept has one home chapter; everything else points at it:
+
+| Topic                                                                       | Home                                                         |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Workers, bindings, actors, the engine/AI seam                               | [Architecture](/technical/architecture)                      |
+| Domain objects, lifecycles, invariant ownership, equity accounting, capital | [Domain](/technical/domain)                                  |
+| Storage tiers, the commit point, schemas, the outbox, retention             | [Data](/technical/data)                                      |
+| API surfaces, errors, idempotency, the queue contract                       | [Contracts](/technical/contracts)                            |
+| The tick: gates, strategy, clamp, cage, reservation, persistence            | [The tick](/technical/the-tick)                              |
+| Venue execution, order ambiguity, stops, reconciliation, simulated fills    | [Venues](/technical/venues)                                  |
+| AI capabilities: registry, runtime, staleness, scorecards, demotion         | [AI](/technical/ai)                                          |
+| Bank evidence, import, deduplication, coverage, categorization, analysis    | [Money](/technical/money)                                    |
+| The tax engine                                                              | [Tax](/technical/tax)                                        |
+| Backtests, multiplicity, the gate pipeline, shadow runs                     | [Workbench](/technical/workbench)                            |
+| The web app: data paths, the live feed protocol, auth                       | [App](/technical/app)                                        |
+| Deploys, secrets, testing, vitals, backups, platform assumptions            | [Operations](/technical/operations)                          |
+| What any surface must show and guarantee                                    | the matching [product chapter](/product)                     |
+| One trade, traced end to end                                                | [Crypto trend order](/technical/examples/crypto-trend-order) |
+| Hand-checked tax computations                                               | [Tax cases](/technical/examples/tax-cases)                   |
+| Observed CommBank formats and collection runbook                            | [CommBank exports](/technical/examples/commbank-exports)     |
+| Fictional CommBank parser shapes                                            | [CommBank fixtures](/technical/examples/commbank-fixtures)   |
+| Build order and dependencies                                                | [Roadmap](/roadmap)                                          |
+| Repository layout, build and test wiring, tooling conventions               | [ADRs](/adr)                                                 |
+| The ubiquitous language                                                     | [Glossary](/glossary)                                        |
