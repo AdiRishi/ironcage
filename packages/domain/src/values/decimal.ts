@@ -39,6 +39,10 @@ export const Money = <const C extends string>(currency: C) =>
   financialDecimal(20, 8).pipe(Schema.brand(`Money<${currency}>`));
 export type Money<C extends string> = BigDecimal.BigDecimal & Brand.Brand<`Money<${C}>`>;
 
+/** The home currency; the entire bank record and every analysis figure is AUD. */
+export const Aud = Money("AUD");
+export type Aud = Money<"AUD">;
+
 /** `numeric(24,8)`, wider in the integer part than `Money` for venue prices. */
 export const Price = financialDecimal(24, 8).pipe(Schema.brand("Price"));
 export type Price = typeof Price.Type;
