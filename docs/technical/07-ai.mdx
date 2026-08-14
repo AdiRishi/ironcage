@@ -294,6 +294,19 @@ For each sleeve, alongside the real book, the sleeve actor maintains a **joint n
 
 Both legs of the comparison are simulated. The "actual" leg is re-simulated from the posture the sleeve actually chose, through the same fill model as the counterfactual leg, so the delta isolates the decision difference rather than mixing it with live-versus-simulated fill noise. Realized live P&L is reported separately and never enters the delta. Counterfactual books never touch real system-cage reservations; their cage checks evaluate against a read-only snapshot without reserving headroom.
 
+```mermaid
+flowchart TB
+    subgraph sleeve["One sleeve, per evaluation window"]
+        real["The real book —<br/>what actually happened"]
+        act["'Actual' leg — the chosen posture,<br/>re-simulated under the fill model"]
+        idn["Identity leg — every capability at its<br/>no-AI identity, same strategy, cage, data"]
+    end
+    act --> D["pnl, drawdown, and cost deltas —<br/>simulation minus simulation"]
+    idn --> D
+    D --> RPT["Scorecard"]
+    real -.->|"reported beside the deltas,<br/>never inside them"| RPT
+```
+
 Scorecard deltas accrue per capability per evaluation window $W$:
 
 $$

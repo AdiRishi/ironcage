@@ -37,6 +37,27 @@ AI participation is not a single dial but a set of **capabilities**: typed, boun
 
 Every capability belongs to exactly one of four **safety classes** — and the classes are closed: adding a fifth changes the product's foundations and requires its own written decision, never a feature.
 
+Each class reaches the machine through a different deterministic checkpoint, and none holds the order button:
+
+```mermaid
+flowchart LR
+    subgraph ai["AI capabilities"]
+        T["1 · Throttle"]
+        P["2 · Proposal"]
+        O["3 · Observer"]
+        TP["4 · Trade proposer<br/>(quarantined)"]
+    end
+    subgraph det["Deterministic code"]
+        CL["The clamp —<br/>can only reduce"]
+        GP["Gate pipeline +<br/>operator ceremony"]
+        CAGE["Mandate + cage checks,<br/>per-day budget"]
+    end
+    T --> CL --> ENG["The engine"]
+    P --> GP -->|"a new mandate version"| ENG
+    TP --> CAGE --> ENG
+    O --> RPT["Reports and memos —<br/>recommend only, zero execution risk"]
+```
+
 1. **Throttle** (run-time). Output is deterministically clamped so it can only _reduce_ what the strategy and cage would otherwise permit: a [0,1] size multiplier, an added lock, a tightened limit. Missing, stale, or invalid output resolves to the most restrictive default. Throttles compose conservatively — multiple capabilities combine by taking the most restrictive, so **adding capabilities can only make a sleeve more cautious, never less**. Worst case if the AI is wrong or fed hostile data: the sleeve behaves like its no-AI self, or stands down.
 2. **Proposal** (design-time). Output is a _draft change to the machine_ — new parameter values, a strategy variant, a mandate diff — that lands in a proposal queue and must pass its declared gate pipeline before touching live behavior: schema validation → reproducible backtest → walk-forward evaluation (with multiplicity-corrected acceptance thresholds — the system assumes that an AI generating many candidates will produce impressive flukes) → champion/challenger dry-run shadowing → operator approval. A wholly wrong AI produces nothing worse than a bad proposal the gates exist to kill.
 3. **Observer**. Read-only analysis: reviews, memos, calibration reports. Observers recommend; they never act. Zero execution risk.

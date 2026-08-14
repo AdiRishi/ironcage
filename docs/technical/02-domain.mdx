@@ -155,7 +155,17 @@ Only the operator changes a sleeve's allocation limit, through one of three acts
 
 ### The transfer
 
-`pending → settled | flagged | dismissed`. A transfer is created when the operator records a movement or when a capital act needs money moved. The system never initiates a bank or venue withdrawal; it requests, records, and watches.
+A transfer is created when the operator records a movement or when a capital act needs money moved. The system never initiates a bank or venue withdrawal; it requests, records, and watches.
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: operator records, or a capital act requests
+    pending --> settled: unique exact match within 3 days, or explicit reference
+    pending --> flagged: window passes, or the amount differs
+    pending --> dismissed: operator dismisses — cancels the act awaiting it
+    flagged --> settled: operator's hand only
+    flagged --> dismissed: operator's hand only
+```
 
 Settlement is by matching. When reconciliation detects a venue- or bank-side movement, the movement settles a pending transfer only if it matches by exact amount, direction, and arrival within 3 days, and the match is unique or carries an explicit reference. Amounts are exact because same-bank transfers arrive exact; there is no tolerance. An ambiguous match waits for operator confirmation. A detected movement that matches no pending transfer is never adopted as one: it lands in a suspense record and the affected scope pauses until the operator claims or flags it, per the claim-first reconciliation protocol in [Venues](/technical/venues).
 
@@ -163,7 +173,17 @@ A transfer is flagged when its expected window passes or the amount differs, and
 
 ### The override
 
-`armed → active → consumed | expired`. Armed by ceremony with a typed confirmation phrase. It becomes active after a 15-minute cooling-off and expires 24 hours after activation. It covers one limit, one sleeve, one action class, with a stated maximum action size. It is consumed by a single use, applied by compare-and-set inside the verdict's transaction, so two concurrent evaluations cannot both spend it. Any new mandate version for the sleeve voids an outstanding override.
+Armed by ceremony with a typed confirmation phrase. It covers one limit, one sleeve, one action class, with a stated maximum action size. It is consumed by a single use, applied by compare-and-set inside the verdict's transaction, so two concurrent evaluations cannot both spend it.
+
+```mermaid
+stateDiagram-v2
+    [*] --> armed: ceremony, typed confirmation phrase
+    armed --> active: 15-minute cooling-off elapses
+    active --> consumed: one use — compare-and-set in the verdict's transaction
+    active --> expired: 24 hours after activation
+    armed --> voided: any new mandate version for the sleeve
+    active --> voided: any new mandate version for the sleeve
+```
 
 The cage's evaluation reads overrides in exactly one place, and the verdict records the rule as **overridden**, never as passed. An override may also lift a capability-written event lock; the operator outranks the AI, and the ceremony preserves the evidence of the disagreement. The system cage and the risk-reducing controls never read the override table at all.
 

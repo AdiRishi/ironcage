@@ -194,6 +194,27 @@ Durable Object handlers can [interleave whenever a handler awaits](https://devel
 
 If the object restarts with a socket attachment still marked replaying, it closes that socket and lets the ordinary cursor reconnect recover it; it never guesses that the lost in-memory buffer was complete. This creates one ordered stream without holding `blockConcurrencyWhile` across a database query.
 
+The race the four steps close, on one wire — a live push landing mid-replay is buffered, not lost and not reordered:
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant F as Feed actor
+    participant PG as Postgres
+    participant O as Originating actor
+    C->>F: Subscribe(since = last applied ID)
+    F->>F: mark socket replaying, start buffer
+    F->>PG: high-water ID, then rows in (since, high_water]
+    O-->>F: live push (a fact just committed)
+    F->>F: buffered — socket is still replaying
+    PG-->>F: replay rows
+    F->>F: merge + sort + dedupe by event ID, no await
+    F->>C: events, then Ready(replayed = n)
+    F->>F: socket is live
+    O-->>F: next live push
+    F->>C: sent immediately
+```
+
 The actor uses the [WebSocket Hibernation API](https://developers.cloudflare.com/durable-objects/best-practices/websockets/). Each accepted socket serializes its filter, last acknowledged cursor, replay state, token expiry, and socket-lease expiry in its attachment. The browser sends the fixed `Heartbeat` frame every 30 seconds and the actor configures the fixed `HeartbeatAck` WebSocket auto-response pair, so a healthy idle socket does not wake the object. There is no server timer. The actor's single alarm is scheduled for the earliest token or lease expiry; it closes expired sockets, then schedules the next expiry.
 
 Liveness numbers, all proposed:

@@ -9,6 +9,17 @@ Ironcage's tax engine is holistic and in-house: it assembles the operator's comp
 
 Scope, deliberately: **an Australian resident individual investor** with crypto (exchanges: spot + staking; self-custody wallets), US-listed stocks and ETFs via Alpaca, and Australian bank accounts. DeFi protocols, NFTs, derivatives, and trader/business-basis accounting are out of scope until a recorded decision brings them in; unrecognized event shapes are _flagged, never guessed_.
 
+The engine's shape, which the sections below walk in order — anything the rules cannot classify with confidence exits to the review queue instead of entering the figures:
+
+```mermaid
+flowchart LR
+    S["Sources<br/>sleeves · exchanges · wallets<br/>broker · bank · manual"] --> L["One ledger of<br/>canonical events"]
+    L --> R["Australian rules<br/>CGT · income · forex · foreign"]
+    R --> V["Verification<br/>balances · gaps · 1042-S · oracle"]
+    V --> F["The FY report,<br/>shaped as myTax asks"]
+    L -.->|"unrecognized or<br/>low-confidence"| Q["Review queue —<br/>flagged, never guessed"]
+```
+
 ## Sources
 
 | Source                     | What it supplies                                                                                                                                                                                                                                                                                                                                                                                                                |
