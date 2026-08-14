@@ -8,7 +8,8 @@ export const normalizerVersion = 1;
 const collapse = (text: string) => text.replace(/\s+/g, " ").trim();
 
 /** NFKC, whitespace collapse, and trim; the source cell is never rewritten. */
-export const displayNarrative = (narrative: string): string => collapse(narrative.normalize("NFKC"));
+export const displayNarrative = (narrative: string): string =>
+  collapse(narrative.normalize("NFKC"));
 
 /**
  * The identity-grade matching text. It deliberately keeps every digit and

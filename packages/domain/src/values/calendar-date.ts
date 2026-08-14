@@ -29,7 +29,8 @@ export type CalendarDate = typeof CalendarDate.Type;
 
 const dayMillis = 86_400_000;
 
-export const toEpochDay = (date: CalendarDate): number => Date.parse(`${date}T00:00:00Z`) / dayMillis;
+export const toEpochDay = (date: CalendarDate): number =>
+  Date.parse(`${date}T00:00:00Z`) / dayMillis;
 
 export const fromEpochDay = (day: number): CalendarDate =>
   new Date(day * dayMillis).toISOString().slice(0, 10) as CalendarDate;

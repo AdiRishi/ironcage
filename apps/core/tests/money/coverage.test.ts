@@ -62,7 +62,10 @@ describe("coverage", () => {
   });
 
   test("a Money month requires every required account in full", () => {
-    const covered = { merged: mergeSpans([span("2031-12-01", "2032-02-29")]), life: { openedOn: null, closedOn: null } };
+    const covered = {
+      merged: mergeSpans([span("2031-12-01", "2032-02-29")]),
+      life: { openedOn: null, closedOn: null },
+    };
     const gappy = {
       merged: mergeSpans([span("2031-12-01", "2032-01-14"), span("2032-01-16", "2032-02-29")]),
       life: { openedOn: null, closedOn: null },

@@ -81,7 +81,11 @@ export class Postgres extends Context.Service<Postgres, PostgresService>()(
         const client = yield* Effect.acquireRelease(
           Effect.tryPromise({
             try: async () => {
-              const { Client } = await import("pg");
+              const { Client, types } = await import("pg");
+              // `date` crosses as its ISO text form. The driver's default —
+              // a JS Date at local midnight — would shift bank posting dates
+              // across time zones.
+              types.setTypeParser(types.builtins.DATE, (value) => value);
               const opened = new Client({
                 connectionString,
                 application_name: "ironcage-core",

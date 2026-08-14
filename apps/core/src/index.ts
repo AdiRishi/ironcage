@@ -6,10 +6,22 @@ import {
   rpcHttpRoute,
   systemPingHandler,
 } from "@ironcage/contracts/server";
+import { Sha256 } from "@ironcage/domain";
 import type { ActorBinding } from "@ironcage/infra/worker-bindings";
 import { DurableObject, WorkerEntrypoint } from "cloudflare:workers";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { HttpRouter } from "effect/unstable/http";
+
+import { sha256Hex } from "./money/bytes";
+import { confirmBankImport, previewBankImport, type ImportDeps } from "./money/import";
+import {
+  configureBankAccount,
+  getBankAccounts,
+  getBankCoverage,
+  getImportHistory,
+} from "./money/queries";
+import { persistenceToBoundary } from "./persistence/error";
+import { Postgres } from "./persistence/postgres";
 
 const worker = "ironcage-core";
 const workerRequest = makeWorkerRequestContext<Env, ExecutionContext>(
@@ -18,8 +30,52 @@ const workerRequest = makeWorkerRequestContext<Env, ExecutionContext>(
 const ping = (surface: string) =>
   Effect.flatMap(workerRequest.service, () => systemPingHandler({ worker, surface }));
 
+const decodeSha = Schema.decodeUnknownSync(Sha256);
+
+/**
+ * Every Money handler runs against the uncached Hyperdrive binding with one
+ * connection scoped to the request; the import dependencies carry the
+ * identity key and the R2 artifact writer.
+ */
+const withMoney = <A, E>(use: (deps: ImportDeps) => Effect.Effect<A, E, Postgres>) =>
+  Effect.flatMap(workerRequest.service, ({ env }) =>
+    use({
+      identityKey: env.MONEY_IDENTITY_KEY,
+      artifacts: { put: (key, bytes) => env.BLOBS.put(key, bytes) },
+    }).pipe(
+      Effect.provide(Postgres.layerForRequest(env.DB.connectionString)),
+      persistenceToBoundary,
+    ),
+  );
+
+const payloadHash = (value: unknown) =>
+  Effect.promise(() => sha256Hex(new TextEncoder().encode(JSON.stringify(value)))).pipe(
+    Effect.map(decodeSha),
+  );
+
 const appSurface = HttpRouter.toWebHandler(
-  rpcHttpRoute(AppRpcs, AppRpcs.toLayer({ ping: () => ping("AppApi") })),
+  rpcHttpRoute(
+    AppRpcs,
+    AppRpcs.toLayer({
+      ping: () => ping("AppApi"),
+      previewBankImport: ({ source }) => withMoney((deps) => previewBankImport(source, deps)),
+      confirmBankImport: (payload) => withMoney((deps) => confirmBankImport(payload, deps)),
+      getBankAccounts: () => withMoney(() => getBankAccounts()),
+      getBankCoverage: () => withMoney(() => getBankCoverage()),
+      getImportHistory: () => withMoney(() => getImportHistory()),
+      configureBankAccount: (payload) =>
+        Effect.gen(function* () {
+          const hash = yield* payloadHash({
+            productLabel: payload.productLabel,
+            accountType: payload.accountType,
+            required: payload.required,
+            openedOn: payload.openedOn,
+            closedOn: payload.closedOn,
+          });
+          return yield* withMoney(() => configureBankAccount({ ...payload, payloadHash: hash }));
+        }),
+    }),
+  ),
 );
 
 const agentSurface = HttpRouter.toWebHandler(

@@ -111,10 +111,10 @@ describe("the fixture corpus parses under its profiles", () => {
     expect([parsedOfx.window.start, parsedOfx.window.end]).toEqual(window);
     expect(parsedOfx.account.acctId.length).toBeGreaterThan(0);
 
-    for (const transaction of parsedOfx.transactions) {
-      if (fitids === "empty") expect(transaction.fitid).toBe("");
-      else expect(transaction.fitid.length).toBeGreaterThan(0);
-    }
+    const populated = fitids === "every-row";
+    expect(
+      parsedOfx.transactions.every((transaction) => (transaction.fitid !== "") === populated),
+    ).toBe(true);
   });
 });
 
@@ -142,7 +142,9 @@ describe("CSV grammar", () => {
   });
 
   test("a quoted comma stays inside its cell", () => {
-    const bytes = new TextEncoder().encode('29/01/2032,"-1.00","COFFEE, THE GOOD KIND","+1.00"\r\n');
+    const bytes = new TextEncoder().encode(
+      '29/01/2032,"-1.00","COFFEE, THE GOOD KIND","+1.00"\r\n',
+    );
 
     const rows = Effect.runSync(parseBankCsv(bytes, "required"));
     expect(rows[0]!.raw.narrative).toBe("COFFEE, THE GOOD KIND");
@@ -155,7 +157,7 @@ describe("CSV grammar", () => {
   });
 
   test("a header row blocks the file", () => {
-    const bytes = new TextEncoder().encode('Date,Amount,Description,Balance\r\n');
+    const bytes = new TextEncoder().encode("Date,Amount,Description,Balance\r\n");
 
     expect(block(parseBankCsv(bytes, "required")).detail).toMatch(/DD\/MM\/YYYY/);
   });
@@ -169,9 +171,9 @@ describe("CSV grammar", () => {
   });
 
   test("windows-1252 narrative bytes decode without loss", () => {
-    const narrative = [..."SNACKS "].map((c) => c.charCodeAt(0));
+    const narrative = "SNACKS ".split("").map((c) => c.charCodeAt(0));
     const bytes = Uint8Array.from([
-      ..."29/01/2032,\"-1.00\",\"".split("").map((c) => c.charCodeAt(0)),
+      ...'29/01/2032,"-1.00","'.split("").map((c) => c.charCodeAt(0)),
       ...narrative,
       0x93, // Windows-1252 left double quotation — not Latin-1
       0x94,

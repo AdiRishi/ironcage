@@ -31,9 +31,11 @@ describe("paired bundle validation", () => {
     expect(bundle.candidates).toHaveLength(40);
     expect(bundle.ledgerReconciled).toBe(true);
     expect(bundle.window).toEqual({ start: "2031-12-11", end: "2032-01-29" });
-    expect(bundle.candidates.every(({ csv: row, ofx: partner }) =>
-      BigDecimal.equals(row.amount, partner.amount),
-    )).toBe(true);
+    expect(
+      bundle.candidates.every(({ csv: row, ofx: partner }) =>
+        BigDecimal.equals(row.amount, partner.amount),
+      ),
+    ).toBe(true);
   });
 
   test("the home loan validates with negative balances intact", () => {
@@ -66,7 +68,10 @@ describe("paired bundle validation", () => {
       parseBankOfx(
         bytes(
           text(spendingOfx)
-            .replace(/<STMTTRN>[\s\S]*<\/BANKTRANLIST>/, `${twin("f-1")}${twin("f-2")}</BANKTRANLIST>`)
+            .replace(
+              /<STMTTRN>[\s\S]*<\/BANKTRANLIST>/,
+              `${twin("f-1")}${twin("f-2")}</BANKTRANLIST>`,
+            )
             .replace("<DTSTART>20311211000000", "<DTSTART>20320125000000")
             .replace("<BALAMT>6508.36", "<BALAMT>90.00"),
         ),
@@ -105,7 +110,10 @@ describe("paired bundle validation", () => {
   test("a ledger disagreement blocks the bundle", () => {
     const { csv } = spending();
     const ofx = Effect.runSync(
-      parseBankOfx(bytes(text(spendingOfx).replace("<BALAMT>6508.36", "<BALAMT>6508.37")), "deposit"),
+      parseBankOfx(
+        bytes(text(spendingOfx).replace("<BALAMT>6508.36", "<BALAMT>6508.37")),
+        "deposit",
+      ),
     );
 
     expect(block(validatePairedBundle("deposit", csv, ofx)).code).toBe("LedgerMismatch");
@@ -122,7 +130,10 @@ describe("paired bundle validation", () => {
   test("a populated FITID on an empty-FITID profile blocks", () => {
     const csv = Effect.runSync(parseBankCsv(mastercardCsv, "forbidden"));
     const ofx = Effect.runSync(
-      parseBankOfx(bytes(text(mastercardOfx).replace("<FITID>\r\n<MEMO>", "<FITID>surprise\r\n<MEMO>")), "credit_card"),
+      parseBankOfx(
+        bytes(text(mastercardOfx).replace("<FITID>\r\n<MEMO>", "<FITID>surprise\r\n<MEMO>")),
+        "credit_card",
+      ),
     );
 
     expect(block(validatePairedBundle("credit_card", csv, ofx)).detail).toMatch(/populated FITID/);
@@ -147,7 +158,12 @@ describe("paired bundle validation", () => {
     const csv = Effect.runSync(parseBankCsv(bytes(`${csvLines.join("\r\n")}\r\n`), "required"));
     const ofx = Effect.runSync(
       parseBankOfx(
-        bytes(text(spendingOfx).replace(/<STMTTRN>[\s\S]*<\/BANKTRANLIST>/, `${ofxRows.join("")}</BANKTRANLIST>`)),
+        bytes(
+          text(spendingOfx).replace(
+            /<STMTTRN>[\s\S]*<\/BANKTRANLIST>/,
+            `${ofxRows.join("")}</BANKTRANLIST>`,
+          ),
+        ),
         "deposit",
       ),
     );

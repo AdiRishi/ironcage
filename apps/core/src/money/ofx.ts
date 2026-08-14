@@ -122,7 +122,9 @@ const parseHeader = Effect.fn("parseOfxHeader")(function* (lines: readonly strin
   for (const [key, expected] of Object.entries(requiredHeader)) {
     const found = header.get(key);
     if (found !== expected) {
-      return yield* fail(`header ${key} is "${found ?? "absent"}", the profile requires "${expected}"`);
+      return yield* fail(
+        `header ${key} is "${found ?? "absent"}", the profile requires "${expected}"`,
+      );
     }
   }
 });
@@ -157,7 +159,8 @@ const parseBody = Effect.fn("parseOfxBody")(function* (body: string, variant: Of
       const open = stack.pop();
       if (open === undefined || open === root) return yield* fail(`unopened closing tag </${tag}>`);
       if (open.tag !== tag) {
-        const sanctionedQuirk = variant === "home_loan" && open.tag === "CCSTMTRS" && tag === "STMTRS";
+        const sanctionedQuirk =
+          variant === "home_loan" && open.tag === "CCSTMTRS" && tag === "STMTRS";
         if (!sanctionedQuirk) {
           return yield* fail(`<${open.tag}> closed by </${tag}>`);
         }
@@ -188,8 +191,7 @@ const parseBody = Effect.fn("parseOfxBody")(function* (body: string, variant: Of
   return root;
 });
 
-const children = (node: OfxNode, tag: string) =>
-  node.children.filter((child) => child.tag === tag);
+const children = (node: OfxNode, tag: string) => node.children.filter((child) => child.tag === tag);
 
 const one = (node: OfxNode, tag: string): Effect.Effect<OfxNode, BankImportBlocked> => {
   const found = children(node, tag);
@@ -213,7 +215,10 @@ const dateFrom = (digits: string, tag: string): Effect.Effect<CalendarDate, Bank
 
 const amountPattern = /^[+-]?\d+(\.\d+)?$/;
 
-const amountFrom = (raw: string, tag: string): Effect.Effect<BigDecimal.BigDecimal, BankImportBlocked> =>
+const amountFrom = (
+  raw: string,
+  tag: string,
+): Effect.Effect<BigDecimal.BigDecimal, BankImportBlocked> =>
   amountPattern.test(raw)
     ? Effect.succeed(BigDecimal.fromStringUnsafe(raw))
     : fail(`${tag} "${raw}" is not a decimal amount`);

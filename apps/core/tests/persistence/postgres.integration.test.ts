@@ -18,9 +18,25 @@ it.effect("builds the repository schema in an empty Postgres 18 database", () =>
     );
 
     expect(tables).toEqual([
+      { tableName: "acknowledgments" },
       { tableName: "app_requests" },
+      { tableName: "bank_accounts" },
+      { tableName: "bank_ambiguity_resolutions" },
+      { tableName: "bank_balance_observations" },
+      { tableName: "bank_coverage_segments" },
+      { tableName: "bank_imports" },
+      { tableName: "bank_observation_links" },
+      { tableName: "bank_observations" },
+      { tableName: "bank_source_files" },
+      { tableName: "bank_source_identifiers" },
+      { tableName: "bank_transactions" },
+      { tableName: "categories" },
+      { tableName: "categorization_rules" },
+      { tableName: "feed_events" },
       { tableName: "sleeve_transitions" },
       { tableName: "sleeves" },
+      { tableName: "transaction_splits" },
+      { tableName: "transfer_matches" },
     ]);
   }).pipe(Effect.provide(Postgres.layerForRequest(database.connectionString()))),
 );

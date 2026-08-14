@@ -23,8 +23,7 @@ export interface CsvRow {
 
 export type CsvBalancePolicy = "required" | "forbidden";
 
-const fail = (row: number, detail: string) =>
-  blocked("CsvGrammar", `row ${row + 1}: ${detail}`);
+const fail = (row: number, detail: string) => blocked("CsvGrammar", `row ${row + 1}: ${detail}`);
 
 /**
  * Strict RFC 4180 record reader. Records separate on CRLF only — a bare line

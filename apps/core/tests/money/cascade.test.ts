@@ -129,10 +129,18 @@ describe("the dedupe cascade", () => {
     const stored = store(first, true);
 
     const second = Effect.runSync(
-      matchCandidates(bundle(spendingBCsv, spendingBOfx, "deposit").candidates, pairedRules.deposit, stored),
+      matchCandidates(
+        bundle(spendingBCsv, spendingBOfx, "deposit").candidates,
+        pairedRules.deposit,
+        stored,
+      ),
     );
     const third = Effect.runSync(
-      matchCandidates(bundle(spendingCCsv, spendingCOfx, "deposit").candidates, pairedRules.deposit, stored),
+      matchCandidates(
+        bundle(spendingCCsv, spendingCOfx, "deposit").candidates,
+        pairedRules.deposit,
+        stored,
+      ),
     );
 
     expect(second.filter((outcome) => outcome.result.kind === "duplicate")).toHaveLength(25);
@@ -241,9 +249,7 @@ describe("the dedupe cascade", () => {
       ...mastercard.candidates.slice(1),
     ];
 
-    const outcomes = Effect.runSync(
-      matchCandidates(duplicated, pairedRules.credit_card, stored),
-    );
+    const outcomes = Effect.runSync(matchCandidates(duplicated, pairedRules.credit_card, stored));
     const ambiguous = outcomes.filter((outcome) => outcome.result.kind === "ambiguous");
     expect(ambiguous).toHaveLength(2);
   });

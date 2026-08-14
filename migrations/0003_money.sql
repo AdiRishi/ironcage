@@ -5,13 +5,16 @@
 -- import transaction writes into. Shapes follow docs/technical/08-money.mdx §8
 -- and the conventions in docs/technical/03-data.mdx.
 
+-- Identity is bound by the first confirmed import: the operator configures the
+-- account by label and type, and the OFX-proven fingerprint claims the row on
+-- first confirm. Until then the HMAC and suffix are null.
 CREATE TABLE bank_accounts (
   id            uuid PRIMARY KEY,
   bank          text NOT NULL,
-  product_label text NOT NULL,
+  product_label text NOT NULL UNIQUE,
   account_type  text NOT NULL CHECK (account_type IN ('deposit','credit_card','credit_line')),
-  masked_suffix text NOT NULL,
-  identity_hmac text NOT NULL,
+  masked_suffix text,
+  identity_hmac text,
   currency      text NOT NULL,
   required      boolean NOT NULL,
   opened_on     date,
