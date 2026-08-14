@@ -35,6 +35,30 @@ Because the book is `dry_run`, every row carries `book = dry_run` and every fill
 
 The complete trace — every row, every payload — lives in [Crypto trend order](/technical/examples/crypto-trend-order).
 
+## The shape of a tick
+
+Ten steps, numbered as the sections below. Whatever happens, the tick converges on the decision transaction — a no-change, a rejection, and an accepted intent all commit through the same door — and only an accepted intent continues to the venue.
+
+```mermaid
+flowchart TB
+    A["1 — The alarm fires<br/>claim the tick by (sleeve, candle close)"] --> P["2 — The protection pass<br/>fills, stops, resolutions — unconditional"]
+    P -->|"sleeve paused or halted"| E1(["tick ends — recorded no-op"])
+    P --> G{"3 — Three gates<br/>mode · data · capability"}
+    G -->|"mode gate closed"| E1
+    G -->|"data gate fails"| E2(["tick ends — stood down"])
+    G -->|pass| S["4 — The strategy evaluates<br/>pure code, desires + read"]
+    S -->|"no desires"| D
+    S -->|desires| C["5 — The clamp<br/>capability outputs can only shrink entries"]
+    C --> K{"6 — The sleeve cage<br/>entry checks + monitors"}
+    K -->|"entry check rejects"| D
+    K -->|pass| R{"7 — The system-cage<br/>reservation"}
+    R -->|refused| D
+    R -->|granted| D["8 — The decision transaction<br/>tick + intent + verdicts + feed events<br/>+ strategy state, one Postgres commit"]
+    D -->|"intent accepted"| V["9 — Hand-off<br/>the venue actor owns the intent"]
+    D -->|"nothing to execute"| Z
+    V --> Z["10 — The tick settles<br/>terminal outcome, next alarm armed"]
+```
+
 ## 1. The alarm fires
 
 Each sleeve actor arms its own alarm for `candle_close + settle_delay`. The settle delay exists because venues finalize a candle a few seconds after its boundary; fetching at `04:00:00` exactly can return a still-open bar. **Default: 15 seconds** (engine configuration, per venue).
@@ -343,7 +367,7 @@ sequenceDiagram
     participant PG as Postgres
     participant SC as System-cage actor
     participant V as Venue actor
-    A->>A: alarm 04:00:15Z; no terminal tick record for the key
+    A->>A: alarm 04:00:15Z — no terminal tick record for the key
     A->>V: protection pass — due orders, stop obligations, pending fills
     A->>PG: mode gate (sleeve state, pause, system mode, kill switches)
     A->>PUB: store-first candle fetch (missing bars only)
@@ -354,7 +378,7 @@ sequenceDiagram
     A->>A: DO write: in-flight marker BTC/AUD
     A->>PG: decision transaction — tick + intent + verdicts + feed events + strategy state
     A->>V: execute 018f6b2a…
-    V-->>SC: partial fill A$600 → commit; A$400 stays reserved
+    V-->>SC: partial fill A$600 → commit — A$400 stays reserved
     V-->>SC: fill window cancels remainder → release A$400
     A->>A: arm next alarm
 ```

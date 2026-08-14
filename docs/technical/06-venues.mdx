@@ -140,19 +140,17 @@ While an intent is anywhere between `pending` and a terminal state, the sleeve s
 
 This is the one non-trivial thing a venue actor does. It runs whenever an order call's outcome is unknown. The principle: ask the venue what it knows, never turn a negative snapshot into proof, and never resubmit an ambiguous intent.
 
-```txt resolve
-resolve(intent):
-  1. Preserve the reservation and block risk-increasing intents on the instrument.
-  2. Query by client order ID over a bounded reconciliation interval.
-     Kraken: Open Orders + Closed Orders, then Trades/Ledger evidence.
-     Alpaca: order lookup plus immutable Activities evidence.
-  3. Found -> adopt the venue's state and ingest executions from the venue's
-     authoritative activity source.
-  4. Query failure -> retry the query with backoff from the actor's alarm;
-     maintenance, 429, 5xx, and transport failure never imply non-placement.
-  5. Repeated negative snapshots -> quarantined. The reservation remains held.
-     Reconciliation evidence or a recorded operator resolution is the only exit.
+```mermaid
+flowchart TB
+    U["Order call outcome unknown"] --> H["Preserve the reservation<br/>block risk-increasing intents on the instrument"]
+    H --> Q["Query by client order ID over a bounded interval<br/>Kraken: Open + Closed Orders, then Trades/Ledger<br/>Alpaca: order lookup plus immutable Activities"]
+    Q -->|"order found"| A(["adopt the venue's state<br/>ingest executions from the venue's<br/>authoritative activity source"])
+    Q -->|"query failed —<br/>maintenance, 429, 5xx, transport"| R["retry with backoff<br/>from the actor's alarm<br/>failure never implies non-placement"]
+    R --> Q
+    Q -->|"repeated negative snapshots"| X(["quarantined — reservation stays held<br/>reconciliation evidence or a recorded<br/>operator resolution is the only exit"])
 ```
+
+A negative snapshot is a query that succeeded and found nothing — and even that never proves non-placement on its own, which is why repetition leads to quarantine rather than resubmission.
 
 Kraken's queries can filter by client order ID ([Open Orders](https://docs.kraken.com/api-reference/account-data/get-open-orders), [Closed Orders](https://docs.kraken.com/api-reference/account-data/get-closed-orders)), and `deadline` rejects requests that arrive late. None of those sources promises that an order accepted earlier is visible by the time a query runs. Alpaca likewise documents create and lookup but no lookup visibility or same-ID retry guarantee. Quarantine is therefore the contract for both venues; a future written consistency/idempotency guarantee may narrow it, but a paper observation alone may not.
 

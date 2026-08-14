@@ -215,6 +215,23 @@ A real account fixture validates which codes actually occur and their payload sh
 
 Every non-AUD amount gets an AUD value, and every AUD value gets a recorded basis. The rules are tried in order; the first that applies wins.
 
+```mermaid
+flowchart TB
+    A{"Amount already AUD?"}
+    A -->|yes| B1(["NativeAud — no rate"])
+    A -->|no| C{"Source evidence ties a real conversion<br/>in the operator's own accounts<br/>to this movement?"}
+    C -->|"yes, one match group"| B2(["ActualAchieved —<br/>that conversion's own rate"])
+    C -->|"no — nearby-in-time<br/>is not evidence"| D{"RBA rate published<br/>on the transaction date?"}
+    D -->|yes| B3(["PublishedRate —<br/>RBA, transaction date"])
+    D -->|"no publication<br/>(weekend, NSW holiday)"| E{"Accountant-approved policy rate<br/>within 4 days?"}
+    E -->|yes| B4(["PublishedRate —<br/>the recorded policy, recorded date"])
+    E -->|no| F{"Recorded reasonableness assessment<br/>supports a period average (≤ 12 months)?"}
+    F -->|yes| B5(["PeriodAverage —<br/>period, provider, assessment stored"])
+    F -->|no| RV(["review item — no event"])
+```
+
+Crypto quantities take the separate `MarketPrice` path described below the numbered rules.
+
 1. **Native AUD.** The amount is already AUD. Basis `NativeAud`, no rate.
 2. **Actual achieved rate.** A real conversion in the operator's own accounts backs this flow, and source evidence ties that conversion to this movement inside one match group. Use that conversion's own rate; basis `ActualAchieved` naming the conversion event. A conversion that merely happened near the same time does not qualify: without evidence linking it to the movement, the legs stay related and this rule does not fire.
 3. **Published transaction-time policy.** The default uses the RBA transaction-date rate when one exists. Weekends and NSW bank/public holidays have no RBA publication. The actual publication date and the accountant-approved policy used for non-publication days are recorded; nearest-prior RBA is a configured policy, not described as an ATO rule. A gap wider than **4 days** (proposed) raises review.
@@ -301,7 +318,17 @@ Intermediate arithmetic is unrounded decimal. Each per-disposal ledger line roun
 
 ## 8. Worked CGT example
 
-One BTC position, three events, two financial years.
+One BTC position, three events, two financial years. The dates are the whole story — the discount rule and the FY split both come down to where each event lands:
+
+```mermaid
+timeline
+    title One parcel, two financial years — Sydney local dates
+    2024-03-12 : Buy 0.1 BTC — parcel P1 opens, cost base A$6,000
+    2024-11-08 : Withdraw to cold wallet — a transfer, no CGT event : Network fee 0.0002 BTC — a disposal, gain A$11.20, held under 12 months
+    2025-03-12 : Acquisition + 12 months — eligibility starts strictly after this date
+    2025-06-30 : FY2025 closes — net capital gain A$11.20, no discount
+    2026-01-20 : Sell 0.05 BTC — gain A$1,788, discount applies, A$894 into FY2026
+```
 
 :::info[The fixed facts]
 **2024-03-12** — buy 0.1 BTC on Kraken. Consideration A$5,985, trading fee A$15.00, both AUD-native.
@@ -348,6 +375,23 @@ The USD cash balance is itself an asset under the forex rules. Full tracking is 
 - It **drafts** the election document with the nominated accounts and effective date, for the operator's signature. A draft has no effect; only the signed artifact, archived with its date, activates the treatment, and only from that date forward. Nothing is backdated.
 - It **tests aggregate credit and debit balances separately**, without netting, across all nominated accounts. For the statutory test, foreign-currency amounts use the average exchange rate for the third month before the income year — not a daily spot translation.
 - It **tracks the buffering rule as a state machine**. A balance above A$250,000 can still pass during at most two increased-balance periods in one income year when each is remedied within 15 days and neither credit nor debit balance exceeds A$500,000. A period crossing an income-year boundary follows the statutory cross-year conditions.
+
+  ```mermaid
+  stateDiagram-v2
+      passing: Passing — exemption applies per event
+      p1: Increased-balance period 1 of 2
+      p2: Increased-balance period 2 of 2
+      failed: Failed interval — full forex treatment applies to it
+      [*] --> passing: signed election archived
+      passing --> p1: either total exceeds A$250k (≤ A$500k)
+      p1 --> passing: remedied within 15 days
+      p1 --> failed: 16th day, or either total exceeds A$500k
+      passing --> p2: second breach this income year
+      p2 --> passing: remedied within 15 days
+      p2 --> failed: 16th day, or either total exceeds A$500k
+      passing --> failed: a third breach in the income year
+      failed --> passing: the failed interval ends — the written election itself survives
+  ```
 - It **applies the exemption per event only while the test passes**. A failed condition brings relevant events during the failed period into full forex treatment; it does not automatically terminate the written election.
 - It **warns before the statutory boundary** without confusing a product alert with the law:
 

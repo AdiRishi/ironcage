@@ -189,6 +189,25 @@ Staleness is a schedule-trigger concern. A batch run's output has no validity wi
 
 Retries and late completion never make old context fresh. The consumer checks database time against the stored boundary; there is no grace beyond the window.
 
+The rules above, drawn on one clock — a run scheduled at `00:00Z` with `validFor` 6 h that completes late at `05:30Z`:
+
+```mermaid
+gantt
+    dateFormat HH:mm
+    axisFormat %H:%M
+    section The window
+    validity anchors on the schedule (six hours) : active, 00:00, 6h
+    section The run
+    model runs late — nothing usable exists yet : crit, 00:00, 5h30m
+    output lands with 30 minutes of life left : done, 05:30, 30m
+    section The ticks
+    the four-hour tick — output missing, safe default : milestone, 04:00, 0m
+    the late arrival cannot rewrite that tick : milestone, 05:35, 0m
+    the eight-hour tick — window expired, safe default : milestone, 08:00, 0m
+```
+
+The window never moved: a slow provider spent the assessment's lifetime, it did not extend it. Had the run completed after `06:00Z`, the dispatch deadline would have rejected the delivery outright.
+
 ## The permanent evidence
 
 The system keeps two different kinds of AI record, with a sharp line between them, and the line is the same for every capability class.

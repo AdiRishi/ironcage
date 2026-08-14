@@ -100,6 +100,23 @@ The fixed trace is [Crypto trend order](/technical/examples/crypto-trend-order).
 
 ### Crash windows
 
+The three beats and the effects that follow them define four positions a crash can land in. The diagram places them; the table below then enumerates every window — including the venue, feed, and queue variants of these positions — and closes each one.
+
+```mermaid
+sequenceDiagram
+    participant DO as Actor (DO SQLite)
+    participant PG as Postgres (commit point)
+    participant EXT as External effect (venue, email, feed push)
+    Note over DO: ① crash before the marker —<br/>nothing happened, and at-least-once<br/>delivery re-runs the work
+    DO->>DO: Mark — in-flight marker, IDs already minted
+    Note over DO,PG: ② crash before the commit —<br/>marker with no matching row, so the recovery<br/>scan re-runs idempotently under the same IDs
+    DO->>PG: Commit — domain rows + feed events + pending effects, one transaction
+    Note over DO,PG: ③ crash after the commit —<br/>only the projection and marker are stale,<br/>and both reconcile from Postgres
+    DO->>DO: Reconcile — refresh projection, clear marker
+    DO->>EXT: effects run only after the commit
+    Note over PG,EXT: ④ crash before delivery — the obligation<br/>is already a row, and the outbox drainer<br/>and the sweeps retry from the record
+```
+
 Every window, closed. "None" in the last column is the claim this chapter exists to make true.
 
 | Window                                     | Persisted at the crash                         | Detection                                                                           | Recovery                                                                                                                                                                                     | Data lost                       |
@@ -139,6 +156,26 @@ Each binding has a proposed origin-connection target of 8. Cloudflare documents 
 ## Core DDL
 
 The load-bearing tables in full. The remaining tables follow the same conventions and are specified field-level in their owning chapters — equity units and capital in [Domain](/technical/domain), Money in [Money](/technical/money), Tax in [Tax](/technical/tax), Workbench in [Workbench](/technical/workbench) — with their DDL in the migrations.
+
+How the tables below relate — ⊕ marks append-only, and the two dashed groups are the domains the blotter's rows reference:
+
+```mermaid
+erDiagram
+    sleeves ||--o{ sleeve_transitions : "lifecycle history ⊕"
+    sleeves ||--o{ mandate_versions : "versioned by ceremony ⊕"
+    sleeves ||--o{ order_intents : "one per instrument per tick per book"
+    sleeves ||--o{ ticks : "keyed (sleeve, candle close)"
+    order_intents ||--o{ intent_transitions : "audit of every state change ⊕"
+    order_intents ||--o{ fills : "deduped (intent, venue fill) ⊕"
+    order_intents }o--o| reservations : "entries carry their committed reservation ID"
+    feed_events ||--o| acknowledgments : "⊕"
+    feed_events }o--|| order_intents : "correlation_id for trading events"
+    queue_dedupe ||--o| capability_outputs : "output row only when validated ⊕"
+    queue_dedupe ||--|| decision_records : "every consumed run leaves one ⊕"
+    sleeves |o--o{ capability_outputs : "null for system-level"
+```
+
+Positions are deliberately absent from the picture: they are a SQL view over `fills`, never a table, for the reason given below.
 
 ### Sleeves and mandates
 
