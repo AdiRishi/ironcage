@@ -4,7 +4,7 @@ import * as Effect from "effect/Effect";
 
 import { QueueSettings } from "../../src/providers/queue-settings.ts";
 import { DEFAULT_QUEUE_RETENTION_SECONDS } from "../../src/providers/types.ts";
-import { queueRetention, test } from "./cloudflare-settings.ts";
+import { queueRetention, test } from "./cloudflare-settings-fake.ts";
 
 test("queue settings return to Cloudflare defaults when removed", (stack) =>
   Effect.gen(function* () {

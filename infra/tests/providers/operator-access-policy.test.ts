@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import * as Effect from "effect/Effect";
 
 import { OperatorAccessPolicy } from "../../src/providers/operator-access-policy.ts";
-import { accessPolicies, test } from "./cloudflare-settings.ts";
+import { accessPolicies, test } from "./cloudflare-settings-fake.ts";
 
 test("operator policy updates identity and MFA as one resource", (stack) =>
   Effect.gen(function* () {
