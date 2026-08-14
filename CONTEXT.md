@@ -59,7 +59,7 @@ _Avoid_: expense, income, duplicate
 ## AI capabilities
 
 **Capability**:
-One typed, bounded AI authority drawn from the versioned capability registry, held by a sleeve's mandate — or, for system-level observers, by the system itself.
+One typed, bounded AI authority drawn from the versioned capability registry, held by a sleeve's mandate — or, for sleeve-independent work such as system observers and Money's categorization, by the system itself.
 _Avoid_: grant, permission, feature, power
 
 **Safety class**:
@@ -79,8 +79,12 @@ The flagship throttle: per-instrument, multi-axis market assessments on a quanti
 _Avoid_: regime vector, prediction, forecast, trade signal
 
 **No-AI baseline**:
-A capability's counterfactual: what the sleeve would have done without it, simulated through the same fill machinery.
-_Avoid_: control, benchmark (reserved for sleeve-level comparisons)
+A capability's counterfactual: what the sleeve would have done with the capability absent (for a throttle, a multiplier of 1), simulated through the same fill machinery. Never the safe default — comparing against the fail-closed output would flatter every capability.
+_Avoid_: control, benchmark (reserved for sleeve-level comparisons), safe default (as a synonym)
+
+**Safe default**:
+The fail-closed output a capability contributes when its run fails or its output goes stale — for the regime assessment, a multiplier of 0. It protects the sleeve; it is never the scorecard's comparator.
+_Avoid_: fallback, baseline, no-AI baseline (as a synonym)
 
 **Scorecard**:
 A capability's running score versus its no-AI baseline — the evidence that decides whether the capability keeps its place.
@@ -139,7 +143,7 @@ A quantity of one asset with a single acquisition date and cost base, tracked fr
 _Avoid_: lot (in docs; acceptable in code), batch
 
 **Gap ledger**:
-The per-source record of which time windows have been fetched from where, making holes in imported history — tax sources and bank imports alike — visible instead of silently absent.
+The per-source record of which time windows have been fetched from where, and which expected points remain missing or disputed — tax sources, bank imports, and candle history alike — so holes are visible instead of silently absent.
 _Avoid_: sync log, coverage report
 
 **Fail closed**:

@@ -35,19 +35,11 @@ around it are stricter than the CLI's defaults.
 
 ## Cloudflare
 
-| Binding            | Resource                               | Held by           |
-| ------------------ | -------------------------------------- | ----------------- |
-| `DB`               | Hyperdrive `ironcage-without-cache`    | `ironcage-core`   |
-| `DB_CACHED`        | Hyperdrive `ironcage-with-cache`       | `ironcage-core`   |
-| `BLOBS`            | R2 `ironcage-private`                  | `ironcage-core`   |
-| `COMPUTE`          | Durable Object `BacktestRunner`        | `ironcage-core`   |
-| `AGENTS`           | `ironcage-agents`, dispatch entrypoint | `ironcage-core`   |
-| `CORE`             | `ironcage-core`, agent-read entrypoint | `ironcage-agents` |
-| `CORE` / `AGENTS`  | operator and conversation entrypoints  | `ironcage-app`    |
-| `DECISION_RECORDS` | Queue producer                         | `ironcage-agents` |
-| Queue consumer     | `decision-records`, batch size one     | `ironcage-core`   |
-| `FLAGS`            | Flagship kill-switch app               | core and agents   |
-| `AI_GATEWAY`       | authenticated AI Gateway               | `ironcage-agents` |
+The deployed topology — every Worker, binding, queue, bucket, gateway, and
+Access policy — is defined in `infra/` and summarized in
+[`infra/README.md`](./infra/README.md). `infra/src/worker-bindings.ts` is the
+single definition of each Worker's environment; read it rather than trusting
+a hand-written table, because a table here would drift.
 
 Account: `Adishwar Rishi (Personal)`, `34c911069f69b7cc1f38573958c3db45`.
 

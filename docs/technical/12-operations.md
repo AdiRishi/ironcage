@@ -213,7 +213,7 @@ Two independent copies of the record, with different failure modes.
 
 **PlanetScale backups and point-in-time recovery are the first line.** Recovery is limited to the purchased retention window, and PlanetScale does not offer a target in the most recent five minutes. The selected plan, retention, cost, oldest recoverable point, and five-minute edge are recorded and tested; “restore to any chosen minute” is not the contract.
 
-**A nightly logical dump is the second.** A scheduled workflow triggers the dump at **03:00 UTC** (proposed). A trusted backup container profile—not the untrusted backtest environment—runs `pg_dump` with `DUMP_DSN`, a dedicated read-only role. The engine credentials remain in Hyperdrive. The dump lands in R2 under `backups/{yyyy-mm-dd}/`; the independent copy's RPO is **24 hours** (proposed). PITR improves that RPO only inside its configured window and not in its recent five-minute edge.
+**A nightly logical dump is the second.** A scheduled workflow triggers the dump at **03:00 UTC** (proposed). A trusted backup container profile—not the untrusted backtest environment—runs `pg_dump` with `DUMP_DSN`, a dedicated read-only role. The engine credentials remain in Hyperdrive. The dump lands in R2 under `dumps/{yyyy-mm-dd}/`; the independent copy's RPO is **24 hours** (proposed). PITR improves that RPO only inside its configured window and not in its recent five-minute edge.
 
 **R2 is ordinary object storage.** Content-addressed keys and application behavior avoid overwriting referenced objects, but an operator or administrator can still delete an artifact or dump. That is an accepted tradeoff for this personal system. Missing objects surface explicitly, Postgres remains the permanent financial truth, and PlanetScale backups remain the first recovery line.
 
@@ -282,7 +282,7 @@ All rows below were reviewed on 2026-08-08.
 
 Two products are explicitly not dependencies: Cloudflare Artifacts is closed beta and Cloudflare Computer is preview-only. Neither appears in v1.
 
-The Postgres major version is chosen only after Hyperdrive and the Effect driver pass the development compatibility suite against it; nothing hard-codes 18 before that proof. PlanetScale failover is not assumed to take one or two seconds; on connection loss with an unknown commit outcome, the outcome is queried by idempotency key before any retry.
+The Postgres major version is chosen only after Hyperdrive and the Effect driver pass the development compatibility suite against it. The CI containers pin 18.4 as the working default; that pin follows the chosen version rather than proving it. PlanetScale failover is not assumed to take one or two seconds; on connection loss with an unknown commit outcome, the outcome is queried by idempotency key before any retry.
 
 ## Values set in this chapter
 
@@ -298,7 +298,7 @@ Every number above, its owner, and its status. "Proposed" means: pick differentl
 | Release unit                   | entire repository from `main`                              | operations       | decided  |
 | Deployment rollout             | no percentage rollout; immediate whole release             | operations       | decided  |
 | Entry block during deploy      | whole deploy-and-verify window                             | operations       | decided  |
-| Destructive migration delay    | 7 days after the read stops                                | operations       | proposed |
+| Destructive migration delay    | ≥ 7 days after every reader and writer stops               | operations       | proposed |
 | Failure recovery               | fix-forward; previous whole commit only when compatible    | operations       | decided  |
 | Dry-run soak before live       | 7 days or 50 ticks, longer of                              | operations       | proposed |
 | Secret rotation cadence        | quarterly                                                  | operator         | proposed |
@@ -355,7 +355,7 @@ Every number above, its owner, and its status. "Proposed" means: pick differentl
 - [ ] Watchdog cron reading `next_due_at`, re-arming dead alarms, and recording each re-arm as a feed event
 - [ ] External dead-man monitor configured against the health route, alerting through its own channel
 - [ ] AI Gateway estimated-cost pull; Cloudflare infrastructure cost remains an explicit dashboard/manual input until a populated supported API exists
-- [ ] Backup workflow: trusted backup-profile `pg_dump` under the read-only `DUMP_DSN`, writing to `backups/{yyyy-mm-dd}/` in R2
+- [ ] Backup workflow: trusted backup-profile `pg_dump` under the read-only `DUMP_DSN`, writing to `dumps/{yyyy-mm-dd}/` in R2
 - [ ] Restore-test workflow: dev-branch restore, the four-item verification checklist, feed event on both outcomes
 - [ ] The restore runbook with the pre-restore quarantine step, written and rehearsed
 - [ ] The platform-assumption register kept in this file with sources and review dates, reviewed on schedule

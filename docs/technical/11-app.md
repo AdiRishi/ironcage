@@ -204,17 +204,17 @@ stateDiagram-v2
 
 The feed is also the cache-invalidation signal. Each event category invalidates a fixed set of key prefixes, and nothing else.
 
-| Feed event category    | Query keys invalidated                                                    |
-| ---------------------- | ------------------------------------------------------------------------- |
-| Trading                | `blotter(sleeve)`, `positions(sleeve)`, `equity(sleeve, *)`, `sleeve(id)` |
-| Capabilities & signals | `capability(id, sleeve)`, `sleeve(id)`                                    |
-| Risk                   | `sleeve(id)`, `vitals`, `attention`, `capital`                            |
-| Lifecycle              | `sleeves`, `sleeve(id)`, `attention`                                      |
-| Capital                | `capital`, `sleeves`, `equity(System, *)`, `attention`                    |
-| System                 | `vitals`, `attention`                                                     |
-| Money                  | `money(*)`, `tax(*)`                                                      |
+| Feed event category | Query keys invalidated                                                    |
+| ------------------- | ------------------------------------------------------------------------- |
+| Trading             | `blotter(sleeve)`, `positions(sleeve)`, `equity(sleeve, *)`, `sleeve(id)` |
+| Capabilities        | `capability(id, sleeve)`, `sleeve(id)`                                    |
+| Risk                | `sleeve(id)`, `vitals`, `attention`, `capital`                            |
+| Lifecycle           | `sleeves`, `sleeve(id)`, `attention`                                      |
+| Capital             | `capital`, `sleeves`, `equity(System, *)`, `attention`                    |
+| System              | `vitals`, `attention`                                                     |
+| Money & tax         | `money(*)`, `tax(*)`                                                      |
 
-Three rules override the table. Every event of severity `critical` additionally invalidates `attention`. Every event is prepended to `feed(*)` rather than invalidating it, so the visible list never blanks. A `System` event of type `deploy completed` invalidates nothing and renders a banner offering reload.
+Three rules override the table. Every event of severity `critical` additionally invalidates `attention`. Every event is prepended to `feed(*)` rather than invalidating it, so the visible list never blanks. A `System` event of type `deploy_completed` invalidates nothing and renders a banner offering reload.
 
 ## 4. Conversations
 

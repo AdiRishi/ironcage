@@ -40,7 +40,7 @@ Two different problems are solved at two different seams. The public seam (brows
 
 On the public seam, Cloudflare Access fronts the whole subdomain, and the app Worker independently verifies the Access JWT on every request. The session flow, expiry UX, and the feed socket's close semantics live in [App](./11-app.md).
 
-Verified identity is not enough for mutations. Access authenticates the session, not the page that initiated a request: a cross-site page can cause the browser to send credentialed requests, and a WebSocket upgrade is not subject to the same-origin policy. So the server enforces an explicit check. Every mutating operation verifies the `Origin` header against the app's own origin and rejects a mismatch before any handler runs. The WebSocket upgrade performs the same check. If the check fails, the request is refused with `ValidationFailed` and nothing downstream executes.
+Verified identity is not enough for mutations. Access authenticates the session, not the page that initiated a request: a cross-site page can cause the browser to send credentialed requests, and a WebSocket upgrade is not subject to the same-origin policy. So the server enforces an explicit check. Every mutating operation verifies the `Origin` header against the app's own origin and rejects a mismatch before any handler runs. The WebSocket upgrade performs the same check. If the check fails, the request is refused with a bare 403 and nothing downstream executes. No taxonomy error is produced, because the taxonomy describes handler outcomes and no handler ran.
 
 Future non-interactive callers authenticate with Access service tokens. The Worker first verifies signature, issuer, expiry, and the expected Access-application `aud`; that audience identifies the application, not the machine caller. It then authorizes the caller by an exact allowlist of service-token Client IDs carried in the application token's `common_name` claim. The Access policy selects the same tokens as defense in depth. The absence of a user email claim is never the test.
 
@@ -89,7 +89,7 @@ One message per capability run:
 ```ts
 // packages/contracts/src/ai/capability-run.ts
 export const CapabilityRunMessage = Schema.Struct({
-  runId: RunId, // application idempotency key backed by capability_outputs.id; Queues itself does not dedupe on it
+  runId: RunId, // application idempotency key backed by the queue_dedupe table's unique run ID; Queues itself does not dedupe on it
   capability: Schema.String, // registry name
   sleeveId: Schema.NullOr(SleeveId), // UUIDv7
   configVersion: Schema.Number,
@@ -108,7 +108,7 @@ export const CapabilityRunMessage = Schema.Struct({
 1. Decode the message with the authoritative Schema. A decode failure follows the configured retry path. [Native dead-letter routing occurs only after those retries are exhausted](https://developers.cloudflare.com/queues/configuration/dead-letter-queues/).
 2. Check timing. A run delivered after its capability's dispatch deadline is rejected and recorded rather than written. [AI](./07-ai.md) defines the deadline and validity windows.
 3. Validate `output` against the capability's registered output Schema.
-4. Write the output row, decision record, and feed event in one Postgres transaction. The run ID keys the insert, and the stored row carries a hash of the message content. This places the deduplication check inside the same transaction.
+4. Insert the `queue_dedupe` row first — its unique run ID and content hash are the deduplication boundary — then the output row, decision record, and feed event, all in one Postgres transaction. The dedupe row exists for every consumed delivery, including failed and deadline-expired runs, which write a decision record but no output row. `queue_dedupe`'s shape and pruning live in [Data](./03-data.md).
 
 Redelivery then resolves by hash. A duplicate run ID with a matching content hash is acknowledged and dropped; that is the at-least-once queue doing what it does. The same run ID with a different content hash is never treated as a duplicate. Two executions have claimed the same identity, which means a producer is broken. The consumer refuses the write, keeps the stored original, and raises a critical event.
 
@@ -119,6 +119,8 @@ Arrival order carries no meaning. When the engine consumes a capability's output
 [The platform caps a queue message at 128,000 bytes](https://developers.cloudflare.com/queues/platform/limits/). Ironcage caps the complete serialized envelope at **120,000 bytes** (proposed), leaving room below the platform boundary. A capability envelope that exceeds it is a failed run, handled like any other capability failure: the safe default applies and the failure is recorded. No spillover path exists at v1. A staging pattern for oversized outputs is a recorded future option, not a built one (see Open questions).
 
 Queue settings: batch size 1, `max_retries = 9` for ten total delivery attempts (the initial delivery plus nine retries), dead-letter queue `decision-records-dlq`, DLQ retention 14 days. All are proposed defaults owned by engine configuration.
+
+One read-only operation accompanies the queue on the core→agents dispatch binding: `getQueueVitals()`. It returns the producer binding's best-effort depth, oldest message age, and as-of time, feeding the queue vital in [Operations](./12-operations.md). It mutates nothing on either side, and an unknown or stale answer renders the vital unknown rather than zero.
 
 ## Error taxonomy
 
@@ -142,15 +144,16 @@ Every boundary error is one of these tags. Callers match on the tag; nothing mat
 
 Each flow's key and dedupe boundary, in one table. These are the only idempotency mechanisms in the system; a new flow must add its row here before it ships.
 
-| Flow                   | Key                                   | Deduped by                                                                                                                                        |
-| ---------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tick execution         | `(sleeve_id, candle_close_at)`        | The Postgres `ticks` table, written in the decision transaction; the actor's copy is a cache                                                      |
-| Order at the venue     | intent ID (UUIDv7) as client order ID | The intent ledger, always. Venue lookup supplies reconciliation evidence but is not treated as a documented dedupe/idempotency boundary           |
-| Outbox effect delivery | `pending_effects` row ID              | The drainer's delivered mark; a crash between send and mark may repeat the effect, and every effect carried (the halt email) tolerates repetition |
-| AI run ingestion       | run ID                                | `capability_outputs` primary key plus content hash, checked inside the write transaction                                                          |
-| App mutations          | client `request_id` (UUIDv7)          | A request-log table with a unique key, checked in the mutation's transaction                                                                      |
-| Venue fill ingestion   | `(intent_id, venue_fill_id)`          | The fills table's unique constraint                                                                                                               |
-| Workflow steps         | `(workflow instance, step name)`      | The platform's step cache, plus receipts in Postgres                                                                                              |
+| Flow                   | Key                                   | Deduped by                                                                                                                                           |
+| ---------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tick execution         | `(sleeve_id, candle_close_at)`        | The Postgres `ticks` table, written in the decision transaction; the actor's copy is a cache                                                         |
+| Order at the venue     | intent ID (UUIDv7) as client order ID | The intent ledger, always. Venue lookup supplies reconciliation evidence but is not treated as a documented dedupe/idempotency boundary              |
+| Outbox effect delivery | `pending_effects` row ID              | The drainer's delivered mark; a crash between send and mark may repeat the effect, and every effect carried (the halt email) tolerates repetition    |
+| AI run ingestion       | run ID                                | The `queue_dedupe` table's unique run ID plus content hash, inserted first in the write transaction; `capability_outputs` holds the validated output |
+| App mutations          | client `request_id` (UUIDv7)          | A request-log table with a unique key, checked in the mutation's transaction                                                                         |
+| Bank import confirm    | bundle digest (Tier 0)                | `bank_imports`' unique bundle digest per account, recomputed in the confirm transaction; the digest formula is [Money](./08-money.md) §5's           |
+| Venue fill ingestion   | `(intent_id, venue_fill_id)`          | The fills table's unique constraint                                                                                                                  |
+| Workflow steps         | `(workflow instance, step name)`      | The platform's step cache, plus receipts in Postgres                                                                                                 |
 
 One rule governs every row of this table. An idempotency key exists so that the same work, retried, collapses into one effect. When a key collides but the content differs — the same `request_id` with a different payload, the same run ID with a different hash, the same fill key with different quantities — that is not a retry. Two different facts have claimed one identity, which means a writer is broken or a boundary is compromised. The receiver keeps the stored original, refuses the colliding write, returns `Conflict` where a caller is waiting, and raises a critical event. A collision is never absorbed silently, because a silently absorbed collision hides the defect that produced it.
 

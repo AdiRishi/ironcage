@@ -20,7 +20,7 @@ One trade threads through this chapter and the two that follow. Fixed facts, use
 > The strategy desires **+A$2,000** of BTC/AUD exposure; the current position is none. The regime multiplier is **0.5**, so the effective entry is **A$1,000**.
 > The sleeve cage passes it. The system cage reserves A$1,000. Kraken fills **A$600** partially (0.006 BTC at roughly A$100,000); the remainder cancels when the 30-minute fill window closes. The reservation commits A$600 and releases A$400.
 > A venue-resident stop rests at A$94,000, sized 0.006 BTC. Intent ID: `018f6b2a-7c4e-7d31-a2f0-3b9d4e8c1a55` (a UUIDv7, which doubles as the venue client order ID).
-> Because the book is `dry_run`, every row carries `book = dry_run` and every fill carries `simulated = true`, priced by the fill model in [Venues](./06-venues.md): the limit order fills at its limit price on a strict cross, and next-candle-open pricing applies to market and stop fills only.
+> Because the book is `dry_run`, every row carries `book = dry_run` and every fill carries `simulated = true`. The fill prices follow the fill model in [Venues](./06-venues.md): the limit order fills at its limit price on a strict cross. The partial quantity comes from the example's scripted adapter, because the fill model itself fills or expires an order whole.
 
 The complete trace — every row, every payload — lives in [examples/crypto-trend-order.md](./examples/crypto-trend-order.md).
 
@@ -157,7 +157,7 @@ Three invariants, asserted in code after every clamp:
 
 A worked target-position example (illustrative, not a default). A rebalancing sleeve holds +A$3,000 of an instrument and targets +A$5,000. The delta is +A$2,000 and increases exposure. Multipliers 0.5 and 0.8 are in force; the minimum is 0.5, so the clamped delta is +A$1,000 and the effective target is A$4,000. At the next tick the strategy targets A$2,500 from the A$4,000 position. That delta is −A$1,500 and reduces exposure, so it passes through unchanged even though the 0.5 multiplier is still in force.
 
-In the running example: one multiplier, no locks, no tightenings. The regime capability computed its axes as trend ¾, volatility ½, liquidity 1, news ½, and emitted their minimum, 0.5 (illustrative, not a default). `effective = 2,000 × 0.5 = A$1,000`. Recorded: `{desired: 2000, multipliers: [{regime: 0.5}], combiner: "min", effective: 1000}`.
+In the running example: one multiplier, no locks, no tightenings. The regime capability computed its axes as trend ¾, volatility ½, liquidity 1, news ½, and emitted their minimum, 0.5 (illustrative, not a default). `effective = 2,000 × 0.5 = A$1,000`. Recorded: `{desired: 2000, multipliers: [{"regime-assessment": 0.5}], combiner: "min", effective: 1000}`.
 
 ## 6. The sleeve cage
 

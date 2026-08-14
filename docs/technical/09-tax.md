@@ -139,7 +139,7 @@ export type TaxEvent = EventBase &
   );
 
 // `costs` is the event's incidental costs in AUD: brokerage, transfer charges, and the like.
-export type DisposalReason = "sale" | "crypto_for_crypto" | "network_fee" | "wrap";
+export type DisposalReason = "sale" | "crypto_for_crypto" | "network_fee" | "trading_fee" | "wrap";
 export type WithholdingKind = "us_treaty" | "us_nra" | "au_tfn";
 export type CorporateActionKind = "split" | "spinoff" | "merger" | "reorg" | "return_of_capital";
 export type IncomeKind =
@@ -161,17 +161,17 @@ Every mapping is a table, and every table has a final row. An unlisted code prod
 
 **Kraken ledger and trade records:**
 
-| Source record                                      | Events emitted                                     | Notes                                                                                        |
-| -------------------------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `trade` (asset out)                                | `Disposal` (`sale` or `crypto_for_crypto`)         | paired to the asset-in row by the shared `refid`                                             |
-| `trade` (asset in)                                 | `Acquisition`                                      | same `refid`, same match group                                                               |
-| `spend` / `receive`                                | `Disposal` / `Acquisition`                         | the two sides of a fiat-pair order                                                           |
-| ledger `fee` column, fee asset ≠ AUD               | `Fee` + `Disposal` (`network_fee` or trading fee)  | the fee asset is captured, never assumed; counted once per `refid`                           |
-| `deposit`                                          | `Transfer` in                                      | matched to the sending leg; not income                                                       |
-| `withdrawal`                                       | `Transfer` out, plus `Disposal` of the network fee | the fee quantity comes from the withdrawal record                                            |
-| `staking`, `reward`, `earn`                        | `Income` (`staking`)                               | the ledger is the only place these appear                                                    |
-| `transfer`                                         | evidence-classified event or review item           | may represent forks/airdrops, OTC, futures, staking, or own movement; never blanket no-event |
-| `margin`, `rollover`, `settled`, any unlisted type | review item, no event                              | out of declared scope, or a shape we do not know                                             |
+| Source record                                      | Events emitted                                      | Notes                                                                                        |
+| -------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `trade` (asset out)                                | `Disposal` (`sale` or `crypto_for_crypto`)          | paired to the asset-in row by the shared `refid`                                             |
+| `trade` (asset in)                                 | `Acquisition`                                       | same `refid`, same match group                                                               |
+| `spend` / `receive`                                | `Disposal` / `Acquisition`                          | the two sides of a fiat-pair order                                                           |
+| ledger `fee` column, fee asset ≠ AUD               | `Fee` + `Disposal` (`network_fee` or `trading_fee`) | the fee asset is captured, never assumed; counted once per `refid`                           |
+| `deposit`                                          | `Transfer` in                                       | matched to the sending leg; not income                                                       |
+| `withdrawal`                                       | `Transfer` out, plus `Disposal` of the network fee  | the fee quantity comes from the withdrawal record                                            |
+| `staking`, `reward`, `earn`                        | `Income` (`staking`)                                | the ledger is the only place these appear                                                    |
+| `transfer`                                         | evidence-classified event or review item            | may represent forks/airdrops, OTC, futures, staking, or own movement; never blanket no-event |
+| `margin`, `rollover`, `settled`, any unlisted type | review item, no event                               | out of declared scope, or a shape we do not know                                             |
 
 **Alpaca activities are versioned by source generation, not merged into one ambiguous code table.**
 
@@ -386,7 +386,7 @@ A review item carries the raw record, its R2 key, the reason it could not be map
 
 Resolution is an operator act, and it writes events with a source reference pointing at the same raw record plus a `manual` resolution note. The next recomputation includes them like any other event, because recomputation is total.
 
-Open review items do not block computation. They hold the run at `draft`, mark the FY report incomplete, and show their count, so no figure is quietly final while an unresolved record sits behind it.
+Open review items do not block computation, with one exception. An unresolved `corporate_action` item halts computation for its asset, because every later parcel figure for that asset depends on how the action resolves. All other items hold the run at `draft`, mark the FY report incomplete, and show their count, so no figure is quietly final while an unresolved record sits behind it.
 
 ## 13. The report and retention
 

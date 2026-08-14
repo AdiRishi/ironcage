@@ -11,7 +11,7 @@ This chapter defines what is stored, where, and in what shape: the three storage
 - Append-only tables are enforced by the database role, not by discipline: the application role has no `UPDATE` or `DELETE` privilege on them.
 - No financial value is ever a float — not in a table, not in a contract, not in a computation.
 - Every displayed figure in the product is recomputable from Postgres rows plus R2 blobs.
-- Nothing is deleted, except rows in the two named mechanism tables.
+- Nothing is deleted, except rows in the three named mechanism tables.
 
 ## The four storage classes
 
@@ -364,7 +364,7 @@ backtests/{run_id}/…                  manifest, inputs hash, outputs, equity s
 reports/{report_id}.html              rendered report bodies
 proposals/{proposal_id}/…             validated copies of accepted proposal bundles
 tax/{source}/{sync_id}/…              raw API pages and statements behind tax events
-dumps/{date}/…                        scheduled logical Postgres dumps
+dumps/{yyyy-mm-dd}/…                  scheduled logical Postgres dumps
 ```
 
 Raw external files are treated as immutable once written, and nothing in R2 is the only record of a fact; Postgres always holds the row that names the key. Application write paths use content-addressed keys and never overwrite referenced objects. R2 is not protected against operator deletion, and losing an object is an accepted failure mode: the missing artifact or evidence is surfaced rather than silently reconstructed or allowed to change the financial record.
@@ -373,29 +373,30 @@ Raw external files are treated as immutable once written, and nothing in R2 is t
 
 Migrations are numbered SQL files owned by the Alchemy PlanetScale resources. Alchemy creates a short-lived direct-connection role, applies each pending file transactionally before dependent infrastructure, records it in `__alchemy_migrations`, and removes the role. [Operations](./12-operations.md) defines release ordering and rollback compatibility.
 
-Data changes are additive first: new columns arrive nullable or defaulted. A destructive change can appear only in a later whole-system release, at least 7 days after all code stopped reading it. Every migration is reviewed like engine code because this schema carries every guarantee in this chapter.
+Data changes are additive first: new columns arrive nullable or defaulted. A destructive change can appear only in a later whole-system release, at least 7 days after every reader and writer stopped using the old representation. Every migration is reviewed like engine code because this schema carries every guarantee in this chapter.
 
 Ironcage actor SQLite schemas carry a version number. A mismatch at wake triggers `rebuild()` instead of an in-place patch. Flue state follows the pinned framework's migration contract and its own conformance gate.
 
 ## Retention and backups
 
-Nothing in the financial record is deleted. Corrections append; retirement archives; permanent product retention avoids collapsing the different tax and asset-record clocks into one slogan. There are exactly two named exceptions, both mechanism tables whose rows are machinery rather than record: `queue_dedupe` rows older than 30 days, and `pending_effects` rows delivered more than 90 days ago (both proposed). At one operator's volume the entire record for years fits in single-digit gigabytes; the only genuine growth item, fine-timeframe candles, stays within comfort (a year of 1-minute candles for twenty instruments is roughly 10 million rows).
+Nothing in the financial record is deleted. Corrections append; retirement archives; permanent product retention avoids collapsing the different tax and asset-record clocks into one slogan. There are exactly three named exceptions, all mechanism tables whose rows are machinery rather than record: `queue_dedupe` rows older than 30 days, `pending_effects` rows delivered more than 90 days ago, and `app_requests` rows completed more than 90 days ago (all proposed). An app request far past its retry horizon can never be replayed; the mutation it recorded lives on in the domain tables. At one operator's volume the entire record for years fits in single-digit gigabytes; the only genuine growth item, fine-timeframe candles, stays within comfort (a year of 1-minute candles for twenty instruments is roughly 10 million rows).
 
-The data side of backups: PlanetScale point-in-time recovery covers only the purchased retention window and stops five minutes before the present. A scheduled logical dump runs in a separate trusted backup-container profile (Workers cannot run `pg_dump`) under a dedicated read-only dump credential, landing under `dumps/{date}/`. Untrusted backtest code never sees that credential. The dump schedule, exact PITR window/RPO, restore runbook, and periodic edge-window restore tests are [Operations](./12-operations.md).
+The data side of backups: PlanetScale point-in-time recovery covers only the purchased retention window and stops five minutes before the present. A scheduled logical dump runs in a separate trusted backup-container profile (Workers cannot run `pg_dump`) under a dedicated read-only dump credential, landing under `dumps/{yyyy-mm-dd}/`. Untrusted backtest code never sees that credential. The dump schedule, exact PITR window/RPO, restore runbook, and periodic edge-window restore tests are [Operations](./12-operations.md).
 
 ## Values set in this chapter
 
-| Value                                 | Default                                     | Owner             | Status   |
-| ------------------------------------- | ------------------------------------------- | ----------------- | -------- |
-| Postgres write retry                  | 3 attempts, exponential backoff from 250 ms | engine config     | proposed |
-| `pending_effects` retry schedule      | 1 min doubling to 30 min cap, forever       | engine config     | proposed |
-| Hyperdrive origin connection target   | 8 per binding; soft, with >16 headroom      | engine config     | proposed |
-| Cached-binding max age                | 60 s                                        | Hyperdrive config | proposed |
-| Money/quantity/price precision        | numeric(20,8) / (38,18) / (24,8)            | migrations        | proposed |
-| Display rounding                      | half-even at the currency's minor unit      | app               | proposed |
-| `queue_dedupe` prune age              | 30 days                                     | engine config     | proposed |
-| Delivered `pending_effects` prune age | 90 days                                     | engine config     | proposed |
-| Destructive-migration delay           | ≥ 7 days after the additive deploy          | operator          | decided  |
+| Value                                 | Default                                      | Owner             | Status   |
+| ------------------------------------- | -------------------------------------------- | ----------------- | -------- |
+| Postgres write retry                  | 3 attempts, exponential backoff from 250 ms  | engine config     | proposed |
+| `pending_effects` retry schedule      | 1 min doubling to 30 min cap, forever        | engine config     | proposed |
+| Hyperdrive origin connection target   | 8 per binding; soft, with >16 headroom       | engine config     | proposed |
+| Cached-binding max age                | 60 s                                         | Hyperdrive config | proposed |
+| Money/quantity/price precision        | numeric(20,8) / (38,18) / (24,8)             | migrations        | proposed |
+| Display rounding                      | half-even at the currency's minor unit       | app               | proposed |
+| `queue_dedupe` prune age              | 30 days                                      | engine config     | proposed |
+| Delivered `pending_effects` prune age | 90 days                                      | engine config     | proposed |
+| `app_requests` prune age              | 90 days after completion                     | engine config     | proposed |
+| Destructive-migration delay           | ≥ 7 days after every reader and writer stops | operations        | proposed |
 
 ## Alternatives considered
 
@@ -424,7 +425,7 @@ The data side of backups: PlanetScale point-in-time recovery covers only the pur
 - [ ] The `pending_effects` drainer with its schedule, and a test that crashes between commit and send and proves eventual delivery
 - [ ] `rebuild()` for each actor, with the two-rebuilds-identical determinism test
 - [ ] The feed-event union as a generated type shared with the app, so an unknown `event_type` is a compile error, not a rendering surprise
-- [ ] Prune jobs for the two mechanism tables, and nothing else deletable
+- [ ] Prune jobs for the three mechanism tables, and nothing else deletable
 - [ ] The nightly balance-sheet assertion job over the ledger defined in [Domain](./02-domain.md)
 - [ ] R2 buckets created with the layout above; dump credential scoped to the trusted backup profile only
 - [ ] Pinned Flue state inventory proving which conversation, attachment, submission, workflow, result, error, and event fields persist and who can read them
