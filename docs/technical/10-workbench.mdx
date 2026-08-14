@@ -164,6 +164,23 @@ kraken|BTC/AUD|4h|1659672000000|31245.5|31402|31180.25|31366|18.4213
 
 Backtests run in the `ironcage-compute` container, which executes `packages/engine` — the same strategy, clamp, cage, and fill code the live engine runs. The caller is a gate-pipeline Workflow or an operator action, the contract is the same for both, and the caller stores pointers rather than payloads.
 
+The trust boundary, in one picture — everything the untrusted container touches is content-addressed, and nothing it produces has authority until trusted core has re-verified it:
+
+```mermaid
+flowchart LR
+    subgraph trusted["Trusted — core"]
+        CALL["Caller writes candle + config<br/>inputs to R2, content-addressed"]
+        VERIFY["Core verifies every artifact hash,<br/>re-decodes result.json, checks the<br/>candle-set hash and image digest"]
+        COMMIT["One Postgres transaction —<br/>run summary + artifact pointers"]
+    end
+    subgraph untrusted["Untrusted — compute container"]
+        RUN["Runs packages/engine<br/>no Postgres secret, no general egress,<br/>clock and randomness stubbed out"]
+    end
+    CALL -->|"run-scoped R2 reads,<br/>hash-verified before execution"| RUN
+    RUN -->|"content-addressed artifacts<br/>under backtests/run_id/"| VERIFY
+    VERIFY --> COMMIT
+```
+
 ```ts compute.ts
 // packages/contracts/src/workbench/compute.ts
 export interface BacktestRequest {
@@ -218,6 +235,25 @@ Fold `k` (zero-based) is constructed from the window start `W`:
 fit_k        = [W + 30k,        W + 30k + 180)
 evaluation_k = [W + 30k + 180,  W + 30k + 210)
 folds        = floor((total_days − 180) ÷ 30)
+```
+
+The first three folds of the running example's window, drawn to scale — each fit sees only its own slice, each evaluation follows its fit, and only the evaluation slices reach the headline:
+
+```mermaid
+gantt
+    dateFormat YYYY-MM-DD
+    axisFormat %b %Y
+    section Fold 0
+    fit (180 days) : f0, 2022-08-07, 180d
+    evaluation (30 days) : crit, e0, after f0, 30d
+    section Fold 1
+    fit — rolled forward 30 days : f1, 2022-09-06, 180d
+    evaluation : crit, e1, after f1, 30d
+    section Fold 2
+    fit : f2, 2022-10-06, 180d
+    evaluation : crit, e2, after f2, 30d
+    section Headline
+    stitched out-of-sample equity — the evaluation slices, contiguous : active, 2023-02-03, 90d
 ```
 
 Construction rules that bind every fold:

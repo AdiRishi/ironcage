@@ -128,6 +128,23 @@ The container image is published under an [immutable content-addressed tag](http
 
 Cloudflare does not offer a transaction spanning several Workers. The pipeline therefore has a short mixed-version interval while its fixed deploy sequence runs. Internal HTTP and queue contracts evolve additively, and a system-wide entry block prevents the interval from creating new exposure. Protection work — fills, stops, ambiguity resolution, and reconciliation — continues throughout ([The tick](/technical/the-tick)).
 
+The shape of every release — the entry block is a span, not a step, and a failed verification leaves the system inside it:
+
+```mermaid
+flowchart TB
+    M["Merge to main"] --> B["Build + test the exact commit"]
+    B --> BL["Block new entries — recorded, verified"]
+    subgraph blocked["new entries blocked — protection work continues throughout"]
+        BL --> PL["Review the infrastructure plan"]
+        PL --> DEP["Deploy the whole release<br/>migrations, then Workers in fixed order<br/>(the short mixed-version interval)"]
+        DEP --> VER{"Verify the whole system"}
+        VER -->|fails| FF["Fix forward from main, or redeploy the<br/>previous compatible whole commit"]
+        FF --> B
+    end
+    VER -->|passes| REC["One System feed event —<br/>commit, versions, image, durations, result"]
+    REC --> UB["Unblock entries"]
+```
+
 The runbook, in order:
 
 <Steps>

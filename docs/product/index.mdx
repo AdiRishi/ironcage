@@ -69,6 +69,14 @@ The exception lets a machine holding real money say that it has stopped. Its emp
 
 ## The core loop
 
+```mermaid
+flowchart LR
+    E["The engine trades —<br/>or declines to"] --> V["The operator visits"]
+    V --> A["The operator adjudicates"]
+    A --> F["The operator feeds it"]
+    F --> E
+```
+
 <Steps>
   <Step title="The engine trades — or declines to">
     Each sleeve acts on its own cadence per its mandate: evaluating its strategy, applying whatever

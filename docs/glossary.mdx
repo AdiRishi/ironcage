@@ -14,6 +14,22 @@ This glossary is the ubiquitous language of the domain. [Vision](/vision) holds 
 
 The test: a trader, an engineer, or an accountant should guess any term's meaning without this glossary. The glossary disambiguates; it never decodes.
 
+How the core terms hang together — each is defined in the tables below:
+
+```mermaid
+flowchart TB
+    ALL["Allocator"] -->|"allocates capital to"| SL["Sleeve"]
+    SL -->|"defined by its"| MAN["Mandate — versioned"]
+    MAN -->|"holds"| CAP["Capabilities"]
+    CAP -->|"each in one of four"| SC["Safety classes"]
+    CAP -->|"judged by a"| SCD["Scorecard, against the<br/>no-AI baseline"]
+    SL -->|"constrained by the"| CAGE["Cage — sleeve limits,<br/>and the system cage above all"]
+    SL -->|"emits"| OI["Order intents"]
+    OI -->|"recorded in the"| BL["Blotter"]
+    SL -->|"proves itself in"| DR["Dry run"]
+    DR -->|"evidence lands in the"| TR["Trial report"]
+```
+
 ## Capital
 
 | Term          | Meaning                                                                                                                                                                                                                                  | Avoid                                                                |
