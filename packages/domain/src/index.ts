@@ -4,6 +4,7 @@ export * from "./cage/reservation";
 export * from "./feed/event";
 export * from "./governance/ceremony";
 export * from "./money/account";
+export * from "./money/block";
 export * from "./money/category";
 export * from "./money/ids";
 export * from "./money/import";
