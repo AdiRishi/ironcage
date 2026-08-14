@@ -12,6 +12,7 @@ import {
   getBankCoverageRpc,
   getCategorizationRulesRpc,
   getImportHistoryRpc,
+  getMoneyAnalysisRpc,
   getReviewQueueRpc,
   getTransferMatchesRpc,
   listCategoriesRpc,
@@ -37,4 +38,5 @@ export const AppRpcs = RpcGroup.make(
   getReviewQueueRpc,
   getTransferMatchesRpc,
   decideTransferMatchRpc,
+  getMoneyAnalysisRpc,
 );

@@ -12,6 +12,7 @@ import { DurableObject, WorkerEntrypoint } from "cloudflare:workers";
 import { Effect, Schema } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 
+import { getMoneyAnalysis } from "./money/analysis";
 import { sha256Hex } from "./money/bytes";
 import {
   categorizeTransactions,
@@ -98,6 +99,7 @@ const appSurface = HttpRouter.toWebHandler(
       getReviewQueue: () => withMoney(() => getReviewQueue()),
       getTransferMatches: () => withMoney(() => getTransferMatches()),
       decideTransferMatch: (payload) => idempotently(payload, decideTransferMatch),
+      getMoneyAnalysis: () => withMoney(() => getMoneyAnalysis()),
     }),
   ),
 );

@@ -314,6 +314,77 @@ export const getReviewQueueRpc = RpcModule.make("getReviewQueue", {
   error: ReadError,
 });
 
+export const MonthCategoryLine = Schema.Struct({
+  categoryId: CategoryId,
+  name: Schema.String,
+  kind: CategoryKind,
+  /** Net spend for expense categories (refunds reduce it), income for income. */
+  amount: Aud,
+});
+export type MonthCategoryLine = typeof MonthCategoryLine.Type;
+
+export const MonthAnalysis = Schema.Struct({
+  month: Schema.String,
+  complete: Schema.Boolean,
+  income: Aud,
+  netSpend: Aud,
+  /** `(income − net spend) / income` to four places; null unless income > 0. */
+  savingsRate: Schema.NullOr(Schema.String),
+  /** Requires the three preceding calendar months complete; never shortened. */
+  trailingThreeMonthNetSpend: Schema.NullOr(Aud),
+  categories: Schema.Array(MonthCategoryLine),
+});
+export type MonthAnalysis = typeof MonthAnalysis.Type;
+
+export const RecurringCharge = Schema.Struct({
+  payee: Schema.String,
+  cadenceDays: Schema.Int,
+  occurrences: Schema.Int,
+  medianAmount: Aud,
+  annualizedAmount: Aud,
+  lastSeen: CalendarDate,
+  priceChange: Schema.NullOr(Schema.Struct({ from: Aud, to: Aud, on: CalendarDate })),
+});
+export type RecurringCharge = typeof RecurringCharge.Type;
+
+export const SpendingAnomaly = Schema.Struct({
+  rule: Schema.Literals(["large_expense", "new_payee", "category_spike"]),
+  month: Schema.String,
+  subject: Schema.String,
+  amount: Schema.NullOr(Aud),
+  detail: Schema.String,
+});
+export type SpendingAnomaly = typeof SpendingAnomaly.Type;
+
+export const SavingsSuggestion = Schema.Struct({
+  kind: Schema.Literals(["steady_charge", "price_rise"]),
+  payee: Schema.String,
+  /** For a price rise, the rise annualised — never the charge's annual spend. */
+  annualAmount: Aud,
+  detail: Schema.String,
+  transactionIds: Schema.Array(BankTransactionId),
+  dataThrough: CalendarDate,
+});
+export type SavingsSuggestion = typeof SavingsSuggestion.Type;
+
+export const MoneyAnalysis = Schema.Struct({
+  /** Only months with any coverage appear; incomplete ones are flagged, never zeroed. */
+  months: Schema.Array(MonthAnalysis),
+  recurring: Schema.Array(RecurringCharge),
+  anomalies: Schema.Array(SpendingAnomaly),
+  suggestions: Schema.Array(SavingsSuggestion),
+  /** Set when a required-account gap makes suggestions unavailable. */
+  suggestionsUnavailable: Schema.NullOr(Schema.String),
+  completeMonths: Schema.Array(Schema.String),
+  dataThrough: Schema.NullOr(CalendarDate),
+});
+export type MoneyAnalysis = typeof MoneyAnalysis.Type;
+
+export const getMoneyAnalysisRpc = RpcModule.make("getMoneyAnalysis", {
+  success: MoneyAnalysis,
+  error: ReadError,
+});
+
 export const TransferLeg = Schema.Struct({
   transactionId: BankTransactionId,
   accountId: BankAccountId,

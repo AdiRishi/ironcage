@@ -12,7 +12,7 @@ import { Effect } from "effect";
 import { mintId } from "../ids";
 import { runIdempotentMutation } from "../persistence/app-requests";
 import { persistenceToBoundary } from "../persistence/error";
-import { Postgres } from "../persistence/postgres";
+import { Postgres, type SqlExecutor } from "../persistence/postgres";
 import { completeMonths, coverageGaps, mergeSpans, monthsBetween } from "./coverage";
 import {
   insertAccount,
@@ -98,59 +98,71 @@ export const getBankCoverage = (): Effect.Effect<BankCoverage, NotFound | Intern
 
     return yield* postgres.readTransaction((sql) =>
       Effect.gen(function* () {
-        const accounts = yield* listAccounts(sql);
-        const perAccount = yield* Effect.forEach(accounts, (account) =>
-          Effect.map(loadCoverageSpans(sql, account.id), (spans) => {
-            const covered = mergeSpans(spans);
-            const gaps =
-              covered.length === 0
-                ? []
-                : coverageGaps(covered, {
-                    start: covered[0]!.start,
-                    end: covered[covered.length - 1]!.end,
-                  });
-            return { account, covered, gaps };
-          }),
-        );
-
-        const required = perAccount.filter(({ account }) => account.required);
-        const bounds = required.flatMap(({ covered }) =>
-          covered.length === 0 ? [] : [covered[0]!.start, covered[covered.length - 1]!.end],
-        );
-        const anyUncovered = required.some(({ covered }) => covered.length === 0);
-        const months =
-          required.length === 0 || anyUncovered || bounds.length === 0
-            ? new Set<string>()
-            : completeMonths(
-                required.map(({ account, covered }) => ({
-                  merged: covered,
-                  life: { openedOn: account.openedOn, closedOn: account.closedOn },
-                })),
-                monthsBetween(
-                  bounds.reduce((a, b) => (a < b ? a : b)),
-                  bounds.reduce((a, b) => (a > b ? a : b)),
-                ),
-              );
-
-        const ends = required.map(({ covered }) => covered[covered.length - 1]?.end);
-        const dataThrough =
-          ends.length === 0 || ends.some((end) => end === undefined)
-            ? null
-            : ends.reduce<CalendarDate>((a, b) => (a < b! ? a : b!), "9999-12-31" as CalendarDate);
+        const summary = yield* loadCoverageSummary(sql);
 
         return {
-          accounts: perAccount.map(({ account, covered, gaps }) => ({
+          accounts: summary.perAccount.map(({ account, covered, gaps }) => ({
             account: summarize(account),
             covered,
             gaps,
           })),
-          completeMonths: [...months].sort(),
+          completeMonths: summary.completeMonths,
           freshestImportAt: yield* latestConfirmedAt(sql),
-          dataThrough,
+          dataThrough: summary.dataThrough,
         };
       }),
     );
   }).pipe(persistenceToBoundary);
+
+/**
+ * The whole-of-Money coverage view: per-account merged spans and gaps, the
+ * complete-month intersection across required accounts, and the honest
+ * data-through date (the latest day every required account covers).
+ */
+export const loadCoverageSummary = (sql: SqlExecutor) =>
+  Effect.gen(function* () {
+    const accounts = yield* listAccounts(sql);
+    const perAccount = yield* Effect.forEach(accounts, (account) =>
+      Effect.map(loadCoverageSpans(sql, account.id), (spans) => {
+        const covered = mergeSpans(spans);
+        const gaps =
+          covered.length === 0
+            ? []
+            : coverageGaps(covered, {
+                start: covered[0]!.start,
+                end: covered[covered.length - 1]!.end,
+              });
+        return { account, covered, gaps };
+      }),
+    );
+
+    const required = perAccount.filter(({ account }) => account.required);
+    const bounds = required.flatMap(({ covered }) =>
+      covered.length === 0 ? [] : [covered[0]!.start, covered[covered.length - 1]!.end],
+    );
+    const anyUncovered = required.some(({ covered }) => covered.length === 0);
+    const months =
+      required.length === 0 || anyUncovered || bounds.length === 0
+        ? new Set<string>()
+        : completeMonths(
+            required.map(({ account, covered }) => ({
+              merged: covered,
+              life: { openedOn: account.openedOn, closedOn: account.closedOn },
+            })),
+            monthsBetween(
+              bounds.reduce((a, b) => (a < b ? a : b)),
+              bounds.reduce((a, b) => (a > b ? a : b)),
+            ),
+          );
+
+    const ends = required.map(({ covered }) => covered[covered.length - 1]?.end);
+    const dataThrough =
+      ends.length === 0 || ends.some((end) => end === undefined)
+        ? null
+        : ends.reduce<CalendarDate>((a, b) => (a < b! ? a : b!), "9999-12-31" as CalendarDate);
+
+    return { perAccount, completeMonths: [...months].sort(), dataThrough };
+  });
 
 export const getImportHistory = (): Effect.Effect<
   readonly ImportHistoryEntry[],
