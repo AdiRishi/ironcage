@@ -20,35 +20,25 @@ const optionalSecret = (name: string) =>
     Config.map(Option.filter((value) => Redacted.value(value).length > 0)),
   );
 
+const coreSecretNames = [
+  "KRAKEN_KEY",
+  "KRAKEN_SECRET",
+  "KRAKEN_EXPORT_KEY",
+  "KRAKEN_EXPORT_SECRET",
+  "ALPACA_KEY",
+  "ALPACA_SECRET",
+  "EMAIL_KEY",
+] as const satisfies ReadonlyArray<keyof CoreSecrets>;
+
 const coreSecrets = Effect.gen(function* () {
-  const configured = yield* Effect.all({
-    KRAKEN_KEY: optionalSecret("KRAKEN_KEY"),
-    KRAKEN_SECRET: optionalSecret("KRAKEN_SECRET"),
-    KRAKEN_EXPORT_KEY: optionalSecret("KRAKEN_EXPORT_KEY"),
-    KRAKEN_EXPORT_SECRET: optionalSecret("KRAKEN_EXPORT_SECRET"),
-    ALPACA_KEY: optionalSecret("ALPACA_KEY"),
-    ALPACA_SECRET: optionalSecret("ALPACA_SECRET"),
-    EMAIL_KEY: optionalSecret("EMAIL_KEY"),
-  });
   const secrets: {
     -readonly [Key in keyof CoreSecrets]: CoreSecrets[Key];
   } = {};
 
-  if (Option.isSome(configured.KRAKEN_KEY)) secrets.KRAKEN_KEY = configured.KRAKEN_KEY.value;
-  if (Option.isSome(configured.KRAKEN_SECRET)) {
-    secrets.KRAKEN_SECRET = configured.KRAKEN_SECRET.value;
+  for (const name of coreSecretNames) {
+    const value = yield* optionalSecret(name);
+    if (Option.isSome(value)) secrets[name] = value.value;
   }
-  if (Option.isSome(configured.KRAKEN_EXPORT_KEY)) {
-    secrets.KRAKEN_EXPORT_KEY = configured.KRAKEN_EXPORT_KEY.value;
-  }
-  if (Option.isSome(configured.KRAKEN_EXPORT_SECRET)) {
-    secrets.KRAKEN_EXPORT_SECRET = configured.KRAKEN_EXPORT_SECRET.value;
-  }
-  if (Option.isSome(configured.ALPACA_KEY)) secrets.ALPACA_KEY = configured.ALPACA_KEY.value;
-  if (Option.isSome(configured.ALPACA_SECRET)) {
-    secrets.ALPACA_SECRET = configured.ALPACA_SECRET.value;
-  }
-  if (Option.isSome(configured.EMAIL_KEY)) secrets.EMAIL_KEY = configured.EMAIL_KEY.value;
 
   return secrets;
 });
