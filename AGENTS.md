@@ -35,15 +35,19 @@ around it are stricter than the CLI's defaults.
 
 ## Cloudflare
 
-| Binding           | Resource                               | Held by           |
-| ----------------- | -------------------------------------- | ----------------- |
-| `DB`              | Hyperdrive `ironcage-without-cache`    | `ironcage-core`   |
-| `DB_CACHED`       | Hyperdrive `ironcage-with-cache`       | `ironcage-core`   |
-| `BLOBS`           | R2 `ironcage-private`                  | `ironcage-core`   |
-| `COMPUTE`         | Durable Object `BacktestRunner`        | `ironcage-core`   |
-| `AGENTS`          | `ironcage-agents`, dispatch entrypoint | `ironcage-core`   |
-| `CORE`            | `ironcage-core`, agent-read entrypoint | `ironcage-agents` |
-| `CORE` / `AGENTS` | operator and conversation entrypoints  | `ironcage-app`    |
+| Binding            | Resource                               | Held by           |
+| ------------------ | -------------------------------------- | ----------------- |
+| `DB`               | Hyperdrive `ironcage-without-cache`    | `ironcage-core`   |
+| `DB_CACHED`        | Hyperdrive `ironcage-with-cache`       | `ironcage-core`   |
+| `BLOBS`            | R2 `ironcage-private`                  | `ironcage-core`   |
+| `COMPUTE`          | Durable Object `BacktestRunner`        | `ironcage-core`   |
+| `AGENTS`           | `ironcage-agents`, dispatch entrypoint | `ironcage-core`   |
+| `CORE`             | `ironcage-core`, agent-read entrypoint | `ironcage-agents` |
+| `CORE` / `AGENTS`  | operator and conversation entrypoints  | `ironcage-app`    |
+| `DECISION_RECORDS` | Queue producer                         | `ironcage-agents` |
+| Queue consumer     | `decision-records`, batch size one     | `ironcage-core`   |
+| `FLAGS`            | Flagship kill-switch app               | core and agents   |
+| `AI_GATEWAY`       | authenticated AI Gateway               | `ironcage-agents` |
 
 Account: `Adishwar Rishi (Personal)`, `34c911069f69b7cc1f38573958c3db45`.
 
@@ -53,21 +57,21 @@ first. Reading configuration does not.
 
 ## Local development
 
-`pnpm dev` starts all four Workers with the local dev registry resolving every
-service binding.
+`pnpm dev` runs the Alchemy development stack. It starts all four Workers and
+resolves their service, Durable Object, Workflow, Queue, R2, Hyperdrive,
+Flagship, and AI Gateway bindings from the same Effect program used for
+production.
 
-There is no long-lived local Postgres. `wrangler dev` connects straight to the
-PlanetScale `dev` branch through
-`CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB` and `..._DB_CACHED` in
-`apps/core/.env`. Those are Wrangler's own variables rather than Worker
-bindings, so they belong in `.env` — Wrangler does not read `.dev.vars` for
-them. The connection reaches the database directly, exercising neither
-Hyperdrive's pooling nor its caching; a deployed dev Worker is what would prove
-those. Database integration tests start disposable Postgres containers and
-never use either PlanetScale branch.
+There is no long-lived local Postgres. Alchemy connects the local Hyperdrive
+bindings straight to the PlanetScale `dev` branch through managed development
+roles. That direct path does not exercise deployed Hyperdrive pooling or
+caching; a deployed dev Worker is what proves those. Database integration tests
+start disposable Postgres containers and never use either PlanetScale branch.
 
-R2 is simulated locally in `.wrangler/state` and does not touch
-`ironcage-private` unless the binding is marked `"remote": true`.
+R2 and Queues are simulated locally under `.alchemy/`. The development AI
+Gateway and Flagship app are separate remote resources. Infrastructure
+configuration and secrets come from `infra/.env` or `alchemy login`; production
+credentials never belong in that file.
 
 ## Vendored Repositories
 

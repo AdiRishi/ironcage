@@ -6,7 +6,7 @@ import { usePostgresTestDatabase } from "./postgres-test-database";
 
 const database = usePostgresTestDatabase();
 
-it.effect("applies every repository migration to an empty Postgres 18 database", () =>
+it.effect("builds the repository schema in an empty Postgres 18 database", () =>
   Effect.gen(function* () {
     const postgres = yield* Postgres;
     const tables = yield* postgres.query(
@@ -16,20 +16,11 @@ it.effect("applies every repository migration to an empty Postgres 18 database",
         WHERE table_schema = 'public'
         ORDER BY table_name`,
     );
-    const ledger = yield* postgres.query(
-      "read migration ledger",
-      "SELECT id, name, outcome FROM schema_migrations ORDER BY id",
-    );
 
     expect(tables).toEqual([
       { tableName: "app_requests" },
-      { tableName: "schema_migrations" },
       { tableName: "sleeve_transitions" },
       { tableName: "sleeves" },
-    ]);
-    expect(ledger).toEqual([
-      { id: 1, name: "sleeves", outcome: "applied" },
-      { id: 2, name: "app_requests", outcome: "applied" },
     ]);
   }).pipe(Effect.provide(Postgres.layerForRequest(database.connectionString()))),
 );

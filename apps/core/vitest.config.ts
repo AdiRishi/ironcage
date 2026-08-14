@@ -18,7 +18,7 @@ const fixtureBytes = {
   async load(id: string) {
     if (!id.endsWith(suffix)) return null;
 
-    const base64 = (await readFile(id.slice(0, -suffix.length))).toString("base64");
+    const base64 = await readFile(id.slice(0, -suffix.length), "base64");
 
     return `export default Uint8Array.from(atob(${JSON.stringify(base64)}), (character) => character.charCodeAt(0));`;
   },
@@ -47,20 +47,27 @@ const stub = (name: string) => ({
 });
 
 // Unreachable on purpose, and never connected to: workerd refuses to start a
-// Hyperdrive binding without one. It goes here rather than in the Wrangler
-// config so that `pnpm dev` still resolves the real development branch from
-// `.dev.vars`. A test that needs the database belongs in the suite that runs
-// against a real branch.
+// Hyperdrive binding without one. A test that needs the database belongs in
+// the integration suite backed by Testcontainers.
 const unreachable = "postgres://ironcage:unreachable@127.0.0.1:5432/ironcage";
-process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB ??= unreachable;
-process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB_CACHED ??= unreachable;
 
 export default defineConfig({
   plugins: [
     fixtureBytes,
     cloudflareTest({
-      wrangler: { configPath: "./wrangler.jsonc" },
+      main: "./src/index.ts",
       miniflare: {
+        name: "ironcage-core",
+        compatibilityDate: "2026-08-01",
+        compatibilityFlags: ["nodejs_compat"],
+        serviceBindings: {
+          AGENTS: { name: "ironcage-agents", entrypoint: "DispatchApiEntrypoint" },
+        },
+        durableObjects: {
+          COMPUTE: { className: "BacktestRunner", scriptName: "ironcage-compute" },
+        },
+        hyperdrives: { DB: unreachable, DB_CACHED: unreachable },
+        r2Buckets: ["BLOBS"],
         workers: [
           stub("ironcage-agents"),
           { ...stub("ironcage-compute"), durableObjects: { BACKTEST: "BacktestRunner" } },

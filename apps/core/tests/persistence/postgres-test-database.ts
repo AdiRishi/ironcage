@@ -1,16 +1,11 @@
-import { execFile } from "node:child_process";
-import { URL, fileURLToPath } from "node:url";
-import { promisify } from "node:util";
+import { readdir, readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import pg from "pg";
 import { afterAll, beforeAll, beforeEach } from "vitest";
 
-const execFileAsync = promisify(execFile);
-const migrationEntrypoint = fileURLToPath(
-  new URL("../../../../scripts/migrate.ts", import.meta.url),
-);
-const repositoryRoot = fileURLToPath(new URL("../../../../", import.meta.url));
+const migrationsDirectory = resolve(import.meta.dirname, "../../../../migrations");
 
 const resetSchema = async (connectionString: string) => {
   const client = new pg.Client({ connectionString });
@@ -24,11 +19,30 @@ const resetSchema = async (connectionString: string) => {
   }
 };
 
-const applyMigrations = (connectionString: string) =>
-  execFileAsync(process.execPath, [migrationEntrypoint, "--apply"], {
-    cwd: repositoryRoot,
-    env: { ...process.env, DATABASE_URL: connectionString },
-  });
+const applySchema = async (connectionString: string) => {
+  const client = new pg.Client({ connectionString });
+  const migrations = (await readdir(migrationsDirectory))
+    .filter((file) => file.endsWith(".sql"))
+    .sort();
+
+  await client.connect();
+
+  try {
+    for (const migration of migrations) {
+      const sql = await readFile(`${migrationsDirectory}/${migration}`, "utf8");
+      await client.query("BEGIN");
+      try {
+        await client.query(sql);
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
+    }
+  } finally {
+    await client.end();
+  }
+};
 
 export const usePostgresTestDatabase = () => {
   let container: StartedPostgreSqlContainer | undefined;
@@ -51,7 +65,7 @@ export const usePostgresTestDatabase = () => {
     // Workers storage isolation cannot reach an external database, so the
     // Postgres test boundary owns destruction and migration explicitly.
     await resetSchema(url);
-    await applyMigrations(url);
+    await applySchema(url);
   });
 
   afterAll(async () => {

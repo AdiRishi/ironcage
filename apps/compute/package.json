@@ -9,13 +9,9 @@
     }
   },
   "scripts": {
-    "build": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler deploy --dry-run --outdir dist",
-    "cf-typegen": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types",
-    "cf-typegen:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --check",
-    "deploy": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler deploy",
-    "dev": "wrangler dev",
-    "test": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false vitest run",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tests"
+    "build": "tsc --noEmit -p tsconfig.check.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.check.json && tsc --noEmit -p tests"
   },
   "dependencies": {
     "@ironcage/contracts": "workspace:*",
@@ -23,10 +19,10 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "catalog:",
+    "@cloudflare/workers-types": "catalog:",
     "@ironcage/tsconfig": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:",
-    "wrangler": "catalog:"
+    "vitest": "catalog:"
   }
 }

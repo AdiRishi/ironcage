@@ -20,7 +20,7 @@ The client adapter supplies the service binding's bound `fetch` as Effect's `Fet
 
 On the server, the `WorkerEntrypoint` passes its `Env` and `ExecutionContext` into the Effect context for that invocation. The RPC route and handler context are constructed inside the HTTP request scope, so a handler may yield the request service without any request-specific value living at module scope. Immutable Schemas, groups, and route definitions stay module-scoped and are reused.
 
-The service-binding conformance test runs the production core, agents, and compute Wrangler configurations in Cloudflare's test harness. It proves the real core → agents named-entrypoint call and the core → compute Durable Object binding, rather than replacing those seams with in-process functions. Requests and responses are schema-validated at both ends over ordinary HTTP.
+The service-binding conformance test runs inline core, agents, and compute configurations in Cloudflare's test harness. Those bindings mirror the Alchemy stack and prove the real core → agents named-entrypoint call and the core → compute Durable Object binding, rather than replacing those seams with in-process functions. Requests and responses are schema-validated at both ends over ordinary HTTP.
 
 Native Workers RPC must not be used between Workers. RPC calls ignore Smart Placement, and core's latency budget is owned by its distance to Postgres. Inside core, Durable Object stubs keep their native method calls. A DO call goes to wherever the object lives, so placement is irrelevant there.
 

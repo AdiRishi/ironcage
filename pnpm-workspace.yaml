@@ -1,5 +1,6 @@
 packages:
   - apps/*
+  - infra
   - packages/*
   - scripts
   - tooling/*
@@ -11,6 +12,9 @@ packages:
 # the Effect source tree to vendor into `.repos/effect` — so the vendored
 # reference and the version we compile against cannot drift apart.
 catalog:
+  "@cloudflare/workers-types": 5.20260813.1
+  "@distilled.cloud/cloudflare": 1.0.0-rc.4
+  alchemy: 2.0.0-beta.72
   "@base-ui/react": ^1.7.0
   "@cloudflare/vitest-pool-workers": ^0.20.3
   "@effect/vitest": 4.0.0-beta.105
@@ -43,7 +47,6 @@ catalog:
   effect: 4.0.0-beta.105
   jsdom: ^30.0.1
   lucide-react: ^1.30.0
-  nitro: ^3.0.260610-beta
   oxfmt: ^0.62.0
   pg: ^8.22.0
   "@types/pg": ^8.16.0
@@ -74,3 +77,11 @@ allowBuilds:
   workerd: true
 
 minimumReleaseAge: 1440
+
+overrides:
+  "@effect/sql-d1": 4.0.0-beta.105
+  "@effect/sql-sqlite-do": 4.0.0-beta.105
+
+peerDependencyRules:
+  allowedVersions:
+    "capnp-es@0.0.14>typescript": "7"

@@ -4,15 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build && CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler deploy --dry-run",
-    "cf-typegen": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types",
-    "cf-typegen:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --check",
-    "deploy": "vite build && CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler deploy",
-    "dev": "vite dev --port 8080",
+    "build": "vite build",
     "preview": "vite preview",
-    "preview:worker": "wrangler dev",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tests"
+    "typecheck": "tsc --noEmit -p tsconfig.check.json && tsc --noEmit -p tests"
   },
   "dependencies": {
     "@ironcage/contracts": "workspace:*",
@@ -28,12 +23,12 @@
     "@tanstack/router-plugin": "catalog:",
     "effect": "catalog:",
     "lucide-react": "catalog:",
-    "nitro": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "tailwindcss": "catalog:"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "catalog:",
     "@ironcage/tsconfig": "workspace:*",
     "@tanstack/devtools-vite": "catalog:",
     "@testing-library/dom": "catalog:",
@@ -48,7 +43,6 @@
     "shadcn": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vitest": "catalog:",
-    "wrangler": "catalog:"
+    "vitest": "catalog:"
   }
 }

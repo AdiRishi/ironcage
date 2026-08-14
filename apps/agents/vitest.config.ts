@@ -18,8 +18,14 @@ const refusesEverything = `
 export default defineConfig({
   plugins: [
     cloudflareTest({
-      wrangler: { configPath: "./wrangler.jsonc" },
+      main: "./src/index.ts",
       miniflare: {
+        name: "ironcage-agents",
+        compatibilityDate: "2026-08-01",
+        compatibilityFlags: ["nodejs_compat"],
+        serviceBindings: {
+          CORE: { name: "ironcage-core", entrypoint: "AgentReadApiEntrypoint" },
+        },
         workers: [
           {
             name: "ironcage-core",
