@@ -30,5 +30,11 @@ export const decodeStored = <A>(
   entity: string,
 ): Effect.Effect<A, Internal> =>
   Schema.decodeUnknownEffect(schema)(value).pipe(
-    Effect.mapError(() => new Internal({ detail: `stored ${entity} failed schema decoding` })),
+    Effect.catch((error) => {
+      const detail = `stored ${entity} failed schema decoding`;
+
+      return Effect.logError(detail, error).pipe(
+        Effect.andThen(Effect.fail(new Internal({ detail }))),
+      );
+    }),
   );
