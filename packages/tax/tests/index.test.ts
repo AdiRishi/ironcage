@@ -1,5 +1,4 @@
-import { it } from "@effect/vitest";
-import { expect } from "vitest";
+import { expect, it } from "vitest";
 
 import { PACKAGE_NAME } from "../src/index";
 

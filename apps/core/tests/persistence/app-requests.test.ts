@@ -1,7 +1,7 @@
+import { describe, expect, expectTypeOf, it } from "@effect/vitest";
 import { Conflict, Internal } from "@ironcage/contracts/schema";
 import { RequestId, Sha256 } from "@ironcage/domain";
 import { Effect, Schema } from "effect";
-import { describe, expect, expectTypeOf, test } from "vitest";
 
 import {
   replayRequest,
@@ -60,45 +60,47 @@ const memoryPostgres = () => {
 };
 
 describe("app request replay", () => {
-  test("applies a new mutation once, then replays its recorded response", async () => {
-    let applications = 0;
-    const mutation = runIdempotentMutation(
-      { requestId, operation: stored.operation, payloadHash, response },
-      () =>
-        Effect.sync(() => {
-          applications += 1;
-          return { accepted: true };
-        }),
-    ).pipe(Effect.provideService(Postgres, memoryPostgres()));
-    const databaseMutation = runIdempotentMutation(
-      { requestId, operation: stored.operation, payloadHash, response },
-      (sql) => sql.query("apply mutation", "SELECT true").pipe(Effect.as({ accepted: true })),
-    );
+  it.effect("applies a new mutation once, then replays its recorded response", () =>
+    Effect.gen(function* () {
+      let applications = 0;
+      const mutation = runIdempotentMutation(
+        { requestId, operation: stored.operation, payloadHash, response },
+        () =>
+          Effect.sync(() => {
+            applications += 1;
+            return { accepted: true };
+          }),
+      ).pipe(Effect.provideService(Postgres, memoryPostgres()));
+      const databaseMutation = runIdempotentMutation(
+        { requestId, operation: stored.operation, payloadHash, response },
+        (sql) => sql.query("apply mutation", "SELECT true").pipe(Effect.as({ accepted: true })),
+      );
 
-    expectTypeOf<Effect.Error<typeof mutation>>().toEqualTypeOf<Conflict | Internal>();
-    expectTypeOf<Effect.Error<typeof databaseMutation>>().toEqualTypeOf<Conflict | Internal>();
-    await expect(Effect.runPromise(mutation)).resolves.toEqual({ accepted: true });
-    await expect(Effect.runPromise(mutation)).resolves.toEqual({ accepted: true });
-    expect(applications).toBe(1);
-  });
+      expectTypeOf<Effect.Error<typeof mutation>>().toEqualTypeOf<Conflict | Internal>();
+      expectTypeOf<Effect.Error<typeof databaseMutation>>().toEqualTypeOf<Conflict | Internal>();
+      expect(yield* mutation).toEqual({ accepted: true });
+      expect(yield* mutation).toEqual({ accepted: true });
+      expect(applications).toBe(1);
+    }),
+  );
 
-  test("returns the recorded response for the same request", async () => {
-    await expect(
-      Effect.runPromise(
-        replayRequest({
-          previous: stored,
-          requestId,
-          operation: stored.operation,
-          payloadHash,
-          response,
-        }),
-      ),
-    ).resolves.toEqual({ accepted: true });
-  });
+  it.effect("returns the recorded response for the same request", () =>
+    Effect.gen(function* () {
+      const result = yield* replayRequest({
+        previous: stored,
+        requestId,
+        operation: stored.operation,
+        payloadHash,
+        response,
+      });
 
-  test("rejects a request ID reused for different content", async () => {
-    const error = await Effect.runPromise(
-      Effect.flip(
+      expect(result).toEqual({ accepted: true });
+    }),
+  );
+
+  it.effect("rejects a request ID reused for different content", () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(
         replayRequest({
           previous: stored,
           requestId,
@@ -106,17 +108,17 @@ describe("app request replay", () => {
           payloadHash: Schema.decodeUnknownSync(Sha256)("b".repeat(64)),
           response,
         }),
-      ),
-    );
+      );
 
-    expect(error).toBeInstanceOf(Conflict);
-    if (!(error instanceof Conflict)) throw error;
-    expect(error.reason).toBe("RequestIdCollision");
-  });
+      expect(error).toBeInstanceOf(Conflict);
+      if (!(error instanceof Conflict)) throw error;
+      expect(error.reason).toBe("RequestIdCollision");
+    }),
+  );
 
-  test("fails loudly when a recorded response no longer matches its schema", async () => {
-    const error = await Effect.runPromise(
-      Effect.flip(
+  it.effect("fails loudly when a recorded response no longer matches its schema", () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(
         replayRequest({
           previous: { ...stored, response: { accepted: "yes" } },
           requestId,
@@ -124,9 +126,9 @@ describe("app request replay", () => {
           payloadHash,
           response,
         }),
-      ),
-    );
+      );
 
-    expect(error).toBeInstanceOf(Internal);
-  });
+      expect(error).toBeInstanceOf(Internal);
+    }),
+  );
 });

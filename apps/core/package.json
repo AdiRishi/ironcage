@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "catalog:",
+    "@effect/vitest": "catalog:",
     "@ironcage/compute": "workspace:*",
     "@ironcage/tsconfig": "workspace:*",
     "@types/node": "catalog:",

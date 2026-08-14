@@ -186,6 +186,9 @@ importers:
       '@cloudflare/vitest-pool-workers':
         specifier: 'catalog:'
         version: 0.20.3(@vitest/runner@4.1.10)(@vitest/snapshot@4.1.10)(vitest@4.1.10(@types/node@26.1.2)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
+      '@effect/vitest':
+        specifier: 'catalog:'
+        version: 4.0.0-beta.105(effect@4.0.0-beta.105)(vitest@4.1.10(@types/node@26.1.2)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
       '@ironcage/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
@@ -351,6 +354,9 @@ importers:
       '@cloudflare/vitest-pool-workers':
         specifier: 'catalog:'
         version: 0.20.3(@vitest/runner@4.1.10)(@vitest/snapshot@4.1.10)(vitest@4.1.10(@types/node@26.1.2)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
+      '@effect/vitest':
+        specifier: 'catalog:'
+        version: 4.0.0-beta.105(effect@4.0.0-beta.105)(vitest@4.1.10(@types/node@26.1.2)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
       '@ironcage/compute':
         specifier: workspace:*
         version: link:../compute
@@ -401,9 +407,6 @@ importers:
         specifier: 'catalog:'
         version: 4.0.0-beta.105
     devDependencies:
-      '@effect/vitest':
-        specifier: 'catalog:'
-        version: 4.0.0-beta.105(effect@4.0.0-beta.105)(vitest@4.1.10(@types/node@26.1.2)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
       '@ironcage/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
@@ -423,9 +426,6 @@ importers:
         specifier: 'catalog:'
         version: 4.0.0-beta.105
     devDependencies:
-      '@effect/vitest':
-        specifier: 'catalog:'
-        version: 4.0.0-beta.105(effect@4.0.0-beta.105)(vitest@4.1.10(@types/node@26.1.2)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
       '@ironcage/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
@@ -445,9 +445,6 @@ importers:
         specifier: 'catalog:'
         version: 4.0.0-beta.105
     devDependencies:
-      '@effect/vitest':
-        specifier: 'catalog:'
-        version: 4.0.0-beta.105(effect@4.0.0-beta.105)(vitest@4.1.10(@types/node@26.1.2)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
       '@ironcage/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
@@ -525,6 +522,9 @@ importers:
         specifier: 'catalog:'
         version: 2.9.0
     devDependencies:
+      '@effect/vitest':
+        specifier: 'catalog:'
+        version: 4.0.0-beta.105(effect@4.0.0-beta.105)(vitest@4.1.10(@types/node@26.1.2)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
       '@ironcage/tsconfig':
         specifier: workspace:*
         version: link:../tooling/tsconfig

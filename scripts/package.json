@@ -13,6 +13,7 @@
     "yaml": "catalog:"
   },
   "devDependencies": {
+    "@effect/vitest": "catalog:",
     "@ironcage/tsconfig": "workspace:*",
     "@types/node": "catalog:",
     "@types/pg": "catalog:",

@@ -1,5 +1,5 @@
+import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
-import { describe, expect, test } from "vitest";
 
 import { applyMigration, VerificationFailed } from "../../../lib/migrations/apply.ts";
 import { Database } from "../../../lib/migrations/database.ts";
@@ -62,40 +62,42 @@ const recording = (verificationAnswer: unknown) => {
 };
 
 describe("applyMigration", () => {
-  test("commits a migration only after its verification holds", async () => {
-    const { statements, layer, state } = recording(true);
+  it.effect("commits a migration only after its verification holds", () =>
+    Effect.gen(function* () {
+      const { statements, layer, state } = recording(true);
 
-    await Effect.runPromise(applyMigration(migration).pipe(Effect.provide(layer)));
+      yield* applyMigration(migration).pipe(Effect.provide(layer));
 
-    expect(statements).toStrictEqual([
-      "INSERT INTO schema_migrations",
-      "BEGIN",
-      "CREATE TABLE sleeves ();",
-      "SELECT true",
-      "COMMIT",
-      "UPDATE schema_migrations SET outcome = $1, finished_at = now() WHERE id = $2",
-    ]);
-    expect(state()).toStrictEqual({
-      committedSchema: true,
-      ledgerOutcome: "applied",
-      transactionOpen: false,
-    });
-  });
+      expect(statements).toStrictEqual([
+        "INSERT INTO schema_migrations",
+        "BEGIN",
+        "CREATE TABLE sleeves ();",
+        "SELECT true",
+        "COMMIT",
+        "UPDATE schema_migrations SET outcome = $1, finished_at = now() WHERE id = $2",
+      ]);
+      expect(state()).toStrictEqual({
+        committedSchema: true,
+        ledgerOutcome: "applied",
+        transactionOpen: false,
+      });
+    }),
+  );
 
   // A migration whose verification does not hold has not done what it claimed,
   // and the ledger has to say so rather than reading as applied.
-  test("records a failure when the verification does not hold", async () => {
-    const { layer, state } = recording(false);
+  it.effect("records a failure when the verification does not hold", () =>
+    Effect.gen(function* () {
+      const { layer, state } = recording(false);
 
-    const error = await Effect.runPromise(
-      Effect.flip(applyMigration(migration).pipe(Effect.provide(layer))),
-    );
+      const error = yield* Effect.flip(applyMigration(migration).pipe(Effect.provide(layer)));
 
-    expect(error).toBeInstanceOf(VerificationFailed);
-    expect(state()).toStrictEqual({
-      committedSchema: false,
-      ledgerOutcome: "failed",
-      transactionOpen: false,
-    });
-  });
+      expect(error).toBeInstanceOf(VerificationFailed);
+      expect(state()).toStrictEqual({
+        committedSchema: false,
+        ledgerOutcome: "failed",
+        transactionOpen: false,
+      });
+    }),
+  );
 });
