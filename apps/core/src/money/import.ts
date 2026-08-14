@@ -71,6 +71,9 @@ const parserVersion = 1;
 
 export const statementProfileName = "cba-offset-statement-v1";
 
+/** How far a statement's printed date may drift from the structured lists. */
+const statementDateDriftDays = 3;
+
 export interface StatementExtraction {
   readonly markdown: string;
   readonly extractor: { readonly package: string; readonly version: string };
@@ -520,6 +523,19 @@ const computeStatement = Effect.fn("computeStatementImport")(function* (
   const coverageSpans = mergeSpans(yield* loadCoverageSpans(sql, account.id));
   const covered = (date: CalendarDate) =>
     coverageSpans.some((span) => span.start <= date && date <= span.end);
+  // Statement dates drift from the structured lists, so a row printed within
+  // the drift of a coverage edge can describe a movement posted just outside
+  // it. Running balances are the identity: an unmatched edge row is prior
+  // history, while an unmatched row deep inside coverage is a real
+  // inconsistency and blocks.
+  const nearCoverageEdge = (date: CalendarDate) =>
+    coverageSpans.some(
+      (span) =>
+        (date >= addDays(span.start, -statementDateDriftDays) &&
+          date <= addDays(span.start, statementDateDriftDays)) ||
+        (date >= addDays(span.end, -statementDateDriftDays) &&
+          date <= addDays(span.end, statementDateDriftDays)),
+    );
 
   const claimed = new Set<BankTransactionId>();
   const matches: StatementMatch[] = [];
@@ -540,7 +556,7 @@ const computeStatement = Effect.fn("computeStatementImport")(function* (
       matches.push({ row, transactionId: match.id });
       continue;
     }
-    if (covered(row.postedDate)) {
+    if (covered(row.postedDate) && !nearCoverageEdge(row.postedDate)) {
       return yield* blocked(
         "StatementOverlapMismatch",
         `row ${row.ordinal + 1} (${row.postedDate}) lies inside complete structured coverage but matches nothing`,
@@ -550,12 +566,14 @@ const computeStatement = Effect.fn("computeStatementImport")(function* (
   }
 
   // The reverse direction: every structured transaction inside the shared
-  // window must be claimed, or the statement is missing an overlap row.
+  // window must be claimed, or the statement is missing an overlap row. The
+  // same drift applies — a row posted near the period's edge can print on
+  // the neighbouring statement instead.
   for (const transaction of stored) {
     if (transaction.rowBalance === null || claimed.has(transaction.id)) continue;
     if (
-      transaction.postedDate >= statement.period.start &&
-      transaction.postedDate <= statement.period.end &&
+      transaction.postedDate >= addDays(statement.period.start, statementDateDriftDays) &&
+      transaction.postedDate <= addDays(statement.period.end, -statementDateDriftDays) &&
       covered(transaction.postedDate)
     ) {
       return yield* blocked(

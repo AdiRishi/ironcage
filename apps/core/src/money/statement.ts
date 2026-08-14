@@ -113,17 +113,21 @@ const parseHeader = Effect.fn("parseStatementHeader")(function* (
     return -1;
   };
 
+  // The printed account number is exactly three groups — the split BSB and
+  // the account — and other long digit runs can follow it on the same line.
   const accountAt = find(["Account", "Number"]);
   if (accountAt < 0) return yield* fail("no account number");
   const digits: string[] = [];
   for (
     let index = accountAt + 2;
-    index < tokens.length && /^\d+$/.test(tokens[index]!);
+    index < tokens.length && digits.length < 3 && /^\d+$/.test(tokens[index]!);
     index += 1
   ) {
     digits.push(tokens[index]!);
   }
-  if (digits.length === 0) return yield* fail("account number carries no digits");
+  if (digits.length !== 3 || digits[0]!.length + digits[1]!.length !== 6) {
+    return yield* fail("account number is not a split BSB and account");
+  }
 
   const periodAt = find(["Statement", "Period"]);
   if (periodAt < 0) return yield* fail("no statement period");

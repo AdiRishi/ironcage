@@ -67,7 +67,7 @@ export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
   yield* Cloudflare.Queues.Consumer("DecisionRecordConsumer", {
     queueId: platform.decisionRecords.queueId,
     scriptName: core.workerName,
-    deadLetterQueue: platform.decisionRecordDeadLetters.name,
+    deadLetterQueue: platform.decisionRecordDeadLetters.queueName,
     settings: { batchSize: 1, maxRetries: 9 },
   });
   yield* Cloudflare.Queues.Consumer("DecisionRecordDeadLetterConsumer", {

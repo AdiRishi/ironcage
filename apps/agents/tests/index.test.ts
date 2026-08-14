@@ -7,28 +7,26 @@ import {
 } from "@ironcage/contracts/client";
 import { exports } from "cloudflare:workers";
 import { Effect } from "effect";
+import type { Rpc, RpcGroup } from "effect/unstable/rpc";
 
 import "../src/index";
 
-const ping = (
+const clientFor = <Rpcs extends Rpc.Any>(
   entrypoint: { fetch: (request: Request) => Promise<Response> },
-  group: typeof ConversationRpcs,
+  group: RpcGroup.RpcGroup<Rpcs>,
 ) =>
-  Effect.gen(function* () {
-    const client = yield* clientOverBinding(group, {
-      binding: {
-        fetch: (input, init) => entrypoint.fetch(new Request(input as RequestInfo, init)),
-      },
-      surface: "agents",
-      timeout: timeouts.appToAgents,
-    });
-
-    return yield* client.ping();
+  clientOverBinding(group, {
+    binding: {
+      fetch: (input, init) => entrypoint.fetch(new Request(input as RequestInfo, init)),
+    },
+    surface: "agents",
+    timeout: timeouts.appToAgents,
   });
 
 it.effect("the conversation surface identifies itself", () =>
   Effect.gen(function* () {
-    const result = yield* ping(exports.ConversationApiEntrypoint, ConversationRpcs);
+    const client = yield* clientFor(exports.ConversationApiEntrypoint, ConversationRpcs);
+    const result = yield* client.ping();
 
     expect(result).toMatchObject({
       worker: "ironcage-agents",
@@ -39,7 +37,8 @@ it.effect("the conversation surface identifies itself", () =>
 
 it.effect("the dispatch surface identifies itself", () =>
   Effect.gen(function* () {
-    const result = yield* ping(exports.DispatchApiEntrypoint, DispatchRpcs);
+    const client = yield* clientFor(exports.DispatchApiEntrypoint, DispatchRpcs);
+    const result = yield* client.ping();
 
     expect(result).toMatchObject({
       worker: "ironcage-agents",
