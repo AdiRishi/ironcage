@@ -8,12 +8,5 @@
     "verbatimModuleSyntax": false,
     "noEmit": true
   },
-  "include": [
-    "nitro.config.ts",
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "vite.config.ts",
-    "vitest.config.ts",
-    "worker-configuration.d.ts"
-  ]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "vitest.config.ts"]
 }

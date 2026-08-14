@@ -6,7 +6,7 @@ import {
   rpcHttpRoute,
   systemPingHandler,
 } from "@ironcage/contracts/server";
-import { WorkerEntrypoint } from "cloudflare:workers";
+import { DurableObject, WorkerEntrypoint, WorkflowEntrypoint } from "cloudflare:workers";
 import { Effect } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 
@@ -24,6 +24,30 @@ const appSurface = HttpRouter.toWebHandler(
 const agentSurface = HttpRouter.toWebHandler(
   rpcHttpRoute(AgentReadRpcs, AgentReadRpcs.toLayer({ ping: () => ping("AgentReadApi") })),
 );
+
+class Actor extends DurableObject<Env> {
+  async ping() {
+    return { worker, object: this.constructor.name };
+  }
+}
+
+export class SleeveActor extends Actor {}
+export class VenueActor extends Actor {}
+export class SystemCageActor extends Actor {}
+export class FeedActor extends Actor {}
+
+abstract class UnimplementedWorkflow extends WorkflowEntrypoint<Env, unknown> {
+  override async run(): Promise<never> {
+    throw new Error(`${this.constructor.name} has not been implemented`);
+  }
+}
+
+export class GatePipelineWorkflow extends UnimplementedWorkflow {}
+export class TaxSyncWorkflow extends UnimplementedWorkflow {}
+export class ReportWorkflow extends UnimplementedWorkflow {}
+export class MoneyCategorizationWorkflow extends UnimplementedWorkflow {}
+export class BackupWorkflow extends UnimplementedWorkflow {}
+export class RestoreTestWorkflow extends UnimplementedWorkflow {}
 
 // Two entrypoints rather than two paths on one: a service binding names the
 // entrypoint it targets, so the app cannot reach the agent surface and agents
@@ -70,5 +94,13 @@ export default class extends WorkerEntrypoint<Env> {
     const report = await Effect.runPromise(Effect.result(checkBindings(this.env)));
 
     return Response.json(report, { status: report._tag === "Success" ? 200 : 503 });
+  }
+
+  override queue(batch: MessageBatch<unknown>): void {
+    batch.retryAll();
+  }
+
+  override scheduled(): void {
+    console.warn("Scheduled infrastructure is ready; no scheduled jobs are registered yet");
   }
 }

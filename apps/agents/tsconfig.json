@@ -1,7 +1,7 @@
 {
   "extends": "@ironcage/tsconfig/base.json",
   "compilerOptions": {
-    "types": ["./worker-configuration.d.ts", "node"],
+    "types": ["node"],
     "noEmit": true
   },
   "include": ["src/**/*.ts", "vitest.config.ts"]

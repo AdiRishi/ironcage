@@ -116,7 +116,7 @@ The live feed push is deliberately not a pending effect. After commit, the origi
 
 Core binds the same database twice through Hyperdrive. `DB` has query caching disabled and is the default for all code. `DB_CACHED` has caching enabled (60-second max age, proposed) and is opt-in per call site, for staleness-tolerant analytics reads only: dashboard aggregates, equity curves, cost rollups, spending trends. The split exists because Hyperdrive's cache is never invalidated by writes; a cached read after a write can return the old value for up to 75 seconds. Uncached-as-default means forgetting the rule can only make a query slower, never wrong. Nothing in the engine or any cage path may depend on the cached binding, and the code enforces that structurally: the cached service's type is simply not available to those packages.
 
-Hyperdrive pools connections in transaction mode. Session state does not survive across statements. Code therefore uses no session-scoped `SET`, session advisory lock, or temporary table that must outlive a transaction. A migration lock or logical dump uses a direct connection instead ([Operations](./12-operations.md)).
+Hyperdrive pools connections in transaction mode. Session state does not survive across statements. Code therefore uses no session-scoped `SET`, session advisory lock, or temporary table that must outlive a transaction. Schema migrations and logical dumps use direct connections instead ([Operations](./12-operations.md)).
 
 Each binding has a proposed origin-connection target of 8. Cloudflare documents that value as a soft limit that Hyperdrive may exceed for resiliency. Capacity planning therefore reserves headroom above 16 across the two bindings and alerts on observed open and waiting connections. A deployed-dev load test closes this gate; arithmetic on the configured targets does not.
 
@@ -371,7 +371,7 @@ Raw external files are immutable once written, and nothing in R2 is the only rec
 
 ## Migrations
 
-Migrations are numbered SQL files run from CI under an advisory lock on a direct connection. They run before the whole-system release that needs them. [Operations](./12-operations.md) defines ordering, locking, and rollback.
+Migrations are numbered SQL files owned by the Alchemy PlanetScale resources. Alchemy creates a short-lived direct-connection role, applies each pending file transactionally before dependent infrastructure, records it in `__alchemy_migrations`, and removes the role. [Operations](./12-operations.md) defines release ordering and rollback compatibility.
 
 Data changes are additive first: new columns arrive nullable or defaulted. A destructive change can appear only in a later whole-system release, at least 7 days after all code stopped reading it. Every migration is reviewed like engine code because this schema carries every guarantee in this chapter.
 

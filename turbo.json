@@ -9,7 +9,19 @@
     },
     "build": {
       "dependsOn": ["^compile"],
-      "outputs": [".output/**", ".nitro/**", ".wrangler/deploy/**", "dist/**"]
+      "outputs": ["dist/**"]
+    },
+    "@ironcage/agents#build": {
+      "outputs": []
+    },
+    "@ironcage/compute#build": {
+      "outputs": []
+    },
+    "@ironcage/core#build": {
+      "outputs": []
+    },
+    "@ironcage/infra#build": {
+      "outputs": []
     },
     "dev": {
       "cache": false,
@@ -29,18 +41,6 @@
     "deploy": {
       "cache": false,
       "dependsOn": ["build"]
-    },
-    "preview:worker": {
-      "cache": false,
-      "persistent": true,
-      "dependsOn": ["build"]
-    },
-    "cf-typegen": {
-      "cache": false,
-      "outputs": ["worker-configuration.d.ts"]
-    },
-    "cf-typegen:check": {
-      "cache": false
     }
   }
 }

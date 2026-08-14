@@ -70,7 +70,7 @@ The split is forced by the platform before it is chosen by us: TanStack Start an
 
 ## Who may call whom
 
-Every arrow is a wrangler binding. Cross-Worker calls are typed HTTP over service bindings; the caller uses a generated client from `packages/contracts`, and the callee re-validates every payload regardless of caller.
+Every arrow is a binding declared in the Alchemy stack. Cross-Worker calls are typed HTTP over service bindings; the caller uses a generated client from `packages/contracts`, and the callee re-validates every payload regardless of caller.
 
 | Caller → Callee       | Surface                          | Why it exists                                                                                                                                                                        |
 | --------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -157,7 +157,7 @@ Vitals are computed from Postgres rows, so a dead engine shows dead rather than 
 
 ## Build checklist
 
-- [ ] Four wrangler configs with exactly the bindings in the table above, deployed by one root release command from `main`
+- [x] One Alchemy Effect stack with all four Workers and exactly the bindings in the table above, deployed by one root release command
 - [ ] Complete the `AppRpcs`, `AgentReadRpcs`, conversation, dispatch, and queue contracts behind the explicit schema/client/server package entrypoints
 - [ ] Actor skeletons with `rebuild()` implemented and tested against a seeded Postgres
 - [ ] The watchdog cron keyed on the Postgres `next_due_at` row, with its re-arm feed event

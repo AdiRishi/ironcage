@@ -5,6 +5,7 @@ dist-ssr/
 .nitro/
 .tanstack/
 .turbo/
+.alchemy/
 *.tsbuildinfo
 *.log
 .logs/

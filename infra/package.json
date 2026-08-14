@@ -1,0 +1,29 @@
+{
+  "name": "@ironcage/infra",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "deploy": "alchemy deploy --stage prod",
+    "dev": "alchemy dev --stage dev",
+    "plan": "alchemy plan --stage prod",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@distilled.cloud/cloudflare": "catalog:",
+    "@ironcage/agents": "workspace:*",
+    "@ironcage/app": "workspace:*",
+    "@ironcage/compute": "workspace:*",
+    "@ironcage/core": "workspace:*",
+    "alchemy": "catalog:",
+    "effect": "catalog:",
+    "pg": "catalog:",
+    "vite": "catalog:"
+  },
+  "devDependencies": {
+    "@ironcage/tsconfig": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}
