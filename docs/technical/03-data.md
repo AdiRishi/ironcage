@@ -30,7 +30,7 @@ Core-owned Cloudflare Workflows are orchestration, never the domain record. A st
 
 These rules bind every table in the system.
 
-- **IDs are UUIDv7** (`uuid` columns), system-wide: intents, events, runs, records. The writer mints an ID before any external call that references it. An intent proposes that ID as the venue client order ID only after the venue's conformance fixture accepts the exact UUID form. The intent ledger remains the idempotency authority ([Venues](./06-venues.md)). UUIDv7 is time-ordered, so primary keys index well and feed event IDs can serve as cursors. Capability run IDs are the deliberate exception to random minting. A run ID is a deterministic name-based UUID derived from capability, configuration version, and scheduled time. A duplicate dispatch therefore derives the same ID ([AI](./07-ai.md)). The one keying exception is `ticks`, keyed `(sleeve_id, candle_close_at)`, because tick identity must be derivable ([Domain](./02-domain.md)).
+- **IDs are UUIDv7** (`uuid` columns), system-wide: intents, events, runs, records. The writer mints an ID before any external call that references it. An intent proposes that ID as the venue client order ID only after the venue's conformance fixture accepts the exact UUID form. The intent ledger remains the idempotency authority ([Venues](./06-venues.md)). UUIDv7 is time-ordered, so primary keys index well and feed event IDs can serve as cursors. Capability run IDs are the deliberate exception to random minting. A run ID is a deterministic name-based UUID derived from capability, configuration version, and the run's trigger anchor — a cadence slot for scheduled capabilities, the batch identity for batch capabilities. A duplicate dispatch therefore derives the same ID ([AI](./07-ai.md)). The one keying exception is `ticks`, keyed `(sleeve_id, candle_close_at)`, because tick identity must be derivable ([Domain](./02-domain.md)).
 - **Time uses `timestamptz` instants.** PostgreSQL stores them internally in UTC but renders them in the current session time zone. Drivers parse instants, SQL never relies on a session-scoped `SET`, the role default is UTC for diagnostic consistency, and Australia/Sydney conversion is explicit. Two deliberate exceptions are calendar dates, not instants: bank posting dates (stored as `date`) and financial-year assignment, which uses the Australia/Sydney local date ([Tax](./09-tax.md)).
 - **Money and quantities are `NUMERIC` beside a currency or asset code.** Cash amounts: `numeric(20,8)`. Asset quantities: `numeric(38,18)`. Prices: `numeric(24,8)`. Effect Schema decodes them to `BigDecimal` at the boundary; the JavaScript `number` type is banned for financial values. Storage keeps full precision; display rounds half-even at the currency's minor unit; the tax engine rounds only at its own declared boundaries.
 - **Append-only tables (⊕) have no `UPDATE` or `DELETE` path.** Corrections are new rows referencing what they correct. Enforcement is structural: the application's database role has `UPDATE` and `DELETE` revoked on ⊕ tables, and the few sanctioned mutable columns (an intent's `state`, a report's read marker) are granted individually at column level. A forgotten rule fails at the database, not in review.
@@ -282,13 +282,14 @@ CREATE TABLE capability_outputs (                        -- ⊕
   run_id         uuid PRIMARY KEY,
   capability     text NOT NULL,                          -- registry name
   sleeve_id      uuid REFERENCES sleeves(id),            -- null for system-level capabilities
-  scheduled_at   timestamptz NOT NULL,                   -- the cadence slot this run served
+  trigger        jsonb NOT NULL,                         -- the anchor this run answered: a schedule slot or a batch identity
+  scheduled_at   timestamptz,                            -- the schedule anchor's slot; null for batch runs
   output         jsonb,                                  -- null when the run failed validation
   failure        jsonb,                                  -- validation failure detail, when failed
   payload_hash   text NOT NULL,
   config_version integer NOT NULL,
   produced_at    timestamptz NOT NULL,
-  valid_until    timestamptz NOT NULL                    -- scheduled_at + the registry's validity window
+  valid_until    timestamptz                             -- scheduled_at + the trigger's validity window; null for batch runs, which do not decay
 );
 
 CREATE TABLE decision_records (                          -- ⊕ permanent; rendered in Activity
@@ -307,7 +308,7 @@ CREATE TABLE decision_records (                          -- ⊕ permanent; rende
 );
 ```
 
-`valid_until` is precomputed from the run's scheduled time, not its arrival time, so a late run loses lifetime; the staleness semantics are defined in [AI](./07-ai.md). Consumption picks the greatest eligible `(scheduled_at, run_id)`. The `queue_dedupe` mechanism table (run ID, payload hash, consumed-at; unique on run ID) backs the queue consumer's insert-first discipline defined in [Contracts](./04-contracts.md). The decision record is the permanent financial evidence of an AI decision. It does not contain full prompts or transcripts, but those may persist in Gateway logs under count-based retention and in durable Flue state as inventoried above.
+For a scheduled run, `valid_until` is precomputed from the run's scheduled time, not its arrival time, so a late run loses lifetime; the staleness semantics are defined in [AI](./07-ai.md), and tick consumption picks the greatest eligible `(scheduled_at, run_id)`. A batch run has no validity window; its consumer is the surface that dispatched it. The `queue_dedupe` mechanism table (run ID, payload hash, consumed-at; unique on run ID) backs the queue consumer's insert-first discipline defined in [Contracts](./04-contracts.md). The decision record is the permanent financial evidence of an AI decision. It does not contain full prompts or transcripts, but those may persist in Gateway logs under count-based retention and in durable Flue state as inventoried above.
 
 Scorecards, proposals, ceremonies, capital acts, transfers, reservations, unit-ledger rows, candles, Money, and tax tables follow the same conventions; their field-level shapes live in their owning chapters and their DDL in the migrations. Candles are worth one rule here because two chapters depend on it: `candles` is ⊕, unique on `(venue, instrument, timeframe, close_ts)`, each row carrying its source and fetched-at; a re-fetch that disagrees with a stored candle is flagged with a feed event and never overwritten.
 

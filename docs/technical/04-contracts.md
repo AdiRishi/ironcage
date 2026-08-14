@@ -32,7 +32,7 @@ Every identifier in the system is a UUIDv7: intents, events, records, and reques
 
 An intent ID is proposed as the venue client order ID. Kraken documents a generic UUID form, but not version 7 specifically. Alpaca documents a unique client ID without promising retry idempotency. The launch fixtures in [Venues](./06-venues.md) must prove field acceptance. The intent ledger, not the venue field, owns deduplication.
 
-Capability run IDs are the one deliberate exception: they are deterministic name-based UUIDs, not random UUIDv7s. The agent derives the run ID as a name-based UUID from the run's identity — the capability, its configuration version, and the cadence slot it answers — so a re-executed run collides with its earlier self instead of slipping past deduplication as a fresh ID. It is still a UUID and stores in the same `uuid` columns as every other ID. The derivation and its core-side validation are defined in [AI](./07-ai.md).
+Capability run IDs are the one deliberate exception: they are deterministic name-based UUIDs, not random UUIDv7s. The producer derives the run ID as a name-based UUID from the run's identity — the capability, its configuration version, and the trigger anchor it answers: a cadence slot for a scheduled capability, the batch identity for a batch capability — so a re-executed run collides with its earlier self instead of slipping past deduplication as a fresh ID. It is still a UUID and stores in the same `uuid` columns as every other ID. The derivation and its core-side validation are defined in [AI](./07-ai.md).
 
 ## Authentication at the boundary
 
@@ -93,7 +93,11 @@ export const CapabilityRunMessage = Schema.Struct({
   capability: Schema.String, // registry name
   sleeveId: Schema.NullOr(SleeveId), // UUIDv7
   configVersion: Schema.Number,
-  scheduledAt: Schema.Instant, // the cadence slot this run answers; anchors staleness and ordering
+  trigger: Schema.Union(
+    // what this run answers; the run ID is the name-based UUID of this anchor
+    Schema.Struct({ _tag: Schema.Literal("schedule"), scheduledAt: Schema.Instant }), // anchors staleness and ordering
+    Schema.Struct({ _tag: Schema.Literal("batch"), bundleDigest: Sha256, batchIndex: Schema.Int }),
+  ),
   producedAt: Schema.Instant,
   result: Schema.Union(
     Schema.Struct({ _tag: Schema.Literal("Output"), output: Schema.Unknown }), // re-validated by core
@@ -106,7 +110,7 @@ export const CapabilityRunMessage = Schema.Struct({
 [Queues delivery is at-least-once](https://developers.cloudflare.com/queues/reference/delivery-guarantees/), so the consumer owns exactly-once application semantics. It handles each delivery in four steps.
 
 1. Decode the message with the authoritative Schema. A decode failure follows the configured retry path. [Native dead-letter routing occurs only after those retries are exhausted](https://developers.cloudflare.com/queues/configuration/dead-letter-queues/).
-2. Check timing. A run delivered after its capability's dispatch deadline is rejected and recorded rather than written. [AI](./07-ai.md) defines the deadline and validity windows.
+2. Check timing for scheduled runs. A scheduled run delivered after its capability's dispatch deadline is rejected and recorded rather than written; a batch run has no deadline. [AI](./07-ai.md) defines the deadline and validity windows.
 3. Validate `output` against the capability's registered output Schema.
 4. Insert the `queue_dedupe` row first — its unique run ID and content hash are the deduplication boundary — then the output row, decision record, and feed event, all in one Postgres transaction. The dedupe row exists for every consumed delivery, including failed and deadline-expired runs, which write a decision record but no output row. `queue_dedupe`'s shape and pruning live in [Data](./03-data.md).
 
@@ -114,7 +118,7 @@ Redelivery then resolves by hash. A duplicate run ID with a matching content has
 
 The consumer batch size is one, so acknowledgement and retry apply to one run at a time. A message that exhausts its delivery attempts is routed to `decision-records-dlq`. That queue has its own idempotent consumer: it persists a `decision_record_lost` warning and attention item keyed by the failed message ID, then acknowledges the DLQ message. Merely configuring a DLQ does not execute that application logic.
 
-Arrival order carries no meaning. When the engine consumes a capability's output for a tick, it selects the greatest eligible `(scheduled_at, run_id)` pair among rows whose validity window covers the evaluation. A late arrival never rewrites a completed tick. The staleness windows and consumption rules are defined in [AI](./07-ai.md).
+Arrival order carries no meaning. When the engine consumes a scheduled capability's output for a tick, it selects the greatest eligible `(scheduled_at, run_id)` pair among rows whose validity window covers the evaluation. A late arrival never rewrites a completed tick. The staleness windows and consumption rules are defined in [AI](./07-ai.md).
 
 [The platform caps a queue message at 128,000 bytes](https://developers.cloudflare.com/queues/platform/limits/). Ironcage caps the complete serialized envelope at **120,000 bytes** (proposed), leaving room below the platform boundary. A capability envelope that exceeds it is a failed run, handled like any other capability failure: the safe default applies and the failure is recorded. No spillover path exists at v1. A staging pattern for oversized outputs is a recorded future option, not a built one (see Open questions).
 

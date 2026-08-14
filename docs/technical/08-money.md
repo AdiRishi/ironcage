@@ -436,7 +436,7 @@ Each split records `rule`, `ai`, or `manual` provenance. AI auto-apply is disabl
 
 Correcting a transaction can create an exact-payee rule for future rows. The preview shows that scope before confirm. Historical rows change only through a separate bulk reclassification preview.
 
-The categorization capability receives normalized narrative text rather than raw statement pages or account identifiers. A failed AI run leaves the import intact and its `uncategorized` splits unchanged.
+Categorization is a batch-triggered capability: each run answers one import batch, and its run ID derives from the capability, its configuration version, the bundle digest, and the batch index, so a redispatched batch collides with its earlier self instead of suggesting twice ([AI](./07-ai.md)). The capability receives normalized narrative text rather than raw statement pages or account identifiers. A failed AI run leaves the import intact and its `uncategorized` splits unchanged.
 
 ## 10. Transfers, refunds, and loan movements
 
@@ -571,6 +571,7 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 2. **Home-loan statement profile.** Does the home-loan archive preserve per-row balances and principal/interest detail consistently? Safe fallback: archive the PDFs without importing them. Must close before: home-loan history older than the structured window is added. Closing evidence: redacted PDFs from at least two layout periods and a structured overlap.
 3. **Offset statement date alignment.** Which printed date or value-date rule maps statement rows to structured rows when their transaction dates differ? Safe fallback: the statement parser can reconcile a PDF but cannot add canonical history. Must close before: enabling `cba-offset-statement-v1` in production. Closing evidence: a statement and paired export for the same period with a one-to-one, balance-consistent mapping.
 4. **Categorization calibration.** What measured precision justifies automatic application? Safe fallback: every AI suggestion remains review-only. Must close before: enabling automatic application. Closing evidence: a held-out correction corpus with precision measured per candidate threshold.
+5. **Categorization batch size versus the queue envelope.** Does a 200-transaction batch, with its decision record, fit the 120,000-byte queue envelope in [Contracts](./04-contracts.md)? Safe fallback: shrink the batch until it fits; an import simply produces more runs. Must close before: the categorization capability is configured. Closing evidence: measured envelope bytes for a maximum-size batch through the real serializer.
 
 ## Build checklist
 
