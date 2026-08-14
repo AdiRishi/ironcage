@@ -10,6 +10,8 @@ narrative is fictional. The redaction preserves the observed parser contract:
 
 - headerless, four-column CSV with CRLF line endings;
 - the original quoted-cell and empty-cell structure;
+- the explicit `+` prefix on positive amounts and deposit running balances;
+- fixed-width padded Mastercard purchase narratives beside a plain payment row;
 - OFX 1.02 SGML tags, ordering, declared encoding, and CRLF line endings;
 - exact CSV/OFX row order and pairing;
 - per-row balance presence by account profile;
