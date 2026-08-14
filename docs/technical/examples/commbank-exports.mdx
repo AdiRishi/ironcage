@@ -64,10 +64,13 @@ NetBank produces headerless CSV with CRLF line endings. All observed account typ
 DD/MM/YYYY,"signed decimal","narrative","running balance or empty"
 ```
 
+The date cell is unquoted; the amount, narrative, and balance cells are quoted. Positive amounts and positive running balances carry an explicit `+` prefix.
+
 Observed account-specific behavior:
 
 - Spending and savings offsets carry a running balance on every row.
 - Mastercard rows leave the fourth column empty. Purchases are negative; payments and refunds are positive.
+- Mastercard purchase narratives are fixed-width padded merchant, city, and state columns. The internal space runs are significant and must survive parsing, because pairing compares the narrative against the OFX `MEMO` byte for byte. The observed payment row is plain text without padding.
 - Home-loan rows carry a negative running balance. Repayments are positive; interest, corrections, and fees use their economic sign.
 - Rows are newest first in every observed file.
 - Pending transactions are visible in NetBank but excluded from exports.
@@ -86,6 +89,8 @@ Observed fields include:
 - File-level balances: ledger and available balance with an as-of time.
 
 The samples contained no `NAME` field. `DTPOSTED` and `DTUSER` contained eight date digits rather than a transaction timestamp.
+
+`DTUSER` carries the value date and often differs from `DTPOSTED` — 22 of the 40 rows in one spending-offset sample. Where the narrative prints a `Value Date`, the `DTUSER` digits match it. The observed `TRNTYPE` values are only `DEBIT` and `CREDIT`. `TRNAMT` prints credits without a sign while the paired CSV amount carries an explicit `+`, so row pairing compares numeric amounts rather than amount text.
 
 `DTSTART` and `DTEND` contained midnight timestamps. Their date portions matched both tested explicit inclusive export windows.
 
@@ -173,6 +178,8 @@ The downloaded spending-offset statement was a text-based PDF, not a scanned ima
 - transaction date and multi-line narrative;
 - separate debit and credit columns; and
 - a running balance after each row.
+
+Observed rendering: amounts print without currency symbols and with thousands separators, balances carry a `CR` suffix, and transaction dates are a zero-padded day and abbreviated month without a year. The opening and closing balances appear as sentinel rows inside the table with a full date, and a final summary row proves opening − total debits + total credits = closing. Statement narratives render `Value Date` without the colon that the structured exports include.
 
 That makes pre-export history recoverable, but statements are a separate parser profile. Their narrative rendering differs from CSV/OFX and they must not be pushed through the structured-export dedupe rules.
 

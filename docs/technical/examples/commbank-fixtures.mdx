@@ -15,19 +15,19 @@ The redacted observed corpus lives in the core test tree at [`apps/core/tests/fi
 The file is headerless. The values below are shown in the observed newest-first order.
 
 ```csv
-05/08/2026,"-42.75","Card xx1122 FICTIONAL GROCER NEWTOWN AU Value Date: 04/08/2026","2457.25"
-04/08/2026,"+2500.00","Direct Credit 123456 EXAMPLE EMPLOYER PAYROLL","2500.00"
+05/08/2026,"-42.75","FICTIONAL GROCER NEWTOWN AUS Card xx1122 Value Date: 04/08/2026","+2457.25"
+04/08/2026,"+2500.00","Direct Credit 123456 EXAMPLE EMPLOYER PAYROLL","+2500.00"
 ```
 
-The amount, narrative, and balance cells are quoted. The corresponding chronological balance check is `0.00 + 2500.00 - 42.75 = 2457.25`.
+The amount, narrative, and balance cells are quoted, and positive amounts and balances carry an explicit `+` prefix. The corresponding chronological balance check is `0.00 + 2500.00 - 42.75 = 2457.25`.
 
 ## Mastercard CSV
 
-Mastercard retains the fourth cell but leaves it empty.
+Mastercard retains the fourth cell but leaves it empty. Purchase narratives are fixed-width padded merchant, city, and state columns; the internal space runs must survive parsing because they pair against the OFX `MEMO` byte for byte. The payment row is plain text.
 
 ```csv
-05/08/2026,"-18.40","Card xx3344 EXAMPLE CAFE SYDNEY AU Value Date: 04/08/2026",""
-03/08/2026,"+750.00","PAYMENT RECEIVED - THANK YOU",""
+05/08/2026,"-18.40","FICTIONAL CAFE PTY LTD   SYDNEY      NSW",""
+03/08/2026,"+750.00","AUTO PAYMENT - THANK YOU",""
 ```
 
 The empty fourth cell is why Markdown table conversion is not the authoritative CSV parser.
@@ -55,10 +55,26 @@ SECURITY:NONE
 ENCODING:USASCII
 CHARSET:1252
 COMPRESSION:NONE
-
+OLDFILEUID:NONE
+NEWFILEUID:NONE
 <OFX>
+<SIGNONMSGSRSV1>
+<SONRS>
+<STATUS>
+<CODE>0
+<SEVERITY>INFO
+</STATUS>
+<DTSERVER>20260805104618
+<LANGUAGE>ENG
+</SONRS>
+</SIGNONMSGSRSV1>
 <BANKMSGSRSV1>
 <STMTTRNRS>
+<TRNUID>1
+<STATUS>
+<CODE>0
+<SEVERITY>INFO
+</STATUS>
 <STMTRS>
 <CURDEF>AUD
 <BANKACCTFROM>
@@ -72,23 +88,27 @@ COMPRESSION:NONE
 <STMTTRN>
 <TRNTYPE>DEBIT
 <DTPOSTED>20260805
-<DTUSER>20260805
+<DTUSER>20260804
 <TRNAMT>-42.75
 <FITID>fictional-fitid-0001
-<MEMO>Card xx1122 FICTIONAL GROCER NEWTOWN AU Value Date: 04/08/2026
+<MEMO>FICTIONAL GROCER NEWTOWN AUS Card xx1122 Value Date: 04/08/2026
 </STMTTRN>
 </BANKTRANLIST>
 <LEDGERBAL>
 <BALAMT>2457.25
-<DTASOF>20260805000000
+<DTASOF>20260805104618
 </LEDGERBAL>
+<AVAILBAL>
+<BALAMT>2457.25
+<DTASOF>20260805104618
+</AVAILBAL>
 </STMTRS>
 </STMTTRNRS>
 </BANKMSGSRSV1>
 </OFX>
 ```
 
-The CSV and OFX row pair exactly on date, signed amount, and raw narrative. The OFX adds account identity and a `FITID`.
+The CSV and OFX row pair exactly on date, signed amount, and raw narrative. The OFX adds account identity and a `FITID`. `DTUSER` is the value date and matches the narrative's `Value Date` when one is printed. `TRNAMT` prints credits unsigned while the CSV amount carries `+`, and file-level balances are unsigned when positive, so amount and balance comparisons are numeric rather than textual.
 
 ## Mastercard and home-loan identifiers
 
@@ -101,7 +121,7 @@ The observed Mastercard and home-loan OFX samples contained an empty `FITID` ele
 <DTUSER>20260805
 <TRNAMT>-18.40
 <FITID>
-<MEMO>Card xx3344 EXAMPLE CAFE SYDNEY AU Value Date: 04/08/2026
+<MEMO>FICTIONAL CAFE PTY LTD   SYDNEY      NSW
 </STMTTRN>
 ```
 
@@ -111,12 +131,14 @@ An empty element is not an identifier. Home-loan rows use their running balance.
 
 AnyDoc can represent one visual transaction as several Markdown rows. The statement state machine joins continuation rows before parsing the amount and balance.
 
+The statement table prints no currency symbols. Amounts use thousands separators, balances carry a `CR` suffix, dates are a zero-padded day and abbreviated month without a year, and the continuation lines render `Value Date` without the colon that structured-export narratives include.
+
 ```markdown
-| Date  | Transaction                  |  Debit | Credit |      Balance |
-| ----- | ---------------------------- | -----: | -----: | -----------: |
-| 5 Aug | Card xx1122 FICTIONAL GROCER | $42.75 |        | $2,457.25 CR |
-|       | NEWTOWN AU                   |        |        |              |
-|       | Foreign Currency AUD 42.75   |        |        |              |
+| Date   | Transaction                  | Debit | Credit |     Balance |
+| ------ | ---------------------------- | ----: | -----: | ----------: |
+| 05 Aug | FICTIONAL GROCER NEWTOWN AUS | 42.75 |        | 2,457.25 CR |
+|        | Card xx1122 USD 27.50        |       |        |             |
+|        | Value Date 04/08/2026        |       |        |             |
 ```
 
 The completed transaction is:
@@ -124,16 +146,16 @@ The completed transaction is:
 ```text
 posted date     2026-08-05
 amount          -42.75
-raw narrative   Card xx1122 FICTIONAL GROCER\nNEWTOWN AU\nForeign Currency AUD 42.75
+raw narrative   FICTIONAL GROCER NEWTOWN AUS\nCard xx1122 USD 27.50\nValue Date 04/08/2026
 row balance     +2457.25
 ```
 
-A fictional statement summary looks like:
+The opening and closing balances appear as sentinel rows inside the transaction table, dated with a full year, and the final page carries a summary row:
 
 ```markdown
 | Opening balance | Total debits | Total credits | Closing balance |
 | --------------: | -----------: | ------------: | --------------: |
-|        $0.00 CR |       $42.75 |     $2,500.00 |    $2,457.25 CR |
+|         0.00 CR |        42.75 |      2,500.00 |     2,457.25 CR |
 ```
 
 The parser recomputes `0.00 - 42.75 + 2500.00 = 2457.25`. It does not trust the extracted summary without that proof.

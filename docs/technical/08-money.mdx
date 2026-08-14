@@ -98,9 +98,10 @@ Observed behavior is part of the fixture contract:
 
 - Rows are newest first.
 - Purchases and other debits are negative.
-- Payments, credits, and refunds are positive.
+- Payments, credits, and refunds are positive and carry an explicit `+` prefix, as do positive running balances.
 - Deposit and home-loan rows contain a balance.
 - Mastercard rows contain an empty fourth cell.
+- Mastercard purchase narratives are fixed-width padded merchant, city, and state columns; the internal space runs are significant and must survive parsing to pair against the OFX `MEMO`.
 - Home-loan balances are negative.
 - The downloaded filename is generic and carries no authority.
 
@@ -118,7 +119,7 @@ Deposit and home-loan files use `BANKMSGSRSV1`. Mastercard uses `CREDITCARDMSGSR
 
 The observed home-loan file contains a bank-writer quirk: inside `BANKMSGSRSV1` it opens `CCSTMTRS` and closes `STMTRS`. The home-loan profile accepts exactly that pair. Other mismatched aggregates remain malformed; the fixture is not normalized into a shape the bank did not emit.
 
-Each observed transaction carries `DTPOSTED`, `DTUSER`, `TRNAMT`, `FITID`, `MEMO`, and `TRNTYPE`. The samples contain no `NAME` field. Both transaction date fields contain eight date digits rather than a transaction time.
+Each observed transaction carries `DTPOSTED`, `DTUSER`, `TRNAMT`, `FITID`, `MEMO`, and `TRNTYPE`. The samples contain no `NAME` field. Both transaction date fields contain eight date digits rather than a transaction time. `DTUSER` is the value date and may differ from `DTPOSTED`; where the narrative prints a `Value Date`, `DTUSER` matches it. `TRNAMT` prints credits without a sign.
 
 The importer preserves `TRNTYPE` as source metadata. No analysis rule relies on it.
 
@@ -135,6 +136,8 @@ The pair is accepted only when its transaction multisets are identical on:
 ```
 
 Occurrence is counted in source order within equal `(date, amount, narrative)` groups. Pairing consumes each row once. One missing, extra, or conflicting row blocks the whole bundle.
+
+`signed_amount` compares numerically. The CSV prints an explicit `+` on credits while the OFX prints them unsigned, so amount text never participates in equality.
 
 The pairing result produces one incoming transaction candidate with two source observations. The CSV observation may supply a row balance. The OFX observation may supply `FITID` and always supplies the account fingerprint.
 
