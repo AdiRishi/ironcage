@@ -12,6 +12,10 @@ export default defineConfig({
     owner: "AdiRishi",
     repo: "ironcage",
   },
+  deployment: {
+    site: "https://adirishi.github.io",
+    base: "/ironcage",
+  },
   lastModified: true,
   theme: {
     accent: { light: "#c2410c", dark: "#e2632e" },
