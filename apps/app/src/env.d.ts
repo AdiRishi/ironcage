@@ -1,9 +1,4 @@
-interface AppEnv {
-  CORE: Fetcher;
-  AGENTS: Fetcher;
-  ACCESS_AUD: string;
-  ENVIRONMENT: string;
-}
+import type { AppEnv } from "@ironcage/infra/worker-bindings";
 
 declare global {
   namespace Cloudflare {

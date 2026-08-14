@@ -1,8 +1,8 @@
 # Infrastructure
 
-[`alchemy.run.ts`](./alchemy.run.ts) is the only infrastructure definition for
-Ironcage. It is an Effect program that owns the complete Cloudflare deployment
-and the PlanetScale resources used by it. There are no checked-in Wrangler
+[`alchemy.run.ts`](./alchemy.run.ts) is the only infrastructure entry point for
+Ironcage. It composes typed Effect modules for configuration, data, platform
+controls, Workers, and the operator edge. There are no checked-in Wrangler
 configuration files and no separate migration command.
 
 ## Commands
@@ -34,22 +34,35 @@ verification required for safe automatic deployment from `main`.
 
 ## Managed topology
 
-| Area        | Resources                                                                                                                                            |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Runtime     | app, core, agents, and compute Workers; named service entrypoints; actor and compute Durable Objects; six Workflows; system Cron triggers            |
-| Database    | adopted PlanetScale Postgres database and `dev` branch; isolated runtime roles; read-only backup role; cached and uncached Hyperdrive configurations |
-| Storage     | private blob, agent-artifact quarantine, and backup R2 buckets; incomplete-upload cleanup and production indefinite bucket locks                     |
-| Messaging   | decision-record Queue, DLQ, single-message core consumer, 14-day production retention                                                                |
-| AI controls | authenticated AI Gateways with response caching disabled, bounded logs, spend caps, and production/development separation                            |
-| Safety      | production and development Flagship apps; global live-trading brake defaulted off                                                                    |
-| Edge        | TanStack Start Website, custom domain, Cloudflare Access application and operator policy with phishing-resistant MFA                                 |
-| State       | encrypted remote Cloudflare state for deployed stacks; local state ignored by git                                                                    |
+| Area        | Resources                                                                                                                       |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime     | app, core, agents, and compute Workers; named service entrypoints; actor and compute Durable Objects                            |
+| Database    | adopted PlanetScale Postgres database and `dev` branch; isolated runtime roles; cached and uncached Hyperdrive configurations   |
+| Storage     | private blob, agent-artifact quarantine, and backup R2 buckets; incomplete-upload cleanup and production aggregate bucket locks |
+| Messaging   | decision-record Queue and DLQ with 14-day production retention                                                                  |
+| AI controls | authenticated AI Gateways with response caching disabled, bounded logs, spend caps, and production/development separation       |
+| Safety      | production and development Flagship apps; global live-trading brake defaulted off                                               |
+| Edge        | TanStack Start Website, custom domain, Cloudflare Access application and one operator policy with phishing-resistant MFA        |
+| State       | encrypted remote Cloudflare state for deployed stacks; local state ignored by git                                               |
 
 Alchemy has first-class providers for the topology itself. The small providers
-in [`src/cloudflare-settings.ts`](./src/cloudflare-settings.ts) cover three
+in [`src/providers/`](./src/providers/) cover three
 Cloudflare settings that Alchemy does not yet expose directly: R2 bucket locks,
 Queue message retention, and Access MFA configuration. They participate in the
-same plan/reconcile/state lifecycle as first-class resources.
+same plan/reconcile/state lifecycle as first-class resources. Each provider owns
+the complete remote document it writes, and its create, update, and delete
+lifecycle is covered by local provider tests.
+
+[`src/worker-bindings.ts`](./src/worker-bindings.ts) is the single definition of
+every Worker environment. The Alchemy resources consume its binding builders,
+and application `Env` declarations consume the types inferred from those same
+builders.
+
+Workflows, Cron triggers, the decision-record consumer, the compute container,
+and the backup database credential remain in the technical specification but
+are deliberately absent from the deployed graph until their handlers exist.
+Declaring them early would turn scheduled work into failures or give an unused
+credential access to the financial record.
 
 ## Migrations and first adoption
 

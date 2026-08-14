@@ -342,7 +342,8 @@ Every number above, its owner, and its status. "Proposed" means: pick differentl
 
 ## Build checklist
 
-- [x] Alchemy stack with the binding matrix above; boot assertion that refuses trade-capable venue keys under `ENVIRONMENT=local` remains to be implemented
+- [x] Alchemy stack foundation with all four Workers, PlanetScale migrations, storage, controls, and the currently implemented bindings
+- [ ] Complete the binding matrix as the Workflow, Queue consumer, container, and scheduled handlers are implemented; the local trade-capable-key boot assertion is part of that work
 - [ ] Root `pnpm dev` running the four-Worker Alchemy stage; direct development Postgres, local R2/Queues, and a separate deployed Hyperdrive integration lane
 - [ ] Lint rule enforcing the one-way dependency direction, including the no-Cloudflare rule in `engine` and `tax`
 - [ ] CI pipeline: every suite in section 6, the local Postgres container, Alchemy migration compatibility tests, the upgrade → rollback → upgrade migration test, and `venues/live` nightly

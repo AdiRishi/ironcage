@@ -1,11 +1,4 @@
-interface AgentsEnv {
-  CORE: Fetcher;
-  DECISION_RECORDS: Queue<unknown>;
-  AI_GATEWAY: Ai;
-  AI_GATEWAY_TOKEN?: string;
-  FLAGS: Flagship;
-  ENVIRONMENT: string;
-}
+import type { AgentsEnv } from "@ironcage/infra/worker-bindings";
 
 declare global {
   namespace Cloudflare {
