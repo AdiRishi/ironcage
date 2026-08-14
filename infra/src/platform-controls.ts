@@ -41,10 +41,10 @@ export const platformControls = Effect.fn("Ironcage.PlatformControls")(function*
       enabled: true,
       rules: [
         {
-          limit: config.gatewaySpendLimit,
+          limit: config.gatewayWeeklySpendLimitDollars,
           limitType: "cost",
           technique: "sliding",
-          window: "1 day",
+          window: "1 week",
         },
       ],
     },

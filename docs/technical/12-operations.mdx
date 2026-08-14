@@ -45,7 +45,7 @@ Local never holds live venue keys. Core asserts that `ENVIRONMENT=local` accepts
 | `ironcage-core`    | `DECISION_RECORDS` consumer                      | local queue                               | production queue                                                   |
 | `ironcage-core`    | `EMAIL_KEY`                                      | unset; the one interruption logs only     | unavailable until the sending-provider launch gate closes          |
 | `ironcage-agents`  | `CORE` service binding                           | local dev registry, read-only surface     | `ironcage-core`, read-only surface                                 |
-| `ironcage-agents`  | `AI_GATEWAY_TOKEN`                               | dev gateway, A$5/day cap (proposed)       | production gateway, per-capability caps                            |
+| `ironcage-agents`  | `AI_GATEWAY_TOKEN`                               | dev gateway, $50/week sliding cap         | production gateway, $50/week sliding cap                           |
 | `ironcage-agents`  | `DECISION_RECORDS` producer                      | local queue                               | production queue                                                   |
 | `ironcage-compute` | backtest container + narrow R2 bindings          | local Docker + dev buckets                | immediate image rollout + production artifact buckets              |
 | `ironcage-compute` | `EXPECTED_IMAGE_DIGEST` (config)                 | local image digest                        | immutable digest configured on the deployed binding                |
@@ -365,7 +365,7 @@ Every number above, its owner, and its status. "Proposed" means: pick differentl
 | CI database                    | local Postgres container                                   | operations       | decided  |
 | Human dev database             | PlanetScale dev branch via direct local connection         | operations       | decided  |
 | Hyperdrive integration lane    | deployed dev Worker                                        | operations       | decided  |
-| Local AI Gateway spend cap     | A$5/day                                                    | gateway config   | proposed |
+| AI Gateway spend cap           | $50/week, sliding, gateway-wide                            | gateway config   | decided  |
 | Release unit                   | entire repository from `main`                              | operations       | decided  |
 | Deployment rollout             | no percentage rollout; immediate whole release             | operations       | decided  |
 | Entry block during deploy      | whole deploy-and-verify window                             | operations       | decided  |
