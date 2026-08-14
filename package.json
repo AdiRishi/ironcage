@@ -4,19 +4,16 @@
   "type": "module",
   "scripts": {
     "build": "turbo build",
-    "check": "oxfmt && pnpm compile && oxlint --disable-nested-config --fix && turbo typecheck",
+    "check": "pnpm compile && oxlint --disable-nested-config && oxfmt --check",
     "compile": "turbo compile",
     "deploy": "pnpm --filter @ironcage/infra deploy",
     "dev": "turbo dev --filter @ironcage/infra",
-    "format": "oxfmt",
-    "format:check": "oxfmt --check",
-    "lint": "pnpm compile && oxlint --disable-nested-config",
+    "fix": "pnpm compile && oxlint --disable-nested-config --fix && oxfmt",
     "plan": "pnpm --filter @ironcage/infra plan",
     "sync:repos": "node scripts/sync-reference-repos.ts",
-    "test": "turbo test",
+    "test": "turbo test test:integration",
     "test:integration": "turbo test:integration",
-    "typecheck": "turbo typecheck",
-    "verify": "oxfmt --check && pnpm compile && oxlint --disable-nested-config && turbo typecheck test build test:integration"
+    "typecheck": "turbo typecheck"
   },
   "devDependencies": {
     "@types/node": "catalog:",

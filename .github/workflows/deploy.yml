@@ -54,8 +54,17 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Verify
-        run: pnpm verify
+      - name: Check
+        run: pnpm check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test
 
       - name: Deploy
         run: pnpm --filter @ironcage/infra exec alchemy deploy --stage prod --yes

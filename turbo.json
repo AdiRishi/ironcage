@@ -46,10 +46,6 @@
     "test:integration": {
       "dependsOn": ["^compile"],
       "cache": false
-    },
-    "deploy": {
-      "cache": false,
-      "dependsOn": ["build"]
     }
   }
 }
