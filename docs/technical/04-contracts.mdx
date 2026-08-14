@@ -139,6 +139,30 @@ export const CapabilityRunMessage = Schema.Struct({
 
 Redelivery then resolves by hash. A duplicate run ID with a matching content hash is acknowledged and dropped; that is the at-least-once queue doing what it does. The same run ID with a different content hash is never treated as a duplicate. Two executions have claimed the same identity, which means a producer is broken. The consumer refuses the write, keeps the stored original, and raises a critical event.
 
+The whole protocol on one wire, redelivery included:
+
+```mermaid
+sequenceDiagram
+    participant Ag as Agents Worker
+    participant Q as decision-records queue
+    participant C as Core consumer (batch = 1)
+    participant PG as Postgres
+    Ag->>Q: CapabilityRunMessage — runId is the<br/>name-based UUID of the trigger anchor
+    Q->>C: deliver (at-least-once)
+    C->>C: decode → check timing → validate output
+    C->>PG: one transaction — queue_dedupe inserted first,<br/>then output row, decision record, feed event
+    C-->>Q: ack
+    Q->>C: redeliver the same runId
+    C->>PG: insert queue_dedupe → unique violation
+    alt content hash matches the stored row
+        C-->>Q: ack — duplicate dropped
+    else hash differs
+        C->>PG: keep the original, raise a critical event
+        C-->>Q: the colliding write is refused
+    end
+    Note over Q,C: attempts exhausted → decision-records-dlq —<br/>its own consumer persists decision_record_lost,<br/>then acknowledges the DLQ message
+```
+
 The consumer batch size is one, so acknowledgement and retry apply to one run at a time. A message that exhausts its delivery attempts is routed to `decision-records-dlq`. That queue has its own idempotent consumer: it persists a `decision_record_lost` warning and attention item keyed by the failed message ID, then acknowledges the DLQ message. Merely configuring a DLQ does not execute that application logic.
 
 Arrival order carries no meaning. When the engine consumes a scheduled capability's output for a tick, it selects the greatest eligible `(scheduled_at, run_id)` pair among rows whose validity window covers the evaluation. A late arrival never rewrites a completed tick. The staleness windows and consumption rules are defined in [AI](/technical/ai).
