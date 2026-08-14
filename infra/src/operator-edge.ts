@@ -4,7 +4,6 @@ import * as Effect from "effect/Effect";
 
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
-import { OperatorAccessPolicy } from "./providers/operator-access-policy.ts";
 import { appBindings } from "./worker-bindings.ts";
 import type { Workers } from "./workers.ts";
 
@@ -15,15 +14,11 @@ export const operatorEdge = Effect.fn("Ironcage.OperatorEdge")(function* (
   const access =
     config._tag === "Production"
       ? yield* Effect.gen(function* () {
-          const policy = yield* OperatorAccessPolicy("OperatorAccess", {
+          const policy = yield* Cloudflare.Access.Policy("OperatorAccess", {
             name: "Ironcage operator",
-            email: config.accessEmail,
+            decision: "allow",
+            include: [{ email: { email: config.accessEmail } }],
             sessionDuration: "720h",
-            mfa: {
-              required: true,
-              sessionDuration: "720h",
-              allowedAuthenticators: ["biometrics", "security_key"],
-            },
           }).pipe(retain());
 
           return yield* Cloudflare.Access.Application("OperatorApplication", {

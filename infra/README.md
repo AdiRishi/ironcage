@@ -42,15 +42,13 @@ verification required for safe automatic deployment from `main`.
 | Messaging   | decision-record Queue and DLQ with 14-day production retention                                                                |
 | AI controls | authenticated AI Gateways with response caching disabled, bounded logs, spend caps, and production/development separation     |
 | Safety      | production and development Flagship apps; global live-trading brake defaulted off                                             |
-| Edge        | TanStack Start Website, custom domain, Cloudflare Access application and one operator policy with phishing-resistant MFA      |
+| Edge        | TanStack Start Website, custom domain, and Cloudflare Access application restricted to the operator email                     |
 | State       | encrypted remote Cloudflare state for deployed stacks; local state ignored by git                                             |
 
-Alchemy has first-class providers for the topology itself. The small providers
-in [`src/providers/`](./src/providers/) cover two Cloudflare settings that
-Alchemy does not yet expose directly: Queue message retention and Access MFA
-configuration. They participate in the same plan/reconcile/state lifecycle as
-first-class resources. Each provider owns the complete remote document it
-writes, and its create, update, and delete lifecycle is covered by local
+Alchemy has first-class providers for the topology itself. The small provider
+in [`src/providers/`](./src/providers/) covers Queue message retention, which
+Alchemy does not yet expose directly. It participates in the same
+plan/reconcile/state lifecycle as first-class resources and is covered by local
 provider tests.
 
 [`src/worker-bindings.ts`](./src/worker-bindings.ts) is the single definition of

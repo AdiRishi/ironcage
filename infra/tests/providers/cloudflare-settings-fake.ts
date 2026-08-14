@@ -6,37 +6,17 @@ import * as Redacted from "effect/Redacted";
 
 import { CloudflareSettings } from "../../src/providers/cloudflare-settings.ts";
 import { cloudflareSettingsProviders } from "../../src/providers/index.ts";
-import {
-  DEFAULT_QUEUE_RETENTION_SECONDS,
-  type OperatorAccessPolicyAttributes,
-} from "../../src/providers/types.ts";
+import { DEFAULT_QUEUE_RETENTION_SECONDS } from "../../src/providers/types.ts";
 
 const accountId = "00000000000000000000000000000000";
 
 export const queueRetention = new Map<string, number>();
-export const accessPolicies = new Map<string, OperatorAccessPolicyAttributes>();
-let nextPolicyId = 1;
 
 const settings = CloudflareSettings.of({
   getQueueRetention: (_accountId, queueId) =>
     Effect.succeed(queueRetention.get(queueId) ?? DEFAULT_QUEUE_RETENTION_SECONDS),
   setQueueRetention: (_accountId, queueId, seconds) =>
     Effect.sync(() => queueRetention.set(queueId, seconds)).pipe(Effect.asVoid),
-  getAccessPolicy: (_accountId, policyId) => Effect.succeed(accessPolicies.get(policyId)),
-  findAccessPolicy: (_accountId, name) =>
-    Effect.succeed(Array.from(accessPolicies.values()).find((policy) => policy.name === name)),
-  createAccessPolicy: (_accountId, policy) =>
-    Effect.sync(() => {
-      const policyId = `policy-${nextPolicyId++}`;
-      accessPolicies.set(policyId, { accountId, policyId, ...policy });
-      return policyId;
-    }),
-  updateAccessPolicy: (_accountId, policyId, policy) =>
-    Effect.sync(() => accessPolicies.set(policyId, { accountId, policyId, ...policy })).pipe(
-      Effect.asVoid,
-    ),
-  deleteAccessPolicy: (_accountId, policyId) =>
-    Effect.sync(() => accessPolicies.delete(policyId)).pipe(Effect.asVoid),
 });
 
 const providers = cloudflareSettingsProviders().pipe(
@@ -59,8 +39,6 @@ const api = Test.make({ providers });
 api.beforeEach(
   Effect.sync(() => {
     queueRetention.clear();
-    accessPolicies.clear();
-    nextPolicyId = 1;
   }),
 );
 

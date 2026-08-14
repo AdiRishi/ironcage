@@ -55,7 +55,7 @@ export const platformControls = Effect.fn("Ironcage.PlatformControls")(function*
   }).pipe(retain());
   yield* Cloudflare.Flagship.Flag("LiveTrading", {
     appId: flags.appId,
-    key: "trading.live_enabled",
+    key: "trading_live_enabled",
     enabled: true,
     defaultVariation: "off",
     variations: { off: false, on: true },
