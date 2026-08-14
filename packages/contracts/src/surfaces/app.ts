@@ -5,6 +5,7 @@ import {
   configureBankAccountRpc,
   confirmBankImportRpc,
   createCategoryRpc,
+  decideTransferMatchRpc,
   editCategorizationRuleRpc,
   editCategoryRpc,
   getBankAccountsRpc,
@@ -12,6 +13,7 @@ import {
   getCategorizationRulesRpc,
   getImportHistoryRpc,
   getReviewQueueRpc,
+  getTransferMatchesRpc,
   listCategoriesRpc,
   previewBankImportRpc,
 } from "./money";
@@ -33,4 +35,6 @@ export const AppRpcs = RpcGroup.make(
   editCategorizationRuleRpc,
   categorizeTransactionsRpc,
   getReviewQueueRpc,
+  getTransferMatchesRpc,
+  decideTransferMatchRpc,
 );

@@ -179,22 +179,24 @@ CREATE TABLE transaction_splits (
 CREATE INDEX transaction_splits_effective
   ON transaction_splits (transaction_id, revision);
 
+-- Unresolved transfer candidates are computed from the record; a stored row
+-- is a decision — an auto- or operator-confirmed pairing, or a dismissal that
+-- keeps the pair out of future proposals.
 CREATE TABLE transfer_matches (
   id            uuid PRIMARY KEY,
   transaction_a uuid NOT NULL REFERENCES bank_transactions(id),
   transaction_b uuid NOT NULL REFERENCES bank_transactions(id),
-  status        text NOT NULL CHECK (status IN ('proposed','confirmed','dismissed')),
+  status        text NOT NULL CHECK (status IN ('confirmed','dismissed')),
   method        text NOT NULL CHECK (method IN ('sole_pairing','reference','operator')),
   provenance    jsonb NOT NULL,
   created_at    timestamptz NOT NULL,
-  decided_at    timestamptz,
   CHECK (transaction_a <> transaction_b)
 );
 
 CREATE UNIQUE INDEX transfer_matches_effective_a
-  ON transfer_matches (transaction_a) WHERE status IN ('proposed','confirmed');
+  ON transfer_matches (transaction_a) WHERE status = 'confirmed';
 CREATE UNIQUE INDEX transfer_matches_effective_b
-  ON transfer_matches (transaction_b) WHERE status IN ('proposed','confirmed');
+  ON transfer_matches (transaction_b) WHERE status = 'confirmed';
 
 CREATE TABLE feed_events (
   id             uuid PRIMARY KEY,

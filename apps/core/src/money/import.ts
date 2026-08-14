@@ -59,6 +59,7 @@ import {
   type ConfirmedImportGraph,
   type ImportRow,
 } from "./store";
+import { detectOwnedTransfers } from "./transfers";
 
 /** The v1 structured-import parser version stored on every observation. */
 const parserVersion = 1;
@@ -573,6 +574,10 @@ export const confirmBankImport = (
           }
 
           yield* insertConfirmedImport(sql, computation.account, graph);
+          yield* detectOwnedTransfers(
+            sql,
+            graph.transactions.map((transaction) => transaction.id),
+          );
 
           if (computation.account.identityHmac === null && computation.identityHmac !== null) {
             yield* bindAccountIdentity(

@@ -18,6 +18,9 @@ import {
   SourceFileRole,
   SourceProfile,
   SplitProvenance,
+  TransferMatchId,
+  TransferMatchMethod,
+  TransferMatchStatus,
 } from "@ironcage/domain";
 import { Schema } from "effect";
 import { Rpc as RpcModule } from "effect/unstable/rpc";
@@ -309,6 +312,52 @@ export const categorizeTransactionsRpc = RpcModule.make("categorizeTransactions"
 export const getReviewQueueRpc = RpcModule.make("getReviewQueue", {
   success: Schema.Array(ReviewQueueEntry),
   error: ReadError,
+});
+
+export const TransferLeg = Schema.Struct({
+  transactionId: BankTransactionId,
+  accountId: BankAccountId,
+  productLabel: Schema.String,
+  postedDate: CalendarDate,
+  amount: Aud,
+  narrative: Schema.String,
+});
+export type TransferLeg = typeof TransferLeg.Type;
+
+export const TransferMatchSummary = Schema.Struct({
+  id: TransferMatchId,
+  a: TransferLeg,
+  b: TransferLeg,
+  status: TransferMatchStatus,
+  method: TransferMatchMethod,
+  createdAt: Instant,
+});
+export type TransferMatchSummary = typeof TransferMatchSummary.Type;
+
+/** A transaction with plausible counterparts awaiting the operator's decision. */
+export const TransferCandidateGroup = Schema.Struct({
+  transaction: TransferLeg,
+  counterparts: Schema.Array(TransferLeg),
+});
+export type TransferCandidateGroup = typeof TransferCandidateGroup.Type;
+
+export const getTransferMatchesRpc = RpcModule.make("getTransferMatches", {
+  success: Schema.Struct({
+    matches: Schema.Array(TransferMatchSummary),
+    unresolved: Schema.Array(TransferCandidateGroup),
+  }),
+  error: ReadError,
+});
+
+export const decideTransferMatchRpc = RpcModule.make("decideTransferMatch", {
+  payload: {
+    requestId: RequestId,
+    transactionA: BankTransactionId,
+    transactionB: BankTransactionId,
+    decision: Schema.Literals(["confirm", "dismiss"]),
+  },
+  success: TransferMatchSummary,
+  error: MutationError,
 });
 
 export const previewBankImportRpc = RpcModule.make("previewBankImport", {

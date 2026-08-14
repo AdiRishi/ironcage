@@ -1,6 +1,11 @@
 import { Schema } from "effect";
 
-export const TransferMatchStatus = Schema.Literals(["proposed", "confirmed", "dismissed"]);
+/**
+ * A stored decision about a candidate pairing. Unresolved candidates are
+ * computed from the record rather than stored, so a transaction can hold at
+ * most one confirmed match while dismissals accumulate freely.
+ */
+export const TransferMatchStatus = Schema.Literals(["confirmed", "dismissed"]);
 export type TransferMatchStatus = typeof TransferMatchStatus.Type;
 
 /**

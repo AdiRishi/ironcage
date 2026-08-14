@@ -29,6 +29,7 @@ import {
   getBankCoverage,
   getImportHistory,
 } from "./money/queries";
+import { decideTransferMatch, getTransferMatches } from "./money/transfers";
 import { persistenceToBoundary } from "./persistence/error";
 import { Postgres } from "./persistence/postgres";
 
@@ -95,6 +96,8 @@ const appSurface = HttpRouter.toWebHandler(
       editCategorizationRule: (payload) => idempotently(payload, editCategorizationRule),
       categorizeTransactions: (payload) => idempotently(payload, categorizeTransactions),
       getReviewQueue: () => withMoney(() => getReviewQueue()),
+      getTransferMatches: () => withMoney(() => getTransferMatches()),
+      decideTransferMatch: (payload) => idempotently(payload, decideTransferMatch),
     }),
   ),
 );

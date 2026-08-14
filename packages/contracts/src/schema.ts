@@ -17,6 +17,9 @@ export {
   RuleInput,
   RuleSummary,
   SplitInput,
+  TransferCandidateGroup,
+  TransferLeg,
+  TransferMatchSummary,
   UploadedBytes,
 } from "./surfaces/money";
 export { SystemPing } from "./surfaces/system";
