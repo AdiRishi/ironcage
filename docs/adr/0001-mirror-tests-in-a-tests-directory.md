@@ -1,9 +1,0 @@
-# Mirror tests in a `tests/` directory beside `src/`
-
-Every workspace package keeps its tests in a `tests/` directory that mirrors the structure of its `src/` directory. Tests for `packages/engine/src/cage/reservation.ts` live at `packages/engine/tests/cage/reservation.test.ts`. Tests for `apps/app/src/routes/index.tsx` live at `apps/app/tests/routes/index.test.tsx`. Named suites keep the same rule: the `engine/cage.property` suite in [Operations](../technical/12-operations.md) is the directory `packages/engine/tests/cage.property/`.
-
-The layout exists so that production and test code are separate TypeScript projects. `tests/tsconfig.json` extends the package's `tsconfig.json` and adds the types the test runner needs; the production project never lists them. Each package's `typecheck` script runs both projects, so coverage does not shrink.
-
-Separating the projects is what makes the boundary real rather than a habit. With one shared project, a Worker could import `cloudflare:test` and a route could call `describe`, and both would typecheck. Both now fail to compile. Cloudflare's [Workers Vitest integration](https://developers.cloudflare.com/workers/testing/vitest-integration/write-your-first-test/) documents the same split for the same reason.
-
-The rejected alternative is colocating a test beside the file it covers, which several starters do by default. Colocation makes a test easy to find, but it puts test-runner types in scope for production source, and it mixes two kinds of file in every directory. Mirroring keeps a test just as easy to find, because its path is derived from the source path.

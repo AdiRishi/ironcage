@@ -5,10 +5,11 @@ strategies, every one caged by deterministic risk rules, every one earning its
 capital through evidence.
 
 This file is the workstation front door. The system itself is specified in
-[`docs/`](./docs/README.md), the ubiquitous language lives in
-[`CONTEXT.md`](./CONTEXT.md), repository conventions live in
-[`docs/adr/`](./docs/adr/README.md), and the rules for agents and external
-services live in [`AGENTS.md`](./AGENTS.md).
+[`docs/`](./docs/), a [Blume](https://useblume.dev) documentation site — run
+`pnpm docs:dev` and read it in the browser. The ubiquitous language lives in
+[`docs/glossary.mdx`](./docs/glossary.mdx), repository conventions live in
+[`docs/adr/`](./docs/adr/), and the rules for agents and external services
+live in [`AGENTS.md`](./AGENTS.md).
 
 ## Prerequisites
 
@@ -29,6 +30,9 @@ pnpm typecheck  # every package's production and test projects
 pnpm test       # all tests, unit and integration
 pnpm build      # production build of every workspace
 
+pnpm docs:dev   # the documentation site, with hot reload
+pnpm docs:build # static build of the docs site
+
 pnpm plan       # preview the production infrastructure change
 pnpm deploy     # reconcile production, including SQL migrations
 ```
@@ -39,11 +43,11 @@ the same gates first.
 
 ## Layout
 
-| Path          | Holds                                                        |
-| ------------- | ------------------------------------------------------------ |
-| `apps/`       | The four Workers: `app`, `core`, `agents`, `compute`         |
-| `packages/`   | `domain`, `contracts`, `engine`, `tax`, `ui`                 |
-| `infra/`      | The Alchemy stack — every resource and binding, typed        |
-| `migrations/` | Numbered SQL files, applied in order, never edited           |
-| `docs/`       | The specification: vision, product, technical chapters, ADRs |
-| `.repos/`     | Read-only vendored reference source (see `.repos/AGENTS.md`) |
+| Path          | Holds                                                               |
+| ------------- | ------------------------------------------------------------------- |
+| `apps/`       | The four Workers: `app`, `core`, `agents`, `compute`                |
+| `packages/`   | `domain`, `contracts`, `engine`, `tax`, `ui`                        |
+| `infra/`      | The Alchemy stack — every resource and binding, typed               |
+| `migrations/` | Numbered SQL files, applied in order, never edited                  |
+| `docs/`       | The specification as a Blume site: vision, product, technical, ADRs |
+| `.repos/`     | Read-only vendored reference source (see `.repos/AGENTS.md`)        |

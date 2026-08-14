@@ -1,0 +1,51 @@
+---
+title: Frontend file and folder conventions
+description: Where a component lives in apps/app and packages/ui once a route grows past one screenful — and why packages/ui is the shadcn surface and nothing else.
+sidebar:
+  label: Frontend conventions
+---
+
+`docs/technical/11-app.md` §1 fixes the route tree, but it says nothing about where a component lives once a route grows past one screenful. Without a stated answer, each surface invents its own, and by the tenth surface the app has ten conventions. This record fixes the answer for `apps/app` and `packages/ui`.
+
+## `packages/ui` is the shadcn surface and nothing else
+
+The package holds components the shadcn CLI wrote, `src/styles/globals.css`, and `src/lib/utils.ts`. Nothing is hand-written there, and no shadcn source is edited.
+
+A component is changed one of three ways: through its own variants, through the theme tokens in `globals.css`, or by composing it into something else in `apps/app`. The design's fixed 208px sidebar is a `style` prop on `SidebarProvider`, not an edit to `SIDEBAR_WIDTH`. The `LIVE` and `DRY RUN` tags are `Badge` plus the `--live` and `--dry-run` tokens, not a new `cva` variant.
+
+Two consequences follow, and both are the point. `pnpm dlx shadcn@latest add <component> --diff` stays meaningful, because there are no local modifications to merge around. And the rules in `11-app.md` §2 and §5 — `packages/ui` must not export `Observed<A> => A` or `Moded<A> => A`, and must not accept a bare mode string — hold without anyone checking, because CLI-authored code has no way to violate them.
+
+Two settings exist because of this rule rather than in spite of it. `packages/ui/tsconfig.json` disables `noUnusedLocals`, and `.oxlintrc.json` disables two `jsx-a11y` rules for `packages/ui/src/components/**`. Upstream ships files that trip all three. Since the files are not edited here, the error has no available fix; silencing it is the only alternative to never updating the component. Neither setting protects anything, because nothing hand-written lives in the package.
+
+Check the registry before writing a component: `pnpm dlx shadcn@latest search @shadcn -q "<thing>"`. Custom markup needs a reason that survives being asked which shadcn component it is reinventing.
+
+## The layout of `apps/app/src`
+
+```
+routes/              file-based routes — route config, loaders, and composition only
+features/<surface>/  everything only one surface needs
+  components/ · queries.ts
+components/
+  shell/             sidebar, top bar, override banner, halt-all, surface tabs, nav manifest
+  common/            product-aware pieces used by two or more features
+data/                query-key catalog, feed client, invalidation map (11-app.md §2)
+server/              server functions over the CORE and AGENTS bindings
+hooks/               app-wide hooks
+lib/                 product-agnostic helpers and providers
+```
+
+`features/` mirrors the eight surfaces the product documents name, so a question about Money has one directory to open.
+
+Four placement rules bind the tree.
+
+A new component starts in `features/<surface>/components`. That is the default, not the fallback.
+
+A component moves to `components/common` when a second feature needs it. Promotion happens at the moment of the second use, not in anticipation of it. There is no promotion into `packages/ui`; the first rule closes that door.
+
+A route file holds composition and a loader. A component born in a route file moves to its feature folder before it grows a second prop.
+
+Tests mirror into `apps/app/tests/`, following [ADR 0001](/adr/mirror-tests-in-a-tests-directory).
+
+## The rejected alternative
+
+The obvious alternative is to let Ironcage-specific primitives live in `packages/ui` beside the shadcn components, on the grounds that a section header or a status pill carries no product vocabulary and is shared by every surface. It was rejected for two reasons. The registry already has the components — `Item` for a vitals tile, `Empty` for an unbuilt surface, `Badge` for a status tag — so the primitives would have been reimplementations rather than additions. And a package that mixes CLI-authored and hand-written files needs a per-file rule about which may be edited, which is exactly the kind of convention that erodes. The boundary as drawn needs no such rule.

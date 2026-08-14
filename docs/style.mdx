@@ -1,0 +1,51 @@
+---
+title: Style
+description: The writing contract for every page of this documentation — rules for prose, content, structure, and the components of the docs site.
+sidebar:
+  icon: pen-line
+  order: 4
+---
+
+This page is the writing contract for everything in `docs/`. It exists because the documentation is the system until the code exists, and a spec that is hard to read is hard to get right. Every edit to `docs/` is expected to follow these rules; a passage that breaks them is a defect to fix, like any other.
+
+## The reader
+
+One person: the operator-engineer who will build, run, and live with this system for years. Write for that person on an ordinary day — not for a conference audience, not for another AI, and not for a reader who already knows the answer.
+
+## Rules for prose
+
+1. **One claim per sentence.** If a sentence carries a rule, its exception, and its rationale, split it into three sentences.
+2. **Motivate before mechanism.** Each chapter and each major section opens with a short paragraph saying what problem the machinery solves. A reader should never be three paragraphs into a protocol without knowing why it exists.
+3. **State condition, then behavior, then recovery.** "When X happens, the system does Y. If Y fails, Z." Never bury the failure path in a subordinate clause.
+4. **No aphorism in place of an explanation.** Write the plain version first. One memorable restatement after the plain version is allowed; a slogan instead of it is not.
+5. **No moralized adjectives.** Mechanisms are not "honest," "dull," or "humble." Say what they do: "Most ticks produce no action," not "the honest output is no change."
+6. **Use em-dashes sparingly.** An em-dash that introduces a second claim, an exception, or a rationale is hiding a sentence. Write the sentence.
+7. **No keynote endings.** A section ends when its content does.
+8. **No constitutional or legal metaphor.** Say where a behavior is defined, plainly. ("The product spec defines this; a technical choice that breaks it is wrong" — not "the hierarchy is constitutional.")
+9. **Lyrical language lives in [Vision](/vision)** and nowhere else. The product chapters may keep more warmth than the technical chapters; the technical chapters stay plain.
+
+## Rules for content
+
+10. **Every number is named and owned.** A value appears with its default, its owner (mandate, engine configuration, registry, or operator), and its status: _decided_ or _proposed_. Each technical chapter collects its values in a closing table. A vague adjective ("comfortably above", "generous") where a number belongs is a defect.
+11. **Unresolved questions are visible.** Anything genuinely undecided goes in the chapter's Open questions section with: the question, the safe fallback while it is open, what milestone it must close before, and what evidence closes it. An open question is never hidden inside a confident sentence.
+12. **External facts carry their status.** A claim about a venue API, a platform limit, or a bank export format is either verified (with its source) or marked **VERIFY:** with what would confirm it. Confidence is not evidence.
+13. **Worked examples beside formulas.** Every formula or protocol of consequence is demonstrated with concrete numbers, labeled "illustrative, not a default" when the numbers are not real defaults.
+14. **Diagrams are load-bearing or absent.** A state or sequence diagram is welcome where it carries the argument, and it is always bracketed by prose stating the same semantics — a diagram is never the only definition of anything.
+
+## Rules for structure
+
+15. **Each chapter is self-sufficient.** A reader with a question opens one chapter and gets a working answer. Chapters restate the two or three rules they need from elsewhere — as summaries with a pointer, never as competing exact definitions. Every mechanism has exactly one home chapter; the map on the [home page](/) says which.
+16. **Links deepen; they never complete a sentence.** If removing a link breaks the local logic, the local text is missing something.
+17. **Rationale lives inline.** Each chapter's "Alternatives considered" section carries what was rejected and why, next to the design it justifies. The [decision appendix](/technical/appendix/decisions) is history — useful for avoiding re-argument, never required reading, and never cited mid-sentence in body prose.
+18. **The chapter skeleton is fixed** for technical chapters: orientation paragraph → what this chapter guarantees (plain prose, no ID codes) → body in execution order → values table → alternatives considered → open questions → build checklist.
+
+## Rules for the docs site
+
+The documentation renders as a website built with [Blume](https://useblume.dev), which adds components beyond plain Markdown. The content rules above are unchanged by the medium; these rules govern the components so the added fidelity serves comprehension rather than decoration.
+
+19. **Components are load-bearing or absent** — the same bar as rule 14. A callout, diagram, or card earns its place by carrying the argument better than prose would; a page is never dressed up for its own sake.
+20. **Callouts carry status, not emphasis.** `:::note` for supporting context, `:::tip` for optional practice, `:::warning` for behavior that surprises or needs care, `:::danger` for irreversible or capital-risking actions, `:::info` for framing asides. A **VERIFY:** marker (rule 12) sits in a `:::warning` so unverified external facts are visible at a glance. Emphasis inside ordinary prose stays bold text, not a callout.
+21. **Diagrams are Mermaid, bracketed by prose.** Rule 14 applies verbatim: the prose states the same semantics, and the diagram is never the only definition. Prefer flowcharts for structure, sequence diagrams for protocols, and state diagrams for lifecycles.
+22. **Steps for ceremonies, tables for values.** An ordered protocol the operator or system walks through renders as `<Steps>`. A values table (rule 10) stays a Markdown table — sortable by eye, greppable in source, never a component.
+23. **Tabs only for genuine alternatives.** Venue-specific behavior (Kraken beside Alpaca), format variants, or equivalent paths may sit in `<Tabs>`. Content the reader must read in full never hides behind a tab.
+24. **Pages begin at `##`.** The frontmatter `title` renders as the page heading and the `description` as its standfirst; a body `#` heading duplicates them and is a defect.

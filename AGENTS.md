@@ -2,8 +2,10 @@
 
 ## Working in this repository
 
-`CONTEXT.md` holds the ubiquitous language, `docs/` holds the specification, and
-`docs/adr/` holds the repository conventions. Read those before changing code.
+`docs/glossary.mdx` holds the ubiquitous language, `docs/` holds the
+specification, and `docs/adr/` holds the repository conventions. Read those
+before changing code. The docs are a Blume site: `pnpm docs:dev` serves it, and
+every page is plain MDX on disk.
 This file covers the external services an agent can reach and what it may do
 with them.
 
