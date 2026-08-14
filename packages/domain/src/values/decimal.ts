@@ -1,4 +1,5 @@
 import { BigDecimal, Schema } from "effect";
+import type { Brand } from "effect";
 
 /**
  * Every quantity of money, price, or asset is a `BigDecimal` carried as a
@@ -24,22 +25,26 @@ const fitsNumeric = (precision: number, scale: number) =>
     { expected: `a decimal fitting PostgreSQL numeric(${precision},${scale})` },
   );
 
-const financialDecimal = <const Name extends string>(
-  name: Name,
-  precision: number,
-  scale: number,
-) => Schema.BigDecimalFromString.check(fitsNumeric(precision, scale)).pipe(Schema.brand(name));
+const financialDecimal = (precision: number, scale: number) =>
+  Schema.BigDecimalFromString.check(fitsNumeric(precision, scale));
 
-/** `numeric(20,8)`, which Postgres caps just under 10^12 units. */
-export const Money = financialDecimal("Money", 20, 8);
-export type Money = typeof Money.Type;
+/**
+ * `numeric(20,8)`, which Postgres caps just under 10^12 units.
+ *
+ * The currency is a phantom parameter: `Money<"AUD">` and `Money<"USD">` are
+ * the same `BigDecimal` at runtime, and the brand alone stops them adding
+ * together. Build each currency's schema once and share it.
+ */
+export const Money = <const C extends string>(currency: C) =>
+  financialDecimal(20, 8).pipe(Schema.brand(`Money<${currency}>`));
+export type Money<C extends string> = BigDecimal.BigDecimal & Brand.Brand<`Money<${C}>`>;
 
 /** `numeric(24,8)`, wider in the integer part than `Money` for venue prices. */
-export const Price = financialDecimal("Price", 24, 8);
+export const Price = financialDecimal(24, 8).pipe(Schema.brand("Price"));
 export type Price = typeof Price.Type;
 
 /** `numeric(38,18)`, sized for crypto asset quantities. */
-export const Quantity = financialDecimal("Quantity", 38, 18);
+export const Quantity = financialDecimal(38, 18).pipe(Schema.brand("Quantity"));
 export type Quantity = typeof Quantity.Type;
 
 export const Currency = Schema.String.check(Schema.isMinLength(1)).pipe(Schema.brand("Currency"));

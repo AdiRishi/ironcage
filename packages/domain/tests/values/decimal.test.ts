@@ -1,12 +1,12 @@
 import { BigDecimal, Schema } from "effect";
 import { describe, expect, expectTypeOf, test } from "vitest";
 
-import type { Money as MoneyType, Price as PriceType, Quantity as QuantityType } from "../../src";
+import type { Price as PriceType, Quantity as QuantityType } from "../../src";
 import { Money, Price, Quantity } from "../../src";
 
 describe("financial decimals", () => {
   test("money fits numeric(20,8)", () => {
-    const decode = Schema.decodeUnknownSync(Money);
+    const decode = Schema.decodeUnknownSync(Money("AUD"));
 
     expect(BigDecimal.format(decode("999999999999.99999999"))).toBe("999999999999.99999999");
     expect(() => decode("1000000000000")).toThrow(/numeric\(20,8\)/);
@@ -33,8 +33,13 @@ describe("financial decimals", () => {
   });
 
   test("money, price, and quantity are nominally distinct", () => {
-    expectTypeOf<MoneyType>().not.toEqualTypeOf<PriceType>();
-    expectTypeOf<MoneyType>().not.toEqualTypeOf<QuantityType>();
+    expectTypeOf<Money<"AUD">>().not.toEqualTypeOf<PriceType>();
+    expectTypeOf<Money<"AUD">>().not.toEqualTypeOf<QuantityType>();
     expectTypeOf<PriceType>().not.toEqualTypeOf<QuantityType>();
+  });
+
+  test("money in different currencies cannot mix", () => {
+    expectTypeOf<Money<"AUD">>().not.toEqualTypeOf<Money<"USD">>();
+    expectTypeOf(Schema.decodeUnknownSync(Money("AUD"))("1.50")).toEqualTypeOf<Money<"AUD">>();
   });
 });
