@@ -6,25 +6,6 @@ export class DatabaseError extends Schema.TaggedError<DatabaseError>()("Database
   detail: Schema.String,
 }) {}
 
-// `sslrootcert=system` tells libpq to trust the operating system's store.
-// node-postgres reads it as a filename and fails on a file called `system`, so
-// the TLS settings move out of the URL and into the client configuration.
-export const configFor = (connectionString: string): pg.ClientConfig => {
-  const url = new URL(connectionString);
-  if (url.searchParams.get("sslrootcert") !== "system") return { connectionString };
-
-  const sslMode = url.searchParams.get("sslmode");
-  const permissive = ["require", "prefer", "allow"].includes(sslMode ?? "");
-
-  url.searchParams.delete("sslrootcert");
-  url.searchParams.delete("sslmode");
-
-  return {
-    connectionString: url.toString(),
-    ssl: sslMode === "disable" ? false : { rejectUnauthorized: !permissive },
-  };
-};
-
 /**
  * One Postgres session, injectable so the applier can be exercised without a
  * database. The migrator holds a session rather than a pool because its
@@ -44,7 +25,7 @@ export class Database extends Context.Service<
     Layer.effect(
       Database,
       Effect.gen(function* () {
-        const client = new pg.Client(configFor(connectionString));
+        const client = new pg.Client({ connectionString });
 
         yield* Effect.tryPromise({
           try: () => client.connect(),

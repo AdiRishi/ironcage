@@ -24,6 +24,7 @@
     "@effect/vitest": "catalog:",
     "@ironcage/compute": "workspace:*",
     "@ironcage/tsconfig": "workspace:*",
+    "@testcontainers/postgresql": "catalog:",
     "@types/node": "catalog:",
     "@types/pg": "catalog:",
     "typescript": "catalog:",

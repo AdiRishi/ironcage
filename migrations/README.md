@@ -38,6 +38,17 @@ in transaction mode, so the session advisory lock the runner takes would not
 survive; the runner refuses a Hyperdrive URL rather than corrupting its own
 mutual exclusion.
 
+For local work, copy `.env.example` to `.env` and use the direct connection to
+PlanetScale `dev`. The production release uses the same runner with its own
+workflow-provided `DATABASE_URL`; production credentials never belong in a
+developer `.env` or a test.
+
+Database integration tests use Postgres 18.4 in Testcontainers. Each database
+test file owns a container, and every test drops the entire `public` schema and
+applies the repository migrations again before it runs. Tests therefore get a
+cold, empty schema without connecting to PlanetScale or sharing state with a
+different test file.
+
 ## What the runner refuses
 
 It stops rather than guessing when an applied migration's checksum no longer

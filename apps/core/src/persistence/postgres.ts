@@ -1,5 +1,5 @@
 import { Context, Effect, Layer, Schema } from "effect";
-import type { Client, ClientConfig, QueryResultRow } from "pg";
+import type { Client, QueryResultRow } from "pg";
 
 import { PersistenceError } from "./error";
 
@@ -21,24 +21,6 @@ export interface PostgresService extends SqlExecutor {
     use: (sql: SqlExecutor) => Effect.Effect<A, E, R>,
   ) => Effect.Effect<A, E | PersistenceError, R>;
 }
-
-// Hyperdrive's local connection string can carry libpq's system-store flag,
-// which node-postgres otherwise treats as a literal certificate filename.
-export const clientConfigFor = (connectionString: string): ClientConfig => {
-  const url = new URL(connectionString);
-  if (url.searchParams.get("sslrootcert") !== "system") return { connectionString };
-
-  const sslMode = url.searchParams.get("sslmode");
-  const permissive = ["require", "prefer", "allow"].includes(sslMode ?? "");
-
-  url.searchParams.delete("sslrootcert");
-  url.searchParams.delete("sslmode");
-
-  return {
-    connectionString: url.toString(),
-    ssl: sslMode === "disable" ? false : { rejectUnauthorized: !permissive },
-  };
-};
 
 const executor = (client: Client): SqlExecutor => ({
   query: (operation, statement, parameters = []) =>
@@ -101,7 +83,7 @@ export class Postgres extends Context.Service<Postgres, PostgresService>()(
             try: async () => {
               const { Client } = await import("pg");
               const opened = new Client({
-                ...clientConfigFor(connectionString),
+                connectionString,
                 application_name: "ironcage-core",
               });
               await opened.connect();

@@ -29,6 +29,7 @@ catalog:
   "@tanstack/react-router-ssr-query": ^1.167.1
   "@tanstack/react-start": 1.168.39
   "@tanstack/router-plugin": ^1.168.27
+  "@testcontainers/postgresql": 12.1.0
   "@testing-library/dom": ^10.4.1
   "@testing-library/jest-dom": ^7.0.0
   "@testing-library/react": ^16.3.2
@@ -63,9 +64,12 @@ catalog:
 
 allowBuilds:
   "@tailwindcss/oxide": true
+  cpu-features: false
   esbuild: true
   msgpackr-extract: false
+  protobufjs: false
   sharp: true
+  ssh2: false
   unrs-resolver: true
   workerd: true
 

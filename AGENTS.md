@@ -56,13 +56,15 @@ first. Reading configuration does not.
 `pnpm dev` starts all four Workers with the local dev registry resolving every
 service binding.
 
-There is no local Postgres. `wrangler dev` connects straight to the PlanetScale
-`dev` branch through `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB` and
-`..._DB_CACHED` in `apps/core/.env`. Those are Wrangler's own variables rather
-than Worker bindings, so they belong in `.env` — Wrangler does not read
-`.dev.vars` for them. The connection reaches the database directly, exercising
-neither Hyperdrive's pooling nor its caching; a deployed dev Worker is what
-would prove those.
+There is no long-lived local Postgres. `wrangler dev` connects straight to the
+PlanetScale `dev` branch through
+`CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB` and `..._DB_CACHED` in
+`apps/core/.env`. Those are Wrangler's own variables rather than Worker
+bindings, so they belong in `.env` — Wrangler does not read `.dev.vars` for
+them. The connection reaches the database directly, exercising neither
+Hyperdrive's pooling nor its caching; a deployed dev Worker is what would prove
+those. Database integration tests start disposable Postgres containers and
+never use either PlanetScale branch.
 
 R2 is simulated locally in `.wrangler/state` and does not touch
 `ironcage-private` unless the binding is marked `"remote": true`.

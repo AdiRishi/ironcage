@@ -69,6 +69,6 @@ export default defineConfig({
     }),
   ],
   test: {
-    exclude: [...configDefaults.exclude, "tests/integration/**/*.test.ts"],
+    exclude: [...configDefaults.exclude, "tests/**/*.integration.test.ts"],
   },
 });
