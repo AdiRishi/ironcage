@@ -39,19 +39,22 @@ CREATE TABLE decision_records (
   occurred_at          timestamptz NOT NULL
 );
 
--- A model suggestion waiting in the review queue. Auto-apply is off: a
--- suggestion becomes a split only through the operator's categorization,
--- which marks it accepted or superseded.
-CREATE TABLE categorization_suggestions (
+-- The model's assignment for one transaction: applied as that transaction's
+-- effective split (with `ai` provenance) the moment the run lands, and kept
+-- here for its rationale and its link to the decision record. When the
+-- operator later files the row themselves the status says whether they kept
+-- the model's category or overrode it — the correction corpus.
+CREATE TABLE categorization_assignments (
   id                 uuid PRIMARY KEY,
   run_id             uuid NOT NULL REFERENCES capability_outputs(run_id),
   transaction_id     uuid NOT NULL REFERENCES bank_transactions(id),
   category_id        uuid NOT NULL REFERENCES categories(id),
   rationale          text NOT NULL,
   decision_record_id uuid NOT NULL REFERENCES decision_records(id),
-  status             text NOT NULL CHECK (status IN ('pending','accepted','superseded')),
+  status             text NOT NULL CHECK (status IN ('applied','kept','overridden')),
   created_at         timestamptz NOT NULL
 );
 
-CREATE UNIQUE INDEX categorization_suggestions_pending
-  ON categorization_suggestions (transaction_id) WHERE status = 'pending';
+-- One live model assignment per transaction.
+CREATE UNIQUE INDEX categorization_assignments_applied
+  ON categorization_assignments (transaction_id) WHERE status = 'applied';

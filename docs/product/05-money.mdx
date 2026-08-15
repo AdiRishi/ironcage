@@ -39,7 +39,7 @@ The import flow is:
   </Step>
   <Step title="Resolve">Any rows the system cannot identify unambiguously.</Step>
   <Step title="Confirm">The import.</Step>
-  <Step title="Review">Categories that no rule recognized.</Step>
+  <Step title="Inspect">The ledger — every new row filed, and by whom, open to change.</Step>
 </Steps>
 
 Nothing is stored before confirmation. The preview reports source rows, new transactions, known duplicates, ambiguities, and coverage gaps. A file for the wrong account is rejected before row matching begins. A structured export that reaches NetBank's observed 600-row ceiling is treated as truncated and cannot claim complete coverage.
@@ -76,9 +76,11 @@ The default taxonomy includes housing, groceries, eating out, transport, utiliti
 
 One transaction may be split across categories. Its split amounts must sum exactly to the signed transaction amount.
 
-Rules run before AI. Correcting a payee can create a visible rule for future transactions. AI suggestions show their confidence and rationale, but every suggestion requires review at launch. Automatic application remains disabled until reviewed decisions provide enough evidence to calibrate a threshold.
+Every transaction is filed the moment it arrives, the way a bank files it: rules first, then AI for whatever no rule recognized. The operator's job is to inspect and correct, never to file by hand as a matter of course.
 
-Every assignment records whether it came from a rule, AI suggestion, or manual choice. The underlying source narrative never changes when a category changes.
+Rules run first and are decisive. An AI run answers every row a rule left uncategorized, and its answer is applied as that row's category, with a one-line rationale kept alongside. The AI never touches a row a rule or the operator has already filed. A row stays uncategorized only when the AI run failed or produced no answer for it, and those rows are surfaced first in the ledger so they get a hand.
+
+Every assignment records whether it came from a rule, the AI, or the operator, and the ledger shows that provenance on every row. Correcting an AI-filed row records whether the operator kept or overrode the AI's category — the correction corpus that measures the AI's precision over time. Correcting a payee can create a visible rule for future transactions. The underlying source narrative never changes when a category changes.
 
 Transfers between owned accounts are matched and excluded from income and spending. Refunds and reversals reduce the expense category they belong to. They never become income merely because their amount is positive.
 

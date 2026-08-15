@@ -50,7 +50,7 @@ export type CapabilityTrigger =
   | { readonly _tag: "batch" };
 ```
 
-A run answers exactly one trigger. Runtime trading capabilities use a `schedule` trigger: a tick consumes their newest valid output, so freshness must be computable, and the clock is the candle grid the tick already reads. A `batch` capability is dispatched by core when its work arrives — Money's categorization runs once per import batch — and its output carries no validity window, because a suggestion waits in a review queue rather than gating a tick.
+A run answers exactly one trigger. Runtime trading capabilities use a `schedule` trigger: a tick consumes their newest valid output, so freshness must be computable, and the clock is the candle grid the tick already reads. A `batch` capability is dispatched by core when its work arrives — Money's categorization runs once per import batch — and its output carries no validity window, because it is applied to the record on delivery rather than consumed by a tick.
 
 The four safety classes are closed. A new capability must fit one of them. Adding a fifth class changes the product's safety model and is a product decision, never an ordinary registry edit.
 
@@ -171,7 +171,7 @@ sequenceDiagram
     configuration, the tick consumes the greatest `(scheduled_at, run_id)`.
     Stale, absent, or failed resolves to the safe default. A failed AI run may
     never delay, block, or alter a tick. A batch capability's consumer is its
-    own surface: categorization suggestions land in Money's review queue.
+    own surface: categorization output is applied to Money's ledger.
   </Step>
 </Steps>
 
@@ -179,7 +179,7 @@ In the worked example: the regime run scheduled at `2026-08-07T00:00Z` produced 
 
 ## Staleness is logical time
 
-Staleness is a schedule-trigger concern. A batch run's output has no validity window: a categorization suggestion waits until it is reviewed or superseded, and never expires. A scheduled output's lifetime anchors on when the run was scheduled, not on when the model happened to finish. This matters because a slow provider must not be able to stretch an assessment's relevance.
+Staleness is a schedule-trigger concern. A batch run's output has no validity window: a categorization is applied when it lands and stands until the operator changes it, and never expires. A scheduled output's lifetime anchors on when the run was scheduled, not on when the model happened to finish. This matters because a slow provider must not be able to stretch an assessment's relevance.
 
 - `valid_until = scheduled_at + validFor` from the registry's schedule trigger. The default `validFor` is 1.5 × cadence (proposed). A mandate may shorten the window for its sleeve, never lengthen it.
 - A late run loses lifetime. A run scheduled at `00:00Z` with `validFor` 6 h that completes at `05:30Z` is valid until `06:00Z` regardless; it has thirty minutes of usable life, not six hours.
@@ -344,7 +344,7 @@ Suspension is engine-side state, and the diagram's semantics are these. A breach
 
 ## Categorization
 
-Money's transaction categorization reuses the capability runtime — the same queue path, authoritative validation, and decision records — as the system's first batch-triggered capability. A categorization run answers one import batch: its run ID anchors on the bundle digest and batch index, and its suggestions carry no validity window. It is not a sleeve capability. It has no sleeve, no mandate, and no baseline book; it lives in Money's own workflow and its registry entry is Money-owned. Operator-created rules short-circuit the model: a rule-matched transaction never reaches an agent. Automatic application of model categorizations is off at launch; it turns on at a confidence threshold derived from the operator's correction corpus, and that threshold is owned by [Money](/technical/money).
+Money's transaction categorization reuses the capability runtime — the same queue path, authoritative validation, and decision records — as the system's first batch-triggered capability. A categorization run answers one import batch: its run ID anchors on the bundle digest and batch index, and its output carries no validity window. It is not a sleeve capability. It has no sleeve, no mandate, and no baseline book; it lives in Money's own workflow and its registry entry is Money-owned. Operator-created rules short-circuit the model: a rule-matched transaction never reaches an agent. Core applies a validated answer on delivery to every row still uncategorized, and the operator's later corrections are recorded as kept or overridden — the corpus that measures the capability's precision. The application rule is owned by [Money](/technical/money).
 
 ## Design-time agents
 
@@ -391,7 +391,7 @@ There is no AI failure mode that makes the system bolder, and none that makes it
 | Flue conversation retention                     | lifetime of the agent instance; no per-session deletion promise                                          | agents Worker                                 | decided for v1              |
 | Trade-proposer per-day budget and capital cap   | none — mandate-authored, required before any Piloted sleeve leaves dry run                               | mandate                                       | decided (shape; no default) |
 | Event-veto max lock duration / concurrent count | none — mandate-authored; capability inactive until data adapters exist                                   | mandate                                       | proposed                    |
-| Categorization auto-apply                       | off at launch; threshold later from the correction corpus                                                | operator ([Money](/technical/money))          | decided                     |
+| Categorization application                      | on delivery, to rows still uncategorized; kept/overridden corrections form the corpus                    | operator ([Money](/technical/money))          | decided                     |
 | Initial model per capability                    | deferred (leaning Cloudflare-hosted)                                                                     | capability config                             | open                        |
 
 ## Alternatives considered

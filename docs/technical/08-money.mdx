@@ -455,19 +455,20 @@ An imported observation is immutable. A parser correction creates a new parse ru
 
 The tables below follow the shared UUIDv7, timestamp, money, and append-only conventions in [Data](/technical/data).
 
-| Table                       | Required fields and invariant                                                                                                  |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `bank_accounts`             | product label, type, masked suffix, identity HMAC, currency, effective dates; identity HMAC unique per bank profile            |
-| `bank_imports`              | account, profile version, bundle digest, source window, status, confirmed time; bundle digest unique per account               |
-| `bank_source_files`         | import, role, media type, byte digest, R2 key, original display name, extractor metadata; raw bytes immutable                  |
-| `bank_observations`         | source file, source ordinal, raw fields, parsed fields, parser version, parse status; one row per bank-supplied representation |
-| `bank_transactions`         | account, posted date, signed amount, preferred display narrative, derived payee, creation import; counted once                 |
-| `bank_observation_links`    | observation, transaction, match tier, decision provenance; one effective transaction per observation                           |
-| `bank_balance_observations` | account, kind (`row`, `ledger`, `available`, `opening`, `closing`), source-signed value, as-of date/time, observation or file  |
-| `bank_coverage_segments`    | account, inclusive window, profile, confirming import, status; only complete segments satisfy coverage                         |
-| `transaction_splits`        | transaction, category or system `uncategorized`, signed amount, provenance; effective splits sum exactly to transaction amount |
-| `categorization_rules`      | versioned predicate and category action with effective dates; a correction may create a future rule                            |
-| `transfer_matches`          | two opposite transaction IDs, status, method, provenance; each transaction has at most one effective owned-transfer match      |
+| Table                        | Required fields and invariant                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `bank_accounts`              | product label, type, masked suffix, identity HMAC, currency, effective dates; identity HMAC unique per bank profile             |
+| `bank_imports`               | account, profile version, bundle digest, source window, status, confirmed time; bundle digest unique per account                |
+| `bank_source_files`          | import, role, media type, byte digest, R2 key, original display name, extractor metadata; raw bytes immutable                   |
+| `bank_observations`          | source file, source ordinal, raw fields, parsed fields, parser version, parse status; one row per bank-supplied representation  |
+| `bank_transactions`          | account, posted date, signed amount, preferred display narrative, derived payee, creation import; counted once                  |
+| `bank_observation_links`     | observation, transaction, match tier, decision provenance; one effective transaction per observation                            |
+| `bank_balance_observations`  | account, kind (`row`, `ledger`, `available`, `opening`, `closing`), source-signed value, as-of date/time, observation or file   |
+| `bank_coverage_segments`     | account, inclusive window, profile, confirming import, status; only complete segments satisfy coverage                          |
+| `transaction_splits`         | transaction, category or system `uncategorized`, signed amount, provenance; effective splits sum exactly to transaction amount  |
+| `categorization_rules`       | versioned predicate and category action with effective dates; a correction may create a future rule                             |
+| `categorization_assignments` | run, transaction, category, rationale, decision record, status `applied`/`kept`/`overridden`; one `applied` row per transaction |
+| `transfer_matches`           | two opposite transaction IDs, status, method, provenance; each transaction has at most one effective owned-transfer match       |
 
 Raw narratives live on observations. `bank_transactions.preferred_display_narrative` chooses the highest-precedence linked observation, and `derived_payee` applies the source profile's presentation grammar to it. Rebuilding either cannot lose source text, and neither participates in transaction identity.
 
@@ -500,7 +501,7 @@ interface ConfirmBankImportRequest {
 }
 ```
 
-`getImportHistory` returns import counts and coverage effects without returning raw narratives by default. `getBankCoverage` returns required-account intervals and gaps. `getMoneyAnalysis` refuses comparison series that contain incomplete months.
+`getImportHistory` returns import counts and coverage effects without returning raw narratives by default. `getBankCoverage` returns required-account intervals and gaps. `getMoneyAnalysis` refuses comparison series that contain incomplete months. `listTransactions` reads the ledger in one of two scopes: a calendar month, or `attention` — every row still `uncategorized` or filed by the AI, uncategorized first — each row carrying its effective splits, its provenance, and the AI's rationale where it did the filing.
 
 ## 9. Categorization and splits
 
@@ -508,13 +509,15 @@ Rules run before AI and stop further dispatch when they match. Rules inspect der
 
 Every transaction has one or more effective splits. An unsplit transaction has one split for its full signed amount. A split transaction can allocate across several categories, but the signed split sum must equal the transaction amount exactly.
 
-`uncategorized` is a system-owned category and the initial split for a new row that no rule matches. It contributes to total net spending and remains visible in the review queue. It cannot be renamed or deleted by the operator.
+`uncategorized` is a system-owned category and the initial split for a new row that no rule matches. It contributes to total net spending and sorts first in the ledger's attention scope. It cannot be renamed or deleted by the operator.
 
-Each split records `rule`, `ai`, or `manual` provenance. AI auto-apply is disabled at launch. Suggestions enter the review queue with a rationale and decision-record link.
+Each split records `system`, `rule`, `ai`, or `manual` provenance. A row's effective provenance is the strongest among its effective splits, and the ledger shows it on every row.
 
-Correcting a transaction can create an exact-payee rule for future rows. The preview shows that scope before confirm. Historical rows change only through a separate bulk reclassification preview.
+Categorization is a batch-triggered capability: each run answers one import batch of `uncategorized` rows, and its run ID derives from the capability, its configuration version, the bundle digest, and the batch index, so a redispatched batch collides with its earlier self instead of filing twice ([AI](/technical/ai)). The capability receives normalized narrative text and account labels rather than raw statement pages or account identifiers.
 
-Categorization is a batch-triggered capability: each run answers one import batch, and its run ID derives from the capability, its configuration version, the bundle digest, and the batch index, so a redispatched batch collides with its earlier self instead of suggesting twice ([AI](/technical/ai)). The capability receives normalized narrative text rather than raw statement pages or account identifiers. A failed AI run leaves the import intact and its `uncategorized` splits unchanged.
+When a run's output passes authoritative validation, core applies it: for every answered transaction whose effective split is still `uncategorized`, one new split revision is written with the model's category, the full transaction amount, and `ai` provenance, and one `categorization_assignments` row is written with status `applied`, the model's rationale, and the decision-record link. A transaction a rule or the operator filed between dispatch and delivery is left alone; the model never overwrites a stronger provenance. One `ai_categorized` feed event summarizes the run. A failed run emits an `ai_run_failed` warning, and its rows stay `uncategorized` — those are what the operator sees first.
+
+The operator's own categorization writes a `manual` split revision and settles the row's applied assignment as `kept` (same category) or `overridden`. Those two statuses are the correction corpus. Correcting a transaction can also create an exact-payee rule for future rows; the preview shows that scope before confirm. Historical rows change only through a separate bulk reclassification preview.
 
 ## 10. Transfers, refunds, and loan movements
 
@@ -620,7 +623,7 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 | Backfill overlap                   | seven calendar days                                                                  | operator              | proposed |
 | Preview persistence                | none                                                                                 | importer              | decided  |
 | Confirm serialization              | advisory lock per bank account                                                       | importer              | decided  |
-| AI categorization auto-apply       | off until review-corpus calibration                                                  | operator              | decided  |
+| AI categorization                  | applied on delivery to rows still uncategorized; never over a rule or the operator   | operator              | decided  |
 | Categorization batch size          | 200 transactions                                                                     | categorization config | proposed |
 | Owned-transfer date window         | three calendar days, exact amount                                                    | analysis config       | decided  |
 | Recurring qualification            | 3 occurrences/400 days, ±5% median, gap deviation ≤20%                               | analysis config       | proposed |
@@ -652,8 +655,7 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 1. **Mastercard statement profile.** What row and balance structure does a representative Mastercard PDF expose? Safe fallback: archive the PDFs without importing them. Must close before: Mastercard history older than the structured window is added. Closing evidence: redacted PDFs from at least two layout periods, including one structured overlap, with all statement equations passing.
 2. **Home-loan statement profile.** Does the home-loan archive preserve per-row balances and principal/interest detail consistently? Safe fallback: archive the PDFs without importing them. Must close before: home-loan history older than the structured window is added. Closing evidence: redacted PDFs from at least two layout periods and a structured overlap.
 3. **Offset statement date alignment.** Which printed date or value-date rule maps statement rows to structured rows when their transaction dates differ? Safe fallback: the statement parser can reconcile a PDF but cannot add canonical history. Must close before: enabling `cba-offset-statement-v1` in production. Closing evidence: a statement and paired export for the same period with a one-to-one, balance-consistent mapping.
-4. **Categorization calibration.** What measured precision justifies automatic application? Safe fallback: every AI suggestion remains review-only. Must close before: enabling automatic application. Closing evidence: a held-out correction corpus with precision measured per candidate threshold.
-5. **Categorization batch size versus the queue envelope.** Does a 200-transaction batch, with its decision record, fit the 120,000-byte queue envelope in [Contracts](/technical/contracts)? Safe fallback: shrink the batch until it fits; an import simply produces more runs. Must close before: the categorization capability is configured. Closing evidence: measured envelope bytes for a maximum-size batch through the real serializer.
+4. **Categorization batch size versus the queue envelope.** Does a 200-transaction batch, with its decision record, fit the 120,000-byte queue envelope in [Contracts](/technical/contracts)? Safe fallback: shrink the batch until it fits; an import simply produces more runs. Must close before: the categorization capability is configured. Closing evidence: measured envelope bytes for a maximum-size batch through the real serializer.
 
 ## Build checklist
 
@@ -671,6 +673,6 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 - [ ] Property-test that deleting or changing a balanced row fails reconciliation.
 - [ ] Implement stateless preview and digest-verified confirm with stale-preview rejection and an account advisory lock.
 - [ ] Test that preview writes nothing and exact reconfirm writes nothing new.
-- [ ] Implement categories, exact splits, rule-first dispatch, review-only AI, and provenance.
+- [ ] Implement categories, exact splits, rule-first dispatch, AI application on delivery, and provenance.
 - [ ] Implement owned-transfer matching, refund treatment, home-loan principal treatment, and complete-month analysis.
 - [ ] Emit feed events for confirmed imports, coverage gaps and closures, recurring price changes, and anomalies; prove blocked previews emit none.
