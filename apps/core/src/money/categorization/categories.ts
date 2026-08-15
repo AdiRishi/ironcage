@@ -46,11 +46,10 @@ export const requireActiveCategory = Effect.fn("requireActiveCategory")(function
   return category;
 });
 
-export const listCategories = () =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
-    return yield* postgres.readTransaction(listCategoryRows);
-  }).pipe(persistenceToBoundary);
+export const listCategories = Effect.fn("listCategories")(function* () {
+  const postgres = yield* Postgres;
+  return yield* postgres.readTransaction(listCategoryRows);
+}, persistenceToBoundary);
 
 export interface CreateCategoryInput {
   readonly requestId: RequestId;

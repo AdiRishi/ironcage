@@ -1,7 +1,7 @@
 import type { FeedEventId } from "@ironcage/domain";
 import { Effect } from "effect";
 
-import type { PersistenceError, SqlExecutor } from "../../persistence";
+import type { SqlExecutor } from "../../persistence";
 
 export interface FeedEventInsert {
   readonly id: FeedEventId;
@@ -14,30 +14,29 @@ export interface FeedEventInsert {
   readonly links: unknown;
 }
 
-export const insertFeedEvent = (
+export const insertFeedEvent = Effect.fn("insertFeedEvent")(function* (
   sql: SqlExecutor,
   event: FeedEventInsert,
-): Effect.Effect<void, PersistenceError> =>
-  Effect.gen(function* () {
-    yield* sql.execute(
-      "insert feed event",
-      `INSERT INTO feed_events (id, occurred_at, origin, category, event_type, severity, summary, payload, links)
+) {
+  yield* sql.execute(
+    "insert feed event",
+    `INSERT INTO feed_events (id, occurred_at, origin, category, event_type, severity, summary, payload, links)
        VALUES ($1, now(), $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb)`,
-      [
-        event.id,
-        event.origin,
-        event.category,
-        event.eventType,
-        event.severity,
-        event.summary,
-        JSON.stringify(event.payload),
-        event.links === null ? null : JSON.stringify(event.links),
-      ],
-    );
-    yield* sql.execute(
-      "enqueue feed event",
-      `INSERT INTO feed_dispatches (event_id, status, created_at)
+    [
+      event.id,
+      event.origin,
+      event.category,
+      event.eventType,
+      event.severity,
+      event.summary,
+      JSON.stringify(event.payload),
+      event.links === null ? null : JSON.stringify(event.links),
+    ],
+  );
+  yield* sql.execute(
+    "enqueue feed event",
+    `INSERT INTO feed_dispatches (event_id, status, created_at)
        VALUES ($1, 'pending', now())`,
-      [event.id],
-    );
-  }).pipe(Effect.asVoid);
+    [event.id],
+  );
+});

@@ -20,7 +20,7 @@ import { Effect, Schema } from "effect";
 
 import { mintId } from "../../ids";
 import { runIdempotentMutation } from "../../persistence/app-requests";
-import { persistenceToBoundary, type PersistenceError } from "../../persistence/error";
+import { persistenceToBoundary } from "../../persistence/error";
 import { Postgres, type SqlExecutor } from "../../persistence/postgres";
 
 /** Candidate legs must post within this many calendar days of each other. */
@@ -119,63 +119,62 @@ const insertMatch = (
  * normalized bank reference no competing pair shares. Everything else waits
  * for the operator.
  */
-export const detectOwnedTransfers = (
+export const detectOwnedTransfers = Effect.fn("detectOwnedTransfers")(function* (
   sql: SqlExecutor,
   scope: readonly BankTransactionId[],
-): Effect.Effect<number, PersistenceError> =>
-  Effect.gen(function* () {
-    if (scope.length === 0) return 0;
-    const scoped = new Set(scope);
-    const all = yield* openPairs(sql);
-    const pairs = all.filter((pair) => scoped.has(pair.aId) || scoped.has(pair.bId));
-    const legs = yield* loadLegs(sql, [...new Set(all.flatMap((pair) => [pair.aId, pair.bId]))]);
+) {
+  if (scope.length === 0) return 0;
+  const scoped = new Set(scope);
+  const all = yield* openPairs(sql);
+  const pairs = all.filter((pair) => scoped.has(pair.aId) || scoped.has(pair.bId));
+  const legs = yield* loadLegs(sql, [...new Set(all.flatMap((pair) => [pair.aId, pair.bId]))]);
 
-    const degree = new Map<BankTransactionId, number>();
-    for (const pair of all) {
-      degree.set(pair.aId, (degree.get(pair.aId) ?? 0) + 1);
-      degree.set(pair.bId, (degree.get(pair.bId) ?? 0) + 1);
-    }
+  const degree = new Map<BankTransactionId, number>();
+  for (const pair of all) {
+    degree.set(pair.aId, (degree.get(pair.aId) ?? 0) + 1);
+    degree.set(pair.bId, (degree.get(pair.bId) ?? 0) + 1);
+  }
 
-    const claimed = new Set<BankTransactionId>();
-    let confirmed = 0;
+  const claimed = new Set<BankTransactionId>();
+  let confirmed = 0;
 
-    for (const pair of pairs) {
-      if (claimed.has(pair.aId) || claimed.has(pair.bId)) continue;
-      const a = legs.get(pair.aId);
-      const b = legs.get(pair.bId);
-      if (a === undefined || b === undefined) continue;
+  for (const pair of pairs) {
+    if (claimed.has(pair.aId) || claimed.has(pair.bId)) continue;
+    const a = legs.get(pair.aId);
+    const b = legs.get(pair.bId);
+    if (a === undefined || b === undefined) continue;
 
-      const sole = degree.get(pair.aId) === 1 && degree.get(pair.bId) === 1;
-      // A reference match is decisive only when no competing pairing over
-      // either leg also carries an agreeing reference.
-      const referenced =
-        sharesReference(a, b) &&
-        !all.some((other) => {
-          if (other.aId === pair.aId && other.bId === pair.bId) return false;
-          const competes =
-            other.aId === pair.aId ||
-            other.bId === pair.bId ||
-            other.aId === pair.bId ||
-            other.bId === pair.aId;
-          return competes && sharesReference(legs.get(other.aId)!, legs.get(other.bId)!);
-        });
-
-      if (!sole && !referenced) continue;
-
-      yield* insertMatch(sql, {
-        a: pair.aId,
-        b: pair.bId,
-        status: "confirmed",
-        method: sole ? "sole_pairing" : "reference",
-        provenance: { detectedBy: sole ? "sole_pairing" : "reference" },
+    const sole = degree.get(pair.aId) === 1 && degree.get(pair.bId) === 1;
+    // A reference match is decisive only when no competing pairing over
+    // either leg also carries an agreeing reference.
+    const referenced =
+      sharesReference(a, b) &&
+      !all.some((other) => {
+        if (other.aId === pair.aId && other.bId === pair.bId) return false;
+        const competes =
+          other.aId === pair.aId ||
+          other.bId === pair.bId ||
+          other.aId === pair.bId ||
+          other.bId === pair.aId;
+        return competes && sharesReference(legs.get(other.aId)!, legs.get(other.bId)!);
       });
-      claimed.add(pair.aId);
-      claimed.add(pair.bId);
-      confirmed += 1;
-    }
 
-    return confirmed;
-  });
+    if (!sole && !referenced) continue;
+
+    yield* insertMatch(sql, {
+      a: pair.aId,
+      b: pair.bId,
+      status: "confirmed",
+      method: sole ? "sole_pairing" : "reference",
+      provenance: { detectedBy: sole ? "sole_pairing" : "reference" },
+    });
+    claimed.add(pair.aId);
+    claimed.add(pair.bId);
+    confirmed += 1;
+  }
+
+  return confirmed;
+});
 
 const MatchRow = Schema.Struct({
   id: TransferMatchId,
@@ -186,53 +185,52 @@ const MatchRow = Schema.Struct({
   createdAt: Schema.DateTimeUtcFromDate,
 });
 
-export const getTransferMatches = () =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
+export const getTransferMatches = Effect.fn("getTransferMatches")(function* () {
+  const postgres = yield* Postgres;
 
-    return yield* postgres.readTransaction((sql) =>
-      Effect.gen(function* () {
-        const matches = yield* sql.rows(
-          "list transfer matches",
-          MatchRow,
-          `SELECT id, transaction_a AS "aId", transaction_b AS "bId", status, method, created_at AS "createdAt"
+  return yield* postgres.readTransaction((sql) =>
+    Effect.gen(function* () {
+      const matches = yield* sql.rows(
+        "list transfer matches",
+        MatchRow,
+        `SELECT id, transaction_a AS "aId", transaction_b AS "bId", status, method, created_at AS "createdAt"
              FROM transfer_matches ORDER BY created_at DESC LIMIT 500`,
-        );
-        const pairs = yield* openPairs(sql);
-        const legIds = [
-          ...new Set([
-            ...matches.flatMap((match) => [match.aId, match.bId]),
-            ...pairs.flatMap((pair) => [pair.aId, pair.bId]),
-          ]),
-        ];
-        const legs = yield* loadLegs(sql, legIds);
+      );
+      const pairs = yield* openPairs(sql);
+      const legIds = [
+        ...new Set([
+          ...matches.flatMap((match) => [match.aId, match.bId]),
+          ...pairs.flatMap((pair) => [pair.aId, pair.bId]),
+        ]),
+      ];
+      const legs = yield* loadLegs(sql, legIds);
 
-        const unresolvedByLeg = new Map<BankTransactionId, TransferLeg[]>();
-        for (const pair of pairs) {
-          const list = unresolvedByLeg.get(pair.aId);
-          const counterpart = legs.get(pair.bId)!;
-          if (list === undefined) unresolvedByLeg.set(pair.aId, [counterpart]);
-          else list.push(counterpart);
-        }
+      const unresolvedByLeg = new Map<BankTransactionId, TransferLeg[]>();
+      for (const pair of pairs) {
+        const list = unresolvedByLeg.get(pair.aId);
+        const counterpart = legs.get(pair.bId)!;
+        if (list === undefined) unresolvedByLeg.set(pair.aId, [counterpart]);
+        else list.push(counterpart);
+      }
 
-        const unresolved: TransferCandidateGroup[] = [...unresolvedByLeg.entries()].map(
-          ([id, counterparts]) => ({ transaction: legs.get(id)!, counterparts }),
-        );
+      const unresolved: TransferCandidateGroup[] = [...unresolvedByLeg.entries()].map(
+        ([id, counterparts]) => ({ transaction: legs.get(id)!, counterparts }),
+      );
 
-        return {
-          matches: matches.map((match) => ({
-            id: match.id,
-            a: legs.get(match.aId)!,
-            b: legs.get(match.bId)!,
-            status: match.status,
-            method: match.method,
-            createdAt: match.createdAt,
-          })),
-          unresolved,
-        };
-      }),
-    );
-  }).pipe(persistenceToBoundary);
+      return {
+        matches: matches.map((match) => ({
+          id: match.id,
+          a: legs.get(match.aId)!,
+          b: legs.get(match.bId)!,
+          status: match.status,
+          method: match.method,
+          createdAt: match.createdAt,
+        })),
+        unresolved,
+      };
+    }),
+  );
+}, persistenceToBoundary);
 
 export const decideTransferMatch = (input: {
   readonly requestId: RequestId;

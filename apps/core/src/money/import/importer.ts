@@ -2,12 +2,8 @@ import {
   Conflict,
   type ConfirmBankImportPayload,
   ConfirmBankImportResult,
-  Internal,
-  NotFound,
   Stale,
-  ValidationFailed,
   type BankImportSource,
-  type PreviewBankImportResult,
 } from "@ironcage/contracts/schema";
 import { BankImportId, monthOf, Sha256 } from "@ironcage/domain";
 import { Effect, Schema } from "effect";
@@ -31,24 +27,23 @@ import { insertConfirmedImport, loadImportedTransactions } from "./store";
 export { statementProfileName } from "./prepared-import";
 export type { ImportDependencies as ImportDeps, StatementExtraction } from "./prepared-import";
 
-export const previewBankImport = (
+export const previewBankImport = Effect.fn("previewBankImport")(function* (
   source: BankImportSource,
   deps: ImportDependencies,
-): Effect.Effect<PreviewBankImportResult, ValidationFailed | NotFound | Internal, Postgres> =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
-    return yield* postgres.readTransaction((sql) =>
-      Effect.map(prepareBankImport(sql, source, deps), (prepared) => ({
-        kind: "ready" as const,
-        preview: toBankImportPreview(prepared),
-      })).pipe(
-        Effect.catchIf(
-          (error): error is BankImportBlocked => error instanceof BankImportBlocked,
-          (error) => Effect.succeed({ kind: "blocked" as const, block: error.block }),
-        ),
+) {
+  const postgres = yield* Postgres;
+  return yield* postgres.readTransaction((sql) =>
+    Effect.map(prepareBankImport(sql, source, deps), (prepared) => ({
+      kind: "ready" as const,
+      preview: toBankImportPreview(prepared),
+    })).pipe(
+      Effect.catchIf(
+        (error): error is BankImportBlocked => error instanceof BankImportBlocked,
+        (error) => Effect.succeed({ kind: "blocked" as const, block: error.block }),
       ),
-    );
-  }).pipe(persistenceToBoundary);
+    ),
+  );
+}, persistenceToBoundary);
 
 const decodeSha = Schema.decodeUnknownSync(Sha256);
 const confirmPayloadHash = async (input: ConfirmBankImportPayload): Promise<string> => {
@@ -87,95 +82,90 @@ const deriveConfirmedImport = Effect.fn("deriveConfirmedImport")(function* (
   yield* generateMonthlySpendingReports(sql, analysis);
 });
 
-export const confirmBankImport = (
+export const confirmBankImport = Effect.fn("confirmBankImport")(function* (
   input: ConfirmBankImportPayload,
   deps: ImportDependencies,
-): Effect.Effect<
-  ConfirmBankImportResult,
-  ValidationFailed | NotFound | Conflict | Stale | Internal,
-  Postgres
-> =>
-  Effect.gen(function* () {
-    const payloadHash = decodeSha(yield* Effect.promise(() => confirmPayloadHash(input)));
-    const postgres = yield* Postgres;
-    const result = yield* runIdempotentMutation(
-      {
-        requestId: input.requestId,
-        operation: "confirmBankImport",
-        payloadHash,
-        response: ConfirmBankImportResult,
-      },
-      (sql) =>
-        Effect.gen(function* () {
-          yield* sql.execute(
-            "lock bank account for confirm",
-            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
-            [`bank-import:${input.source.accountId}`],
-          );
+) {
+  const payloadHash = decodeSha(yield* Effect.promise(() => confirmPayloadHash(input)));
+  const postgres = yield* Postgres;
+  const result = yield* runIdempotentMutation(
+    {
+      requestId: input.requestId,
+      operation: "confirmBankImport",
+      payloadHash,
+      response: ConfirmBankImportResult,
+    },
+    (sql) =>
+      Effect.gen(function* () {
+        yield* sql.execute(
+          "lock bank account for confirm",
+          "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+          [`bank-import:${input.source.accountId}`],
+        );
 
-          const prepared = yield* prepareBankImport(sql, input.source, deps).pipe(
-            Effect.catchIf(
-              (error): error is BankImportBlocked => error instanceof BankImportBlocked,
-              Effect.succeed,
-            ),
+        const prepared = yield* prepareBankImport(sql, input.source, deps).pipe(
+          Effect.catchIf(
+            (error): error is BankImportBlocked => error instanceof BankImportBlocked,
+            Effect.succeed,
+          ),
+        );
+        if (prepared instanceof BankImportBlocked) {
+          return { kind: "blocked", block: prepared.block } as const;
+        }
+        if (prepared.digest !== input.expectedBundleDigest) {
+          return yield* Effect.fail(
+            new Conflict({
+              reason: "ImportBytesChanged",
+              detail: "the uploaded bytes differ from the previewed bundle",
+            }),
           );
-          if (prepared instanceof BankImportBlocked) {
-            return { kind: "blocked", block: prepared.block } as const;
-          }
-          if (prepared.digest !== input.expectedBundleDigest) {
-            return yield* Effect.fail(
-              new Conflict({
-                reason: "ImportBytesChanged",
-                detail: "the uploaded bytes differ from the previewed bundle",
-              }),
-            );
-          }
-          if (prepared.kind === "replay") {
-            return {
-              kind: "confirmed",
-              importId: prepared.import.id,
-              effects: prepared.import.effects,
-              coverageAdded: [],
-            } as const;
-          }
-          if (prepared.fingerprint !== input.expectedPreviewFingerprint) {
-            return yield* Effect.fail(
-              new Stale({
-                reason: "PreviewStale",
-                detail: "the record moved since preview; preview again",
-              }),
-            );
-          }
-
-          const graph = yield* buildConfirmedImport(prepared, input.resolutions);
-          yield* insertConfirmedImport(sql, prepared.account, graph);
-          yield* enqueueCategorizationBatches(sql, graph);
-          yield* emitCoverageEvents(
-            sql,
-            prepared.account,
-            prepared.coverage.gapsBefore,
-            prepared.coverage.gapsRemaining,
-          );
-          if (prepared.account.identityHmac === null) {
-            yield* bindAccountIdentity(
-              sql,
-              prepared.account.id,
-              prepared.identityHmac,
-              prepared.maskedSuffix,
-            );
-          }
-
+        }
+        if (prepared.kind === "replay") {
           return {
             kind: "confirmed",
-            importId: graph.importRow.id,
-            effects: graph.importRow.effects,
-            coverageAdded: prepared.coverage.added,
+            importId: prepared.import.id,
+            effects: prepared.import.effects,
+            coverageAdded: [],
           } as const;
-        }),
-    );
+        }
+        if (prepared.fingerprint !== input.expectedPreviewFingerprint) {
+          return yield* Effect.fail(
+            new Stale({
+              reason: "PreviewStale",
+              detail: "the record moved since preview; preview again",
+            }),
+          );
+        }
 
-    if (result.kind === "confirmed") {
-      yield* postgres.transaction((sql) => deriveConfirmedImport(sql, result.importId));
-    }
-    return result;
-  }).pipe(persistenceToBoundary);
+        const graph = yield* buildConfirmedImport(prepared, input.resolutions);
+        yield* insertConfirmedImport(sql, prepared.account, graph);
+        yield* enqueueCategorizationBatches(sql, graph);
+        yield* emitCoverageEvents(
+          sql,
+          prepared.account,
+          prepared.coverage.gapsBefore,
+          prepared.coverage.gapsRemaining,
+        );
+        if (prepared.account.identityHmac === null) {
+          yield* bindAccountIdentity(
+            sql,
+            prepared.account.id,
+            prepared.identityHmac,
+            prepared.maskedSuffix,
+          );
+        }
+
+        return {
+          kind: "confirmed",
+          importId: graph.importRow.id,
+          effects: graph.importRow.effects,
+          coverageAdded: prepared.coverage.added,
+        } as const;
+      }),
+  );
+
+  if (result.kind === "confirmed") {
+    yield* postgres.transaction((sql) => deriveConfirmedImport(sql, result.importId));
+  }
+  return result;
+}, persistenceToBoundary);

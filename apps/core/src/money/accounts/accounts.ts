@@ -1,11 +1,4 @@
-import {
-  BankAccountSummary,
-  Conflict,
-  Internal,
-  NotFound,
-  type BankCoverage,
-  type ImportHistoryEntry,
-} from "@ironcage/contracts/schema";
+import { BankAccountSummary, Conflict } from "@ironcage/contracts/schema";
 import { BankAccountId, type CalendarDate, type RequestId, type Sha256 } from "@ironcage/domain";
 import { Effect } from "effect";
 
@@ -28,16 +21,11 @@ const summarize = (account: AccountRow): BankAccountSummary => ({
   closedOn: account.closedOn,
 });
 
-export const getBankAccounts = (): Effect.Effect<
-  readonly BankAccountSummary[],
-  NotFound | Internal,
-  Postgres
-> =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
-    const accounts = yield* postgres.readTransaction((sql) => listAccounts(sql));
-    return accounts.map(summarize);
-  }).pipe(persistenceToBoundary);
+export const getBankAccounts = Effect.fn("getBankAccounts")(function* () {
+  const postgres = yield* Postgres;
+  const accounts = yield* postgres.readTransaction((sql) => listAccounts(sql));
+  return accounts.map(summarize);
+}, persistenceToBoundary);
 
 export interface ConfigureBankAccountInput {
   readonly requestId: RequestId;
@@ -86,95 +74,91 @@ export const configureBankAccount = (input: ConfigureBankAccountInput) =>
       }),
   );
 
-export const getBankCoverage = (): Effect.Effect<BankCoverage, NotFound | Internal, Postgres> =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
+export const getBankCoverage = Effect.fn("getBankCoverage")(function* () {
+  const postgres = yield* Postgres;
 
-    return yield* postgres.readTransaction((sql) =>
-      Effect.gen(function* () {
-        const summary = yield* loadCoverageSummary(sql);
+  return yield* postgres.readTransaction((sql) =>
+    Effect.gen(function* () {
+      const summary = yield* loadCoverageSummary(sql);
 
-        return {
-          accounts: summary.perAccount.map(({ account, covered, gaps }) => ({
-            account: summarize(account),
-            covered,
-            gaps,
-          })),
-          completeMonths: summary.completeMonths,
-          freshestImportAt: yield* latestConfirmedAt(sql),
-          dataThrough: summary.dataThrough,
-        };
-      }),
-    );
-  }).pipe(persistenceToBoundary);
+      return {
+        accounts: summary.perAccount.map(({ account, covered, gaps }) => ({
+          account: summarize(account),
+          covered,
+          gaps,
+        })),
+        completeMonths: summary.completeMonths,
+        freshestImportAt: yield* latestConfirmedAt(sql),
+        dataThrough: summary.dataThrough,
+      };
+    }),
+  );
+}, persistenceToBoundary);
 
 /**
  * The whole-of-Money coverage view: per-account merged spans and gaps, the
  * complete-month intersection across required accounts, and the honest
  * data-through date (the latest day every required account covers).
  */
-export const loadCoverageSummary = (sql: SqlExecutor) =>
-  Effect.gen(function* () {
-    const accounts = yield* listAccounts(sql);
-    const perAccount = yield* Effect.forEach(accounts, (account) =>
-      Effect.map(loadCoverageSpans(sql, account.id), (spans) => {
-        const covered = mergeSpans(spans);
-        const gaps =
-          covered.length === 0
-            ? []
-            : coverageGaps(covered, {
-                start: covered[0]!.start,
-                end: covered[covered.length - 1]!.end,
-              });
-        return { account, covered, gaps };
-      }),
-    );
+export const loadCoverageSummary = Effect.fn("loadCoverageSummary")(function* (sql: SqlExecutor) {
+  const accounts = yield* listAccounts(sql);
+  const perAccount = yield* Effect.forEach(accounts, (account) =>
+    Effect.map(loadCoverageSpans(sql, account.id), (spans) => {
+      const covered = mergeSpans(spans);
+      const gaps =
+        covered.length === 0
+          ? []
+          : coverageGaps(covered, {
+              start: covered[0]!.start,
+              end: covered[covered.length - 1]!.end,
+            });
+      return { account, covered, gaps };
+    }),
+  );
 
-    const required = perAccount.filter(({ account }) => account.required);
-    const bounds = required.flatMap(({ covered }) =>
-      covered.length === 0 ? [] : [covered[0]!.start, covered[covered.length - 1]!.end],
-    );
-    const anyUncovered = required.some(({ covered }) => covered.length === 0);
-    const months =
-      required.length === 0 || anyUncovered || bounds.length === 0
-        ? new Set<string>()
-        : completeMonths(
-            required.map(({ account, covered }) => ({
-              merged: covered,
-              life: { openedOn: account.openedOn, closedOn: account.closedOn },
-            })),
-            monthsBetween(
-              bounds.reduce((a, b) => (a < b ? a : b)),
-              bounds.reduce((a, b) => (a > b ? a : b)),
-            ),
-          );
+  const required = perAccount.filter(({ account }) => account.required);
+  const bounds = required.flatMap(({ covered }) =>
+    covered.length === 0 ? [] : [covered[0]!.start, covered[covered.length - 1]!.end],
+  );
+  const anyUncovered = required.some(({ covered }) => covered.length === 0);
+  const months =
+    required.length === 0 || anyUncovered || bounds.length === 0
+      ? new Set<string>()
+      : completeMonths(
+          required.map(({ account, covered }) => ({
+            merged: covered,
+            life: { openedOn: account.openedOn, closedOn: account.closedOn },
+          })),
+          monthsBetween(
+            bounds.reduce((a, b) => (a < b ? a : b)),
+            bounds.reduce((a, b) => (a > b ? a : b)),
+          ),
+        );
 
-    const ends = required.map(({ covered }) => covered[covered.length - 1]?.end);
-    const dataThrough =
-      ends.length === 0 || ends.some((end) => end === undefined)
-        ? null
-        : ends.reduce<CalendarDate>((a, b) => (a < b! ? a : b!), "9999-12-31" as CalendarDate);
-
-    return { perAccount, completeMonths: [...months].sort(), dataThrough };
+  const ends = required.flatMap(({ covered }) => {
+    const end = covered[covered.length - 1]?.end;
+    return end === undefined ? [] : [end];
   });
+  const dataThrough =
+    required.length === 0 || ends.length !== required.length
+      ? null
+      : ends.reduce((earliest, end) => (earliest < end ? earliest : end));
 
-export const getImportHistory = (): Effect.Effect<
-  readonly ImportHistoryEntry[],
-  NotFound | Internal,
-  Postgres
-> =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
-    const rows = yield* postgres.readTransaction((sql) => listImportHistory(sql));
+  return { perAccount, completeMonths: [...months].sort(), dataThrough };
+});
 
-    return rows.map((row) => ({
-      importId: row.importId,
-      accountId: row.accountId,
-      productLabel: row.productLabel,
-      sourceProfile: row.sourceProfile,
-      window: { start: row.windowStart, end: row.windowEnd },
-      effects: row.effects,
-      files: row.files,
-      confirmedAt: row.confirmedAt,
-    }));
-  }).pipe(persistenceToBoundary);
+export const getImportHistory = Effect.fn("getImportHistory")(function* () {
+  const postgres = yield* Postgres;
+  const rows = yield* postgres.readTransaction((sql) => listImportHistory(sql));
+
+  return rows.map((row) => ({
+    importId: row.importId,
+    accountId: row.accountId,
+    productLabel: row.productLabel,
+    sourceProfile: row.sourceProfile,
+    window: { start: row.windowStart, end: row.windowEnd },
+    effects: row.effects,
+    files: row.files,
+    confirmedAt: row.confirmedAt,
+  }));
+}, persistenceToBoundary);

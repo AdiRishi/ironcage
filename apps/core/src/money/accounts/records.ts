@@ -22,35 +22,33 @@ const accountColumns = `id, bank, product_label AS "productLabel", account_type 
   opened_on AS "openedOn", closed_on AS "closedOn"`;
 
 export const getAccount = (sql: SqlExecutor, id: BankAccountId) =>
-  Effect.gen(function* () {
-    const rows = yield* sql.rows(
+  Effect.map(
+    sql.rows(
       "read bank account",
       AccountRow,
       `SELECT ${accountColumns} FROM bank_accounts WHERE id = $1`,
       [id],
-    );
-    return rows[0] ?? null;
-  });
+    ),
+    (rows) => rows[0] ?? null,
+  );
 
 export const listAccounts = (sql: SqlExecutor) =>
-  Effect.gen(function* () {
-    return yield* sql.rows(
-      "list bank accounts",
-      AccountRow,
-      `SELECT ${accountColumns} FROM bank_accounts ORDER BY created_at`,
-    );
-  });
+  sql.rows(
+    "list bank accounts",
+    AccountRow,
+    `SELECT ${accountColumns} FROM bank_accounts ORDER BY created_at`,
+  );
 
 export const findAccountByIdentity = (sql: SqlExecutor, bank: string, identityHmac: string) =>
-  Effect.gen(function* () {
-    const rows = yield* sql.rows(
+  Effect.map(
+    sql.rows(
       "find bank account by identity",
       AccountRow,
       `SELECT ${accountColumns} FROM bank_accounts WHERE bank = $1 AND identity_hmac = $2`,
       [bank, identityHmac],
-    );
-    return rows[0] ?? null;
-  });
+    ),
+    (rows) => rows[0] ?? null,
+  );
 
 export const insertAccount = (
   sql: SqlExecutor,

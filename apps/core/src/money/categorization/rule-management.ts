@@ -62,11 +62,10 @@ export const insertRule = Effect.fn("insertCategorizationRule")(function* (
   return id;
 });
 
-export const getCategorizationRules = () =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
-    return yield* postgres.readTransaction(listRuleRows);
-  }).pipe(persistenceToBoundary);
+export const getCategorizationRules = Effect.fn("getCategorizationRules")(function* () {
+  const postgres = yield* Postgres;
+  return yield* postgres.readTransaction(listRuleRows);
+}, persistenceToBoundary);
 
 export interface EditCategorizationRuleInput {
   readonly requestId: RequestId;

@@ -1,4 +1,4 @@
-import { Internal, NotFound, type MoneyAnalysis } from "@ironcage/contracts/schema";
+import type { MoneyAnalysis } from "@ironcage/contracts/schema";
 import { Effect } from "effect";
 
 import { persistenceToBoundary } from "../../persistence/error";
@@ -34,8 +34,7 @@ export const analyzeMoney = Effect.fn("analyzeMoney")(function* (sql: SqlExecuto
   } satisfies MoneyAnalysis;
 });
 
-export const getMoneyAnalysis = (): Effect.Effect<MoneyAnalysis, NotFound | Internal, Postgres> =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
-    return yield* postgres.readTransaction(analyzeMoney);
-  }).pipe(persistenceToBoundary);
+export const getMoneyAnalysis = Effect.fn("getMoneyAnalysis")(function* () {
+  const postgres = yield* Postgres;
+  return yield* postgres.readTransaction(analyzeMoney);
+}, persistenceToBoundary);

@@ -1,229 +1,18 @@
 import { DispatchRpcs, clientOverBinding, timeouts } from "@ironcage/contracts/client";
-import {
-  AgentReadRpcs,
-  AppRpcs,
-  makeWorkerRequestContext,
-  rpcHttpRoute,
-  systemPingHandler,
-} from "@ironcage/contracts/server";
-import { Sha256 } from "@ironcage/domain";
 import type { ActorBinding } from "@ironcage/infra/worker-bindings";
 import { DurableObject, WorkerEntrypoint } from "cloudflare:workers";
-import { Cause, Effect, Schema } from "effect";
-import { HttpRouter } from "effect/unstable/http";
+import { Effect } from "effect";
 
+import { handleAgentRequest } from "./agent-api";
 import { consumeCapabilityRun, consumeDeadLetter } from "./ai/consume";
+import { handleAppRequest } from "./app-api";
 import {
-  getBankAccounts,
-  getBankCoverage,
-  getImportHistory,
-  configureBankAccount,
-} from "./money/accounts";
-import { getMoneyAnalysis } from "./money/analysis";
-import {
-  categorizeTransactions,
-  createCategory,
-  editCategorizationRule,
-  editCategory,
-  getCategorizationRules,
-  listTransactions,
-  listCategories,
-} from "./money/categorization";
-import {
-  listPendingCategorizationDispatches,
-  markCategorizationDispatched,
-  recordCategorizationDispatchFailure,
-} from "./money/categorization/dispatch";
-import { acknowledge, getFeed } from "./money/feed";
-import {
-  encodeFeedEvent,
-  listPendingFeedDispatches,
-  markFeedDispatched,
-  recordFeedDispatchFailure,
-} from "./money/feed/dispatch";
-import { confirmBankImport, previewBankImport, type ImportDeps } from "./money/import";
-import { sha256Hex } from "./money/import/bytes";
-import { decideTransferMatch, getTransferMatches } from "./money/transfers";
-import { getWholeWealth, listExternalAccounts, recordExternalBalance } from "./money/wealth";
-import { persistenceToBoundary } from "./persistence/error";
+  dispatchFeedInBackground,
+  drainCategorizationDispatches,
+  drainFeedDispatches,
+} from "./background-dispatch";
 import { Postgres } from "./persistence/postgres";
-import { getReport, listReports, markReportOpened } from "./reports";
-import { getSystemStatus, haltAll } from "./system";
-
-const worker = "ironcage-core";
-const workerRequest = makeWorkerRequestContext<Env, ExecutionContext>(
-  "ironcage/core/WorkerRequest",
-);
-const ping = (surface: string) =>
-  Effect.flatMap(workerRequest.service, () => systemPingHandler({ worker, surface }));
-
-const decodeSha = Schema.decodeUnknownSync(Sha256);
-
-const importDependencies = (env: Env): ImportDeps => ({
-  identityKey: env.MONEY_IDENTITY_KEY,
-  extractStatement: (pdf) => env.STATEMENT_EXTRACTION.getByName("statement-extractor").extract(pdf),
-});
-
-const runCoreRequest = <A, E>(use: (env: Env) => Effect.Effect<A, E, Postgres>) =>
-  Effect.flatMap(workerRequest.service, ({ env }) =>
-    use(env).pipe(
-      Effect.provide(Postgres.layerForRequest(env.DB.connectionString)),
-      persistenceToBoundary,
-    ),
-  );
-
-const payloadHash = (value: unknown) =>
-  Effect.promise(() => sha256Hex(new TextEncoder().encode(JSON.stringify(value)))).pipe(
-    Effect.map(decodeSha),
-  );
-
-const drainCategorizationDispatches = (env: Env) =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
-    const pending = yield* postgres.readTransaction((sql) =>
-      listPendingCategorizationDispatches(sql, 50),
-    );
-    if (pending.length === 0) return 0;
-
-    const dispatch = yield* clientOverBinding(DispatchRpcs, {
-      binding: env.AGENTS,
-      surface: "agents",
-      timeout: timeouts.coreToAgents,
-    });
-
-    let dispatched = 0;
-    for (const item of pending) {
-      const sent = yield* dispatch.dispatchCategorization(item).pipe(
-        Effect.matchCauseEffect({
-          onFailure: (cause) =>
-            postgres
-              .transaction((sql) =>
-                recordCategorizationDispatchFailure(sql, item.runId, Cause.pretty(cause)),
-              )
-              .pipe(Effect.as(false)),
-          onSuccess: () =>
-            postgres
-              .transaction((sql) => markCategorizationDispatched(sql, item.runId))
-              .pipe(Effect.as(true)),
-        }),
-      );
-      if (sent) dispatched += 1;
-    }
-    return dispatched;
-  }).pipe(Effect.provide(Postgres.layerForRequest(env.DB.connectionString)), Effect.scoped);
-
-const drainFeedDispatches = (env: Env) =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
-    const pending = yield* postgres.readTransaction((sql) => listPendingFeedDispatches(sql, 100));
-    if (pending.length === 0) return 0;
-
-    const actor = env.FEEDS.getByName("operator");
-    let dispatched = 0;
-    for (const item of pending) {
-      const sent = yield* Effect.promise(() => actor.publish(encodeFeedEvent(item.event))).pipe(
-        Effect.matchCauseEffect({
-          onFailure: (cause) =>
-            postgres
-              .transaction((sql) =>
-                recordFeedDispatchFailure(sql, item.eventId, Cause.pretty(cause)),
-              )
-              .pipe(Effect.as(false)),
-          onSuccess: () =>
-            postgres
-              .transaction((sql) => markFeedDispatched(sql, item.eventId))
-              .pipe(Effect.as(true)),
-        }),
-      );
-      if (sent) dispatched += 1;
-    }
-    return dispatched;
-  }).pipe(Effect.provide(Postgres.layerForRequest(env.DB.connectionString)), Effect.scoped);
-
-const dispatchFeedInBackground = (env: Env) =>
-  Effect.runPromise(
-    drainFeedDispatches(env).pipe(
-      Effect.catchCause((cause) => Effect.logWarning("feed dispatch failed", cause)),
-    ),
-  );
-
-const dispatchCategorizationInBackground = (env: Env) =>
-  Effect.runPromise(
-    drainCategorizationDispatches(env).pipe(
-      Effect.catchCause((cause) => Effect.logWarning("categorization dispatch failed", cause)),
-    ),
-  );
-
-const scheduleDispatch = (categorization = false) =>
-  Effect.flatMap(workerRequest.service, ({ env, executionContext }) =>
-    Effect.sync(() => {
-      const pending = [dispatchFeedInBackground(env)];
-      if (categorization) pending.push(dispatchCategorizationInBackground(env));
-      executionContext.waitUntil(Promise.all(pending).then(() => undefined));
-    }),
-  );
-
-/**
- * Wraps a mutation handler with the app request-id idempotency contract: the
- * payload (minus the request ID itself) is hashed so a replayed request with
- * different content raises `Conflict` instead of silently absorbing.
- */
-const idempotently = <P extends { readonly requestId: unknown }, A, E>(
-  payload: P,
-  handler: (input: P & { readonly payloadHash: Sha256 }) => Effect.Effect<A, E, Postgres>,
-) =>
-  Effect.gen(function* () {
-    const { requestId: _, ...content } = payload;
-    const hash = yield* payloadHash(content);
-    return yield* runCoreRequest(() => handler({ ...payload, payloadHash: hash })).pipe(
-      Effect.tap(() => scheduleDispatch()),
-    );
-  });
-
-const appSurface = HttpRouter.toWebHandler(
-  rpcHttpRoute(
-    AppRpcs,
-    AppRpcs.toLayer({
-      ping: () => ping("AppApi"),
-      getSystemStatus: () => runCoreRequest(() => getSystemStatus()),
-      haltAll: (payload) => idempotently(payload, haltAll),
-      previewBankImport: ({ source }) =>
-        runCoreRequest((env) => previewBankImport(source, importDependencies(env))),
-      confirmBankImport: (payload) =>
-        runCoreRequest((env) => confirmBankImport(payload, importDependencies(env))).pipe(
-          Effect.tap((result) =>
-            result.kind === "confirmed" ? scheduleDispatch(true) : Effect.void,
-          ),
-        ),
-      getBankAccounts: () => runCoreRequest(() => getBankAccounts()),
-      getBankCoverage: () => runCoreRequest(() => getBankCoverage()),
-      getImportHistory: () => runCoreRequest(() => getImportHistory()),
-      configureBankAccount: (payload) => idempotently(payload, configureBankAccount),
-      listCategories: () => runCoreRequest(() => listCategories()),
-      createCategory: (payload) => idempotently(payload, createCategory),
-      editCategory: (payload) => idempotently(payload, editCategory),
-      getCategorizationRules: () => runCoreRequest(() => getCategorizationRules()),
-      editCategorizationRule: (payload) => idempotently(payload, editCategorizationRule),
-      categorizeTransactions: (payload) => idempotently(payload, categorizeTransactions),
-      listTransactions: (payload) => runCoreRequest(() => listTransactions(payload.scope)),
-      getTransferMatches: () => runCoreRequest(() => getTransferMatches()),
-      decideTransferMatch: (payload) => idempotently(payload, decideTransferMatch),
-      getMoneyAnalysis: () => runCoreRequest(() => getMoneyAnalysis()),
-      getFeed: (payload) => runCoreRequest(() => getFeed(payload)),
-      acknowledge: (payload) => idempotently(payload, acknowledge),
-      getWholeWealth: () => runCoreRequest(() => getWholeWealth()),
-      listExternalAccounts: () => runCoreRequest(() => listExternalAccounts()),
-      recordExternalBalance: (payload) => idempotently(payload, recordExternalBalance),
-      listReports: () => runCoreRequest(() => listReports()),
-      getReport: ({ reportId }) => runCoreRequest(() => getReport(reportId)),
-      markReportOpened: (payload) => idempotently(payload, markReportOpened),
-    }),
-  ),
-);
-
-const agentSurface = HttpRouter.toWebHandler(
-  rpcHttpRoute(AgentReadRpcs, AgentReadRpcs.toLayer({ ping: () => ping("AgentReadApi") })),
-);
+import { worker } from "./runtime";
 
 class Actor extends DurableObject<Env> implements ActorBinding {
   async ping() {
@@ -236,21 +25,18 @@ export class VenueActor extends Actor {}
 export class SystemCageActor extends Actor {}
 export { FeedActor } from "./money/feed/actor";
 
-// Two entrypoints rather than two paths on one: a service binding names the
-// entrypoint it targets, so the app cannot reach the agent surface and agents
-// cannot reach the operator surface.
 export class AppApiEntrypoint extends WorkerEntrypoint<Env> {
   override fetch(request: Request): Promise<Response> {
     if (new URL(request.url).pathname === "/feed") {
       return this.env.FEEDS.getByName("operator").fetch(request);
     }
-    return appSurface.handler(request, workerRequest.forRequest(this.env, this.ctx));
+    return handleAppRequest(request, this.env, this.ctx);
   }
 }
 
 export class AgentReadApiEntrypoint extends WorkerEntrypoint<Env> {
   override fetch(request: Request): Promise<Response> {
-    return agentSurface.handler(request, workerRequest.forRequest(this.env, this.ctx));
+    return handleAgentRequest(request, this.env, this.ctx);
   }
 }
 
@@ -268,9 +54,6 @@ const checkBindings = (env: Env) =>
       COMPUTE: yield* Effect.promise(() =>
         env.COMPUTE.getByName("wiring", { locationHint: "oc" }).ping(),
       ),
-      // A connection string rather than a query: what a binding proves is that
-      // it resolves. Whether the database answers is the health route's job,
-      // once there is a driver to ask it with.
       DB: { configured: env.DB.connectionString.length > 0 },
       DB_CACHED: { configured: env.DB_CACHED.connectionString.length > 0 },
       BLOBS: yield* Effect.promise(async () => ({
@@ -282,7 +65,6 @@ const checkBindings = (env: Env) =>
 export default class extends WorkerEntrypoint<Env> {
   override async fetch(): Promise<Response> {
     const report = await Effect.runPromise(Effect.result(checkBindings(this.env)));
-
     return Response.json(report, { status: report._tag === "Success" ? 200 : 503 });
   }
 
@@ -292,11 +74,6 @@ export default class extends WorkerEntrypoint<Env> {
     );
   }
 
-  /**
-   * The decision-records consumer (batch size one) and its dead-letter
-   * sibling. An undecodable or unpersistable delivery retries toward the DLQ;
-   * everything else acknowledges after its one transaction commits.
-   */
   override async queue(batch: MessageBatch<unknown>): Promise<void> {
     const layer = Postgres.layerForRequest(this.env.DB.connectionString);
 

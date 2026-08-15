@@ -4,7 +4,7 @@ import { BigDecimal, Effect, Schema } from "effect";
 
 import { mintId } from "../../ids";
 import { runIdempotentMutation } from "../../persistence/app-requests";
-import { persistenceToBoundary, type PersistenceError } from "../../persistence/error";
+import { persistenceToBoundary } from "../../persistence/error";
 import { Postgres, type SqlExecutor } from "../../persistence/postgres";
 import type { AccountRow } from "../accounts/records";
 import type { CoveredSpan } from "../import/coverage";
@@ -28,7 +28,7 @@ export const feedColumns = `e.id, e.sequence::text AS cursor, e.occurred_at AS "
   e.event_type AS "eventType", e.severity, e.summary, e.payload, e.links,
   a.acknowledged_at AS "acknowledgedAt"`;
 
-export const replayFeed = (
+export const replayFeed = Effect.fn("replayFeed")(function* (
   sql: SqlExecutor,
   input: {
     readonly since: FeedCursor | null;
@@ -36,20 +36,19 @@ export const replayFeed = (
     readonly severities: readonly string[];
     readonly limit: number;
   },
-) =>
-  Effect.gen(function* () {
-    const highWaterRows = yield* sql.rows(
-      "read feed high water",
-      Schema.Struct({ cursor: FeedCursor }),
-      "SELECT sequence::text AS cursor FROM feed_events ORDER BY sequence DESC LIMIT 1",
-    );
-    const cursor = highWaterRows[0]?.cursor ?? null;
-    if (input.since === null || cursor === null) return { cursor, events: [] };
+) {
+  const highWaterRows = yield* sql.rows(
+    "read feed high water",
+    Schema.Struct({ cursor: FeedCursor }),
+    "SELECT sequence::text AS cursor FROM feed_events ORDER BY sequence DESC LIMIT 1",
+  );
+  const cursor = highWaterRows[0]?.cursor ?? null;
+  if (input.since === null || cursor === null) return { cursor, events: [] };
 
-    const events = yield* sql.rows(
-      "replay feed",
-      FeedEventRow,
-      `SELECT ${feedColumns}
+  const events = yield* sql.rows(
+    "replay feed",
+    FeedEventRow,
+    `SELECT ${feedColumns}
          FROM feed_events e
          LEFT JOIN acknowledgments a ON a.event_id = e.id
         WHERE e.sequence > $1::bigint AND e.sequence <= $2::bigint
@@ -57,29 +56,28 @@ export const replayFeed = (
           AND (cardinality($4::text[]) = 0 OR e.severity = ANY($4))
         ORDER BY e.sequence
         LIMIT ${input.limit}`,
-      [input.since, cursor, [...input.categories], [...input.severities]],
-    );
-    return {
-      cursor,
-      events,
-    };
-  });
+    [input.since, cursor, [...input.categories], [...input.severities]],
+  );
+  return {
+    cursor,
+    events,
+  };
+});
 
-export const getFeed = (input: {
+export const getFeed = Effect.fn("getFeed")(function* (input: {
   readonly cursor: FeedCursor | null;
   readonly categories: readonly string[];
   readonly severities: readonly string[];
   readonly limit: number;
-}) =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
-    const limit = Math.min(Math.max(input.limit, 1), 200);
+}) {
+  const postgres = yield* Postgres;
+  const limit = Math.min(Math.max(input.limit, 1), 200);
 
-    const rows = yield* postgres.readTransaction((sql) =>
-      sql.rows(
-        "read feed",
-        FeedEventRow,
-        `SELECT ${feedColumns}
+  const rows = yield* postgres.readTransaction((sql) =>
+    sql.rows(
+      "read feed",
+      FeedEventRow,
+      `SELECT ${feedColumns}
            FROM feed_events e
            LEFT JOIN acknowledgments a ON a.event_id = e.id
           WHERE ($1::bigint IS NULL OR e.sequence < $1)
@@ -87,14 +85,14 @@ export const getFeed = (input: {
             AND (cardinality($3::text[]) = 0 OR e.severity = ANY($3))
           ORDER BY e.sequence DESC
           LIMIT ${limit}`,
-        [input.cursor, [...input.categories], [...input.severities]],
-      ),
-    );
-    return {
-      events: rows,
-      nextCursor: rows.length === limit ? rows[rows.length - 1]!.cursor : null,
-    };
-  }).pipe(persistenceToBoundary);
+      [input.cursor, [...input.categories], [...input.severities]],
+    ),
+  );
+  return {
+    events: rows,
+    nextCursor: rows.length === limit ? rows[rows.length - 1]!.cursor : null,
+  };
+}, persistenceToBoundary);
 
 export const acknowledge = (input: {
   readonly requestId: RequestId;
@@ -142,41 +140,40 @@ const intersects = (a: CoveredSpan, b: CoveredSpan) => a.start <= b.end && b.sta
  * (a disjoint window landed beyond existing coverage) warns; a gap the
  * import closed reports back.
  */
-export const emitCoverageEvents = (
+export const emitCoverageEvents = Effect.fn("emitCoverageEvents")(function* (
   sql: SqlExecutor,
   account: AccountRow,
   before: readonly CoveredSpan[],
   after: readonly CoveredSpan[],
-): Effect.Effect<void, PersistenceError> =>
-  Effect.gen(function* () {
-    const closed = before.filter((gap) => !after.some((next) => intersects(gap, next)));
-    const opened = after.filter((gap) => !before.some((previous) => intersects(gap, previous)));
+) {
+  const closed = before.filter((gap) => !after.some((next) => intersects(gap, next)));
+  const opened = after.filter((gap) => !before.some((previous) => intersects(gap, previous)));
 
-    for (const gap of opened) {
-      yield* insertFeedEvent(sql, {
-        id: yield* mintId(FeedEventId),
-        origin: "money",
-        category: "money_tax",
-        eventType: "bank_gap_detected",
-        severity: "warning",
-        summary: `${account.productLabel}: coverage gap ${spans([gap])}`,
-        payload: { accountId: account.id, gap },
-        links: null,
-      });
-    }
-    for (const gap of closed) {
-      yield* insertFeedEvent(sql, {
-        id: yield* mintId(FeedEventId),
-        origin: "money",
-        category: "money_tax",
-        eventType: "bank_gap_closed",
-        severity: "info",
-        summary: `${account.productLabel}: coverage gap ${spans([gap])} closed`,
-        payload: { accountId: account.id, gap },
-        links: null,
-      });
-    }
-  }).pipe(Effect.asVoid);
+  for (const gap of opened) {
+    yield* insertFeedEvent(sql, {
+      id: yield* mintId(FeedEventId),
+      origin: "money",
+      category: "money_tax",
+      eventType: "bank_gap_detected",
+      severity: "warning",
+      summary: `${account.productLabel}: coverage gap ${spans([gap])}`,
+      payload: { accountId: account.id, gap },
+      links: null,
+    });
+  }
+  for (const gap of closed) {
+    yield* insertFeedEvent(sql, {
+      id: yield* mintId(FeedEventId),
+      origin: "money",
+      category: "money_tax",
+      eventType: "bank_gap_closed",
+      severity: "info",
+      summary: `${account.productLabel}: coverage gap ${spans([gap])} closed`,
+      payload: { accountId: account.id, gap },
+      links: null,
+    });
+  }
+});
 
 const eventExists = (
   sql: SqlExecutor,
@@ -202,57 +199,56 @@ const eventExists = (
  * Identity is (rule, subject, calendar month), checked against the record, so
  * importing overlapping evidence does not emit an event again.
  */
-export const emitDerivedEvents = (
+export const emitDerivedEvents = Effect.fn("emitDerivedEvents")(function* (
   sql: SqlExecutor,
   touchedMonths: ReadonlySet<string>,
   analysis: MoneyAnalysis,
-): Effect.Effect<void, PersistenceError> =>
-  Effect.gen(function* () {
-    if (touchedMonths.size === 0) return;
+) {
+  if (touchedMonths.size === 0) return;
 
-    const anomalies = analysis.anomalies.filter((anomaly) => touchedMonths.has(anomaly.month));
-    for (const anomaly of anomalies) {
-      if (yield* eventExists(sql, "spending_anomaly", "subject", anomaly.subject, anomaly.month)) {
-        continue;
-      }
-      yield* insertFeedEvent(sql, {
-        id: yield* mintId(FeedEventId),
-        origin: "money",
-        category: "money_tax",
-        eventType: "spending_anomaly",
-        severity: "notice",
-        summary: `${anomaly.subject}: ${anomaly.detail}`,
-        payload: {
-          rule: anomaly.rule,
-          subject: anomaly.subject,
-          month: anomaly.month,
-          amount: anomaly.amount === null ? null : BigDecimal.format(anomaly.amount),
-        },
-        links: null,
-      });
+  const anomalies = analysis.anomalies.filter((anomaly) => touchedMonths.has(anomaly.month));
+  for (const anomaly of anomalies) {
+    if (yield* eventExists(sql, "spending_anomaly", "subject", anomaly.subject, anomaly.month)) {
+      continue;
     }
+    yield* insertFeedEvent(sql, {
+      id: yield* mintId(FeedEventId),
+      origin: "money",
+      category: "money_tax",
+      eventType: "spending_anomaly",
+      severity: "notice",
+      summary: `${anomaly.subject}: ${anomaly.detail}`,
+      payload: {
+        rule: anomaly.rule,
+        subject: anomaly.subject,
+        month: anomaly.month,
+        amount: anomaly.amount === null ? null : BigDecimal.format(anomaly.amount),
+      },
+      links: null,
+    });
+  }
 
-    for (const group of analysis.recurring) {
-      if (group.priceChange === null) continue;
-      const month = monthOf(group.priceChange.on);
-      if (!touchedMonths.has(month)) continue;
-      if (yield* eventExists(sql, "recurring_price_change", "payee", group.payee, month)) continue;
+  for (const group of analysis.recurring) {
+    if (group.priceChange === null) continue;
+    const month = monthOf(group.priceChange.on);
+    if (!touchedMonths.has(month)) continue;
+    if (yield* eventExists(sql, "recurring_price_change", "payee", group.payee, month)) continue;
 
-      yield* insertFeedEvent(sql, {
-        id: yield* mintId(FeedEventId),
-        origin: "money",
-        category: "money_tax",
-        eventType: "recurring_price_change",
-        severity: "notice",
-        summary: `${group.payee} changed from ${BigDecimal.format(group.priceChange.from)} to ${BigDecimal.format(group.priceChange.to)}`,
-        payload: {
-          payee: group.payee,
-          month,
-          from: BigDecimal.format(group.priceChange.from),
-          to: BigDecimal.format(group.priceChange.to),
-          on: group.priceChange.on,
-        },
-        links: null,
-      });
-    }
-  }).pipe(Effect.asVoid);
+    yield* insertFeedEvent(sql, {
+      id: yield* mintId(FeedEventId),
+      origin: "money",
+      category: "money_tax",
+      eventType: "recurring_price_change",
+      severity: "notice",
+      summary: `${group.payee} changed from ${BigDecimal.format(group.priceChange.from)} to ${BigDecimal.format(group.priceChange.to)}`,
+      payload: {
+        payee: group.payee,
+        month,
+        from: BigDecimal.format(group.priceChange.from),
+        to: BigDecimal.format(group.priceChange.to),
+        on: group.priceChange.on,
+      },
+      links: null,
+    });
+  }
+});

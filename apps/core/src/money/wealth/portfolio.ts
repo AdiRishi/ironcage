@@ -169,29 +169,27 @@ const toExternalAccount = (row: typeof ExternalAccountRow.Type): typeof External
     row.latestBalance === null ? null : decodeAud(BigDecimal.format(row.latestBalance)),
 });
 
-export const getWholeWealth = () =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
-    const rows = yield* postgres.readTransaction(loadPositions);
-    const now = yield* DateTime.now;
-    const positions = rows.map((row): WealthPosition => ({
-      id: row.id,
-      source: row.source,
-      label: row.label,
-      kind: row.kind,
-      balanceDate: row.balanceDate,
-      balance: toObserved(row, now),
-    }));
-    return { positions, netWorth: sumObserved(positions, now) };
-  }).pipe(persistenceToBoundary);
+export const getWholeWealth = Effect.fn("getWholeWealth")(function* () {
+  const postgres = yield* Postgres;
+  const rows = yield* postgres.readTransaction(loadPositions);
+  const now = yield* DateTime.now;
+  const positions = rows.map((row): WealthPosition => ({
+    id: row.id,
+    source: row.source,
+    label: row.label,
+    kind: row.kind,
+    balanceDate: row.balanceDate,
+    balance: toObserved(row, now),
+  }));
+  return { positions, netWorth: sumObserved(positions, now) };
+}, persistenceToBoundary);
 
-export const listExternalAccounts = () =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
-    return (yield* postgres.readTransaction(loadExternalAccounts)).map(toExternalAccount);
-  }).pipe(persistenceToBoundary);
+export const listExternalAccounts = Effect.fn("listExternalAccounts")(function* () {
+  const postgres = yield* Postgres;
+  return (yield* postgres.readTransaction(loadExternalAccounts)).map(toExternalAccount);
+}, persistenceToBoundary);
 
-export const recordExternalBalance = (input: {
+export const recordExternalBalance = Effect.fn("recordExternalBalance")(function* (input: {
   readonly requestId: RequestId;
   readonly payloadHash: Sha256;
   readonly accountId: ExternalAccountId | null;
@@ -199,84 +197,81 @@ export const recordExternalBalance = (input: {
   readonly kind: typeof WealthKind.Type;
   readonly balance: typeof Aud.Type;
   readonly balanceDate: CalendarDate;
-}) =>
-  Effect.gen(function* () {
-    const label = input.label.trim();
-    if (label.length === 0) {
-      return yield* Effect.fail(
-        new ValidationFailed({ reason: "InvalidExternalAccount", detail: "label is required" }),
-      );
-    }
-    if (
-      (input.kind === "asset" && BigDecimal.isNegative(input.balance)) ||
-      (input.kind === "liability" && BigDecimal.isPositive(input.balance))
-    ) {
-      return yield* Effect.fail(
-        new ValidationFailed({
-          reason: "InvalidExternalBalance",
-          detail: "assets are positive and liabilities are negative",
-        }),
-      );
-    }
+}) {
+  const label = input.label.trim();
+  if (label.length === 0) {
+    return yield* Effect.fail(
+      new ValidationFailed({ reason: "InvalidExternalAccount", detail: "label is required" }),
+    );
+  }
+  if (
+    (input.kind === "asset" && BigDecimal.isNegative(input.balance)) ||
+    (input.kind === "liability" && BigDecimal.isPositive(input.balance))
+  ) {
+    return yield* Effect.fail(
+      new ValidationFailed({
+        reason: "InvalidExternalBalance",
+        detail: "assets are positive and liabilities are negative",
+      }),
+    );
+  }
 
-    return yield* runIdempotentMutation(
-      {
-        requestId: input.requestId,
-        operation: "recordExternalBalance",
-        payloadHash: input.payloadHash,
-        response: ExternalAccount,
-      },
-      (sql) =>
-        Effect.gen(function* () {
-          const accountId = input.accountId ?? (yield* mintId(ExternalAccountId));
-          const accountRows = yield* sql.rows(
-            input.accountId === null ? "create external account" : "update external account",
-            Schema.Struct({ id: ExternalAccountId }),
-            input.accountId === null
-              ? `INSERT INTO external_accounts (id, label, kind, currency, created_at)
+  return yield* runIdempotentMutation(
+    {
+      requestId: input.requestId,
+      operation: "recordExternalBalance",
+      payloadHash: input.payloadHash,
+      response: ExternalAccount,
+    },
+    (sql) =>
+      Effect.gen(function* () {
+        const accountId = input.accountId ?? (yield* mintId(ExternalAccountId));
+        const accountRows = yield* sql.rows(
+          input.accountId === null ? "create external account" : "update external account",
+          Schema.Struct({ id: ExternalAccountId }),
+          input.accountId === null
+            ? `INSERT INTO external_accounts (id, label, kind, currency, created_at)
                  VALUES ($1, $2, $3, 'AUD', now()) RETURNING id`
-              : `UPDATE external_accounts SET label = $2, kind = $3 WHERE id = $1 RETURNING id`,
-            [accountId, label, input.kind],
+            : `UPDATE external_accounts SET label = $2, kind = $3 WHERE id = $1 RETURNING id`,
+          [accountId, label, input.kind],
+        );
+        if (accountRows.length === 0) {
+          return yield* Effect.fail(
+            new ValidationFailed({
+              reason: "UnknownExternalAccount",
+              detail: `external account ${accountId} does not exist`,
+            }),
           );
-          if (accountRows.length === 0) {
-            return yield* Effect.fail(
-              new ValidationFailed({
-                reason: "UnknownExternalAccount",
-                detail: `external account ${accountId} does not exist`,
-              }),
-            );
-          }
+        }
 
-          yield* sql.execute(
-            "record external balance",
-            `INSERT INTO external_balance_observations
+        yield* sql.execute(
+          "record external balance",
+          `INSERT INTO external_balance_observations
                (id, account_id, balance, balance_date, observed_at)
              VALUES ($1, $2, $3, $4, now())`,
-            [
-              yield* mintId(ExternalBalanceId),
-              accountId,
-              BigDecimal.format(input.balance),
-              input.balanceDate,
-            ],
-          );
-          yield* insertFeedEvent(sql, {
-            id: yield* mintId(FeedEventId),
-            origin: "portfolio",
-            category: "money_tax",
-            eventType: "external_balance_recorded",
-            severity: "info",
-            summary: `${label}: external balance recorded`,
-            payload: { accountId, balanceDate: input.balanceDate },
-            links: null,
-          });
+          [
+            yield* mintId(ExternalBalanceId),
+            accountId,
+            BigDecimal.format(input.balance),
+            input.balanceDate,
+          ],
+        );
+        yield* insertFeedEvent(sql, {
+          id: yield* mintId(FeedEventId),
+          origin: "portfolio",
+          category: "money_tax",
+          eventType: "external_balance_recorded",
+          severity: "info",
+          summary: `${label}: external balance recorded`,
+          payload: { accountId, balanceDate: input.balanceDate },
+          links: null,
+        });
 
-          const row = (yield* loadExternalAccounts(sql)).find(
-            (account) => account.id === accountId,
-          );
-          if (row === undefined) {
-            return yield* Effect.die(new Error("inserted external account was not readable"));
-          }
-          return toExternalAccount(row);
-        }),
-    );
-  });
+        const row = (yield* loadExternalAccounts(sql)).find((account) => account.id === accountId);
+        if (row === undefined) {
+          return yield* Effect.die(new Error("inserted external account was not readable"));
+        }
+        return toExternalAccount(row);
+      }),
+  );
+});

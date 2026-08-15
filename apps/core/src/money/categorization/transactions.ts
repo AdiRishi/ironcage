@@ -1,9 +1,7 @@
 import {
   EffectiveSplit,
-  Internal,
   NotFound,
   ValidationFailed,
-  type LedgerEntry,
   type LedgerScope,
   type RuleInput,
   type SplitInput,
@@ -139,17 +137,14 @@ const LedgerRow = Schema.Struct({
 
 const provenanceRank: Record<SplitProvenance, number> = { manual: 3, rule: 2, ai: 1, system: 0 };
 
-export const listTransactions = (
-  scope: LedgerScope,
-): Effect.Effect<readonly LedgerEntry[], NotFound | Internal, Postgres> =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
-    const attention = scope.kind === "attention";
-    const rows = yield* postgres.readTransaction((sql) =>
-      sql.rows(
-        "load ledger",
-        LedgerRow,
-        `WITH effective AS (
+export const listTransactions = Effect.fn("listTransactions")(function* (scope: LedgerScope) {
+  const postgres = yield* Postgres;
+  const attention = scope.kind === "attention";
+  const rows = yield* postgres.readTransaction((sql) =>
+    sql.rows(
+      "load ledger",
+      LedgerRow,
+      `WITH effective AS (
            SELECT s.transaction_id, s.category_id, s.amount, s.provenance
              FROM transaction_splits s
             WHERE s.revision = (SELECT max(revision) FROM transaction_splits latest
@@ -179,17 +174,15 @@ export const listTransactions = (
                      ELSE to_char(t.posted_date, 'YYYY-MM') = $3 END
           ORDER BY p.uncategorized DESC, t.posted_date DESC, t.id DESC
           LIMIT 1000`,
-        [uncategorizedCategoryId, attention, scope.kind === "month" ? scope.month : null],
-      ),
-    );
-    return rows.map((row) => ({
-      ...row,
-      filedBy: row.splits.reduce<SplitProvenance>(
-        (strongest, split) =>
-          provenanceRank[split.provenance] > provenanceRank[strongest]
-            ? split.provenance
-            : strongest,
-        "system",
-      ),
-    }));
-  }).pipe(persistenceToBoundary);
+      [uncategorizedCategoryId, attention, scope.kind === "month" ? scope.month : null],
+    ),
+  );
+  return rows.map((row) => ({
+    ...row,
+    filedBy: row.splits.reduce<SplitProvenance>(
+      (strongest, split) =>
+        provenanceRank[split.provenance] > provenanceRank[strongest] ? split.provenance : strongest,
+      "system",
+    ),
+  }));
+}, persistenceToBoundary);

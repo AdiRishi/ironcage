@@ -31,56 +31,54 @@ const loadSystemStatus = (sql: SqlExecutor) =>
     return status ?? (yield* Effect.die(new Error("system state singleton is missing")));
   });
 
-export const getSystemStatus = () =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
-    return yield* postgres.readTransaction(loadSystemStatus);
-  }).pipe(persistenceToBoundary);
+export const getSystemStatus = Effect.fn("getSystemStatus")(function* () {
+  const postgres = yield* Postgres;
+  return yield* postgres.readTransaction(loadSystemStatus);
+}, persistenceToBoundary);
 
-export const haltAll = (input: {
+export const haltAll = Effect.fn("haltAll")(function* (input: {
   readonly requestId: RequestId;
   readonly payloadHash: Sha256;
   readonly reason: string;
-}) =>
-  Effect.gen(function* () {
-    const reason = input.reason.trim();
-    if (reason.length === 0) {
-      return yield* Effect.fail(
-        new ValidationFailed({ reason: "InvalidHaltReason", detail: "a halt reason is required" }),
-      );
-    }
+}) {
+  const reason = input.reason.trim();
+  if (reason.length === 0) {
+    return yield* Effect.fail(
+      new ValidationFailed({ reason: "InvalidHaltReason", detail: "a halt reason is required" }),
+    );
+  }
 
-    return yield* runIdempotentMutation(
-      {
-        requestId: input.requestId,
-        operation: "haltAll",
-        payloadHash: input.payloadHash,
-        response: SystemStatus,
-      },
-      (sql) =>
-        Effect.gen(function* () {
-          const changed = yield* sql.rows(
-            "halt system",
-            Schema.Struct({ mode: SystemMode }),
-            `UPDATE system_state
+  return yield* runIdempotentMutation(
+    {
+      requestId: input.requestId,
+      operation: "haltAll",
+      payloadHash: input.payloadHash,
+      response: SystemStatus,
+    },
+    (sql) =>
+      Effect.gen(function* () {
+        const changed = yield* sql.rows(
+          "halt system",
+          Schema.Struct({ mode: SystemMode }),
+          `UPDATE system_state
                 SET mode = 'halted', reason = $1, changed_at = now()
               WHERE singleton AND mode <> 'halted'
               RETURNING mode`,
-            [reason],
-          );
-          if (changed.length > 0) {
-            yield* insertFeedEvent(sql, {
-              id: yield* mintId(FeedEventId),
-              origin: "system",
-              category: "system",
-              eventType: "system_halted",
-              severity: "critical",
-              summary: `System halted: ${reason}`,
-              payload: { reason, triggeredBy: "operator" },
-              links: null,
-            });
-          }
-          return yield* loadSystemStatus(sql);
-        }),
-    );
-  });
+          [reason],
+        );
+        if (changed.length > 0) {
+          yield* insertFeedEvent(sql, {
+            id: yield* mintId(FeedEventId),
+            origin: "system",
+            category: "system",
+            eventType: "system_halted",
+            severity: "critical",
+            summary: `System halted: ${reason}`,
+            payload: { reason, triggeredBy: "operator" },
+            links: null,
+          });
+        }
+        return yield* loadSystemStatus(sql);
+      }),
+  );
+});

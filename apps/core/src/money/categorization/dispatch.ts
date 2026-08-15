@@ -146,11 +146,10 @@ export const listPendingCategorizationDispatches = (
   sql: SqlExecutor,
   limit: number,
 ): Effect.Effect<readonly CategorizationDispatchPayload[], PersistenceError> =>
-  Effect.gen(function* () {
-    return yield* sql.rows(
-      "list pending categorization dispatches",
-      CategorizationDispatchSchema,
-      `SELECT b.run_id AS "runId", b.config_version AS "configVersion",
+  sql.rows(
+    "list pending categorization dispatches",
+    CategorizationDispatchSchema,
+    `SELECT b.run_id AS "runId", b.config_version AS "configVersion",
               b.bundle_digest AS "bundleDigest", b.batch_index AS "batchIndex",
               b.input_digest AS "inputDigest", c.model, b.batch, b.categories
          FROM capability_dispatches d
@@ -160,9 +159,8 @@ export const listPendingCategorizationDispatches = (
         WHERE d.status = 'pending'
         ORDER BY d.created_at
         LIMIT $2`,
-      [categorizationCapability.name, limit],
-    );
-  });
+    [categorizationCapability.name, limit],
+  );
 
 export const markCategorizationDispatched = (
   sql: SqlExecutor,

@@ -54,8 +54,8 @@ const decodeReport = (row: typeof ReportRow.Type) =>
     Effect.map((content) => ({ ...toSummary(row), ...content }) satisfies MonthlySpendingReport),
   );
 
-export const generateMonthlySpendingReports = (sql: SqlExecutor, analysis: MoneyAnalysis) =>
-  Effect.gen(function* () {
+export const generateMonthlySpendingReports = Effect.fn("generateMonthlySpendingReports")(
+  function* (sql: SqlExecutor, analysis: MoneyAnalysis) {
     if (analysis.dataThrough === null) return 0;
 
     let generated = 0;
@@ -102,35 +102,34 @@ export const generateMonthlySpendingReports = (sql: SqlExecutor, analysis: Money
     }
 
     return generated;
-  });
+  },
+);
 
-export const listReports = () =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
-    const rows = yield* postgres.readTransaction((sql) =>
-      sql.rows(
-        "list reports",
-        ReportRow,
-        `SELECT ${reportColumns} FROM reports ORDER BY generated_at DESC, id DESC`,
-      ),
-    );
-    return rows.map(toSummary);
-  }).pipe(persistenceToBoundary);
+export const listReports = Effect.fn("listReports")(function* () {
+  const postgres = yield* Postgres;
+  const rows = yield* postgres.readTransaction((sql) =>
+    sql.rows(
+      "list reports",
+      ReportRow,
+      `SELECT ${reportColumns} FROM reports ORDER BY generated_at DESC, id DESC`,
+    ),
+  );
+  return rows.map(toSummary);
+}, persistenceToBoundary);
 
-export const getReport = (reportId: ReportId) =>
-  Effect.gen(function* () {
-    const postgres = yield* Postgres;
-    const rows = yield* postgres.readTransaction((sql) =>
-      sql.rows("get report", ReportRow, `SELECT ${reportColumns} FROM reports WHERE id = $1`, [
-        reportId,
-      ]),
-    );
-    const row = rows[0];
-    if (row === undefined) {
-      return yield* Effect.fail(new NotFound({ entity: "report", id: reportId }));
-    }
-    return yield* decodeReport(row);
-  }).pipe(persistenceToBoundary);
+export const getReport = Effect.fn("getReport")(function* (reportId: ReportId) {
+  const postgres = yield* Postgres;
+  const rows = yield* postgres.readTransaction((sql) =>
+    sql.rows("get report", ReportRow, `SELECT ${reportColumns} FROM reports WHERE id = $1`, [
+      reportId,
+    ]),
+  );
+  const row = rows[0];
+  if (row === undefined) {
+    return yield* Effect.fail(new NotFound({ entity: "report", id: reportId }));
+  }
+  return yield* decodeReport(row);
+}, persistenceToBoundary);
 
 export const markReportOpened = (input: {
   readonly requestId: RequestId;
