@@ -12,6 +12,8 @@ import { configureBankAccount } from "../../src/money/accounts";
 import { categorizeTransactions, listTransactions } from "../../src/money/categorization";
 import {
   listPendingCategorizationDispatches,
+  markCategorizationDispatched,
+  retryUncategorizedCategorization,
   type CategorizationDispatch,
 } from "../../src/money/categorization/dispatch";
 import { confirmBankImport, previewBankImport, type ImportDeps } from "../../src/money/import";
@@ -242,5 +244,46 @@ it.effect("a failed run and a dead letter leave warnings and file nothing", () =
     yield* withDatabase(consumeDeadLetter("message-1", { some: "body" }));
     yield* withDatabase(consumeDeadLetter("message-1", { some: "body" }));
     expect(yield* count("feed_events WHERE event_type = 'decision_record_lost'")).toBe(1);
+  }),
+);
+
+it.effect("unfinished categorization can be requeued without duplicating its run", () =>
+  Effect.gen(function* () {
+    const account = yield* withDatabase(
+      configureBankAccount({
+        requestId: yield* mintId(RequestId),
+        payloadHash: sha("4".repeat(64)),
+        productLabel: "Spending offset",
+        accountType: "deposit",
+        required: true,
+        openedOn: null,
+        closedOn: null,
+      }),
+    );
+    const dispatch = yield* importFixture(account.id);
+
+    yield* withDatabase(
+      Effect.gen(function* () {
+        const postgres = yield* Postgres;
+        yield* postgres.transaction((sql) => markCategorizationDispatched(sql, dispatch.runId));
+      }),
+    );
+
+    const retry = (requestId: RequestId, payloadHash: Sha256) =>
+      withDatabase(retryUncategorizedCategorization({ requestId, payloadHash }));
+
+    expect(yield* retry(yield* mintId(RequestId), sha("5".repeat(64)))).toEqual({
+      transactions: dispatch.batch.length,
+      batches: 1,
+    });
+    expect(yield* count("categorization_batches")).toBe(1);
+    expect(yield* count("capability_dispatches WHERE status = 'pending'")).toBe(1);
+
+    expect(yield* retry(yield* mintId(RequestId), sha("6".repeat(64)))).toEqual({
+      transactions: dispatch.batch.length,
+      batches: 1,
+    });
+    expect(yield* count("categorization_batches")).toBe(1);
+    expect(yield* count("capability_dispatches")).toBe(1);
   }),
 );

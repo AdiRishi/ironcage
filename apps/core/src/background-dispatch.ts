@@ -21,7 +21,7 @@ export const drainCategorizationDispatches = (env: Env) =>
     const pending = yield* postgres.readTransaction((sql) =>
       listPendingCategorizationDispatches(sql, 50),
     );
-    if (pending.length === 0) return 0;
+    if (pending.length === 0) return { dispatched: 0, failed: 0 };
 
     const dispatch = yield* clientOverBinding(DispatchRpcs, {
       binding: env.AGENTS,
@@ -47,7 +47,7 @@ export const drainCategorizationDispatches = (env: Env) =>
       );
       if (sent) dispatched += 1;
     }
-    return dispatched;
+    return { dispatched, failed: pending.length - dispatched };
   }).pipe(Effect.provide(Postgres.layerForRequest(env.DB.connectionString)), Effect.scoped);
 
 export const drainFeedDispatches = (env: Env) =>
@@ -95,7 +95,7 @@ const dispatchCategorizationInBackground = (env: Env) =>
 export const scheduleDispatch = (categorization = false) =>
   Effect.flatMap(workerRequest.service, ({ env, executionContext }) =>
     Effect.sync(() => {
-      const pending = [dispatchFeedInBackground(env)];
+      const pending: Promise<unknown>[] = [dispatchFeedInBackground(env)];
       if (categorization) pending.push(dispatchCategorizationInBackground(env));
       executionContext.waitUntil(Promise.all(pending).then(() => undefined));
     }),

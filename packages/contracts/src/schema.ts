@@ -42,6 +42,8 @@ export {
   PreviewBankImportPayload,
   PreviewBankImportResult,
   RecurringCharge,
+  RetryCategorizationPayload,
+  RetryCategorizationResult,
   SavingsSuggestion,
   SpendingAnomaly,
   LedgerEntry,

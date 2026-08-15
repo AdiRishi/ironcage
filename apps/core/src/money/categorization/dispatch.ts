@@ -2,6 +2,7 @@ import {
   CategorizationDispatch as CategorizationDispatchSchema,
   CategorizationBatchItem,
   CategorizationCategory,
+  RetryCategorizationResult,
   type CategorizationDispatch as CategorizationDispatchPayload,
 } from "@ironcage/contracts/schema";
 import {
@@ -10,14 +11,22 @@ import {
   categorizationCapability,
   deriveRunId,
   uncategorizedCategoryId,
+  type RequestId,
+  type Sha256 as Sha256Type,
 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 
 import type { PersistenceError, SqlExecutor } from "../../persistence";
+import { runIdempotentMutation } from "../../persistence/app-requests";
 import { sha256Hex } from "../import/bytes";
 import type { ConfirmedImportGraph } from "../import/store";
 
 export type CategorizationDispatch = CategorizationDispatchPayload;
+
+export interface RetryCategorizationInput {
+  readonly requestId: RequestId;
+  readonly payloadHash: Sha256Type;
+}
 
 const CapabilityConfigRow = Schema.Struct({
   version: Schema.Int,
@@ -186,4 +195,50 @@ export const recordCategorizationDispatchFailure = (
           SET attempt_count = attempt_count + 1, last_error = $2
         WHERE run_id = $1 AND status = 'pending'`,
     [runId, detail.slice(0, 2_000)],
+  );
+
+const requeueUncategorizedCategorization = (sql: SqlExecutor) =>
+  sql.rows(
+    "requeue uncategorized categorization",
+    RetryCategorizationResult,
+    `WITH unresolved AS (
+       SELECT DISTINCT bt.run_id, bt.transaction_id
+         FROM categorization_batch_transactions bt
+         JOIN transaction_splits s ON s.transaction_id = bt.transaction_id
+        WHERE s.category_id = $1
+          AND s.revision = (
+            SELECT max(latest.revision)
+              FROM transaction_splits latest
+             WHERE latest.transaction_id = s.transaction_id
+          )
+     ),
+     eligible AS (
+       SELECT DISTINCT unresolved.run_id
+         FROM unresolved
+        WHERE NOT EXISTS (
+          SELECT 1 FROM capability_outputs output WHERE output.run_id = unresolved.run_id
+        )
+     ),
+     requeued AS (
+       UPDATE capability_dispatches dispatch
+          SET status = 'pending', last_error = NULL, dispatched_at = NULL
+         FROM eligible
+        WHERE dispatch.run_id = eligible.run_id
+        RETURNING dispatch.run_id
+     )
+     SELECT count(DISTINCT requeued.run_id)::integer AS batches,
+            count(DISTINCT unresolved.transaction_id)::integer AS transactions
+       FROM requeued
+       JOIN unresolved ON unresolved.run_id = requeued.run_id`,
+    [uncategorizedCategoryId],
+  ).pipe(Effect.map((rows) => rows[0]!));
+
+export const retryUncategorizedCategorization = (input: RetryCategorizationInput) =>
+  runIdempotentMutation(
+    {
+      ...input,
+      operation: "retryCategorization",
+      response: RetryCategorizationResult,
+    },
+    requeueUncategorizedCategorization,
   );

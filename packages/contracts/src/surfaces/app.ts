@@ -18,6 +18,7 @@ import {
   getTransferMatchesRpc,
   listCategoriesRpc,
   previewBankImportRpc,
+  retryCategorizationRpc,
 } from "./money";
 import { getReportRpc, listReportsRpc, markReportOpenedRpc } from "./reports";
 import { getSystemStatusRpc, haltAllRpc, systemPingRpc } from "./system";
@@ -40,6 +41,7 @@ export const AppRpcs = RpcGroup.make(
   getCategorizationRulesRpc,
   editCategorizationRuleRpc,
   categorizeTransactionsRpc,
+  retryCategorizationRpc,
   listTransactionsRpc,
   getTransferMatchesRpc,
   decideTransferMatchRpc,

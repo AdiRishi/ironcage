@@ -338,6 +338,22 @@ export const categorizeTransactionsRpc = RpcModule.make("categorizeTransactions"
   error: MutationError,
 });
 
+const retryCategorizationPayloadFields = { requestId: RequestId } as const;
+export const RetryCategorizationPayload = Schema.Struct(retryCategorizationPayloadFields);
+export type RetryCategorizationPayload = typeof RetryCategorizationPayload.Type;
+
+export const RetryCategorizationResult = Schema.Struct({
+  transactions: Schema.Int,
+  batches: Schema.Int,
+});
+export type RetryCategorizationResult = typeof RetryCategorizationResult.Type;
+
+export const retryCategorizationRpc = RpcModule.make("retryCategorization", {
+  payload: retryCategorizationPayloadFields,
+  success: RetryCategorizationResult,
+  error: MutationError,
+});
+
 export const listTransactionsRpc = RpcModule.make("listTransactions", {
   payload: { scope: LedgerScope },
   success: Schema.Array(LedgerEntry),

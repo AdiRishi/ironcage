@@ -1,9 +1,10 @@
+import { Internal } from "@ironcage/contracts/schema";
 import { AppRpcs, rpcHttpRoute } from "@ironcage/contracts/server";
 import type { Sha256 } from "@ironcage/domain";
 import { Effect } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 
-import { scheduleDispatch } from "./background-dispatch";
+import { drainCategorizationDispatches, scheduleDispatch } from "./background-dispatch";
 import {
   configureBankAccount,
   getBankAccounts,
@@ -19,6 +20,7 @@ import {
   getCategorizationRules,
   listCategories,
   listTransactions,
+  retryUncategorizedCategorization,
 } from "./money/categorization";
 import { acknowledge, getFeed } from "./money/feed";
 import { confirmBankImport, previewBankImport, type ImportDeps } from "./money/import";
@@ -46,6 +48,31 @@ const idempotently = <P extends { readonly requestId: unknown }, A, E>(
     );
   });
 
+const dispatchRetriedCategorization = <A extends { readonly batches: number }>(result: A) => {
+  if (result.batches === 0) return Effect.succeed(result);
+
+  return Effect.flatMap(workerRequest.service, ({ env }) =>
+    drainCategorizationDispatches(env).pipe(
+      Effect.catchCause(() =>
+        Effect.fail(
+          new Internal({
+            detail: "AI categorization could not start. The rows are unchanged; try again.",
+          }),
+        ),
+      ),
+      Effect.flatMap((dispatch) =>
+        dispatch.failed === 0
+          ? Effect.succeed(result)
+          : Effect.fail(
+              new Internal({
+                detail: "AI categorization could not start. The rows are unchanged; try again.",
+              }),
+            ),
+      ),
+    ),
+  );
+};
+
 const appSurface = HttpRouter.toWebHandler(
   rpcHttpRoute(
     AppRpcs,
@@ -71,6 +98,10 @@ const appSurface = HttpRouter.toWebHandler(
       getCategorizationRules: () => runCoreRequest(() => getCategorizationRules()),
       editCategorizationRule: (payload) => idempotently(payload, editCategorizationRule),
       categorizeTransactions: (payload) => idempotently(payload, categorizeTransactions),
+      retryCategorization: (payload) =>
+        idempotently(payload, retryUncategorizedCategorization).pipe(
+          Effect.flatMap(dispatchRetriedCategorization),
+        ),
       listTransactions: (payload) => runCoreRequest(() => listTransactions(payload.scope)),
       getTransferMatches: () => runCoreRequest(() => getTransferMatches()),
       decideTransferMatch: (payload) => idempotently(payload, decideTransferMatch),
