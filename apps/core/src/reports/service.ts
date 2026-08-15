@@ -2,13 +2,13 @@ import {
   MonthlySpendingReportContent,
   NotFound,
   ReportSummary,
+  type MoneyAnalysis,
   type MonthlySpendingReport,
 } from "@ironcage/contracts/schema";
 import { CalendarDate, FeedEventId, ReportId, type RequestId, type Sha256 } from "@ironcage/domain";
 import { Effect, Schema } from "effect";
 
 import { mintId } from "../ids";
-import { analyzeMoney } from "../money/analysis/service";
 import { insertFeedEvent } from "../money/feed/repository";
 import { runIdempotentMutation } from "../persistence/app-requests";
 import { decodeStored, persistenceToBoundary } from "../persistence/error";
@@ -54,9 +54,8 @@ const decodeReport = (row: typeof ReportRow.Type) =>
     Effect.map((content) => ({ ...toSummary(row), ...content }) satisfies MonthlySpendingReport),
   );
 
-export const generateMonthlySpendingReports = (sql: SqlExecutor) =>
+export const generateMonthlySpendingReports = (sql: SqlExecutor, analysis: MoneyAnalysis) =>
   Effect.gen(function* () {
-    const analysis = yield* analyzeMoney(sql);
     if (analysis.dataThrough === null) return 0;
 
     let generated = 0;

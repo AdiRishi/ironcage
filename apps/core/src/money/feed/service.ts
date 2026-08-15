@@ -1,4 +1,4 @@
-import { FeedEventView, NotFound } from "@ironcage/contracts/schema";
+import { FeedEventView, NotFound, type MoneyAnalysis } from "@ironcage/contracts/schema";
 import { FeedCursor, FeedEventId, monthOf, type RequestId, type Sha256 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 
@@ -7,13 +7,6 @@ import { runIdempotentMutation } from "../../persistence/app-requests";
 import { persistenceToBoundary, type PersistenceError } from "../../persistence/error";
 import { Postgres, type SqlExecutor } from "../../persistence/postgres";
 import type { AccountRow } from "../accounts/repository";
-import { loadCoverageSummary } from "../accounts/service";
-import {
-  computeAnomalies,
-  computeMonths,
-  computeRecurring,
-  loadSplitLines,
-} from "../analysis/service";
 import type { CoveredSpan } from "../import/coverage";
 import { insertFeedEvent } from "./repository";
 
@@ -212,18 +205,12 @@ const eventExists = (
 export const emitDerivedEvents = (
   sql: SqlExecutor,
   touchedMonths: ReadonlySet<string>,
+  analysis: MoneyAnalysis,
 ): Effect.Effect<void, PersistenceError> =>
   Effect.gen(function* () {
     if (touchedMonths.size === 0) return;
 
-    const coverage = yield* loadCoverageSummary(sql);
-    const lines = yield* loadSplitLines(sql);
-    const complete = new Set(coverage.completeMonths);
-    const months = computeMonths(lines, complete);
-
-    const anomalies = computeAnomalies(lines, months, complete).filter((anomaly) =>
-      touchedMonths.has(anomaly.month),
-    );
+    const anomalies = analysis.anomalies.filter((anomaly) => touchedMonths.has(anomaly.month));
     for (const anomaly of anomalies) {
       if (yield* eventExists(sql, "spending_anomaly", "subject", anomaly.subject, anomaly.month)) {
         continue;
@@ -245,9 +232,7 @@ export const emitDerivedEvents = (
       });
     }
 
-    if (coverage.dataThrough === null) return;
-    const recurring = computeRecurring(lines, coverage.dataThrough);
-    for (const group of recurring) {
+    for (const group of analysis.recurring) {
       if (group.priceChange === null) continue;
       const month = monthOf(group.priceChange.on);
       if (!touchedMonths.has(month)) continue;

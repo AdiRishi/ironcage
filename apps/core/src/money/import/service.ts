@@ -1,22 +1,23 @@
 import {
   Conflict,
+  type ConfirmBankImportPayload,
   ConfirmBankImportResult,
   Internal,
   NotFound,
   Stale,
   ValidationFailed,
-  type AmbiguityResolution,
   type BankImportSource,
   type PreviewBankImportResult,
 } from "@ironcage/contracts/schema";
-import { monthOf, RequestId, Sha256 } from "@ironcage/domain";
+import { BankImportId, monthOf, Sha256 } from "@ironcage/domain";
 import { Effect, Schema } from "effect";
 
 import { runIdempotentMutation } from "../../persistence/app-requests";
 import { persistenceToBoundary } from "../../persistence/error";
-import { Postgres } from "../../persistence/postgres";
+import { Postgres, type SqlExecutor } from "../../persistence/postgres";
 import { generateMonthlySpendingReports } from "../../reports/service";
 import { bindAccountIdentity } from "../accounts/repository";
+import { analyzeMoney } from "../analysis/service";
 import { enqueueCategorizationBatches } from "../categorization/dispatch";
 import { emitCoverageEvents, emitDerivedEvents } from "../feed/service";
 import { detectOwnedTransfers } from "../transfers/service";
@@ -24,8 +25,8 @@ import { BankImportBlocked } from "./block";
 import { sha256Hex } from "./bytes";
 import { buildConfirmedImport } from "./confirmation";
 import { prepareBankImport, toBankImportPreview } from "./prepare";
-import type { ImportDependencies, StatementExtraction } from "./prepared-import";
-import { insertConfirmedImport } from "./repository";
+import type { ImportDependencies } from "./prepared-import";
+import { insertConfirmedImport, loadImportedTransactions } from "./repository";
 
 export { statementProfileName } from "./prepared-import";
 export type { ImportDependencies as ImportDeps, StatementExtraction } from "./prepared-import";
@@ -49,28 +50,45 @@ export const previewBankImport = (
     );
   }).pipe(persistenceToBoundary);
 
-export interface ConfirmBankImportInput {
-  readonly source: BankImportSource;
-  readonly expectedBundleDigest: Sha256;
-  readonly expectedPreviewFingerprint: Sha256;
-  readonly resolutions: readonly AmbiguityResolution[];
-  readonly requestId: RequestId;
-}
-
 const decodeSha = Schema.decodeUnknownSync(Sha256);
-const confirmPayloadHash = (input: ConfirmBankImportInput): Promise<string> =>
-  sha256Hex(
+const confirmPayloadHash = async (input: ConfirmBankImportPayload): Promise<string> => {
+  const files =
+    input.source.kind === "commbank_structured"
+      ? [
+          ["csv", await sha256Hex(input.source.csv.bytes)],
+          ["ofx", await sha256Hex(input.source.ofx.bytes)],
+        ]
+      : [["pdf", await sha256Hex(input.source.pdf.bytes)]];
+
+  return sha256Hex(
     new TextEncoder().encode(
       JSON.stringify({
+        source: { kind: input.source.kind, accountId: input.source.accountId, files },
         digest: input.expectedBundleDigest,
         fingerprint: input.expectedPreviewFingerprint,
         resolutions: input.resolutions,
       }),
     ),
   );
+};
+
+const deriveConfirmedImport = Effect.fn("deriveConfirmedImport")(function* (
+  sql: SqlExecutor,
+  importId: BankImportId,
+) {
+  const imported = yield* loadImportedTransactions(sql, importId);
+  yield* detectOwnedTransfers(
+    sql,
+    imported.map((transaction) => transaction.id),
+  );
+  const analysis = yield* analyzeMoney(sql);
+  const touchedMonths = new Set(imported.map((transaction) => monthOf(transaction.postedDate)));
+  yield* emitDerivedEvents(sql, touchedMonths, analysis);
+  yield* generateMonthlySpendingReports(sql, analysis);
+});
 
 export const confirmBankImport = (
-  input: ConfirmBankImportInput,
+  input: ConfirmBankImportPayload,
   deps: ImportDependencies,
 ): Effect.Effect<
   ConfirmBankImportResult,
@@ -79,37 +97,8 @@ export const confirmBankImport = (
 > =>
   Effect.gen(function* () {
     const payloadHash = decodeSha(yield* Effect.promise(() => confirmPayloadHash(input)));
-    let statementExtraction: Promise<StatementExtraction> | undefined;
-    const preparedDeps: ImportDependencies = {
-      ...deps,
-      extractStatement: (pdf) => {
-        statementExtraction ??= deps.extractStatement(pdf);
-        return statementExtraction;
-      },
-    };
     const postgres = yield* Postgres;
-    const preflight = yield* postgres.readTransaction((sql) =>
-      prepareBankImport(sql, input.source, preparedDeps).pipe(
-        Effect.catchIf(
-          (error): error is BankImportBlocked => error instanceof BankImportBlocked,
-          Effect.succeed,
-        ),
-      ),
-    );
-
-    if (
-      !(preflight instanceof BankImportBlocked) &&
-      preflight.digest !== input.expectedBundleDigest
-    ) {
-      return yield* Effect.fail(
-        new Conflict({
-          reason: "ImportBytesChanged",
-          detail: "the uploaded bytes differ from the previewed bundle",
-        }),
-      );
-    }
-
-    return yield* runIdempotentMutation(
+    const result = yield* runIdempotentMutation(
       {
         requestId: input.requestId,
         operation: "confirmBankImport",
@@ -124,7 +113,7 @@ export const confirmBankImport = (
             [`bank-import:${input.source.accountId}`],
           );
 
-          const prepared = yield* prepareBankImport(sql, input.source, preparedDeps).pipe(
+          const prepared = yield* prepareBankImport(sql, input.source, deps).pipe(
             Effect.catchIf(
               (error): error is BankImportBlocked => error instanceof BankImportBlocked,
               Effect.succeed,
@@ -161,22 +150,12 @@ export const confirmBankImport = (
           const graph = yield* buildConfirmedImport(prepared, input.resolutions);
           yield* insertConfirmedImport(sql, prepared.account, graph);
           yield* enqueueCategorizationBatches(sql, graph);
-          yield* detectOwnedTransfers(
-            sql,
-            graph.transactions.map((transaction) => transaction.id),
-          );
           yield* emitCoverageEvents(
             sql,
             prepared.account,
             prepared.coverage.gapsBefore,
             prepared.coverage.gapsRemaining,
           );
-          yield* emitDerivedEvents(
-            sql,
-            new Set(graph.transactions.map((transaction) => monthOf(transaction.postedDate))),
-          );
-          yield* generateMonthlySpendingReports(sql);
-
           if (prepared.account.identityHmac === null) {
             yield* bindAccountIdentity(
               sql,
@@ -194,4 +173,9 @@ export const confirmBankImport = (
           } as const;
         }),
     );
+
+    if (result.kind === "confirmed") {
+      yield* postgres.transaction((sql) => deriveConfirmedImport(sql, result.importId));
+    }
+    return result;
   }).pipe(persistenceToBoundary);

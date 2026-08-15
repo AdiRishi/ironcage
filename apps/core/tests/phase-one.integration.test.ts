@@ -3,12 +3,13 @@ import { Aud, CalendarDate, RequestId, Sha256 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 
 import { mintId } from "../src/ids";
+import { analyzeMoney } from "../src/money/analysis/service";
 import {
   getWholeWealth,
   listExternalAccounts,
   recordExternalBalance,
 } from "../src/money/wealth/service";
-import { Postgres } from "../src/persistence/postgres";
+import { Postgres, type SqlExecutor } from "../src/persistence/postgres";
 import {
   getReport,
   generateMonthlySpendingReports,
@@ -182,8 +183,12 @@ it.effect("persists one immutable report for each complete month", () =>
       ),
     );
 
-    expect(yield* postgres.transaction(generateMonthlySpendingReports)).toBe(1);
-    expect(yield* postgres.transaction(generateMonthlySpendingReports)).toBe(0);
+    const generateReports = (sql: SqlExecutor) =>
+      Effect.flatMap(analyzeMoney(sql), (analysis) =>
+        generateMonthlySpendingReports(sql, analysis),
+      );
+    expect(yield* postgres.transaction(generateReports)).toBe(1);
+    expect(yield* postgres.transaction(generateReports)).toBe(0);
 
     const reports = yield* withDatabase(listReports());
     expect(reports).toHaveLength(1);

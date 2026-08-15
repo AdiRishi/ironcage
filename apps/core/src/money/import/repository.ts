@@ -481,6 +481,23 @@ const HistoryRow = Schema.Struct({
 });
 export type HistoryRow = typeof HistoryRow.Type;
 
+const ImportedTransactionRow = Schema.Struct({
+  id: BankTransactionId,
+  postedDate: CalendarDate,
+});
+
+export const loadImportedTransactions = (sql: SqlExecutor, importId: BankImportId) =>
+  sql.rows(
+    "load imported transactions",
+    ImportedTransactionRow,
+    `SELECT DISTINCT t.id, t.posted_date AS "postedDate"
+       FROM bank_observation_links l
+       JOIN bank_transactions t ON t.id = l.transaction_id
+      WHERE l.import_id = $1
+      ORDER BY t.id`,
+    [importId],
+  );
+
 export const listImportHistory = (sql: SqlExecutor) =>
   Effect.gen(function* () {
     return yield* sql.rows(

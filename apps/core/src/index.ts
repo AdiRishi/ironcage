@@ -63,23 +63,16 @@ const ping = (surface: string) =>
 
 const decodeSha = Schema.decodeUnknownSync(Sha256);
 
-/**
- * Every Money handler runs against the uncached Hyperdrive binding with one
- * connection scoped to the request; the import dependencies carry the
- * identity key and isolated statement extraction.
- */
-const withMoney = <A, E>(use: (deps: ImportDeps) => Effect.Effect<A, E, Postgres>) =>
-  Effect.flatMap(workerRequest.service, ({ env, executionContext }) =>
-    use({
-      identityKey: env.MONEY_IDENTITY_KEY,
-      extractStatement: (pdf) =>
-        env.STATEMENT_EXTRACTION.getByName("statement-extractor").extract(pdf),
-    }).pipe(
+const importDependencies = (env: Env): ImportDeps => ({
+  identityKey: env.MONEY_IDENTITY_KEY,
+  extractStatement: (pdf) => env.STATEMENT_EXTRACTION.getByName("statement-extractor").extract(pdf),
+});
+
+const runCoreRequest = <A, E>(use: (env: Env) => Effect.Effect<A, E, Postgres>) =>
+  Effect.flatMap(workerRequest.service, ({ env }) =>
+    use(env).pipe(
       Effect.provide(Postgres.layerForRequest(env.DB.connectionString)),
       persistenceToBoundary,
-      Effect.tap(() =>
-        Effect.sync(() => executionContext.waitUntil(dispatchFeedInBackground(env))),
-      ),
     ),
   );
 
@@ -158,6 +151,22 @@ const dispatchFeedInBackground = (env: Env) =>
     ),
   );
 
+const dispatchCategorizationInBackground = (env: Env) =>
+  Effect.runPromise(
+    drainCategorizationDispatches(env).pipe(
+      Effect.catchCause((cause) => Effect.logWarning("categorization dispatch failed", cause)),
+    ),
+  );
+
+const scheduleDispatch = (categorization = false) =>
+  Effect.flatMap(workerRequest.service, ({ env, executionContext }) =>
+    Effect.sync(() => {
+      const pending = [dispatchFeedInBackground(env)];
+      if (categorization) pending.push(dispatchCategorizationInBackground(env));
+      executionContext.waitUntil(Promise.all(pending).then(() => undefined));
+    }),
+  );
+
 /**
  * Wraps a mutation handler with the app request-id idempotency contract: the
  * payload (minus the request ID itself) is hashed so a replayed request with
@@ -170,7 +179,9 @@ const idempotently = <P extends { readonly requestId: unknown }, A, E>(
   Effect.gen(function* () {
     const { requestId: _, ...content } = payload;
     const hash = yield* payloadHash(content);
-    return yield* withMoney(() => handler({ ...payload, payloadHash: hash }));
+    return yield* runCoreRequest(() => handler({ ...payload, payloadHash: hash })).pipe(
+      Effect.tap(() => scheduleDispatch()),
+    );
   });
 
 const appSurface = HttpRouter.toWebHandler(
@@ -178,44 +189,37 @@ const appSurface = HttpRouter.toWebHandler(
     AppRpcs,
     AppRpcs.toLayer({
       ping: () => ping("AppApi"),
-      getSystemStatus: () => withMoney(() => getSystemStatus()),
+      getSystemStatus: () => runCoreRequest(() => getSystemStatus()),
       haltAll: (payload) => idempotently(payload, haltAll),
-      previewBankImport: ({ source }) => withMoney((deps) => previewBankImport(source, deps)),
+      previewBankImport: ({ source }) =>
+        runCoreRequest((env) => previewBankImport(source, importDependencies(env))),
       confirmBankImport: (payload) =>
-        withMoney((deps) => confirmBankImport(payload, deps)).pipe(
+        runCoreRequest((env) => confirmBankImport(payload, importDependencies(env))).pipe(
           Effect.tap((result) =>
-            result.kind === "confirmed"
-              ? Effect.flatMap(workerRequest.service, ({ env }) =>
-                  drainCategorizationDispatches(env),
-                ).pipe(
-                  Effect.catchCause((cause) =>
-                    Effect.logWarning("categorization dispatch failed", cause),
-                  ),
-                )
-              : Effect.void,
+            result.kind === "confirmed" ? scheduleDispatch(true) : Effect.void,
           ),
         ),
-      getBankAccounts: () => withMoney(() => getBankAccounts()),
-      getBankCoverage: () => withMoney(() => getBankCoverage()),
-      getImportHistory: () => withMoney(() => getImportHistory()),
+      getBankAccounts: () => runCoreRequest(() => getBankAccounts()),
+      getBankCoverage: () => runCoreRequest(() => getBankCoverage()),
+      getImportHistory: () => runCoreRequest(() => getImportHistory()),
       configureBankAccount: (payload) => idempotently(payload, configureBankAccount),
-      listCategories: () => withMoney(() => listCategories()),
+      listCategories: () => runCoreRequest(() => listCategories()),
       createCategory: (payload) => idempotently(payload, createCategory),
       editCategory: (payload) => idempotently(payload, editCategory),
-      getCategorizationRules: () => withMoney(() => getCategorizationRules()),
+      getCategorizationRules: () => runCoreRequest(() => getCategorizationRules()),
       editCategorizationRule: (payload) => idempotently(payload, editCategorizationRule),
       categorizeTransactions: (payload) => idempotently(payload, categorizeTransactions),
-      listTransactions: (payload) => withMoney(() => listTransactions(payload.scope)),
-      getTransferMatches: () => withMoney(() => getTransferMatches()),
+      listTransactions: (payload) => runCoreRequest(() => listTransactions(payload.scope)),
+      getTransferMatches: () => runCoreRequest(() => getTransferMatches()),
       decideTransferMatch: (payload) => idempotently(payload, decideTransferMatch),
-      getMoneyAnalysis: () => withMoney(() => getMoneyAnalysis()),
-      getFeed: (payload) => withMoney(() => getFeed(payload)),
+      getMoneyAnalysis: () => runCoreRequest(() => getMoneyAnalysis()),
+      getFeed: (payload) => runCoreRequest(() => getFeed(payload)),
       acknowledge: (payload) => idempotently(payload, acknowledge),
-      getWholeWealth: () => withMoney(() => getWholeWealth()),
-      listExternalAccounts: () => withMoney(() => listExternalAccounts()),
+      getWholeWealth: () => runCoreRequest(() => getWholeWealth()),
+      listExternalAccounts: () => runCoreRequest(() => listExternalAccounts()),
       recordExternalBalance: (payload) => idempotently(payload, recordExternalBalance),
-      listReports: () => withMoney(() => listReports()),
-      getReport: ({ reportId }) => withMoney(() => getReport(reportId)),
+      listReports: () => runCoreRequest(() => listReports()),
+      getReport: ({ reportId }) => runCoreRequest(() => getReport(reportId)),
       markReportOpened: (payload) => idempotently(payload, markReportOpened),
     }),
   ),
