@@ -1,7 +1,11 @@
 import {
   AmbiguityResolution,
   BoundaryError,
+  CategorySummary,
+  ConfirmBankImportResult,
+  PreviewBankImportResult,
   RuleInput,
+  RuleSummary,
   SplitInput,
   TransferCandidateGroup,
   TransferMatchSummary,
@@ -122,6 +126,19 @@ export const Outcome = <S extends Schema.Codec<unknown, unknown>>(success: S) =>
     Schema.Struct({ outcome: Schema.Literal("ok"), value: success }),
     Schema.Struct({ outcome: Schema.Literal("error"), error: BoundaryError }),
   ]);
+
+export const CategorizeResult = Schema.Struct({
+  updated: Schema.Int,
+  rulesCreated: Schema.Int,
+});
+
+/** One decoder per mutation outcome, shared by every caller of that mutation. */
+export const decodePreviewOutcome = Schema.decodeUnknownSync(Outcome(PreviewBankImportResult));
+export const decodeConfirmOutcome = Schema.decodeUnknownSync(Outcome(ConfirmBankImportResult));
+export const decodeCategorizeOutcome = Schema.decodeUnknownSync(Outcome(CategorizeResult));
+export const decodeTransferOutcome = Schema.decodeUnknownSync(Outcome(TransferMatchSummary));
+export const decodeCategoryOutcome = Schema.decodeUnknownSync(Outcome(CategorySummary));
+export const decodeRuleOutcome = Schema.decodeUnknownSync(Outcome(RuleSummary));
 
 /**
  * Minted in the browser at the moment of intent, so a retry of the same

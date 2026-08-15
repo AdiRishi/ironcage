@@ -19,6 +19,7 @@ import type { RpcClientError } from "effect/unstable/rpc";
 
 import {
   CategorizePayload,
+  CategorizeResult,
   ConfirmPayload,
   CreateCategoryPayload,
   DecideTransferPayload,
@@ -124,8 +125,6 @@ export const confirmBankImport = createServerFn({ method: "POST" })
       ),
     ),
   );
-
-const CategorizeResult = Schema.Struct({ updated: Schema.Int, rulesCreated: Schema.Int });
 
 export const categorizeTransactions = createServerFn({ method: "POST" })
   .inputValidator(decodePayload(CategorizePayload))
