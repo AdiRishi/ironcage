@@ -12,10 +12,10 @@ export interface ReferenceRepo {
   readonly repository: string;
   /** Ref used with `--latest` instead of the pinned version tag. */
   readonly latestRef: string;
-  /** Repo-root-relative `.json` or `.yaml` file holding the pinned version. */
+  /** Repo-root-relative workspace file holding the pnpm catalog. */
   readonly versionSourcePath: string;
-  /** Key path into that file, e.g. `["catalog", "effect"]`. */
-  readonly packageVersionPath: ReadonlyArray<string>;
+  /** Package key in the workspace's pnpm catalog. */
+  readonly catalogPackage: string;
   /** Tag = `${versionTagPrefix}${resolved version}`. */
   readonly versionTagPrefix: string;
 }
@@ -27,7 +27,7 @@ export const REFERENCE_REPOS: ReadonlyArray<ReferenceRepo> = [
     repository: "https://github.com/Effect-TS/effect.git",
     latestRef: "main",
     versionSourcePath: "pnpm-workspace.yaml",
-    packageVersionPath: ["catalog", "effect"],
+    catalogPackage: "effect",
     versionTagPrefix: "effect@",
   },
 ];

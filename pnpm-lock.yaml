@@ -506,6 +506,9 @@ importers:
       '@distilled.cloud/cloudflare':
         specifier: 'catalog:'
         version: 1.0.0-rc.4(effect@4.0.0-rc.109)
+      '@ironcage/contracts':
+        specifier: workspace:*
+        version: link:../packages/contracts
       alchemy:
         specifier: 'catalog:'
         version: 2.0.0-beta.72(patch_hash=125dfb2ad32702131c4a46273a7573a47ed51746ff5b5172fac4c022895a5ea1)(@effect/platform-node@4.0.0-rc.109(effect@4.0.0-rc.109)(redis@6.2.1(@opentelemetry/api@1.9.0)))(@types/react@19.2.18)(@vercel/nft@1.10.2(supports-color@10.2.2))(effect@4.0.0-rc.109)(pg@8.23.0)(supports-color@10.2.2)(typescript@7.0.2)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))(vitest@4.1.10(@opentelemetry/api@1.9.0)(@types/node@26.2.0)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0)))(ws@8.21.3)
@@ -677,6 +680,9 @@ importers:
 
   scripts:
     dependencies:
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.0-rc.109
       yaml:
         specifier: 'catalog:'
         version: 2.9.0

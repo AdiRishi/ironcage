@@ -1,4 +1,5 @@
 import type * as Workers from "@cloudflare/workers-types";
+import type { FeedEventEncoded } from "@ironcage/contracts/schema";
 import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import type { Input } from "alchemy/Input";
@@ -24,7 +25,7 @@ export interface ActorBinding extends Workers.Rpc.DurableObjectBranded {
 }
 
 export interface FeedActorBinding extends ActorBinding {
-  publish(event: unknown): Promise<void>;
+  publish(event: FeedEventEncoded): Promise<void>;
 }
 
 export interface CoreSecrets {
@@ -135,18 +136,26 @@ export const coreEntrypoints = (agents: Cloudflare.Worker) => ({
 
 type WorkerEntrypoints = Record<string, Cloudflare.WorkerEntrypointBinding>;
 
+const serviceBinding = (name: string, entrypoint: Cloudflare.WorkerEntrypointBinding) => {
+  const binding = {
+    type: "service" as const,
+    name,
+    service: entrypoint.worker.workerName,
+  };
+  if (entrypoint.entrypoint === undefined) {
+    return entrypoint.props === undefined ? binding : { ...binding, props: entrypoint.props };
+  }
+  return entrypoint.props === undefined
+    ? { ...binding, entrypoint: entrypoint.entrypoint }
+    : { ...binding, entrypoint: entrypoint.entrypoint, props: entrypoint.props };
+};
+
 export const bindWorkerEntrypoints = (
   worker: Cloudflare.Worker,
   entrypoints: WorkerEntrypoints,
 ) => {
   const bindings: Input<Cloudflare.WorkerBinding[]> = Object.entries(entrypoints).map(
-    ([name, entrypoint]) => ({
-      type: "service" as const,
-      name,
-      service: entrypoint.worker.workerName,
-      ...(entrypoint.entrypoint === undefined ? {} : { entrypoint: entrypoint.entrypoint }),
-      ...(entrypoint.props === undefined ? {} : { props: entrypoint.props }),
-    }),
+    ([name, entrypoint]) => serviceBinding(name, entrypoint),
   );
   return worker.bind("Entrypoints", { bindings });
 };

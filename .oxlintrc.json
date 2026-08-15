@@ -84,6 +84,8 @@
       // `docs/adr/0003-frontend-file-and-folder-conventions.md`.
       "files": ["packages/ui/src/components/**"],
       "rules": {
+        "anti-slop/no-runtime-typeof": "off",
+        "anti-slop/require-safety-comment-for-type-assertion": "off",
         "jsx-a11y/label-has-associated-control": "off",
         // Base UI renders its own elements and sets the matching ARIA role on
         // them; the rule cannot see through the primitive to know the role is

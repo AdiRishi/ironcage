@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@distilled.cloud/cloudflare": "catalog:",
+    "@ironcage/contracts": "workspace:*",
     "alchemy": "catalog:",
     "effect": "catalog:",
     "pg": "catalog:",

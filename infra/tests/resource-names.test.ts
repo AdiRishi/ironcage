@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { cloudflareResourceNames } from "../src/resource-names.ts";
+import { cloudflareResourceNames, type CloudflareResourceNames } from "../src/resource-names.ts";
 
-const values = (value: unknown): string[] => {
-  if (typeof value === "string") return [value];
-  if (typeof value !== "object" || value === null) return [];
-  return Object.values(value).flatMap(values);
-};
+const values = (names: CloudflareResourceNames): string[] => [
+  ...Object.values(names.workers),
+  ...Object.values(names.hyperdrive),
+  ...Object.values(names.buckets),
+  ...Object.values(names.queues),
+  names.aiGateway,
+  names.flags,
+];
 
 describe("Cloudflare resource names", () => {
   it("keeps deployed development resources outside the production namespace", () => {

@@ -14,11 +14,16 @@ import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 import * as NodeURL from "node:url";
 
+import { Schema } from "effect";
 import * as YAML from "yaml";
 
 import { REFERENCE_REPOS, type ReferenceRepo } from "./lib/reference-repos.ts";
 
 const REPO_ROOT = NodePath.dirname(NodePath.dirname(NodeURL.fileURLToPath(import.meta.url)));
+const WorkspaceCatalog = Schema.Struct({
+  catalog: Schema.Record(Schema.String, Schema.String),
+});
+const decodeWorkspaceCatalog = Schema.decodeUnknownSync(WorkspaceCatalog);
 
 interface CliOptions {
   readonly repoId: string | undefined;
@@ -51,22 +56,13 @@ function selectRepos(repoId: string | undefined): ReadonlyArray<ReferenceRepo> {
 function pinnedVersion(repo: ReferenceRepo): string {
   const sourcePath = NodePath.join(REPO_ROOT, repo.versionSourcePath);
   const raw = NodeFS.readFileSync(sourcePath, "utf8");
-  const parsed: unknown = sourcePath.endsWith(".json") ? JSON.parse(raw) : YAML.parse(raw);
-
-  let current: unknown = parsed;
-  for (const key of repo.packageVersionPath) {
-    if (typeof current !== "object" || current === null || !(key in current)) {
-      const location = `${repo.versionSourcePath}:${repo.packageVersionPath.join(".")}`;
-      throw new Error(`No version found for reference repo "${repo.id}" at ${location}.`);
-    }
-    current = (current as Record<string, unknown>)[key];
+  const workspace = decodeWorkspaceCatalog(YAML.parse(raw));
+  const version = workspace.catalog[repo.catalogPackage];
+  if (version === undefined) {
+    const location = `${repo.versionSourcePath}:catalog.${repo.catalogPackage}`;
+    throw new Error(`No version found for reference repo "${repo.id}" at ${location}.`);
   }
-
-  if (typeof current !== "string") {
-    const location = `${repo.versionSourcePath}:${repo.packageVersionPath.join(".")}`;
-    throw new Error(`Expected a version string for "${repo.id}" at ${location}.`);
-  }
-  return current;
+  return version;
 }
 
 function resolveRef(repo: ReferenceRepo, latest: boolean): string {
