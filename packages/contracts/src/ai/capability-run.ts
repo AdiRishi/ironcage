@@ -32,6 +32,18 @@ export const DecisionRecordBody = Schema.Struct({
 });
 export type DecisionRecordBody = typeof DecisionRecordBody.Type;
 
+export const CategorizationDispatch = Schema.Struct({
+  runId: RunId,
+  configVersion: Schema.Int,
+  bundleDigest: Sha256,
+  batchIndex: Schema.Int,
+  inputDigest: Sha256,
+  model: Schema.String,
+  batch: Schema.Array(CategorizationBatchItem),
+  categories: Schema.Array(CategorizationCategory),
+});
+export type CategorizationDispatch = typeof CategorizationDispatch.Type;
+
 /**
  * The one message shape the decision-records queue accepts. The run ID is
  * the application idempotency key backed by `queue_dedupe`; Queues itself

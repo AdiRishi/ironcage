@@ -3,9 +3,6 @@ import { Schema } from "effect";
 import { BankTransactionId, CategoryId } from "../money/ids";
 import { Aud } from "../values/decimal";
 
-export const CapabilitySafetyClass = Schema.Literals(["advisory", "guardrail", "trade_capable"]);
-export type CapabilitySafetyClass = typeof CapabilitySafetyClass.Type;
-
 export const CategorizationBatchItem = Schema.Struct({
   transactionId: BankTransactionId,
   payee: Schema.String,
@@ -35,7 +32,6 @@ export type CategorizationOutput = typeof CategorizationOutput.Type;
 
 export const categorizationCapability = {
   name: "money.categorization",
-  safetyClass: "advisory",
   consumes: "an immutable batch of normalized bank transactions and offered categories",
   output: CategorizationOutput,
   consumer: "core categorization ledger",
@@ -47,9 +43,3 @@ export const categorizationCapability = {
   configVersion: 1,
   batchSize: 200,
 } as const;
-
-export const capabilityRegistry = {
-  [categorizationCapability.name]: categorizationCapability,
-} as const;
-
-export type CapabilityName = keyof typeof capabilityRegistry;

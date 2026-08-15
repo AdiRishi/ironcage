@@ -17,27 +17,6 @@ export const categorizationResultSchema = v.object({
   gatewayLogId: v.nullable(v.string()),
 });
 
-export interface CategorizationAgentInput {
-  readonly runId: string;
-  readonly configVersion: number;
-  readonly bundleDigest: string;
-  readonly batchIndex: number;
-  readonly inputDigest: string;
-  readonly model: string;
-  readonly batch: readonly {
-    readonly transactionId: string;
-    readonly payee: string;
-    readonly narrative: string;
-    readonly amount: string;
-    readonly accountLabel: string;
-  }[];
-  readonly categories: readonly {
-    readonly id: string;
-    readonly name: string;
-    readonly kind: "expense" | "income";
-  }[];
-}
-
 export const categorizationInitialDataSchema = v.object({
   runId: v.string(),
   configVersion: v.pipe(v.number(), v.integer()),
@@ -62,6 +41,7 @@ export const categorizationInitialDataSchema = v.object({
     }),
   ),
 });
+export type CategorizationAgentInput = v.InferOutput<typeof categorizationInitialDataSchema>;
 
 export const categorizationInstructions = (input: CategorizationAgentInput): string => {
   const categories = input.categories

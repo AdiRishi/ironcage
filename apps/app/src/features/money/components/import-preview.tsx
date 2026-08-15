@@ -1,11 +1,9 @@
 import {
-  ConfirmPayload,
-  PreviewPayload,
   type BankImportPreview,
   type BoundaryError,
   type CandidateEffect,
 } from "@ironcage/contracts/schema";
-import type { MatchTier } from "@ironcage/domain";
+import type { BankTransactionId, MatchTier } from "@ironcage/domain";
 import { Alert, AlertDescription, AlertTitle } from "@ironcage/ui/components/alert";
 import { Badge } from "@ironcage/ui/components/badge";
 import { Button } from "@ironcage/ui/components/button";
@@ -40,9 +38,7 @@ import { useState } from "react";
 
 import { mintRequestId } from "@/data/request";
 import { describeError, formatAud, formatDay, formatSpan } from "@/features/money/format";
-
-export type SourceDraft = (typeof PreviewPayload)["Encoded"]["source"];
-export type ConfirmDraft = (typeof ConfirmPayload)["Encoded"];
+import type { ConfirmImportDraft, ImportSourceDraft } from "@/features/money/import-upload";
 
 /** How each dedupe tier reads when the operator asks "why is this a duplicate?" */
 const tierLabel: Record<MatchTier, string> = {
@@ -125,15 +121,15 @@ export function ImportPreviewPanel({
   onStartOver,
 }: {
   readonly preview: BankImportPreview;
-  readonly source: SourceDraft;
+  readonly source: ImportSourceDraft;
   readonly accountLabel: string;
   readonly confirming: boolean;
   readonly refreshedNotice: boolean;
   readonly confirmError?: BoundaryError | Error | undefined;
-  readonly onConfirm: (input: ConfirmDraft) => void;
+  readonly onConfirm: (input: ConfirmImportDraft) => void;
   readonly onStartOver: () => void;
 }) {
-  const [decisions, setDecisions] = useState<Record<number, string>>({});
+  const [decisions, setDecisions] = useState<Record<number, BankTransactionId | "new">>({});
 
   const ambiguous = preview.candidates.filter((candidate) => candidate.status === "ambiguous");
   const allResolved = ambiguous.every((candidate) => decisions[candidate.ordinal] !== undefined);
@@ -316,12 +312,15 @@ export function ImportPreviewPanel({
                   {formatAud(candidate.amount, { sign: "always" })} ·{" "}
                   <span className="text-muted-foreground">{candidate.narrative}</span>
                 </span>
-                <Select
+                <Select<string>
                   value={decisions[candidate.ordinal] ?? null}
                   onValueChange={(value) => {
-                    if (typeof value === "string") {
-                      setDecisions((current) => ({ ...current, [candidate.ordinal]: value }));
-                    }
+                    const decision =
+                      value === "new"
+                        ? value
+                        : candidate.options.find((transactionId) => transactionId === value);
+                    if (decision === undefined) return;
+                    setDecisions((current) => ({ ...current, [candidate.ordinal]: decision }));
                   }}
                 >
                   <SelectTrigger size="sm" className="min-w-56 font-mono text-xs">

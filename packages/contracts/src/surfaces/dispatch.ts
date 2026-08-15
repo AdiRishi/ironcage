@@ -1,9 +1,8 @@
-import { RunId, Sha256 } from "@ironcage/domain";
 import { Schema } from "effect";
 import { Rpc as RpcModule } from "effect/unstable/rpc";
 import { RpcGroup } from "effect/unstable/rpc";
 
-import { CategorizationBatchItem, CategorizationCategory } from "../ai/capability-run";
+import { CategorizationDispatch } from "../ai/capability-run";
 import { Internal } from "./errors";
 import { systemPingRpc } from "./system";
 
@@ -13,16 +12,7 @@ import { systemPingRpc } from "./system";
  * agents Worker took the run.
  */
 export const dispatchCategorizationRpc = RpcModule.make("dispatchCategorization", {
-  payload: {
-    runId: RunId,
-    configVersion: Schema.Int,
-    bundleDigest: Sha256,
-    batchIndex: Schema.Int,
-    inputDigest: Sha256,
-    model: Schema.String,
-    batch: Schema.Array(CategorizationBatchItem),
-    categories: Schema.Array(CategorizationCategory),
-  },
+  payload: CategorizationDispatch.fields,
   success: Schema.Struct({ accepted: Schema.Boolean }),
   error: Internal,
 });

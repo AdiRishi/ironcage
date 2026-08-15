@@ -20,24 +20,17 @@ import { useReducer } from "react";
 import { keys } from "@/data/keys";
 import { blockGuidance } from "@/features/money/blocks";
 import { AccountSetup } from "@/features/money/components/account-setup";
-import {
-  type ConfirmDraft,
-  ImportPreviewPanel,
-  type SourceDraft,
-} from "@/features/money/components/import-preview";
+import { ImportPreviewPanel } from "@/features/money/components/import-preview";
 import { describeError, formatSpan } from "@/features/money/format";
+import {
+  confirmUpload,
+  type ConfirmImportDraft,
+  type ImportSourceDraft,
+  previewUpload,
+} from "@/features/money/import-upload";
 import { accountsQuery } from "@/features/money/queries";
 import { decodeConfirmOutcome, decodePreviewOutcome } from "@/features/money/transport";
 import { confirmBankImport, previewBankImport } from "@/server/money";
-
-const toBase64 = async (file: File): Promise<string> => {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  let binary = "";
-  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
-  }
-  return btoa(binary);
-};
 
 function FileSlot({
   label,
@@ -139,7 +132,7 @@ type Selection =
 
 type WizardState =
   | { readonly stage: "select"; readonly selection: Selection }
-  | { readonly stage: "preview"; readonly source: SourceDraft; readonly refreshed: boolean };
+  | { readonly stage: "preview"; readonly source: ImportSourceDraft; readonly refreshed: boolean };
 
 type WizardAction =
   | { readonly type: "selectAccount"; readonly accountId: BankAccountSummary["id"] }
@@ -147,7 +140,7 @@ type WizardAction =
   | { readonly type: "selectCsv"; readonly file: File }
   | { readonly type: "selectOfx"; readonly file: File }
   | { readonly type: "selectPdf"; readonly file: File }
-  | { readonly type: "previewed"; readonly source: SourceDraft }
+  | { readonly type: "previewed"; readonly source: ImportSourceDraft }
   | { readonly type: "refreshed" }
   | { readonly type: "reset" };
 
@@ -199,16 +192,16 @@ export function ImportWizard() {
   const [state, dispatch] = useReducer(reduceWizard, initialState);
 
   const preview = useMutation({
-    mutationFn: async (source: SourceDraft) =>
-      decodePreviewOutcome(await previewBankImport({ data: { source } })),
+    mutationFn: async (source: ImportSourceDraft) =>
+      decodePreviewOutcome(await previewBankImport({ data: previewUpload(source) })),
     onSuccess: (outcome, source) => {
       if (outcome.outcome === "ok") dispatch({ type: "previewed", source });
     },
   });
 
   const confirm = useMutation({
-    mutationFn: async (input: ConfirmDraft) =>
-      decodeConfirmOutcome(await confirmBankImport({ data: input })),
+    mutationFn: async (input: ConfirmImportDraft) =>
+      decodeConfirmOutcome(await confirmBankImport({ data: confirmUpload(input) })),
     onSuccess: async (outcome, input) => {
       if (outcome.outcome === "ok" && outcome.value.kind === "confirmed") {
         await queryClient.invalidateQueries({ queryKey: keys.moneyAll() });
@@ -232,7 +225,7 @@ export function ImportWizard() {
     confirm.reset();
   };
 
-  const submitSelection = async () => {
+  const submitSelection = () => {
     if (state.stage !== "select") return;
     const selection = state.selection;
     if (selection.accountId === null) return;
@@ -242,15 +235,15 @@ export function ImportWizard() {
       preview.mutate({
         kind: "commbank_structured",
         accountId,
-        csv: { displayName: selection.csv.name, base64: await toBase64(selection.csv) },
-        ofx: { displayName: selection.ofx.name, base64: await toBase64(selection.ofx) },
+        csv: selection.csv,
+        ofx: selection.ofx,
       });
     }
     if (selection.mode === "statement" && selection.pdf !== null) {
       preview.mutate({
         kind: "commbank_statement",
         accountId,
-        pdf: { displayName: selection.pdf.name, base64: await toBase64(selection.pdf) },
+        pdf: selection.pdf,
       });
     }
   };
@@ -488,7 +481,7 @@ export function ImportWizard() {
       <CardFooter>
         <Button
           disabled={selection.accountId === null || !filesChosen || preview.isPending}
-          onClick={() => void submitSelection()}
+          onClick={submitSelection}
         >
           {preview.isPending ? <Spinner /> : null}
           Preview import

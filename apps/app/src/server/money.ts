@@ -1,10 +1,4 @@
 import { timeouts } from "@ironcage/contracts/client";
-import type {
-  BankImportSource,
-  ImportSourcePayload,
-  UploadedBytes,
-  UploadPayload,
-} from "@ironcage/contracts/schema";
 import {
   BankAccountSummary,
   BankCoverage,
@@ -13,14 +7,12 @@ import {
   CategorySummary,
   ConfigureAccountPayload,
   ConfirmBankImportResult,
-  ConfirmPayload,
   CreateCategoryPayload,
   DecideTransferPayload,
   EditCategoryPayload,
   EditRulePayload,
   ImportHistoryEntry,
   PreviewBankImportResult,
-  PreviewPayload,
   LedgerEntry,
   LedgerScope,
   MoneyAnalysis,
@@ -31,23 +23,9 @@ import {
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 
+import { decodeConfirmUpload, decodePreviewUpload } from "@/features/money/import-upload";
 import { decodePayload, encodedRead, intoOutcome } from "@/server/boundary";
 import { callCore } from "@/server/core.server";
-
-const intoUpload = (upload: UploadPayload): UploadedBytes => ({
-  displayName: upload.displayName,
-  bytes: Uint8Array.from(atob(upload.base64), (char) => char.charCodeAt(0)),
-});
-
-const intoSource = (source: ImportSourcePayload): BankImportSource =>
-  source.kind === "commbank_structured"
-    ? {
-        kind: source.kind,
-        accountId: source.accountId,
-        csv: intoUpload(source.csv),
-        ofx: intoUpload(source.ofx),
-      }
-    : { kind: source.kind, accountId: source.accountId, pdf: intoUpload(source.pdf) };
 
 export const getBankAccounts = createServerFn().handler(() =>
   callCore((client) => encodedRead(Schema.Array(BankAccountSummary))(client.getBankAccounts())),
@@ -86,28 +64,24 @@ export const getTransferMatches = createServerFn().handler(() =>
 );
 
 export const previewBankImport = createServerFn({ method: "POST" })
-  .validator(decodePayload(PreviewPayload))
-  .handler(({ data }) =>
-    callCore(
-      (client) =>
-        intoOutcome(PreviewBankImportResult)(
-          client.previewBankImport({ source: intoSource(data.source) }),
-        ),
+  .validator((form: FormData) => form)
+  .handler(async ({ data }) => {
+    const source = await decodePreviewUpload(data);
+    return await callCore(
+      (client) => intoOutcome(PreviewBankImportResult)(client.previewBankImport({ source })),
       { timeout: timeouts.appToCoreImport },
-    ),
-  );
+    );
+  });
 
 export const confirmBankImport = createServerFn({ method: "POST" })
-  .validator(decodePayload(ConfirmPayload))
-  .handler(({ data }) =>
-    callCore(
-      (client) =>
-        intoOutcome(ConfirmBankImportResult)(
-          client.confirmBankImport({ ...data, source: intoSource(data.source) }),
-        ),
+  .validator((form: FormData) => form)
+  .handler(async ({ data }) => {
+    const payload = await decodeConfirmUpload(data);
+    return await callCore(
+      (client) => intoOutcome(ConfirmBankImportResult)(client.confirmBankImport(payload)),
       { timeout: timeouts.appToCoreImport },
-    ),
-  );
+    );
+  });
 
 export const categorizeTransactions = createServerFn({ method: "POST" })
   .validator(decodePayload(CategorizePayload))

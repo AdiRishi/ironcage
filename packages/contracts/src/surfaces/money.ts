@@ -256,24 +256,36 @@ export const LedgerScope = Schema.Union([
 ]);
 export type LedgerScope = typeof LedgerScope.Type;
 
+const createCategoryPayloadFields = {
+  requestId: RequestId,
+  name: Schema.String,
+  kind: CategoryKind,
+} as const;
+export const CreateCategoryPayload = Schema.Struct(createCategoryPayloadFields);
+export type CreateCategoryPayload = typeof CreateCategoryPayload.Type;
+
 export const listCategoriesRpc = RpcModule.make("listCategories", {
   success: Schema.Array(CategorySummary),
   error: ReadError,
 });
 
 export const createCategoryRpc = RpcModule.make("createCategory", {
-  payload: { requestId: RequestId, name: Schema.String, kind: CategoryKind },
+  payload: createCategoryPayloadFields,
   success: CategorySummary,
   error: MutationError,
 });
 
+const editCategoryPayloadFields = {
+  requestId: RequestId,
+  categoryId: CategoryId,
+  name: Schema.NullOr(Schema.String),
+  archived: Schema.NullOr(Schema.Boolean),
+} as const;
+export const EditCategoryPayload = Schema.Struct(editCategoryPayloadFields);
+export type EditCategoryPayload = typeof EditCategoryPayload.Type;
+
 export const editCategoryRpc = RpcModule.make("editCategory", {
-  payload: {
-    requestId: RequestId,
-    categoryId: CategoryId,
-    name: Schema.NullOr(Schema.String),
-    archived: Schema.NullOr(Schema.Boolean),
-  },
+  payload: editCategoryPayloadFields,
   success: CategorySummary,
   error: MutationError,
 });
@@ -283,19 +295,23 @@ export const getCategorizationRulesRpc = RpcModule.make("getCategorizationRules"
   error: ReadError,
 });
 
+const editRulePayloadFields = {
+  requestId: RequestId,
+  action: Schema.Union([
+    Schema.Struct({ kind: Schema.Literal("create"), rule: RuleInput }),
+    Schema.Struct({ kind: Schema.Literal("close"), ruleId: CategorizationRuleId }),
+    Schema.Struct({
+      kind: Schema.Literal("replace"),
+      ruleId: CategorizationRuleId,
+      rule: RuleInput,
+    }),
+  ]),
+} as const;
+export const EditRulePayload = Schema.Struct(editRulePayloadFields);
+export type EditRulePayload = typeof EditRulePayload.Type;
+
 export const editCategorizationRuleRpc = RpcModule.make("editCategorizationRule", {
-  payload: {
-    requestId: RequestId,
-    action: Schema.Union([
-      Schema.Struct({ kind: Schema.Literal("create"), rule: RuleInput }),
-      Schema.Struct({ kind: Schema.Literal("close"), ruleId: CategorizationRuleId }),
-      Schema.Struct({
-        kind: Schema.Literal("replace"),
-        ruleId: CategorizationRuleId,
-        rule: RuleInput,
-      }),
-    ]),
-  },
+  payload: editRulePayloadFields,
   success: RuleSummary,
   error: MutationError,
 });
@@ -303,18 +319,21 @@ export const editCategorizationRuleRpc = RpcModule.make("editCategorizationRule"
 export const CategorizeResult = Schema.Struct({ updated: Schema.Int, rulesCreated: Schema.Int });
 export type CategorizeResult = typeof CategorizeResult.Type;
 
+const categorizePayloadFields = {
+  requestId: RequestId,
+  changes: Schema.Array(
+    Schema.Struct({
+      transactionId: BankTransactionId,
+      splits: Schema.Array(SplitInput),
+    }),
+  ),
+  createRules: Schema.Array(RuleInput),
+} as const;
+export const CategorizePayload = Schema.Struct(categorizePayloadFields);
+export type CategorizePayload = typeof CategorizePayload.Type;
+
 export const categorizeTransactionsRpc = RpcModule.make("categorizeTransactions", {
-  payload: {
-    requestId: RequestId,
-    changes: Schema.Array(
-      Schema.Struct({
-        transactionId: BankTransactionId,
-        splits: Schema.Array(SplitInput),
-      }),
-    ),
-    /** Exact-payee rules created from these corrections, applying forward only. */
-    createRules: Schema.Array(RuleInput),
-  },
+  payload: categorizePayloadFields,
   success: CategorizeResult,
   error: MutationError,
 });
@@ -434,31 +453,49 @@ export const getTransferMatchesRpc = RpcModule.make("getTransferMatches", {
   error: ReadError,
 });
 
+const decideTransferPayloadFields = {
+  requestId: RequestId,
+  transactionA: BankTransactionId,
+  transactionB: BankTransactionId,
+  decision: Schema.Literals(["confirm", "dismiss"]),
+} as const;
+export const DecideTransferPayload = Schema.Struct(decideTransferPayloadFields);
+export type DecideTransferPayload = typeof DecideTransferPayload.Type;
+
 export const decideTransferMatchRpc = RpcModule.make("decideTransferMatch", {
-  payload: {
-    requestId: RequestId,
-    transactionA: BankTransactionId,
-    transactionB: BankTransactionId,
-    decision: Schema.Literals(["confirm", "dismiss"]),
-  },
+  payload: decideTransferPayloadFields,
   success: TransferMatchSummary,
   error: MutationError,
 });
 
+const previewBankImportPayloadFields = { source: BankImportSource } as const;
+export const PreviewBankImportPayload = Schema.Struct(previewBankImportPayloadFields);
+export type PreviewBankImportPayload = typeof PreviewBankImportPayload.Type;
+
 export const previewBankImportRpc = RpcModule.make("previewBankImport", {
-  payload: { source: BankImportSource },
+  payload: previewBankImportPayloadFields,
   success: PreviewBankImportResult,
   error: MutationError,
 });
 
+const confirmBankImportMetadataFields = {
+  expectedBundleDigest: Sha256,
+  expectedPreviewFingerprint: Sha256,
+  resolutions: Schema.Array(AmbiguityResolution),
+  requestId: RequestId,
+} as const;
+export const ConfirmBankImportMetadata = Schema.Struct(confirmBankImportMetadataFields);
+export type ConfirmBankImportMetadata = typeof ConfirmBankImportMetadata.Type;
+
+const confirmBankImportPayloadFields = {
+  source: BankImportSource,
+  ...confirmBankImportMetadataFields,
+} as const;
+export const ConfirmBankImportPayload = Schema.Struct(confirmBankImportPayloadFields);
+export type ConfirmBankImportPayload = typeof ConfirmBankImportPayload.Type;
+
 export const confirmBankImportRpc = RpcModule.make("confirmBankImport", {
-  payload: {
-    source: BankImportSource,
-    expectedBundleDigest: Sha256,
-    expectedPreviewFingerprint: Sha256,
-    resolutions: Schema.Array(AmbiguityResolution),
-    requestId: RequestId,
-  },
+  payload: confirmBankImportPayloadFields,
   success: ConfirmBankImportResult,
   error: MutationError,
 });
@@ -468,15 +505,19 @@ export const getBankAccountsRpc = RpcModule.make("getBankAccounts", {
   error: ReadError,
 });
 
+const configureAccountPayloadFields = {
+  requestId: RequestId,
+  productLabel: Schema.String,
+  accountType: BankAccountType,
+  required: Schema.Boolean,
+  openedOn: Schema.NullOr(CalendarDate),
+  closedOn: Schema.NullOr(CalendarDate),
+} as const;
+export const ConfigureAccountPayload = Schema.Struct(configureAccountPayloadFields);
+export type ConfigureAccountPayload = typeof ConfigureAccountPayload.Type;
+
 export const configureBankAccountRpc = RpcModule.make("configureBankAccount", {
-  payload: {
-    requestId: RequestId,
-    productLabel: Schema.String,
-    accountType: BankAccountType,
-    required: Schema.Boolean,
-    openedOn: Schema.NullOr(CalendarDate),
-    closedOn: Schema.NullOr(CalendarDate),
-  },
+  payload: configureAccountPayloadFields,
   success: BankAccountSummary,
   error: MutationError,
 });

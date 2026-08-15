@@ -125,6 +125,7 @@ const decisionMessage = (
     },
   };
   validateMessage(message);
+  // The decoded form contains DateTime values; Workflow steps persist the validated wire form.
   return message;
 };
 
