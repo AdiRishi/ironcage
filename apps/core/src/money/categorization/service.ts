@@ -27,7 +27,7 @@ import {
 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 
-import { mintId, mintRawUuidV7 } from "../../ids";
+import { mintId, mintUuidV7 } from "../../ids";
 import { runIdempotentMutation } from "../../persistence/app-requests";
 import { persistenceToBoundary } from "../../persistence/error";
 import { decodeRows, Postgres, type SqlExecutor } from "../../persistence/postgres";
@@ -324,7 +324,7 @@ export const categorizeTransactions = (input: {
               `INSERT INTO transaction_splits (id, transaction_id, revision, category_id, amount, provenance, rule_id, created_at)
                VALUES ($1, $2, $3, $4, $5, 'manual', NULL, now())`,
               [
-                mintRawUuidV7(),
+                mintUuidV7(),
                 transaction.id,
                 transaction.revision + 1,
                 split.categoryId,

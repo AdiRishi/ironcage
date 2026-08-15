@@ -12,7 +12,7 @@ import {
 } from "@ironcage/domain";
 import { DateTime, Effect, Schema } from "effect";
 
-import { mintId, mintRawUuidV7 } from "../ids";
+import { mintId, mintUuidV7 } from "../ids";
 import { insertFeedEvent } from "../money/feed/repository";
 import { sha256Hex } from "../money/import/bytes";
 import { decodeRows, Postgres, type SqlExecutor } from "../persistence/postgres";
@@ -206,7 +206,7 @@ export const consumeCapabilityRun = (
           ],
         );
 
-        const decisionRecordId = mintRawUuidV7();
+        const decisionRecordId = mintUuidV7();
         yield* sql.query(
           "insert decision record",
           `INSERT INTO decision_records
@@ -273,9 +273,9 @@ export const consumeCapabilityRun = (
             [
               suggestion.transactionId,
               uncategorizedCategoryId,
-              mintRawUuidV7(),
+              mintUuidV7(),
               suggestion.categoryId,
-              mintRawUuidV7(),
+              mintUuidV7(),
               message.runId,
               suggestion.rationale,
               decisionRecordId,

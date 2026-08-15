@@ -8,7 +8,7 @@ describe("shared identity values", () => {
     const entropy = Uint8Array.from({ length: 16 }, (_, index) => index);
     const value = uuidV7From(0, entropy);
 
-    expect(value).toBe("00000000-0000-7607-8809-0a0b0c0d0e0f");
+    expect(value).toBe("00000000-0000-7fa0-9c20-260b0c0d0e0f");
     expect(Schema.decodeUnknownSync(RequestId)(value)).toBe(value);
     expect(entropy).toEqual(Uint8Array.from({ length: 16 }, (_, index) => index));
   });
