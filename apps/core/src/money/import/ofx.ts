@@ -1,5 +1,5 @@
-import type { CalendarDate } from "@ironcage/domain";
-import { BigDecimal, Effect } from "effect";
+import { CalendarDate } from "@ironcage/domain";
+import { BigDecimal, Effect, Schema } from "effect";
 
 import { BankImportBlocked, blocked } from "./block";
 import { decodeWindows1252 } from "./bytes";
@@ -91,13 +91,13 @@ const scalars = new Set([
 
 const fail = (detail: string) => blocked("OfxGrammar", detail);
 
-const requiredHeader: Readonly<Record<string, string>> = {
+const requiredHeader = {
   OFXHEADER: "100",
   DATA: "OFXSGML",
   VERSION: "102",
   ENCODING: "USASCII",
   CHARSET: "1252",
-};
+} satisfies Readonly<Record<string, string>>;
 
 const knownHeaderKeys = new Set([
   ...Object.keys(requiredHeader),
@@ -207,10 +207,15 @@ const dateFrom = (digits: string, tag: string): Effect.Effect<CalendarDate, Bank
     return fail(`${tag} "${digits}" is not an 8- or 14-digit OFX date`);
   }
   const iso = `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
-  const utc = new Date(`${iso}T00:00:00Z`);
-  return Number.isNaN(utc.valueOf()) || utc.toISOString().slice(0, 10) !== iso
-    ? fail(`${tag} "${digits}" is not a real calendar date`)
-    : Effect.succeed(iso as CalendarDate);
+  return Schema.decodeUnknownEffect(CalendarDate)(iso).pipe(
+    Effect.mapError(
+      () =>
+        new BankImportBlocked({
+          code: "OfxGrammar",
+          detail: `${tag} "${digits}" is not a real calendar date`,
+        }),
+    ),
+  );
 };
 
 const amountPattern = /^[+-]?\d+(\.\d+)?$/;
@@ -276,10 +281,14 @@ const optionalBalance = Effect.fn("parseOptionalOfxBalance")(function* (
   return found.length === 1 ? yield* parseBalance(found[0]!) : null;
 });
 
-const shapes: Record<
-  OfxVariant,
-  { message: string; response: string; statement: string; account: string }
-> = {
+interface OfxGrammar {
+  readonly message: string;
+  readonly response: string;
+  readonly statement: string;
+  readonly account: string;
+}
+
+const variantGrammar = {
   deposit: {
     message: "BANKMSGSRSV1",
     response: "STMTTRNRS",
@@ -298,7 +307,7 @@ const shapes: Record<
     statement: "CCSTMTRS",
     account: "BANKACCTFROM",
   },
-};
+} satisfies Record<OfxVariant, OfxGrammar>;
 
 /**
  * Parses a NetBank OFX 1.02 SGML export. The tag vocabulary is closed: an
@@ -315,22 +324,22 @@ export const parseBankOfx = Effect.fn("parseBankOfx")(function* (
 
   yield* parseHeader(text.slice(0, bodyStart).split("\r\n"));
 
-  const shape = shapes[variant];
+  const grammar = variantGrammar[variant];
   const root = yield* parseBody(text.slice(bodyStart), variant);
   const ofx = yield* one(root, "OFX");
   yield* statusOk(yield* one(yield* one(ofx, "SIGNONMSGSRSV1"), "SONRS"));
 
-  const message = yield* one(ofx, shape.message);
-  const response = yield* one(message, shape.response);
+  const message = yield* one(ofx, grammar.message);
+  const response = yield* one(message, grammar.response);
   yield* statusOk(response);
-  const statement = yield* one(response, shape.statement);
+  const statement = yield* one(response, grammar.statement);
 
   const currency = yield* value(statement, "CURDEF");
   if (currency !== "AUD") {
     return yield* blocked("CurrencyUnsupported", `CURDEF is ${currency}, the record is AUD`);
   }
 
-  const account = yield* one(statement, shape.account);
+  const account = yield* one(statement, grammar.account);
   const bankIds = children(account, "BANKID");
   const acctTypes = children(account, "ACCTTYPE");
 

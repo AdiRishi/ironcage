@@ -1,4 +1,4 @@
-import { CapabilityRunMessage } from "@ironcage/contracts/schema";
+import { CapabilityRunMessage, type FailureDetail } from "@ironcage/contracts/schema";
 import {
   CategorizationBatchItem,
   CategorizationCategory,
@@ -21,11 +21,10 @@ export type ConsumeOutcome =
   | { readonly kind: "accepted"; readonly filed: number }
   | { readonly kind: "failed_run" }
   | { readonly kind: "duplicate" }
-  | { readonly kind: "collision" }
-  | { readonly kind: "undecodable" };
+  | { readonly kind: "collision" };
 
-const decodeMessage = Schema.decodeUnknownEffect(CapabilityRunMessage);
 const decodeOutput = Schema.decodeUnknownEffect(CategorizationOutput);
+const encodeMessage = Schema.encodeSync(CapabilityRunMessage);
 
 const ExpectedBatchRow = Schema.Struct({
   runId: RunId,
@@ -114,15 +113,11 @@ const invalidOutput = (output: CategorizationOutput, expected: ExpectedBatch): s
  * critical event.
  */
 export const consumeCapabilityRun = (
-  body: unknown,
+  message: CapabilityRunMessage,
 ): Effect.Effect<ConsumeOutcome, unknown, Postgres> =>
   Effect.gen(function* () {
-    const decoded = yield* Effect.result(decodeMessage(body));
-    if (decoded._tag === "Failure") return { kind: "undecodable" } as const;
-    const message = decoded.success;
-
     const payloadHash = yield* Effect.promise(() =>
-      sha256Hex(new TextEncoder().encode(JSON.stringify(body))),
+      sha256Hex(new TextEncoder().encode(JSON.stringify(encodeMessage(message)))),
     );
 
     const postgres = yield* Postgres;
@@ -163,12 +158,12 @@ export const consumeCapabilityRun = (
         const anchorFailure = invalidAnchor(message, expected);
 
         let output: CategorizationOutput | null = null;
-        let failure: unknown = null;
+        let failure: FailureDetail | null = null;
 
         if (expected === null || anchorFailure !== null) {
           failure = {
             reason: "InvalidAnchor",
-            detail: anchorFailure,
+            detail: anchorFailure ?? "the run has no valid categorization anchor",
           };
         } else if (message.result._tag === "Failed") {
           failure = message.result.failure;
@@ -307,7 +302,7 @@ export const consumeCapabilityRun = (
  */
 export const consumeDeadLetter = (
   messageId: string,
-  body: unknown,
+  body: Schema.Json,
 ): Effect.Effect<void, unknown, Postgres> =>
   Effect.gen(function* () {
     const postgres = yield* Postgres;

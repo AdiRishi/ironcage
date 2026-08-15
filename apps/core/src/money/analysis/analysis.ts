@@ -8,7 +8,7 @@ import { computeAnomalies } from "./anomalies";
 import { computeMonths } from "./months";
 import { computeRecurring } from "./recurring";
 import { loadSplitLines } from "./split-lines";
-import { computeSuggestions } from "./suggestions";
+import { computeSuggestions, type SuggestionResult } from "./suggestions";
 
 export const analyzeMoney = Effect.fn("analyzeMoney")(function* (sql: SqlExecutor) {
   const coverage = yield* loadCoverageSummary(sql);
@@ -18,9 +18,9 @@ export const analyzeMoney = Effect.fn("analyzeMoney")(function* (sql: SqlExecuto
   const recurring =
     coverage.dataThrough === null ? [] : computeRecurring(lines, coverage.dataThrough);
   const anomalies = computeAnomalies(lines, months, complete);
-  const { suggestions, unavailable } =
+  const { suggestions, unavailable }: SuggestionResult =
     coverage.dataThrough === null
-      ? { suggestions: [], unavailable: "no covered history yet" as string | null }
+      ? { suggestions: [], unavailable: "no covered history yet" }
       : computeSuggestions(recurring, complete, coverage.dataThrough);
 
   return {

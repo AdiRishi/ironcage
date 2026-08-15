@@ -24,9 +24,9 @@ export function persistenceToBoundary<A, E, R>(effect: Effect.Effect<A, E, R>) {
   );
 }
 
-export const decodeStored = <A>(
+export const decodeStored = <A, Stored>(
   schema: Schema.Decoder<A, never>,
-  value: unknown,
+  value: Stored,
   entity: string,
 ): Effect.Effect<A, Internal> =>
   Schema.decodeUnknownEffect(schema)(value).pipe(

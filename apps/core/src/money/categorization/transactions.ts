@@ -135,7 +135,10 @@ const LedgerRow = Schema.Struct({
   rationale: Schema.NullOr(Schema.String),
 });
 
-const provenanceRank: Record<SplitProvenance, number> = { manual: 3, rule: 2, ai: 1, system: 0 };
+const provenanceRank = { manual: 3, rule: 2, ai: 1, system: 0 } satisfies Record<
+  SplitProvenance,
+  number
+>;
 
 export const listTransactions = Effect.fn("listTransactions")(function* (scope: LedgerScope) {
   const postgres = yield* Postgres;

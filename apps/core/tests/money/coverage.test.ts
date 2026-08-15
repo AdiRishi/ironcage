@@ -1,4 +1,5 @@
-import type { CalendarDate } from "@ironcage/domain";
+import { CalendarDate } from "@ironcage/domain";
+import { Schema } from "effect";
 import { describe, expect, test } from "vitest";
 
 import {
@@ -9,10 +10,8 @@ import {
   monthsBetween,
 } from "../../src/money/import/coverage";
 
-const span = (start: string, end: string) => ({
-  start: start as CalendarDate,
-  end: end as CalendarDate,
-});
+const date = Schema.decodeUnknownSync(CalendarDate);
+const span = (start: string, end: string) => ({ start: date(start), end: date(end) });
 
 describe("coverage", () => {
   test("overlapping and adjacent segments merge; separated ones do not", () => {
@@ -49,13 +48,13 @@ describe("coverage", () => {
 
     expect(
       monthCompleteForAccount(merged, "2032-01", {
-        openedOn: "2032-01-15" as CalendarDate,
+        openedOn: date("2032-01-15"),
         closedOn: null,
       }),
     ).toBe(true);
     expect(
       monthCompleteForAccount(merged, "2031-12", {
-        openedOn: "2032-01-15" as CalendarDate,
+        openedOn: date("2032-01-15"),
         closedOn: null,
       }),
     ).toBe(true);
@@ -77,7 +76,7 @@ describe("coverage", () => {
   });
 
   test("monthsBetween spans year boundaries inclusively", () => {
-    expect(monthsBetween("2031-11-15" as CalendarDate, "2032-02-01" as CalendarDate)).toEqual([
+    expect(monthsBetween(date("2031-11-15"), date("2032-02-01"))).toEqual([
       "2031-11",
       "2031-12",
       "2032-01",

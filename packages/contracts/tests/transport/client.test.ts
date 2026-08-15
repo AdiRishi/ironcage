@@ -23,7 +23,7 @@ const serverWith = (handlers: Layer.Layer<Rpc.ToHandler<RpcGroup.Rpcs<typeof Pin
   );
 
 const bindingTo = (handler: (request: Request) => Promise<Response>): ServiceBinding => ({
-  fetch: (input, init) => handler(new Request(input as RequestInfo, init)),
+  fetch: (input, init) => handler(new Request(input, init)),
 });
 
 const callPing = (binding: ServiceBinding, timeout: Duration.Input = timeouts.appToCore) =>

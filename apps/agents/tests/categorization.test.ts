@@ -64,8 +64,6 @@ describe("categorization agent contract", () => {
     };
 
     expect(decodeCategorizationResult(result)).toEqual(result);
-    expect(() => decodeCategorizationResult(undefined)).toThrow(
-      "the agent did not submit a categorization result",
-    );
+    expect(() => decodeCategorizationResult(undefined)).toThrow("Invalid type");
   });
 });

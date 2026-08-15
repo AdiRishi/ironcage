@@ -1,5 +1,5 @@
-import type { CalendarDate } from "@ironcage/domain";
-import { BigDecimal, Effect } from "effect";
+import { CalendarDate } from "@ironcage/domain";
+import { BigDecimal, Effect, Option, Schema } from "effect";
 
 import { BankImportBlocked, blocked } from "./block";
 
@@ -23,20 +23,20 @@ export interface ParsedStatement {
 
 const grammarFailure = (detail: string) => blocked("StatementGrammar", detail);
 
-const months: Readonly<Record<string, number>> = {
-  Jan: 1,
-  Feb: 2,
-  Mar: 3,
-  Apr: 4,
-  May: 5,
-  Jun: 6,
-  Jul: 7,
-  Aug: 8,
-  Sep: 9,
-  Oct: 10,
-  Nov: 11,
-  Dec: 12,
-};
+const months = new Map<string, number>([
+  ["Jan", 1],
+  ["Feb", 2],
+  ["Mar", 3],
+  ["Apr", 4],
+  ["May", 5],
+  ["Jun", 6],
+  ["Jul", 7],
+  ["Aug", 8],
+  ["Sep", 9],
+  ["Oct", 10],
+  ["Nov", 11],
+  ["Dec", 12],
+]);
 
 const amountPattern = /^\$?\d{1,3}(,\d{3})*\.\d{2}$/;
 const dayPattern = /^\d{1,2}$/;
@@ -62,14 +62,13 @@ const tokenize = (markdown: string): string[] => {
   return tokens;
 };
 
-const dateFrom = (year: number, month: number, day: number): CalendarDate | null => {
-  const utc = new Date(Date.UTC(year, month - 1, day));
-  return utc.getUTCFullYear() === year &&
-    utc.getUTCMonth() === month - 1 &&
-    utc.getUTCDate() === day
-    ? (utc.toISOString().slice(0, 10) as CalendarDate)
-    : null;
-};
+const decodeCalendarDate = Schema.decodeUnknownOption(CalendarDate);
+const dateFrom = (year: number, month: number, day: number): CalendarDate | null =>
+  Option.getOrNull(
+    decodeCalendarDate(
+      `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+    ),
+  );
 
 interface HeaderIdentity {
   readonly accountNumber: string;
@@ -110,17 +109,18 @@ const parseHeader = Effect.fn("parseStatementHeader")(function* (
     const day = tokens[start];
     const month = tokens[start + 1];
     const year = tokens[start + 2];
+    const monthNumber = month === undefined ? undefined : months.get(month);
     if (
       day === undefined ||
       month === undefined ||
       year === undefined ||
       !dayPattern.test(day) ||
-      months[month] === undefined ||
+      monthNumber === undefined ||
       !/^\d{4}$/.test(year)
     ) {
       return null;
     }
-    return dateFrom(Number(year), months[month], Number(day));
+    return dateFrom(Number(year), monthNumber, Number(day));
   };
   const start = readPeriodDate(periodAt + 2);
   const separator = tokens[periodAt + 5];
@@ -221,14 +221,15 @@ export const parseOffsetStatement = Effect.fn("parseOffsetStatement")(function* 
     if (opening === null || closing !== null) continue;
 
     const nextToken = tokens[index + 1];
-    if (nextToken !== undefined && months[nextToken] !== undefined && /\d$/.test(token)) {
+    const month = nextToken === undefined ? undefined : months.get(nextToken);
+    if (month !== undefined && /\d$/.test(token)) {
       // Page furniture can fuse onto a transaction day, such as "...2.820".
       const candidates = dayPattern.test(token)
         ? [token]
         : [token.slice(-2), token.slice(-1)].filter((digits) => /^[1-9]\d?$/.test(digits));
       let matched: CalendarDate | null = null;
       for (const digits of candidates) {
-        const date = inferYear(months[nextToken]!, Number(digits));
+        const date = inferYear(month, Number(digits));
         const lastDate = events.filter((event) => event.kind === "date").at(-1)?.date;
         if (date !== null && (lastDate === undefined || date >= lastDate)) {
           matched = date;

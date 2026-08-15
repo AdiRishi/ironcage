@@ -1,9 +1,9 @@
 import {
   BankAccountId,
   BankTransactionId,
+  CalendarDate,
   CategoryId,
   uuidV7From,
-  type CalendarDate,
   type CategoryKind,
 } from "@ironcage/domain";
 import { BigDecimal, Schema } from "effect";
@@ -20,21 +20,22 @@ import {
 const accountId = Schema.decodeUnknownSync(BankAccountId)(uuidV7From(1, new Uint8Array(16)));
 const transactionId = Schema.decodeUnknownSync(BankTransactionId);
 const categoryId = Schema.decodeUnknownSync(CategoryId);
+const calendarDate = Schema.decodeUnknownSync(CalendarDate);
 
 const categories = {
   salary: {
     id: categoryId("01900000-0000-7000-8000-000000000010"),
-    kind: "income" as CategoryKind,
+    kind: "income",
   },
   groceries: {
     id: categoryId("01900000-0000-7000-8000-000000000002"),
-    kind: "expense" as CategoryKind,
+    kind: "expense",
   },
   subscriptions: {
     id: categoryId("01900000-0000-7000-8000-000000000009"),
-    kind: "expense" as CategoryKind,
+    kind: "expense",
   },
-};
+} satisfies Record<string, { readonly id: CategoryId; readonly kind: CategoryKind }>;
 
 let sequence = 0;
 const line = (
@@ -51,7 +52,7 @@ const line = (
   return {
     transactionId: transactionId(id ?? uuidV7From(sequence, random)),
     accountId,
-    postedDate: date as CalendarDate,
+    postedDate: calendarDate(date),
     payee,
     categoryId: categories[category].id,
     categoryName: category,
@@ -125,7 +126,7 @@ describe("recurring detection", () => {
   test("a steady monthly charge qualifies at the 30-day cadence", () => {
     const recurring = computeRecurring(
       monthly(["15.99", "15.99", "15.99", "15.99"]),
-      "2032-04-30" as CalendarDate,
+      calendarDate("2032-04-30"),
     );
 
     expect(recurring).toHaveLength(1);
@@ -137,7 +138,7 @@ describe("recurring detection", () => {
 
   test("two occurrences never qualify", () => {
     expect(
-      computeRecurring(monthly(["15.99", "15.99"]).slice(0, 2), "2032-02-28" as CalendarDate),
+      computeRecurring(monthly(["15.99", "15.99"]).slice(0, 2), calendarDate("2032-02-28")),
     ).toHaveLength(0);
   });
 
@@ -147,13 +148,13 @@ describe("recurring detection", () => {
       line("2032-01-04", "-20.00", "subscriptions", "GYM"),
       line("2032-03-20", "-20.00", "subscriptions", "GYM"),
     ];
-    expect(computeRecurring(lines, "2032-03-31" as CalendarDate)).toHaveLength(0);
+    expect(computeRecurring(lines, calendarDate("2032-03-31"))).toHaveLength(0);
   });
 
   test("a price change above one percent and one dollar is noticed", () => {
     const recurring = computeRecurring(
       monthly(["100.00", "100.00", "100.00", "101.50"]),
-      "2032-04-30" as CalendarDate,
+      calendarDate("2032-04-30"),
     );
 
     expect(recurring).toHaveLength(1);
@@ -168,7 +169,7 @@ describe("recurring detection", () => {
       line("2030-02-15", "-15.99", "subscriptions", "STREAMFLIX"),
       line("2030-03-15", "-15.99", "subscriptions", "STREAMFLIX"),
     ];
-    expect(computeRecurring(lines, "2032-04-30" as CalendarDate)).toHaveLength(0);
+    expect(computeRecurring(lines, calendarDate("2032-04-30"))).toHaveLength(0);
   });
 });
 
@@ -220,14 +221,14 @@ describe("suggestions", () => {
     ["01", "02", "03", "04"].map((month) =>
       line(`2032-${month}-15`, "-15.99", "subscriptions", "STREAMFLIX"),
     ),
-    "2032-04-30" as CalendarDate,
+    calendarDate("2032-04-30"),
   );
 
   test("a steady charge above the annual floor is suggested", () => {
     const { suggestions, unavailable } = computeSuggestions(
       steady,
       new Set(["2032-01", "2032-02", "2032-03", "2032-04"]),
-      "2032-04-30" as CalendarDate,
+      calendarDate("2032-04-30"),
     );
 
     expect(unavailable).toBeNull();
@@ -241,7 +242,7 @@ describe("suggestions", () => {
     const { suggestions, unavailable } = computeSuggestions(
       steady,
       new Set(["2032-01", "2032-03", "2032-04"]),
-      "2032-04-30" as CalendarDate,
+      calendarDate("2032-04-30"),
     );
 
     expect(suggestions).toHaveLength(0);
@@ -253,13 +254,13 @@ describe("suggestions", () => {
       ["01", "02", "03", "04"].map((month, index) =>
         line(`2032-${month}-15`, index === 3 ? "-101.50" : "-100.00", "subscriptions", "INSURER"),
       ),
-      "2032-04-30" as CalendarDate,
+      calendarDate("2032-04-30"),
     );
 
     const { suggestions } = computeSuggestions(
       risen,
       new Set(["2032-01", "2032-02", "2032-03", "2032-04"]),
-      "2032-04-30" as CalendarDate,
+      calendarDate("2032-04-30"),
     );
 
     expect(suggestions).toHaveLength(1);

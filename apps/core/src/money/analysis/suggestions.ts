@@ -5,11 +5,16 @@ import { BigDecimal } from "effect";
 import { decimal, toAud } from "./amounts";
 import { analysisConfig, type RecurringGroup } from "./model";
 
+export interface SuggestionResult {
+  readonly suggestions: readonly SavingsSuggestion[];
+  readonly unavailable: string | null;
+}
+
 export const computeSuggestions = (
   recurring: readonly RecurringGroup[],
   completeMonths: ReadonlySet<string>,
   dataThrough: CalendarDate,
-): { readonly suggestions: readonly SavingsSuggestion[]; readonly unavailable: string | null } => {
+): SuggestionResult => {
   const windowStart = addDays(dataThrough, -analysisConfig.recurringWindowDays);
   const earliestComplete = [...completeMonths].sort()[0];
   if (earliestComplete === undefined) {

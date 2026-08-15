@@ -14,7 +14,7 @@ export const StoredRequest = Schema.Struct({
   requestId: RequestId,
   operation: Schema.String,
   payloadHash: Sha256,
-  response: Schema.Unknown,
+  response: Schema.Json,
 });
 export type StoredRequest = typeof StoredRequest.Type;
 
@@ -24,16 +24,6 @@ interface AppRequestStore {
   ) => Effect.Effect<StoredRequest | null, PersistenceError>;
   readonly record: (request: StoredRequest) => Effect.Effect<void, PersistenceError>;
 }
-
-const json = (value: unknown): Effect.Effect<string, PersistenceError> =>
-  Effect.try({
-    try: () => {
-      const encoded = JSON.stringify(value);
-      if (encoded === undefined) throw new Error("request response is not JSON serializable");
-      return encoded;
-    },
-    catch: (cause) => new PersistenceError({ operation: "encode app request response", cause }),
-  });
 
 const appRequestStore = (sql: SqlExecutor): AppRequestStore => ({
   findForMutation: (requestId) =>
@@ -55,12 +45,16 @@ const appRequestStore = (sql: SqlExecutor): AppRequestStore => ({
     }),
   record: (request) =>
     Effect.gen(function* () {
-      const response = yield* json(request.response);
       yield* sql.execute(
         "record app request",
         `INSERT INTO app_requests (request_id, operation, payload_hash, response, completed_at)
          VALUES ($1, $2, $3, $4::jsonb, now())`,
-        [request.requestId, request.operation, request.payloadHash, response],
+        [
+          request.requestId,
+          request.operation,
+          request.payloadHash,
+          JSON.stringify(request.response),
+        ],
       );
     }).pipe(Effect.asVoid),
 });
@@ -91,8 +85,9 @@ const encodeResponse = <A, I>(
   schema: Schema.Codec<A, I, never, never>,
   value: A,
   operation: string,
-): Effect.Effect<I, Internal> =>
+): Effect.Effect<Schema.Json, Internal> =>
   Schema.encodeEffect(schema)(value).pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(Schema.Json)),
     Effect.mapError(
       () => new Internal({ detail: `response for ${operation} failed schema encoding` }),
     ),

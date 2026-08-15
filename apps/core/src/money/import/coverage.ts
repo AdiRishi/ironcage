@@ -1,4 +1,5 @@
-import { addDays, monthOf, toEpochDay, type CalendarDate } from "@ironcage/domain";
+import { addDays, CalendarDate, monthOf, toEpochDay } from "@ironcage/domain";
+import { Schema } from "effect";
 
 /**
  * An inclusive covered span. Overlapping complete segments merge in this view
@@ -54,11 +55,13 @@ export interface AccountLife {
   readonly closedOn: CalendarDate | null;
 }
 
+const decodeCalendarDate = Schema.decodeUnknownSync(CalendarDate);
+
 const monthSpan = (month: string): CoveredSpan => {
-  const start = `${month}-01` as CalendarDate;
+  const start = decodeCalendarDate(`${month}-01`);
   const next = new Date(`${start}T00:00:00Z`);
   next.setUTCMonth(next.getUTCMonth() + 1);
-  return { start, end: addDays(next.toISOString().slice(0, 10) as CalendarDate, -1) };
+  return { start, end: addDays(decodeCalendarDate(next.toISOString().slice(0, 10)), -1) };
 };
 
 /**

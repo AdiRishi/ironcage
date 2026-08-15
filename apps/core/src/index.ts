@@ -1,7 +1,8 @@
 import { DispatchRpcs, clientOverBinding, timeouts } from "@ironcage/contracts/client";
+import { CapabilityRunMessage } from "@ironcage/contracts/schema";
 import type { ActorBinding } from "@ironcage/infra/worker-bindings";
 import { DurableObject, WorkerEntrypoint } from "cloudflare:workers";
-import { Effect } from "effect";
+import { Effect, Option, Schema } from "effect";
 
 import { handleAgentRequest } from "./agent-api";
 import { consumeCapabilityRun, consumeDeadLetter } from "./ai/consume";
@@ -13,6 +14,9 @@ import {
 } from "./background-dispatch";
 import { Postgres } from "./persistence/postgres";
 import { worker } from "./runtime";
+
+const decodeCapabilityRun = Schema.decodeUnknownOption(CapabilityRunMessage);
+const decodeDeadLetter = Schema.decodeUnknownOption(Schema.Json);
 
 class Actor extends DurableObject<Env> implements ActorBinding {
   async ping() {
@@ -79,8 +83,13 @@ export default class extends WorkerEntrypoint<Env> {
 
     for (const message of batch.messages) {
       if (batch.queue.endsWith("-dlq")) {
+        const body = decodeDeadLetter(message.body);
+        if (Option.isNone(body)) {
+          message.retry();
+          continue;
+        }
         const outcome = await Effect.runPromise(
-          Effect.result(consumeDeadLetter(message.id, message.body).pipe(Effect.provide(layer))),
+          Effect.result(consumeDeadLetter(message.id, body.value).pipe(Effect.provide(layer))),
         );
         if (outcome._tag === "Failure") message.retry();
         else message.ack();
@@ -88,10 +97,15 @@ export default class extends WorkerEntrypoint<Env> {
         continue;
       }
 
+      const body = decodeCapabilityRun(message.body);
+      if (Option.isNone(body)) {
+        message.retry();
+        continue;
+      }
       const outcome = await Effect.runPromise(
-        Effect.result(consumeCapabilityRun(message.body).pipe(Effect.provide(layer))),
+        Effect.result(consumeCapabilityRun(body.value).pipe(Effect.provide(layer))),
       );
-      if (outcome._tag === "Failure" || outcome.success.kind === "undecodable") {
+      if (outcome._tag === "Failure") {
         message.retry();
       } else {
         message.ack();

@@ -3,6 +3,7 @@ import {
   FeedEventView,
   FeedFilter,
   FeedServerFrame,
+  type FeedEventEncoded,
   type FeedEventView as FeedEvent,
   type FeedFilter as FeedSubscription,
   type FeedServerFrame as ServerFrame,
@@ -53,8 +54,7 @@ export class FeedActor extends DurableObject<Env> implements FeedActorBinding {
 
     for (const socket of this.ctx.getWebSockets()) {
       try {
-        const attachment: unknown = socket.deserializeAttachment();
-        const decoded = Schema.decodeUnknownSync(Attachment)(attachment);
+        const decoded = Schema.decodeUnknownSync(Attachment)(socket.deserializeAttachment());
         if (decoded.state === "replaying") {
           socket.close(1012, "reconnect to recover feed cursor");
         } else {
@@ -92,7 +92,7 @@ export class FeedActor extends DurableObject<Env> implements FeedActorBinding {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  async publish(encoded: unknown): Promise<void> {
+  async publish(encoded: FeedEventEncoded): Promise<void> {
     const event = decodeEvent(encoded);
     for (const [socket, session] of this.#sessions) {
       if (!accepts(session.attachment.filter, event)) continue;
@@ -107,7 +107,7 @@ export class FeedActor extends DurableObject<Env> implements FeedActorBinding {
 
   override async webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): Promise<void> {
     try {
-      const text = typeof message === "string" ? message : new TextDecoder().decode(message);
+      const text = message instanceof ArrayBuffer ? new TextDecoder().decode(message) : message;
       const frame = decodeClientFrame(JSON.parse(text));
       if (frame._tag === "Subscribe") {
         await this.#subscribe(socket, frame.since, frame.filter);

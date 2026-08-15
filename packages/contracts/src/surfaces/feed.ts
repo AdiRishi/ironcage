@@ -21,6 +21,7 @@ export const FeedEventView = Schema.Struct({
   acknowledgedAt: Schema.NullOr(Instant),
 });
 export type FeedEventView = typeof FeedEventView.Type;
+export type FeedEventEncoded = Schema.Codec.Encoded<typeof FeedEventView>;
 
 export const GetFeedInput = Schema.Struct({
   cursor: Schema.NullOr(FeedCursor),

@@ -29,7 +29,7 @@ export const RulePredicate = Schema.Struct({
   minAbsoluteAmount: Schema.optionalKey(Aud),
   maxAbsoluteAmount: Schema.optionalKey(Aud),
 }).check(
-  Schema.makeFilter((predicate: object) => Object.keys(predicate).length > 0, {
+  Schema.makeFilter((predicate) => Object.keys(predicate).length > 0, {
     expected: "a predicate with at least one condition",
   }),
 );

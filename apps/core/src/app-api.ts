@@ -1,6 +1,6 @@
 import { Internal } from "@ironcage/contracts/schema";
 import { AppRpcs, rpcHttpRoute } from "@ironcage/contracts/server";
-import type { Sha256 } from "@ironcage/domain";
+import type { RequestId, Sha256 } from "@ironcage/domain";
 import { Effect } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 
@@ -36,7 +36,7 @@ const importDependencies = (env: Env): ImportDeps => ({
   extractStatement: (pdf) => env.STATEMENT_EXTRACTION.getByName("statement-extractor").extract(pdf),
 });
 
-const idempotently = <P extends { readonly requestId: unknown }, A, E>(
+const idempotently = <P extends { readonly requestId: RequestId }, A, E>(
   payload: P,
   handler: (input: P & { readonly payloadHash: Sha256 }) => Effect.Effect<A, E, Postgres>,
 ) =>

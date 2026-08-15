@@ -15,7 +15,9 @@ export const CalendarDate = Schema.String.check(
       const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
       if (match === null) return false;
       const [, year, month, day] = match;
-      const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+      const date = new Date(0);
+      date.setUTCHours(0, 0, 0, 0);
+      date.setUTCFullYear(Number(year), Number(month) - 1, Number(day));
       return (
         date.getUTCFullYear() === Number(year) &&
         date.getUTCMonth() === Number(month) - 1 &&
@@ -28,12 +30,13 @@ export const CalendarDate = Schema.String.check(
 export type CalendarDate = typeof CalendarDate.Type;
 
 const dayMillis = 86_400_000;
+const decodeCalendarDate = Schema.decodeUnknownSync(CalendarDate);
 
 export const toEpochDay = (date: CalendarDate): number =>
   Date.parse(`${date}T00:00:00Z`) / dayMillis;
 
 export const fromEpochDay = (day: number): CalendarDate =>
-  new Date(day * dayMillis).toISOString().slice(0, 10) as CalendarDate;
+  decodeCalendarDate(new Date(day * dayMillis).toISOString().slice(0, 10));
 
 export const addDays = (date: CalendarDate, days: number): CalendarDate =>
   fromEpochDay(toEpochDay(date) + days);

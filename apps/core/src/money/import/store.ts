@@ -219,6 +219,19 @@ export interface AmbiguityInsert {
   readonly resolution: unknown;
 }
 
+interface ConfirmedImportFeedPayload {
+  readonly importId: BankImportId;
+  readonly accountId: BankAccountId;
+  readonly sourceProfile: ImportRow["sourceProfile"];
+  readonly window: CoveredSpan;
+  readonly effects: ImportRow["effects"];
+  readonly coverageAdded: readonly CoveredSpan[];
+}
+
+interface ConfirmedImportFeedLinks {
+  readonly import: BankImportId;
+}
+
 export interface ConfirmedImportGraph {
   readonly importRow: ImportRow;
   readonly files: readonly SourceFileInsert[];
@@ -229,7 +242,7 @@ export interface ConfirmedImportGraph {
   readonly splits: readonly SplitInsert[];
   readonly ambiguities: readonly AmbiguityInsert[];
   readonly coverage: { readonly id: CoverageSegmentId; readonly span: CoveredSpan } | null;
-  readonly feedEvent: FeedEventInsert;
+  readonly feedEvent: FeedEventInsert<ConfirmedImportFeedPayload, ConfirmedImportFeedLinks>;
 }
 
 /**

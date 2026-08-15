@@ -8,9 +8,9 @@ import {
   addDays,
   Aud,
   BankTransactionId,
+  CalendarDate,
   Sha256,
   type BankAccountId,
-  type CalendarDate,
 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 
@@ -47,7 +47,10 @@ import {
 
 const statementDateDriftDays = 3;
 const decodeAud = Schema.decodeUnknownSync(Aud);
+const decodeCalendarDate = Schema.decodeUnknownSync(CalendarDate);
 const decodeSha = Schema.decodeUnknownSync(Sha256);
+const accountLifeStart = decodeCalendarDate("0001-01-01");
+const accountLifeEnd = decodeCalendarDate("9999-12-31");
 
 const aud = (value: BigDecimal.BigDecimal) =>
   decodeAud(BigDecimal.format(BigDecimal.normalize(value)));
@@ -98,8 +101,8 @@ const verifyIdentity = Effect.fn("verifyAccountIdentity")(function* (
 });
 
 const accountLife = (account: AccountRow): CoveredSpan => ({
-  start: account.openedOn ?? ("0001-01-01" as CalendarDate),
-  end: account.closedOn ?? ("9999-12-31" as CalendarDate),
+  start: account.openedOn ?? accountLifeStart,
+  end: account.closedOn ?? accountLifeEnd,
 });
 
 const computeCoverageEffects = Effect.fn("computeCoverageEffects")(function* (

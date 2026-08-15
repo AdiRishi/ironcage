@@ -12,7 +12,7 @@ const clientFor = <Rpcs extends Rpc.Any>(
 ) =>
   clientOverBinding(group, {
     binding: {
-      fetch: (input, init) => entrypoint.fetch(new Request(input as RequestInfo, init)),
+      fetch: (input, init) => entrypoint.fetch(new Request(input, init)),
     },
     surface: "core",
     timeout: timeouts.appToCore,

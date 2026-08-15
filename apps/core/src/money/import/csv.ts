@@ -25,6 +25,10 @@ export interface CsvRow {
 export type CsvBalancePolicy = "required" | "forbidden";
 
 const fail = (row: number, detail: string) => blocked("CsvGrammar", `row ${row + 1}: ${detail}`);
+const decodeRecords = Schema.decodeUnknownSync(Schema.Array(Schema.Array(Schema.String)));
+const decodeCells = Schema.decodeUnknownSync(
+  Schema.Tuple([Schema.String, Schema.String, Schema.String, Schema.String]),
+);
 
 const readRecords = Effect.fn("readCsvRecords")(function* (text: string) {
   if (text.length > 0 && !text.endsWith("\r\n")) {
@@ -32,18 +36,20 @@ const readRecords = Effect.fn("readCsvRecords")(function* (text: string) {
   }
   const records = yield* Effect.try({
     try: () =>
-      parse(text, {
-        bom: false,
-        columns: false,
-        delimiter: ",",
-        encoding: "utf8",
-        escape: '"',
-        quote: '"',
-        recordDelimiter: "\r\n",
-        relaxColumnCount: false,
-        relaxQuotes: false,
-        skipEmptyLines: false,
-      }) as string[][],
+      decodeRecords(
+        parse(text, {
+          bom: false,
+          columns: false,
+          delimiter: ",",
+          encoding: "utf8",
+          escape: '"',
+          quote: '"',
+          recordDelimiter: "\r\n",
+          relaxColumnCount: false,
+          relaxQuotes: false,
+          skipEmptyLines: false,
+        }),
+      ),
     catch: (cause) =>
       new BankImportBlocked({
         code: "CsvGrammar",
@@ -100,7 +106,7 @@ export const parseBankCsv = Effect.fn("parseBankCsv")(function* (
     if (cells.length !== 4) {
       return yield* fail(ordinal, `expected 4 cells, found ${cells.length}`);
     }
-    const [date, amount, narrative, balance] = cells as [string, string, string, string];
+    const [date, amount, narrative, balance] = decodeCells(cells);
 
     const postedDate = yield* parseRowDate(date, ordinal);
     const signedAmount = yield* parseAmount(amount, ordinal, "amount");

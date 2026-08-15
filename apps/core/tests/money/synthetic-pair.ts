@@ -11,6 +11,11 @@ export interface SyntheticRow {
   readonly balance: string; // signed running balance
 }
 
+export interface SyntheticPair {
+  readonly csv: Uint8Array;
+  readonly ofx: Uint8Array;
+}
+
 const signedForCsv = (value: string) => (value.startsWith("-") ? value : `+${value}`);
 const ofxDate = (date: string) => `${date.slice(6)}${date.slice(3, 5)}${date.slice(0, 2)}`;
 
@@ -18,7 +23,7 @@ export const makeDepositPair = (
   acctId: string,
   oldestFirst: readonly SyntheticRow[],
   window: readonly [string, string],
-): { readonly csv: Uint8Array; readonly ofx: Uint8Array } => {
+): SyntheticPair => {
   const newestFirst = [...oldestFirst].reverse();
   const csv = `${newestFirst
     .map(

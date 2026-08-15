@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { expect, it } from "@effect/vitest";
-import type { BankImportSource } from "@ironcage/contracts/schema";
+import { CapabilityRunMessage, type BankImportSource } from "@ironcage/contracts/schema";
 import {
   CategoryId,
   RequestId,
@@ -32,6 +32,7 @@ const fixturesDirectory = resolve(import.meta.dirname, "../fixtures/money/commba
 const sha = Schema.decodeUnknownSync(Sha256);
 const CountRow = Schema.Struct({ count: Schema.Int });
 const groceries = Schema.decodeUnknownSync(CategoryId)("01900000-0000-7000-8000-000000000002");
+const capabilityRunMessage = Schema.decodeUnknownSync(CapabilityRunMessage);
 
 const deps: ImportDeps = {
   identityKey: "ai-consume-key",
@@ -88,39 +89,40 @@ const importFixture = (accountId: BankImportSource["accountId"]) =>
     return pending[0];
   });
 
-const runMessage = (dispatch: CategorizationDispatch, transactionIds: readonly string[]) => ({
-  runId: dispatch.runId,
-  capability: "money.categorization",
-  sleeveId: null,
-  configVersion: dispatch.configVersion,
-  trigger: {
-    _tag: "batch",
-    bundleDigest: dispatch.bundleDigest,
-    batchIndex: dispatch.batchIndex,
-    inputDigest: dispatch.inputDigest,
-  },
-  producedAt: new Date().toISOString(),
-  result: {
-    _tag: "Output",
-    output: {
-      suggestions: transactionIds.map((transactionId) => ({
-        transactionId,
-        categoryId: groceries,
-        rationale: "looks like groceries",
-      })),
+const runMessage = (dispatch: CategorizationDispatch, transactionIds: readonly string[]) =>
+  capabilityRunMessage({
+    runId: dispatch.runId,
+    capability: "money.categorization",
+    sleeveId: null,
+    configVersion: dispatch.configVersion,
+    trigger: {
+      _tag: "batch",
+      bundleDigest: dispatch.bundleDigest,
+      batchIndex: dispatch.batchIndex,
+      inputDigest: dispatch.inputDigest,
     },
-  },
-  decisionRecord: {
-    asked: "categorize 25 bank transactions",
-    inputsSummary: { batchSize: 25 },
-    decided: { suggestions: transactionIds.length },
-    rationale: "test run",
-    model: dispatch.model,
-    gatewayLogIds: [],
-    otelTraceId: "0af7651916cd43dd8448eb211c80319c",
-    otelParentSpanIds: [],
-  },
-});
+    producedAt: new Date().toISOString(),
+    result: {
+      _tag: "Output",
+      output: {
+        suggestions: transactionIds.map((transactionId) => ({
+          transactionId,
+          categoryId: groceries,
+          rationale: "looks like groceries",
+        })),
+      },
+    },
+    decisionRecord: {
+      asked: "categorize 25 bank transactions",
+      inputsSummary: { batchSize: 25 },
+      decided: { suggestions: transactionIds.length },
+      rationale: "test run",
+      model: dispatch.model,
+      gatewayLogIds: [],
+      otelTraceId: "0af7651916cd43dd8448eb211c80319c",
+      otelParentSpanIds: [],
+    },
+  });
 
 const count = (table: string) =>
   withDatabase(
@@ -228,7 +230,7 @@ it.effect("a failed run and a dead letter leave warnings and file nothing", () =
     );
     const dispatch = yield* importFixture(account.id);
 
-    const failed = {
+    const failed: CapabilityRunMessage = {
       ...runMessage(
         dispatch,
         dispatch.batch.map((entry) => entry.transactionId),
@@ -260,11 +262,6 @@ it.effect("a failed run and a dead letter leave warnings and file nothing", () =
     expect(yield* withDatabase(consumeCapabilityRun(failed))).toEqual({ kind: "failed_run" });
     expect(yield* count("decision_records")).toBe(2);
     expect(yield* count("feed_events WHERE event_type = 'ai_run_failed'")).toBe(2);
-
-    // Rubbish never reaches the record; the queue's retry path owns it.
-    expect(yield* withDatabase(consumeCapabilityRun({ nonsense: true }))).toEqual({
-      kind: "undecodable",
-    });
 
     yield* withDatabase(consumeDeadLetter("message-1", { some: "body" }));
     yield* withDatabase(consumeDeadLetter("message-1", { some: "body" }));

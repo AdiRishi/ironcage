@@ -9,6 +9,7 @@ export {
   FeedServerFrame,
   FeedSeverity,
   GetFeedInput,
+  type FeedEventEncoded,
 } from "./surfaces/feed";
 export * from "./surfaces/reports";
 export * from "./surfaces/wealth";

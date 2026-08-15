@@ -1,23 +1,27 @@
 import type { FeedEventId } from "@ironcage/domain";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 
 import type { SqlExecutor } from "../../persistence";
 
-export interface FeedEventInsert {
+export interface FeedEventInsert<Payload, Links> {
   readonly id: FeedEventId;
   readonly origin: string;
   readonly category: string;
   readonly eventType: string;
   readonly severity: "info" | "notice" | "warning" | "critical";
   readonly summary: string;
-  readonly payload: unknown;
-  readonly links: unknown;
+  readonly payload: Payload;
+  readonly links: Links | null;
 }
 
-export const insertFeedEvent = Effect.fn("insertFeedEvent")(function* (
+const decodeJson = Schema.decodeUnknownSync(Schema.Json);
+
+export const insertFeedEvent = Effect.fn("insertFeedEvent")(function* <Payload, Links>(
   sql: SqlExecutor,
-  event: FeedEventInsert,
+  event: FeedEventInsert<Payload, Links>,
 ) {
+  const payload = decodeJson(event.payload);
+  const links = event.links === null ? null : decodeJson(event.links);
   yield* sql.execute(
     "insert feed event",
     `INSERT INTO feed_events (id, occurred_at, origin, category, event_type, severity, summary, payload, links)
@@ -29,8 +33,8 @@ export const insertFeedEvent = Effect.fn("insertFeedEvent")(function* (
       event.eventType,
       event.severity,
       event.summary,
-      JSON.stringify(event.payload),
-      event.links === null ? null : JSON.stringify(event.links),
+      JSON.stringify(payload),
+      links === null ? null : JSON.stringify(links),
     ],
   );
   yield* sql.execute(

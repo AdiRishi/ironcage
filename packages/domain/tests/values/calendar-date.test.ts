@@ -7,6 +7,7 @@ const date = Schema.decodeUnknownSync(CalendarDate);
 
 describe("calendar date", () => {
   test("accepts only real ISO dates", () => {
+    expect(date("0001-01-01")).toBe("0001-01-01");
     expect(date("2032-02-29")).toBe("2032-02-29");
     expect(() => date("2031-02-29")).toThrow(/calendar date/);
     expect(() => date("2032-13-01")).toThrow(/calendar date/);

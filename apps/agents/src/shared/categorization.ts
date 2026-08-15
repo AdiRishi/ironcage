@@ -68,10 +68,6 @@ export const categorizationInstructions = (input: CategorizationAgentInput): str
   ].join("\n");
 };
 
-export const decodeCategorizationResult = (value: unknown) => {
-  const decoded = v.safeParse(categorizationResultSchema, value);
-  if (!decoded.success) throw new Error("the agent did not submit a categorization result");
-  return decoded.output;
-};
+export const decodeCategorizationResult = v.parser(categorizationResultSchema);
 
 export const toCategorizationOutput = Schema.decodeUnknownSync(CategorizationOutput);

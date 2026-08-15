@@ -24,7 +24,7 @@ export const runCoreRequest = <A, E>(use: (env: Env) => Effect.Effect<A, E, Post
 
 const decodeSha = Schema.decodeUnknownSync(Sha256);
 
-export const payloadHash = (value: unknown) =>
+export const payloadHash = <Value>(value: Value) =>
   Effect.promise(() => sha256Hex(new TextEncoder().encode(JSON.stringify(value)))).pipe(
     Effect.map(decodeSha),
   );

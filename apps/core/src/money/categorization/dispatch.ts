@@ -51,8 +51,14 @@ const RetrySourceBatchRow = Schema.Struct({
 const CapabilityOutputStateRow = Schema.Struct({ failed: Schema.Boolean });
 
 const decodeSha = Schema.decodeUnknownSync(Sha256);
+const encodeCategorizationBatchItem = Schema.encodeSync(CategorizationBatchItem);
 
-const inputDigest = (input: unknown) =>
+interface CategorizationDigestInput {
+  readonly batch: readonly ReturnType<typeof encodeCategorizationBatchItem>[];
+  readonly categories: readonly CategorizationCategory[];
+}
+
+const inputDigest = (input: CategorizationDigestInput) =>
   Effect.promise(() => sha256Hex(new TextEncoder().encode(JSON.stringify(input)))).pipe(
     Effect.map(decodeSha),
   );
@@ -72,8 +78,7 @@ const insertCategorizationBatch = Effect.fn("insertCategorizationBatch")(functio
   sql: SqlExecutor,
   record: CategorizationBatchRecord,
 ) {
-  const encodeItem = Schema.encodeSync(CategorizationBatchItem);
-  const encodedBatch = record.batch.map((item) => encodeItem(item));
+  const encodedBatch = record.batch.map((item) => encodeCategorizationBatchItem(item));
 
   yield* sql.execute(
     "insert categorization batch",
@@ -177,8 +182,7 @@ export const enqueueCategorizationBatches = Effect.fn("enqueueCategorizationBatc
   for (let offset = 0; offset < items.length; offset += categorizationCapability.batchSize) {
     const batchIndex = batchCount;
     const batch = items.slice(offset, offset + categorizationCapability.batchSize);
-    const encodeItem = Schema.encodeSync(CategorizationBatchItem);
-    const encodedBatch = batch.map((item) => encodeItem(item));
+    const encodedBatch = batch.map((item) => encodeCategorizationBatchItem(item));
     const digest = yield* inputDigest({ batch: encodedBatch, categories });
     const runId = deriveRunId(categorizationCapability.name, config.version, digest);
 
@@ -344,8 +348,7 @@ const requeueUncategorizedCategorization = Effect.fn("requeueUncategorizedCatego
       if (source.configVersion !== config.version) {
         const unresolved = new Set(source.unresolvedTransactionIds);
         const batch = source.batch.filter((item) => unresolved.has(item.transactionId));
-        const encodeItem = Schema.encodeSync(CategorizationBatchItem);
-        const encodedBatch = batch.map((item) => encodeItem(item));
+        const encodedBatch = batch.map((item) => encodeCategorizationBatchItem(item));
         const digest = yield* inputDigest({ batch: encodedBatch, categories });
         runId = deriveRunId(categorizationCapability.name, config.version, digest);
         yield* insertCategorizationBatch(sql, {

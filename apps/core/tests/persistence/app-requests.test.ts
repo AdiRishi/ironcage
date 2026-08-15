@@ -33,7 +33,9 @@ const memoryPostgres = () => {
         if (operation === "record app request") {
           const [id, recordedOperation, recordedHash, recordedResponse] =
             Schema.decodeUnknownSync(RecordParameters)(parameters);
-          const storedResponse: unknown = JSON.parse(recordedResponse);
+          const storedResponse = Schema.decodeUnknownSync(Schema.Json)(
+            JSON.parse(recordedResponse),
+          );
           requests.set(id, {
             requestId: id,
             operation: recordedOperation,

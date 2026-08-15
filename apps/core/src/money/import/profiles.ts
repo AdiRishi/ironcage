@@ -21,7 +21,7 @@ export interface PairedAccountRules {
   readonly payeeGrammar: "card" | "deposit";
 }
 
-export const pairedRules: Readonly<Record<BankAccountType, PairedAccountRules>> = {
+export const pairedRules = {
   deposit: {
     csvBalances: "required",
     ofxVariant: "deposit",
@@ -43,7 +43,7 @@ export const pairedRules: Readonly<Record<BankAccountType, PairedAccountRules>> 
     fitids: "empty",
     payeeGrammar: "deposit",
   },
-};
+} satisfies Readonly<Record<BankAccountType, PairedAccountRules>>;
 
 export const pairedProfileName = "cba-netbank-paired-v1";
 
