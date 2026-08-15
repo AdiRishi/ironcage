@@ -1,5 +1,10 @@
 import { init } from "@flue/runtime";
-import { CapabilityRunMessage, Internal, type FailureDetail } from "@ironcage/contracts/schema";
+import {
+  CapabilityRunMessage,
+  CategorizationDispatch,
+  Internal,
+  type FailureDetail,
+} from "@ironcage/contracts/schema";
 import {
   ConversationRpcs,
   DispatchRpcs,
@@ -43,17 +48,43 @@ const dispatchSurface = HttpRouter.toWebHandler(
         Effect.flatMap(workerRequest.service, ({ env }) =>
           Effect.tryPromise({
             try: async () => {
-              const existing = await env.CATEGORIZATION_WORKFLOW.get(payload.runId);
-              const status = await existing.status();
-              if (status.status === "unknown") {
-                await env.CATEGORIZATION_WORKFLOW.create({ id: payload.runId, params: payload });
+              const params = Schema.encodeSync(CategorizationDispatch)(payload);
+              if (!payload.restart) {
+                await env.CATEGORIZATION_WORKFLOW.createBatch([{ id: payload.runId, params }]);
+                return { accepted: true };
+              }
+
+              let previousStatus: { readonly status: string } | undefined;
+              for (let attempt = payload.attempt - 1; attempt >= 0; attempt -= 1) {
+                const workflowId =
+                  attempt === 0 ? payload.runId : `${payload.runId}-retry-${attempt}`;
+                try {
+                  const previous = await env.CATEGORIZATION_WORKFLOW.get(workflowId);
+                  previousStatus = await previous.status();
+                  break;
+                } catch (cause) {
+                  if (!(cause instanceof Error) || !cause.message.includes("instance.not_found")) {
+                    throw cause;
+                  }
+                }
+              }
+
+              if (previousStatus === undefined) {
+                throw new Error(`categorization workflow ${payload.runId} is missing`);
+              }
+              if (["complete", "errored", "terminated"].includes(previousStatus.status)) {
+                await env.CATEGORIZATION_WORKFLOW.createBatch([
+                  { id: `${payload.runId}-retry-${payload.attempt}`, params },
+                ]);
               }
               return { accepted: true };
             },
-            catch: (cause) =>
-              new Internal({
+            catch: (cause) => {
+              console.error("[agents] categorization admission failed", cause);
+              return new Internal({
                 detail: cause instanceof Error ? cause.message : "categorization admission failed",
-              }),
+              });
+            },
           }),
         ),
     }),
@@ -72,7 +103,10 @@ export class DispatchApiEntrypoint extends WorkerEntrypoint<Env> {
   }
 }
 
-type CategorizationWorkflowParams = CategorizationAgentInput;
+type CategorizationWorkflowParams = CategorizationAgentInput & {
+  readonly restart: boolean;
+  readonly attempt: number;
+};
 
 const validateMessage = Schema.decodeUnknownSync(CapabilityRunMessage);
 
@@ -135,7 +169,8 @@ export class CategorizationWorkflow extends WorkflowEntrypoint<Env, Categorizati
     step: WorkflowStep,
   ): Promise<void> {
     const run = event.payload;
-    const agent = init(CategorizationAgent, { id: run.runId, uid: null });
+    const agentId = run.restart ? `${run.runId}-retry-${run.attempt}` : run.runId;
+    const agent = init(CategorizationAgent, { id: agentId, uid: null });
 
     const receipt = await step.do("dispatch categorization agent", () =>
       agent.dispatch({ message: "Categorize the recorded batch.", initialData: run }),

@@ -61,11 +61,11 @@ const dispatchRetriedCategorization = <A extends { readonly batches: number }>(r
         ),
       ),
       Effect.flatMap((dispatch) =>
-        dispatch.failed === 0
+        dispatch.failures.length === 0
           ? Effect.succeed(result)
           : Effect.fail(
               new Internal({
-                detail: "AI categorization could not start. The rows are unchanged; try again.",
+                detail: `AI categorization could not start: ${dispatch.failures[0]}`,
               }),
             ),
       ),

@@ -40,6 +40,6 @@ export const categorizationCapability = {
   noAiIdentity: "uncategorized",
   materialChange: "a category correction changes or creates a forward-only visible rule",
   demotion: "disable dispatch while retaining rules and uncategorized review",
-  configVersion: 1,
+  configVersion: 2,
   batchSize: 200,
 } as const;

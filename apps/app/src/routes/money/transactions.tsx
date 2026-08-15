@@ -8,6 +8,7 @@ import { CategoriesDialog } from "@/features/money/components/categories-dialog"
 import { EvidenceLine } from "@/features/money/components/evidence-line";
 import { Ledger } from "@/features/money/components/ledger";
 import { MonthSwitcher } from "@/features/money/components/month-switcher";
+import { RetryCategorization } from "@/features/money/components/retry-categorization";
 import { RulesCard } from "@/features/money/components/rules-card";
 import { TransferQueue } from "@/features/money/components/transfer-queue";
 import { formatMonth } from "@/features/money/format";
@@ -142,13 +143,16 @@ function MoneyTransactions() {
             )}
           </div>
         ) : null}
-        <span className="ml-auto font-mono text-[11px] text-ink-faint">
-          {view === "attention"
-            ? "rows no rule or AI answer reached — file these"
-            : view === "ai"
-              ? "change any that landed wrong; ticking always makes a rule"
-              : `${rows.length} ${rows.length === 1 ? "row" : "rows"}`}
-        </span>
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
+          {view === "attention" ? <RetryCategorization transactionCount={attentionCount} /> : null}
+          <span className="font-mono text-[11px] text-ink-faint">
+            {view === "attention"
+              ? "rows no rule or AI answer reached — file these"
+              : view === "ai"
+                ? "change any that landed wrong; ticking always makes a rule"
+                : `${rows.length} ${rows.length === 1 ? "row" : "rows"}`}
+          </span>
+        </div>
       </div>
       {ledger.isPending || categories.isPending ? (
         <Skeleton className="h-64 w-full rounded-xl" />

@@ -16,6 +16,8 @@ import {
   LedgerEntry,
   LedgerScope,
   MoneyAnalysis,
+  RetryCategorizationPayload,
+  RetryCategorizationResult,
   RuleSummary,
   TransferMatchSummary,
   TransferMatches,
@@ -87,6 +89,14 @@ export const categorizeTransactions = createServerFn({ method: "POST" })
   .validator(decodePayload(CategorizePayload))
   .handler(({ data }) =>
     callCore((client) => intoOutcome(CategorizeResult)(client.categorizeTransactions(data))),
+  );
+
+export const retryCategorization = createServerFn({ method: "POST" })
+  .validator(decodePayload(RetryCategorizationPayload))
+  .handler(({ data }) =>
+    callCore((client) => intoOutcome(RetryCategorizationResult)(client.retryCategorization(data)), {
+      timeout: timeouts.appToCoreImport,
+    }),
   );
 
 export const decideTransferMatch = createServerFn({ method: "POST" })

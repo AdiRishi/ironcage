@@ -3,7 +3,13 @@ import { resolve } from "node:path";
 
 import { expect, it } from "@effect/vitest";
 import type { BankImportSource } from "@ironcage/contracts/schema";
-import { CategoryId, RequestId, Sha256 } from "@ironcage/domain";
+import {
+  CategoryId,
+  RequestId,
+  Sha256,
+  categorizationCapability,
+  deriveRunId,
+} from "@ironcage/domain";
 import { Effect, Schema } from "effect";
 
 import { consumeCapabilityRun, consumeDeadLetter } from "../../src/ai/consume";
@@ -236,6 +242,25 @@ it.effect("a failed run and a dead letter leave warnings and file nothing", () =
     expect(yield* count("categorization_assignments")).toBe(0);
     expect(yield* count("feed_events WHERE event_type = 'ai_run_failed'")).toBe(1);
 
+    const retried = yield* withDatabase(
+      retryUncategorizedCategorization({
+        requestId: yield* mintId(RequestId),
+        payloadHash: sha("7".repeat(64)),
+      }),
+    );
+    expect(retried).toEqual({ transactions: dispatch.batch.length, batches: 1 });
+    expect(yield* count("capability_outputs")).toBe(0);
+    expect(yield* count("queue_dedupe")).toBe(0);
+    expect(yield* count("decision_records")).toBe(1);
+    expect(yield* count("feed_events WHERE event_type = 'ai_run_failed'")).toBe(1);
+    expect(
+      yield* count("capability_dispatches WHERE status = 'pending' AND restart_requested = true"),
+    ).toBe(1);
+
+    expect(yield* withDatabase(consumeCapabilityRun(failed))).toEqual({ kind: "failed_run" });
+    expect(yield* count("decision_records")).toBe(2);
+    expect(yield* count("feed_events WHERE event_type = 'ai_run_failed'")).toBe(2);
+
     // Rubbish never reaches the record; the queue's retry path owns it.
     expect(yield* withDatabase(consumeCapabilityRun({ nonsense: true }))).toEqual({
       kind: "undecodable",
@@ -261,6 +286,7 @@ it.effect("unfinished categorization can be requeued without duplicating its run
       }),
     );
     const dispatch = yield* importFixture(account.id);
+    expect(dispatch.model).toBe("cloudflare/openai/gpt-5.6-luna");
 
     yield* withDatabase(
       Effect.gen(function* () {
@@ -285,5 +311,114 @@ it.effect("unfinished categorization can be requeued without duplicating its run
     });
     expect(yield* count("categorization_batches")).toBe(1);
     expect(yield* count("capability_dispatches")).toBe(1);
+  }),
+);
+
+it.effect("retry upgrades unresolved work to the current categorization config", () =>
+  Effect.gen(function* () {
+    const account = yield* withDatabase(
+      configureBankAccount({
+        requestId: yield* mintId(RequestId),
+        payloadHash: sha("8".repeat(64)),
+        productLabel: "Spending offset",
+        accountType: "deposit",
+        required: true,
+        openedOn: null,
+        closedOn: null,
+      }),
+    );
+    const current = yield* importFixture(account.id);
+    const previousRunId = deriveRunId(categorizationCapability.name, 1, current.inputDigest);
+
+    yield* withDatabase(
+      Effect.gen(function* () {
+        const postgres = yield* Postgres;
+        yield* postgres.transaction((sql) =>
+          Effect.gen(function* () {
+            yield* sql.execute(
+              "copy categorization batch to previous config",
+              `INSERT INTO categorization_batches
+                 (run_id, import_id, capability, bundle_digest, batch_index, config_version,
+                  input_digest, batch, categories, created_at)
+               SELECT $1, import_id, capability, bundle_digest, batch_index, 1,
+                      input_digest, batch, categories, created_at
+                 FROM categorization_batches
+                WHERE run_id = $2`,
+              [previousRunId, current.runId],
+            );
+            yield* sql.execute(
+              "copy categorization batch transactions to previous config",
+              `INSERT INTO categorization_batch_transactions (run_id, transaction_id, ordinal)
+               SELECT $1, transaction_id, ordinal
+                 FROM categorization_batch_transactions
+                WHERE run_id = $2`,
+              [previousRunId, current.runId],
+            );
+            yield* sql.execute(
+              "copy categorization batch categories to previous config",
+              `INSERT INTO categorization_batch_categories (run_id, category_id)
+               SELECT $1, category_id
+                 FROM categorization_batch_categories
+                WHERE run_id = $2`,
+              [previousRunId, current.runId],
+            );
+            yield* sql.execute(
+              "copy categorization dispatch to previous config",
+              `INSERT INTO capability_dispatches
+                 (run_id, status, attempt_count, last_error, created_at, dispatched_at)
+               VALUES ($1, 'dispatched', 1, NULL, now(), now())`,
+              [previousRunId],
+            );
+            yield* sql.execute(
+              "remove current config categorization dispatch fixture",
+              "DELETE FROM capability_dispatches WHERE run_id = $1",
+              [current.runId],
+            );
+            yield* sql.execute(
+              "remove current config categorization category fixtures",
+              "DELETE FROM categorization_batch_categories WHERE run_id = $1",
+              [current.runId],
+            );
+            yield* sql.execute(
+              "remove current config categorization transaction fixtures",
+              "DELETE FROM categorization_batch_transactions WHERE run_id = $1",
+              [current.runId],
+            );
+            yield* sql.execute(
+              "remove current config categorization batch fixture",
+              "DELETE FROM categorization_batches WHERE run_id = $1",
+              [current.runId],
+            );
+          }),
+        );
+      }),
+    );
+
+    expect(
+      yield* withDatabase(
+        retryUncategorizedCategorization({
+          requestId: yield* mintId(RequestId),
+          payloadHash: sha("9".repeat(64)),
+        }),
+      ),
+    ).toEqual({ transactions: current.batch.length, batches: 1 });
+
+    const pending = yield* withDatabase(
+      Effect.gen(function* () {
+        const postgres = yield* Postgres;
+        return yield* postgres.readTransaction((sql) =>
+          listPendingCategorizationDispatches(sql, 10),
+        );
+      }),
+    );
+    expect(pending).toHaveLength(1);
+    expect(pending[0]).toMatchObject({
+      runId: current.runId,
+      configVersion: categorizationCapability.configVersion,
+      model: "cloudflare/openai/gpt-5.6-luna",
+      restart: false,
+      attempt: 0,
+    });
+    expect(yield* count("categorization_batches")).toBe(2);
   }),
 );

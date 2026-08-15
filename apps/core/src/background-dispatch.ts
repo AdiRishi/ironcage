@@ -1,4 +1,9 @@
-import { DispatchRpcs, clientOverBinding, timeouts } from "@ironcage/contracts/client";
+import {
+  DispatchRpcs,
+  clientOverBinding,
+  intoTaxonomy,
+  timeouts,
+} from "@ironcage/contracts/client";
 import { Cause, Effect } from "effect";
 
 import {
@@ -21,7 +26,7 @@ export const drainCategorizationDispatches = (env: Env) =>
     const pending = yield* postgres.readTransaction((sql) =>
       listPendingCategorizationDispatches(sql, 50),
     );
-    if (pending.length === 0) return { dispatched: 0, failed: 0 };
+    if (pending.length === 0) return { dispatched: 0, failures: [] };
 
     const dispatch = yield* clientOverBinding(DispatchRpcs, {
       binding: env.AGENTS,
@@ -30,24 +35,26 @@ export const drainCategorizationDispatches = (env: Env) =>
     });
 
     let dispatched = 0;
+    const failures: string[] = [];
     for (const item of pending) {
-      const sent = yield* dispatch.dispatchCategorization(item).pipe(
-        Effect.matchCauseEffect({
-          onFailure: (cause) =>
+      const outcome = yield* intoTaxonomy(dispatch.dispatchCategorization(item)).pipe(
+        Effect.matchEffect({
+          onFailure: (error) =>
             postgres
               .transaction((sql) =>
-                recordCategorizationDispatchFailure(sql, item.runId, Cause.pretty(cause)),
+                recordCategorizationDispatchFailure(sql, item.runId, error.detail),
               )
-              .pipe(Effect.as(false)),
+              .pipe(Effect.as({ sent: false, detail: error.detail })),
           onSuccess: () =>
             postgres
               .transaction((sql) => markCategorizationDispatched(sql, item.runId))
-              .pipe(Effect.as(true)),
+              .pipe(Effect.as({ sent: true, detail: null })),
         }),
       );
-      if (sent) dispatched += 1;
+      if (outcome.sent) dispatched += 1;
+      if (outcome.detail !== null) failures.push(outcome.detail);
     }
-    return { dispatched, failed: pending.length - dispatched };
+    return { dispatched, failures };
   }).pipe(Effect.provide(Postgres.layerForRequest(env.DB.connectionString)), Effect.scoped);
 
 export const drainFeedDispatches = (env: Env) =>

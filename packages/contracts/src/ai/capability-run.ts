@@ -34,6 +34,8 @@ export type DecisionRecordBody = typeof DecisionRecordBody.Type;
 
 export const CategorizationDispatch = Schema.Struct({
   runId: RunId,
+  restart: Schema.Boolean,
+  attempt: Schema.Int,
   configVersion: Schema.Int,
   bundleDigest: Sha256,
   batchIndex: Schema.Int,

@@ -15,7 +15,7 @@ export function CategorizationAgent() {
   const input = useInitialData<v.InferOutput<typeof categorizationInitialDataSchema>>();
   if (input === undefined) throw new Error("categorization initial data is required");
 
-  useModel(input.model);
+  useModel(input.model, { thinkingLevel: "high" });
   const writeResult = useDataWriter("categorization", { schema: categorizationResultSchema });
   useTool({
     name: "submit_categorizations",
