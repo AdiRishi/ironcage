@@ -12,7 +12,7 @@ The build order, decided and recorded in the [decision history](/technical/appen
 
 Bank import, categorization, spending analysis, and the first reports — the [Money](/product/money) surface end to end.
 
-What it delivers: fixture-proven paired CommBank CSV/OFX import with overlap dedupe, source preservation, balance reconciliation, and account-level coverage. It also delivers the categorization capability with its review queue and rules, monthly/trends/recurring/anomaly analysis, savings suggestions, the monthly spending report, and external balances feeding a first whole-of-wealth view. QIF remains unsupported because it adds no identity or reconciliation evidence. Older statements are archived immediately and enter the record only through account-specific fixture-proven parsers.
+What it delivers: fixture-proven paired CommBank CSV/OFX import and CommBank offset-statement PDF import with overlap dedupe, source metadata, balance reconciliation, and account-level coverage. It also delivers the categorization capability with its review queue and rules, monthly/trends/recurring/anomaly analysis, savings suggestions, the monthly spending report, and external balances feeding a first whole-of-wealth view. QIF remains unsupported because it adds no identity or reconciliation evidence. Upload bytes and extracted statement text are transient processing inputs and are discarded after the request.
 
 **What phase 1 quietly builds — the real payload:**
 
@@ -25,7 +25,7 @@ What it delivers: fixture-proven paired CommBank CSV/OFX import with overlap ded
 - The reports library with its first report type.
 
 :::note[Exit criteria]
-Two years of available structured CommBank history imported for the four required accounts through overlapping paired bundles. Reimport must produce zero new canonical transactions, and all complete months must pass account, row-pair, balance, and coverage reconciliation. Redacted observed fixtures must cover all four account types and their observed signs, balances, identifiers, windows, and overlaps; deterministic fixtures may cover collisions, quoting, character decoding, empty results, and the 600-row edge. Categorization must learn visible rules from corrections, and the first complete-month report must be generated. Statement PDFs must be archived, but production statement parsing is a later tranche unless the required overlap fixtures already pass.
+Two years of available structured CommBank history imported for the four required accounts through overlapping paired bundles. Reimport must produce zero new canonical transactions, and all complete months must pass account, row-pair, balance, and coverage reconciliation. Redacted observed fixtures must cover all four account types and their observed signs, balances, identifiers, windows, and overlaps; deterministic fixtures may cover collisions, quoting, character decoding, empty results, and the 600-row edge. The observed CommBank offset statement must pass account identity, extraction-shape, opening-to-closing, summary-total, and structured-overlap reconciliation through the production import interface. Categorization must learn visible rules from corrections, and the first complete-month report must be generated.
 :::
 
 ## Phase 2 — Tax

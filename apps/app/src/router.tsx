@@ -10,7 +10,11 @@ export const getRouter = () => {
   // QueryClient must be created per getRouter() call: TanStack Start calls the
   // router factory once per SSR request, and a shared cache would leak data
   // across requests.
-  const queryClient = new QueryClient();
+  // 30 s is the default query staleTime from docs/technical/11-app.md §2;
+  // surfaces that need a tighter budget say so on their own queryOptions.
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { staleTime: 30_000 } },
+  });
 
   const router = createTanStackRouter({
     routeTree,

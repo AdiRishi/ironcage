@@ -12,7 +12,8 @@
   "scripts": {
     "build": "tsc --noEmit",
     "deploy": "alchemy deploy --stage prod",
-    "dev": "alchemy dev --stage dev",
+    "deploy:dev": "alchemy deploy --stage dev",
+    "dev": "alchemy dev --stage dev --env-file .env",
     "plan": "alchemy plan --stage prod",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests"

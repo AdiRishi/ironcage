@@ -1,30 +1,18 @@
 import { DispatchRpcs, clientOverBinding, timeouts } from "@ironcage/contracts/client";
-import {
-  AgentReadRpcs,
-  AppRpcs,
-  makeWorkerRequestContext,
-  rpcHttpRoute,
-  systemPingHandler,
-} from "@ironcage/contracts/server";
 import type { ActorBinding } from "@ironcage/infra/worker-bindings";
 import { DurableObject, WorkerEntrypoint } from "cloudflare:workers";
 import { Effect } from "effect";
-import { HttpRouter } from "effect/unstable/http";
 
-const worker = "ironcage-core";
-const workerRequest = makeWorkerRequestContext<Env, ExecutionContext>(
-  "ironcage/core/WorkerRequest",
-);
-const ping = (surface: string) =>
-  Effect.flatMap(workerRequest.service, () => systemPingHandler({ worker, surface }));
-
-const appSurface = HttpRouter.toWebHandler(
-  rpcHttpRoute(AppRpcs, AppRpcs.toLayer({ ping: () => ping("AppApi") })),
-);
-
-const agentSurface = HttpRouter.toWebHandler(
-  rpcHttpRoute(AgentReadRpcs, AgentReadRpcs.toLayer({ ping: () => ping("AgentReadApi") })),
-);
+import { handleAgentRequest } from "./agent-api";
+import { consumeCapabilityRun, consumeDeadLetter } from "./ai/consume";
+import { handleAppRequest } from "./app-api";
+import {
+  dispatchFeedInBackground,
+  drainCategorizationDispatches,
+  drainFeedDispatches,
+} from "./background-dispatch";
+import { Postgres } from "./persistence/postgres";
+import { worker } from "./runtime";
 
 class Actor extends DurableObject<Env> implements ActorBinding {
   async ping() {
@@ -35,20 +23,20 @@ class Actor extends DurableObject<Env> implements ActorBinding {
 export class SleeveActor extends Actor {}
 export class VenueActor extends Actor {}
 export class SystemCageActor extends Actor {}
-export class FeedActor extends Actor {}
+export { FeedActor } from "./money/feed/actor";
 
-// Two entrypoints rather than two paths on one: a service binding names the
-// entrypoint it targets, so the app cannot reach the agent surface and agents
-// cannot reach the operator surface.
 export class AppApiEntrypoint extends WorkerEntrypoint<Env> {
   override fetch(request: Request): Promise<Response> {
-    return appSurface.handler(request, workerRequest.forRequest(this.env, this.ctx));
+    if (new URL(request.url).pathname === "/feed") {
+      return this.env.FEEDS.getByName("operator").fetch(request);
+    }
+    return handleAppRequest(request, this.env, this.ctx);
   }
 }
 
 export class AgentReadApiEntrypoint extends WorkerEntrypoint<Env> {
   override fetch(request: Request): Promise<Response> {
-    return agentSurface.handler(request, workerRequest.forRequest(this.env, this.ctx));
+    return handleAgentRequest(request, this.env, this.ctx);
   }
 }
 
@@ -66,9 +54,6 @@ const checkBindings = (env: Env) =>
       COMPUTE: yield* Effect.promise(() =>
         env.COMPUTE.getByName("wiring", { locationHint: "oc" }).ping(),
       ),
-      // A connection string rather than a query: what a binding proves is that
-      // it resolves. Whether the database answers is the health route's job,
-      // once there is a driver to ask it with.
       DB: { configured: env.DB.connectionString.length > 0 },
       DB_CACHED: { configured: env.DB_CACHED.connectionString.length > 0 },
       BLOBS: yield* Effect.promise(async () => ({
@@ -80,7 +65,38 @@ const checkBindings = (env: Env) =>
 export default class extends WorkerEntrypoint<Env> {
   override async fetch(): Promise<Response> {
     const report = await Effect.runPromise(Effect.result(checkBindings(this.env)));
-
     return Response.json(report, { status: report._tag === "Success" ? 200 : 503 });
+  }
+
+  override async scheduled(): Promise<void> {
+    await Effect.runPromise(
+      Effect.all([drainCategorizationDispatches(this.env), drainFeedDispatches(this.env)]),
+    );
+  }
+
+  override async queue(batch: MessageBatch<unknown>): Promise<void> {
+    const layer = Postgres.layerForRequest(this.env.DB.connectionString);
+
+    for (const message of batch.messages) {
+      if (batch.queue.endsWith("-dlq")) {
+        const outcome = await Effect.runPromise(
+          Effect.result(consumeDeadLetter(message.id, message.body).pipe(Effect.provide(layer))),
+        );
+        if (outcome._tag === "Failure") message.retry();
+        else message.ack();
+        this.ctx.waitUntil(dispatchFeedInBackground(this.env));
+        continue;
+      }
+
+      const outcome = await Effect.runPromise(
+        Effect.result(consumeCapabilityRun(message.body).pipe(Effect.provide(layer))),
+      );
+      if (outcome._tag === "Failure" || outcome.success.kind === "undecodable") {
+        message.retry();
+      } else {
+        message.ack();
+      }
+      this.ctx.waitUntil(dispatchFeedInBackground(this.env));
+    }
   }
 }

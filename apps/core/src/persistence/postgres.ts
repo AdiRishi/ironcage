@@ -3,14 +3,18 @@ import type { Client, QueryResultRow } from "pg";
 
 import { PersistenceError } from "./error";
 
-export type SqlRow = Readonly<Record<string, unknown>>;
-
 export interface SqlExecutor {
-  readonly query: (
+  readonly execute: (
     operation: string,
     statement: string,
     parameters?: readonly unknown[],
-  ) => Effect.Effect<readonly SqlRow[], PersistenceError>;
+  ) => Effect.Effect<void, PersistenceError>;
+  readonly rows: <A>(
+    operation: string,
+    schema: Schema.Decoder<A, never>,
+    statement: string,
+    parameters?: readonly unknown[],
+  ) => Effect.Effect<readonly A[], PersistenceError>;
 }
 
 export interface PostgresService extends SqlExecutor {
@@ -22,18 +26,28 @@ export interface PostgresService extends SqlExecutor {
   ) => Effect.Effect<A, E | PersistenceError, R>;
 }
 
+const query = (
+  client: Client,
+  operation: string,
+  statement: string,
+  parameters: readonly unknown[],
+) =>
+  Effect.tryPromise({
+    try: () => client.query<QueryResultRow>(statement, [...parameters]),
+    catch: (cause) => new PersistenceError({ operation, cause }),
+  });
+
 const executor = (client: Client): SqlExecutor => ({
-  query: (operation, statement, parameters = []) =>
-    Effect.tryPromise({
-      try: () => client.query<QueryResultRow>(statement, [...parameters]),
-      catch: (cause) => new PersistenceError({ operation, cause }),
-    }).pipe(
-      Effect.map((result) =>
-        result.rows.map((row) => {
-          const record: Record<string, unknown> = {};
-          for (const [key, value] of Object.entries(row)) record[key] = value;
-          return record;
-        }),
+  execute: (operation, statement, parameters = []) =>
+    query(client, operation, statement, parameters).pipe(Effect.asVoid),
+  rows: (operation, schema, statement, parameters = []) =>
+    query(client, operation, statement, parameters).pipe(
+      Effect.flatMap((result) =>
+        Effect.forEach(result.rows, (row) =>
+          Schema.decodeUnknownEffect(schema)(row).pipe(
+            Effect.mapError((cause) => new PersistenceError({ operation, cause })),
+          ),
+        ),
       ),
     ),
 });
@@ -44,16 +58,16 @@ const transactional = <A, E, R>(
   use: (sql: SqlExecutor) => Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E | PersistenceError, R> =>
   Effect.gen(function* () {
-    yield* sql.query("begin transaction", begin);
+    yield* sql.execute("begin transaction", begin);
 
     return yield* use(sql).pipe(
       Effect.matchCauseEffect({
         onFailure: (cause) =>
-          sql.query("rollback transaction", "ROLLBACK").pipe(
+          sql.execute("rollback transaction", "ROLLBACK").pipe(
             Effect.catchCause(() => Effect.void),
             Effect.andThen(Effect.failCause(cause)),
           ),
-        onSuccess: (value) => sql.query("commit transaction", "COMMIT").pipe(Effect.as(value)),
+        onSuccess: (value) => sql.execute("commit transaction", "COMMIT").pipe(Effect.as(value)),
       }),
     );
   });
@@ -81,7 +95,11 @@ export class Postgres extends Context.Service<Postgres, PostgresService>()(
         const client = yield* Effect.acquireRelease(
           Effect.tryPromise({
             try: async () => {
-              const { Client } = await import("pg");
+              const { Client, types } = await import("pg");
+              // `date` crosses as its ISO text form. The driver's default —
+              // a JS Date at local midnight — would shift bank posting dates
+              // across time zones.
+              types.setTypeParser(types.builtins.DATE, (value) => value);
               const opened = new Client({
                 connectionString,
                 application_name: "ironcage-core",
@@ -98,14 +116,3 @@ export class Postgres extends Context.Service<Postgres, PostgresService>()(
       }),
     );
 }
-
-export const decodeRows = <A>(
-  operation: string,
-  schema: Schema.Decoder<A, never>,
-  rows: readonly SqlRow[],
-): Effect.Effect<readonly A[], PersistenceError> =>
-  Effect.forEach(rows, (row) =>
-    Schema.decodeUnknownEffect(schema)(row).pipe(
-      Effect.mapError((cause) => new PersistenceError({ operation, cause })),
-    ),
-  );

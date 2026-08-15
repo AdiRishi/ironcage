@@ -10,6 +10,7 @@ import { Skeleton } from "@ironcage/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { DateTime, Schema } from "effect";
 
+import { keys } from "@/data/keys";
 import { getSystemPing } from "@/server/core";
 
 /**
@@ -22,7 +23,7 @@ import { getSystemPing } from "@/server/core";
  */
 export function CoreBindingProbe() {
   const core = useQuery({
-    queryKey: ["vitals"],
+    queryKey: keys.vitals(),
     queryFn: () => getSystemPing(),
     // The server function returns the encoded form.
     select: Schema.decodeSync(SystemPing),

@@ -11,7 +11,6 @@ export default defineConfig({
         compatibilityFlags: ["nodejs_compat"],
         durableObjects: {
           BACKTEST: "BacktestRunner",
-          STATEMENT_EXTRACTION: "StatementExtractor",
         },
         r2Buckets: ["BLOBS"],
       },

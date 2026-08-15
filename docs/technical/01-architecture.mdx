@@ -25,7 +25,7 @@ flowchart TB
     agents["ironcage-agents<br/>every AI capability (Flue)"]
     compute["ironcage-compute<br/>backtest & document-extraction containers"]
     pg[("PlanetScale Postgres")]
-    r2[("R2<br/>blobs · exports · proposal-bundle quarantine")]
+    r2[("R2<br/>retained domain artifacts · proposal quarantine")]
   end
   models["Model providers"]
   venues["Kraken · Alpaca"]
@@ -48,7 +48,7 @@ Three properties of this picture carry everything else.
 
 **Every single-writer is a named actor with an explicit serialization mechanism.** Kraken's nonce and venue calls use a durable FIFO with one in-flight drainer because external I/O cannot sit inside a database transaction. System-cage mutations use short Postgres transactions: every `reserve`, `commit`, and `release` first locks the singleton cage-control row, then reads and changes the ledger before committing. Durable Object handlers may interleave while awaiting Postgres; correctness comes from that row lock, not from assuming JavaScript requests run serially. `blockConcurrencyWhile` is reserved for local initialization and never spans Hyperdrive or venue I/O.
 
-**Postgres is the only permanent financial truth.** Every Ironcage trading actor's local state is either an in-flight marker or a projection that can be rebuilt from Postgres. R2 holds immutable bytes named by Postgres rows. Flue separately persists sensitive conversation and execution state in Durable Object SQLite; it is neither rebuildable from Postgres nor allowed to carry financial authority. Gateway and Workflow retention also follow their platform contracts. The inventory and commit-point rules are specified in [Data](/technical/data) and [AI](/technical/ai).
+**Postgres is the only permanent financial truth.** Every Ironcage trading actor's local state is either an in-flight marker or a projection that can be rebuilt from Postgres. R2 holds only the artifacts that their owning domains explicitly retain; Money uploads are transient. Flue separately persists sensitive conversation and execution state in Durable Object SQLite; it is neither rebuildable from Postgres nor allowed to carry financial authority. Gateway and Workflow retention also follow their platform contracts. The inventory and commit-point rules are specified in [Data](/technical/data) and [AI](/technical/ai).
 
 ## Principles to mechanisms
 
@@ -72,7 +72,7 @@ The split is forced by the platform before it is chosen by us: TanStack Start an
 | `ironcage-app`     | The observatory: SSR, assets, server functions, the feed WebSocket route. Two bindings: core's operator API and the agents Worker's conversation surface. No database, no secrets beyond its session, no Durable Objects. | Yes. It can only call what core's API offers, and the conversation surface carries no mutation.                                   |
 | `ironcage-core`    | The engine: all trading Durable Object classes, Workflows, the cron watchdog, both Hyperdrive bindings, the queue consumer, venue credentials.                                                                            | No. A failed whole-system release remains entry-blocked and is fixed forward or replaced by the previous compatible whole commit. |
 | `ironcage-agents`  | The Flue application: every AI capability, AI Gateway provider configuration, the queue producer, the conversation surface.                                                                                               | Yes. If it breaks, capability outputs go stale and every consumer degrades to its safe default.                                   |
-| `ironcage-compute` | The trusted Worker wrapper, narrow run-scoped R2 bindings, and untrusted backtest/import container with no database secret or general egress. A separate trusted backup-container profile owns `pg_dump`.                 | Yes. Backtests/imports fail visibly; nothing live depends on them.                                                                |
+| `ironcage-compute` | The trusted Worker wrapper, backtest artifact bindings, and isolated native containers with no database secret or general egress. A separate trusted backup-container profile owns `pg_dump`.                             | Yes. Backtests/imports fail visibly; nothing live depends on them.                                                                |
 
 ## Who may call whom
 
@@ -85,9 +85,9 @@ Every arrow is a binding declared in the Alchemy stack. Cross-Worker calls are t
 | agents → core         | `AgentReadApi` (read-only)       | Context for AI work: candles, positions, mandates, scorecards. No mutating operation exists on this surface.                                                                         |
 | agents → queue → core | `decision-records` queue         | The only write path out of the AI: outputs and decision records, consumed and validated by core                                                                                      |
 | core → agents         | Flue dispatch                    | Core or schedules invoke agents; agents never invoke themselves into core                                                                                                            |
-| core → compute        | Durable Object binding           | Workflows start backtest runs; Money requests isolated statement extraction                                                                                                          |
+| core → compute        | Durable Object binding           | Workflows start backtests; statement imports send PDF bytes to the isolated extraction container                                                                                     |
 | core → Postgres       | Hyperdrive ×2                    | Uncached binding is the default; cached binding is opt-in for analytics reads ([Data](/technical/data))                                                                              |
-| core → R2             | bucket bindings                  | Blobs, exports, and the proposal-bundle quarantine bucket                                                                                                                            |
+| core → R2             | bucket bindings                  | Reports, retained domain artifacts, backups, and proposal quarantine; never Money uploads                                                                                            |
 | compute wrapper → R2  | narrow bucket bindings           | Run-scoped content-addressed inputs/outputs only; the container reaches them through outbound handlers and never receives a database credential                                      |
 | agents → AI Gateway   | provider config                  | Every model call, no exceptions ([AI](/technical/ai))                                                                                                                                |
 
@@ -116,7 +116,7 @@ All engine actors live in core, use SQLite-backed storage, and are addressed by 
 
 **Backtest container** — a container-backed Durable Object class in compute. It runs `packages/engine`, the same code core runs, against pinned inputs. It emits content-addressed R2 artifacts only; trusted core verifies and commits their summary. Specified in [Workbench](/technical/workbench).
 
-**Statement-extraction container** — a separate container profile in compute. It runs the pinned AnyDoc image against PDF bytes supplied by core and returns derived Markdown plus its image digest. It has no database credential, no general egress, and no authority to interpret financial rows. Core performs that validation under [Money](/technical/money).
+**Statement-extraction container** — a separate container profile in compute. It runs pinned AnyDoc against request-scoped PDF bytes and returns derived Markdown plus the exact extractor identity. It has no database credential, no general egress, no durable input storage, and no authority to interpret financial rows. Core validates the financial content and discards the PDF and Markdown after the import request ([Money](/technical/money)).
 
 ## The mode and the brakes
 
@@ -170,4 +170,4 @@ Vitals are computed from Postgres rows, so a dead engine shows dead rather than 
 - [ ] The watchdog cron keyed on the Postgres `next_due_at` row, with its re-arm feed event
 - [ ] A test that asserts the agents Worker's environment contains no Postgres, R2, or Durable Object bindings
 - [ ] A test that asserts the app Worker's environment contains exactly the core and agents bindings
-- [ ] A test that the untrusted compute container has no database secret or general egress, can access only run-scoped R2 handlers, and that core rejects a forged digest/receipt
+- [ ] A test that the backtest container has no database secret or general egress, can access only run-scoped R2 handlers, and that core rejects a forged digest/receipt

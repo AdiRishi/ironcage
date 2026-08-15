@@ -1,23 +1,9 @@
-import type { AppClient } from "@ironcage/contracts/client";
-import { AppRpcs, clientOverBinding, intoTaxonomy, timeouts } from "@ironcage/contracts/client";
+import { intoTaxonomy } from "@ironcage/contracts/client";
 import { SystemPing } from "@ironcage/contracts/schema";
 import { createServerFn } from "@tanstack/react-start";
-import { env } from "cloudflare:workers";
 import { Effect, Schema } from "effect";
 
-/** Effect stops at this boundary; the browser sees whatever a server function returns. */
-const callCore = <A, E>(use: (client: AppClient) => Effect.Effect<A, E>): Promise<A> =>
-  Effect.runPromise(
-    Effect.gen(function* () {
-      const client = yield* clientOverBinding(AppRpcs, {
-        binding: env.CORE,
-        surface: "core",
-        timeout: timeouts.appToCore,
-      });
-
-      return yield* use(client);
-    }).pipe(Effect.scoped),
-  );
+import { callCore } from "./core.server";
 
 export const getSystemPing = createServerFn().handler(() =>
   // A server function's result is serialized on its way to the browser, and

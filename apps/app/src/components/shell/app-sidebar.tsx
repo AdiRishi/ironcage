@@ -14,6 +14,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { MoonIcon, SunIcon } from "lucide-react";
 
 import { activeSection, NAV_SECTIONS } from "@/components/shell/nav";
+import { useFeedConnection } from "@/data/feed";
 import { useTheme } from "@/lib/theme";
 
 /**
@@ -28,6 +29,7 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const current = activeSection(pathname);
   const { theme, toggleTheme } = useTheme();
+  const feedConnection = useFeedConnection();
 
   return (
     <Sidebar collapsible="offcanvas">
@@ -66,12 +68,15 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        {/* The feed is not built yet, so this reports "not connected" rather
-            than a reassuring green dot. A shell that implies liveness it does
-            not have is the exact failure `11-app.md` is written to prevent. */}
         <div className="flex items-center gap-2 px-2 font-mono text-[10px] tracking-[0.15em] text-ink-faint">
-          <span className="size-1.5 rounded-full bg-ink-faint" />
-          FEED — NOT CONNECTED
+          <span
+            className={
+              feedConnection === "live"
+                ? "size-1.5 rounded-full bg-emerald-500"
+                : "size-1.5 rounded-full bg-amber-500"
+            }
+          />
+          FEED — {feedConnection.toUpperCase()}
         </div>
         <Button variant="outline" size="sm" onClick={toggleTheme} className="justify-start">
           {theme === "dark" ? (

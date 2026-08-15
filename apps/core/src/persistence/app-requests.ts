@@ -8,7 +8,7 @@ import {
   persistenceToBoundary,
   type WithoutPersistence,
 } from "./error";
-import { decodeRows, Postgres, type SqlExecutor } from "./postgres";
+import { Postgres, type SqlExecutor } from "./postgres";
 
 export const StoredRequest = Schema.Struct({
   requestId: RequestId,
@@ -38,25 +38,25 @@ const json = (value: unknown): Effect.Effect<string, PersistenceError> =>
 const appRequestStore = (sql: SqlExecutor): AppRequestStore => ({
   findForMutation: (requestId) =>
     Effect.gen(function* () {
-      yield* sql.query(
+      yield* sql.execute(
         "lock app request",
         "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
         [requestId],
       );
-      const rows = yield* sql.query(
+      const rows = yield* sql.rows(
         "read app request",
+        StoredRequest,
         `SELECT request_id AS "requestId", operation, payload_hash AS "payloadHash", response
            FROM app_requests
           WHERE request_id = $1`,
         [requestId],
       );
-      const requests = yield* decodeRows("decode app request", StoredRequest, rows);
-      return requests[0] ?? null;
+      return rows[0] ?? null;
     }),
   record: (request) =>
     Effect.gen(function* () {
       const response = yield* json(request.response);
-      yield* sql.query(
+      yield* sql.execute(
         "record app request",
         `INSERT INTO app_requests (request_id, operation, payload_hash, response, completed_at)
          VALUES ($1, $2, $3, $4::jsonb, now())`,

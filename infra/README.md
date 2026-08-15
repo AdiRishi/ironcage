@@ -12,9 +12,10 @@ Copy `.env.example` to `.env` in this directory, or authenticate with
 process environment.
 
 ```sh
-pnpm dev     # Alchemy dev stage: all four Workers and their bindings
-pnpm plan    # production plan
-pnpm deploy  # production reconciliation, including SQL migrations
+pnpm dev        # local Alchemy stage: all four Workers and their bindings
+pnpm deploy:dev # isolated remote integration deployment against the dev database branch
+pnpm plan       # production plan
+pnpm deploy     # production reconciliation, including SQL migrations
 ```
 
 `pnpm dev` keeps Worker, R2, and Queue state local under `.alchemy/`. It uses
@@ -22,9 +23,15 @@ the real PlanetScale `dev` branch through Alchemy-managed runtime
 roles, and it uses separate remote development AI Gateway and Flagship
 resources. It never receives production venue credentials.
 
-There is deliberately no production destroy script. Permanent stores and
-safety control-plane resources use Alchemy retention policies as another guard
-against accidental removal.
+Every remotely deployed development Cloudflare resource uses a `-dev` suffix.
+The production and development Alchemy stages therefore cannot update or remove
+one another's Workers, Hyperdrive configurations, buckets, queues, gateways, or
+flags. The PlanetScale database is shared deliberately; development uses only
+its `dev` branch and development runtime roles.
+
+All managed resources use Alchemy's normal destroy lifecycle. Running
+`alchemy destroy --stage dev` or `alchemy destroy --stage prod` removes the
+resources tracked by that stage in reverse dependency order.
 
 Production deployment is a manually dispatched GitHub Actions workflow scoped
 to the `production` environment. It runs the complete repository verification
@@ -56,11 +63,11 @@ every Worker environment. The Alchemy resources consume its binding builders,
 and application `Env` declarations consume the types inferred from those same
 builders.
 
-Workflows, Cron triggers, the decision-record consumer, the compute container,
-and the backup database credential remain in the technical specification but
-are deliberately absent from the deployed graph until their handlers exist.
-Declaring them early would turn scheduled work into failures or give an unused
-credential access to the financial record.
+The decision-record consumer, scheduled dispatch, and statement-extraction
+container are part of the deployed graph. Statement extraction has no database
+binding, public Internet access, or durable input storage. Core uses it for the
+enabled CommBank offset-statement import profile. Workflows and the backup
+database credential remain absent until their handlers exist.
 
 ## Migrations and first adoption
 

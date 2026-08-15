@@ -19,16 +19,19 @@ with them.
 | Region            | `aws-ap-southeast-2` (Sydney) |
 | Production branch | `main`                        |
 
-Postgres is the only permanent financial truth in this system, so the rules
-around it are stricter than the CLI's defaults.
+Postgres becomes the permanent financial truth once the service holds real
+records. Its lifecycle is still infrastructure as code: Alchemy creates and
+deletes the database and branches alongside the rest of the deployed stage.
 
-- **Read freely, write never.** `pscale sql` defaults to `--role reader`; leave
-  it there. Any `--role writer`, `--role admin`, or `--force` invocation needs
-  the operator's explicit approval first, per query.
+- **Read freely; mutate through the declared workflow.** `pscale sql` defaults
+  to `--role reader`; leave it there. Ad-hoc writer, admin, and force
+  invocations need the operator's explicit approval first, per query.
 - **Schema changes go through migrations in this repository**, never through an
   ad-hoc session. A migration is reviewed like any other code.
-- **`main` is production.** Never run a write, a schema change, a resize, or a
-  branch deletion against it. Development work targets a development branch.
+- **`main` is the production-designated branch.** Do not run ad-hoc writes,
+  schema changes, resizes, or branch deletion against it. The production
+  Alchemy deploy and destroy workflows own the database lifecycle and may
+  create or delete it when the operator explicitly invokes that workflow.
 - **Never copy production data into a development branch.** The database holds
   real financial records; a development branch is not an appropriate home for
   them, and each branch is billed for its own storage.

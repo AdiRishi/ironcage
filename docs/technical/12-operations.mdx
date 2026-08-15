@@ -45,7 +45,7 @@ Local never holds live venue keys. Core asserts that `ENVIRONMENT=local` accepts
 | `ironcage-core`    | `DECISION_RECORDS` consumer                      | local queue                               | production queue                                                   |
 | `ironcage-core`    | `EMAIL_KEY`                                      | unset; the one interruption logs only     | unavailable until the sending-provider launch gate closes          |
 | `ironcage-agents`  | `CORE` service binding                           | local dev registry, read-only surface     | `ironcage-core`, read-only surface                                 |
-| `ironcage-agents`  | `AI_GATEWAY_TOKEN`                               | dev gateway, A$5/day cap (proposed)       | production gateway, per-capability caps                            |
+| `ironcage-agents`  | `AI` / `AI_GATEWAY_ID`                           | dev gateway, $50/week sliding cap         | production gateway, $50/week sliding cap                           |
 | `ironcage-agents`  | `DECISION_RECORDS` producer                      | local queue                               | production queue                                                   |
 | `ironcage-compute` | backtest container + narrow R2 bindings          | local Docker + dev buckets                | immediate image rollout + production artifact buckets              |
 | `ironcage-compute` | `EXPECTED_IMAGE_DIGEST` (config)                 | local image digest                        | immutable digest configured on the deployed binding                |
@@ -89,6 +89,12 @@ pnpm dev
 
 Alchemy evaluates the development stage, starts all four Workers, and resolves service entrypoints, external Durable Objects, Workflows, Queues, R2, Hyperdrive, Flagship, and AI Gateway from the same dependency graph production uses. Worker, R2, and Queue state stays under `.alchemy/`; the development AI Gateway and Flagship app are separate remote resources.
 
+The deployed Hyperdrive integration lane uses the same development stage with a
+`-dev` suffix on every remote Cloudflare resource. Development and production
+share the PlanetScale database deliberately, but development reaches only its
+`dev` branch through development runtime roles. No development deployment owns
+a production Worker, Hyperdrive configuration, bucket, queue, gateway, or flag.
+
 The database story has three lanes. Ordinary local development uses the Alchemy-managed Hyperdrive development origin to connect directly to the PlanetScale `dev` branch; that is convenient but explicitly bypasses deployed Hyperdrive pooling and caching. CI uses Postgres 18.4 in Testcontainers, with one container per database test file and a drop-schema → apply-SQL cycle before every test, so pipelines are hermetic, parallel-safe, and exercise a cold schema. A deployed dev Worker runs the same integration suite through real dev Hyperdrive configurations before any database-sensitive change can merge. All three lanes use the same SQL files and public contract tests.
 
 The backtest container needs a local Docker daemon. Work that does not touch backtests may skip it.
@@ -103,7 +109,6 @@ Secrets enter the Alchemy Effect configuration as redacted values and are emitte
 | `KRAKEN_EXPORT_KEY` / `_SECRET` | `ironcage-core`                  | quarterly (proposed) | read-only, used only by the tax-export workflow, own nonce sequence                    |
 | `ALPACA_KEY` / `_SECRET`        | `ironcage-core`                  | quarterly (proposed) | broad trading credential; production transfer-surface gate must be current             |
 | `EMAIL_KEY`                     | `ironcage-core`                  | on compromise only   | unavailable until a provider contract and duplicate-safe delivery fixture are selected |
-| `AI_GATEWAY_TOKEN`              | `ironcage-agents`                | quarterly (proposed) | authenticates requests; spend limits are separate gateway configuration                |
 | `DUMP_DSN`                      | trusted backup container profile | quarterly (proposed) | dedicated read-only Postgres role; never enters the untrusted backtest environment     |
 | `HEALTH_SIGNING_KEY`            | `ironcage-core`                  | on compromise only   | signs the health route's response                                                      |
 | `MONEY_IDENTITY_KEY`            | `ironcage-core`                  | on compromise only   | at least 32 bytes; rotation requires a deliberate bank-identity re-key job             |
@@ -306,7 +311,7 @@ The result is a feed event either way, so a silently broken backup becomes a vis
   </Step>
 </Steps>
 
-**Retention: nothing is deleted.** The entire record for years fits in single-digit gigabytes. Two mechanism tables are the named exceptions, prunable by policy because they carry no history: the queue dedupe table, and `pending_effects` rows that have been delivered.
+**Retention: nothing in the durable record is deleted.** Transient processing inputs, including Money uploads and extracted statement text, are discarded by their owning request. The retained record for years fits in single-digit gigabytes. Two mechanism tables are the named exceptions, prunable by policy because they carry no history: the queue dedupe table, and `pending_effects` rows that have been delivered.
 
 ## 9. Incidents
 
@@ -347,7 +352,7 @@ All rows below were reviewed on 2026-08-08.
 | Gateway logs follow plan/count/storage and oldest-log deletion settings; `cf-aig-log-id` is returned, while OTEL trace/parent IDs are caller supplied                                                                     | [Logging](https://developers.cloudflare.com/ai-gateway/observability/logging/), [OTEL](https://developers.cloudflare.com/ai-gateway/observability/otel-integration/)                                                                   | pinned Flue/Gateway fixture proves header extraction and observed eviction behavior          |
 | Flagship is public beta; flag changes may take up to 30 seconds to propagate                                                                                                                                              | [Flagship](https://developers.cloudflare.com/flagship/)                                                                                                                                                                                | unreadable-flag-reads-as-kill behavior tested under forced evaluation failure                |
 | Flue 1.0 is beta, with generated Cloudflare deployment classes and migration caveats                                                                                                                                      | [Flue 1.0 beta](https://flueframework.com/blog/flue-1-0-beta/), [Cloudflare deployment](https://flueframework.com/docs/ecosystem/deploy/cloudflare/)                                                                                   | generated-class migration and rollback exercised in the deploy prototype                     |
-| The repository's Effect `4.0.0-beta.105` is pre-release and TanStack Start is Release Candidate at the reviewed versions                                                                                                  | [Effect releases](https://github.com/Effect-TS/effect/releases), [TanStack Start overview](https://tanstack.com/start/latest/docs/framework/react/overview)                                                                            | exact lockfile versions plus schema/client/SSR/server-function smoke tests; rollback fixture |
+| The repository's Effect `4.0.0-rc.109` is pre-release and TanStack Start is Release Candidate at the reviewed versions                                                                                                    | [Effect releases](https://github.com/Effect-TS/effect/releases), [TanStack Start overview](https://tanstack.com/start/latest/docs/framework/react/overview)                                                                            | exact lockfile versions plus schema/client/SSR/server-function smoke tests; rollback fixture |
 | Workers/DO invocations have hard memory, outbound-connection, CPU/duration, and per-object SQLite ceilings; headline limits include 128 MB isolate memory, six simultaneous outgoing connections, and 10 GB per SQLite DO | [Workers limits](https://developers.cloudflare.com/workers/platform/limits/), [DO limits](https://developers.cloudflare.com/durable-objects/platform/limits/)                                                                          | market-data burst and feed-replay load tests assert bounded concurrency and memory           |
 | PlanetScale supports Postgres 17 and 18; PITR depends on configured retention and excludes the most recent five minutes; failovers can be extended by long queries                                                        | [Compatibility](https://planetscale.com/docs/postgres/postgres-compatibility), [PITR](https://planetscale.com/docs/postgres/backups/point-in-time-recovery), [Resilience](https://planetscale.com/docs/postgres/connection-resilience) | oldest-window/recent-edge restores; sub-three-second transactions; unknown-commit recovery   |
 
@@ -359,37 +364,37 @@ The Postgres major version is chosen only after Hyperdrive and the Effect driver
 
 Every number above, its owner, and its status. "Proposed" means: pick differently and only configuration changes.
 
-| Value                          | Default                                                    | Owner            | Status   |
-| ------------------------------ | ---------------------------------------------------------- | ---------------- | -------- |
-| Environments                   | local + production only                                    | operations       | decided  |
-| CI database                    | local Postgres container                                   | operations       | decided  |
-| Human dev database             | PlanetScale dev branch via direct local connection         | operations       | decided  |
-| Hyperdrive integration lane    | deployed dev Worker                                        | operations       | decided  |
-| Local AI Gateway spend cap     | A$5/day                                                    | gateway config   | proposed |
-| Release unit                   | entire repository from `main`                              | operations       | decided  |
-| Deployment rollout             | no percentage rollout; immediate whole release             | operations       | decided  |
-| Entry block during deploy      | whole deploy-and-verify window                             | operations       | decided  |
-| Destructive migration delay    | ≥ 7 days after every reader and writer stops               | operations       | proposed |
-| Failure recovery               | fix-forward; previous whole commit only when compatible    | operations       | decided  |
-| Dry-run soak before live       | 7 days or 50 ticks, longer of                              | operations       | proposed |
-| Secret rotation cadence        | quarterly                                                  | operator         | proposed |
-| Vitals recompute cron          | every 60 s                                                 | core cron        | proposed |
-| Vitals panel unknown threshold | row older than 180 s                                       | core             | proposed |
-| Engine vital thresholds        | > 25% / > 100% overdue                                     | core             | proposed |
-| Venue vital thresholds         | > 5 min / 3 failures or 15 min                             | core             | proposed |
-| Decision queue thresholds      | 50 msgs or 5 min / 500 or 30 min                           | core             | proposed |
-| Outbox lag thresholds          | 60 s / 300 s                                               | core             | proposed |
-| Database latency thresholds    | p95 250 ms / 1000 ms                                       | core             | proposed |
-| Backup vital thresholds        | dump > 26 h / > 50 h or failed restore test                | core             | proposed |
-| Watchdog cadence               | every 5 min, off Postgres `next_due_at`                    | core cron        | proposed |
-| Dead-man poll interval         | every 5 min, alert on 2 consecutive failures               | external monitor | proposed |
-| AI estimated-cost pull         | 01:00 UTC daily                                            | core cron        | proposed |
-| Infrastructure cost            | Cloudflare billing dashboard; no automated API yet         | operator         | decided  |
-| Nightly logical dump           | 03:00 UTC, trusted backup-container profile                | backup workflow  | proposed |
-| Independent-copy RPO           | 24 h                                                       | operations       | proposed |
-| Restore test cadence           | quarterly                                                  | operations       | proposed |
-| Register review cadence        | quarterly                                                  | operator         | proposed |
-| Retention                      | nothing deleted; prunable: queue dedupe, delivered effects | data policy      | decided  |
+| Value                          | Default                                                                      | Owner            | Status   |
+| ------------------------------ | ---------------------------------------------------------------------------- | ---------------- | -------- |
+| Environments                   | local + production only                                                      | operations       | decided  |
+| CI database                    | local Postgres container                                                     | operations       | decided  |
+| Human dev database             | PlanetScale dev branch via direct local connection                           | operations       | decided  |
+| Hyperdrive integration lane    | deployed dev Worker                                                          | operations       | decided  |
+| AI Gateway spend cap           | $50/week, sliding, gateway-wide                                              | gateway config   | decided  |
+| Release unit                   | entire repository from `main`                                                | operations       | decided  |
+| Deployment rollout             | no percentage rollout; immediate whole release                               | operations       | decided  |
+| Entry block during deploy      | whole deploy-and-verify window                                               | operations       | decided  |
+| Destructive migration delay    | ≥ 7 days after every reader and writer stops                                 | operations       | proposed |
+| Failure recovery               | fix-forward; previous whole commit only when compatible                      | operations       | decided  |
+| Dry-run soak before live       | 7 days or 50 ticks, longer of                                                | operations       | proposed |
+| Secret rotation cadence        | quarterly                                                                    | operator         | proposed |
+| Vitals recompute cron          | every 60 s                                                                   | core cron        | proposed |
+| Vitals panel unknown threshold | row older than 180 s                                                         | core             | proposed |
+| Engine vital thresholds        | > 25% / > 100% overdue                                                       | core             | proposed |
+| Venue vital thresholds         | > 5 min / 3 failures or 15 min                                               | core             | proposed |
+| Decision queue thresholds      | 50 msgs or 5 min / 500 or 30 min                                             | core             | proposed |
+| Outbox lag thresholds          | 60 s / 300 s                                                                 | core             | proposed |
+| Database latency thresholds    | p95 250 ms / 1000 ms                                                         | core             | proposed |
+| Backup vital thresholds        | dump > 26 h / > 50 h or failed restore test                                  | core             | proposed |
+| Watchdog cadence               | every 5 min, off Postgres `next_due_at`                                      | core cron        | proposed |
+| Dead-man poll interval         | every 5 min, alert on 2 consecutive failures                                 | external monitor | proposed |
+| AI estimated-cost pull         | 01:00 UTC daily                                                              | core cron        | proposed |
+| Infrastructure cost            | Cloudflare billing dashboard; no automated API yet                           | operator         | decided  |
+| Nightly logical dump           | 03:00 UTC, trusted backup-container profile                                  | backup workflow  | proposed |
+| Independent-copy RPO           | 24 h                                                                         | operations       | proposed |
+| Restore test cadence           | quarterly                                                                    | operations       | proposed |
+| Register review cadence        | quarterly                                                                    | operator         | proposed |
+| Retention                      | durable record retained; transient inputs discarded; mechanism rows prunable | data policy      | decided  |
 
 ## Alternatives considered
 

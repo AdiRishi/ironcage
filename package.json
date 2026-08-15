@@ -7,12 +7,14 @@
     "check": "pnpm compile && oxlint --disable-nested-config && oxfmt --check",
     "compile": "turbo compile",
     "deploy": "pnpm --filter @ironcage/infra deploy",
+    "deploy:dev": "pnpm --filter @ironcage/infra deploy:dev",
     "dev": "turbo dev --ui=stream --filter @ironcage/infra",
     "docs:build": "blume build",
     "docs:dev": "blume dev",
     "docs:doctor": "blume doctor",
     "fix": "pnpm compile && oxlint --disable-nested-config --fix && oxfmt",
     "plan": "pnpm --filter @ironcage/infra plan",
+    "reset:dev-db": "node scripts/reset-dev-database.ts",
     "sync:repos": "node scripts/sync-reference-repos.ts",
     "test": "turbo test test:integration",
     "test:integration": "turbo test:integration",
@@ -33,5 +35,5 @@
   "engines": {
     "node": "^24"
   },
-  "packageManager": "pnpm@11.20.0"
+  "packageManager": "pnpm@11.21.0"
 }

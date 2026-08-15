@@ -7,29 +7,30 @@ sidebar:
 
 Money turns bank-supplied files into one transaction record that can survive repeated uploads, overlapping windows, and several source formats. The import boundary treats every file as untrusted evidence. A transaction becomes usable only after account identity, source reconciliation, deduplication, and coverage have all produced explicit results.
 
-This chapter owns CommBank import, source preservation, transaction identity, coverage, categorization, transfers, and spend analysis. [Data](/technical/data) owns shared storage conventions. [AI](/technical/ai) owns capability dispatch and decision records. [Tax](/technical/tax) owns the tax interpretation of bank rows.
+This chapter owns CommBank import, source evidence, transaction identity, coverage, categorization, transfers, and spend analysis. [Data](/technical/data) owns shared storage conventions. [AI](/technical/ai) owns capability dispatch and decision records. [Tax](/technical/tax) owns the tax interpretation of bank rows.
 
 ## What this chapter guarantees
 
 - A canonical bank transaction contributes to analysis once, regardless of how many files describe it.
 - Reconfirming an identical import bundle returns the earlier result and writes nothing new.
 - An overlapping export can add later rows without duplicating the overlap.
-- Every source file and raw narrative remains inspectable after confirmation.
+- Every source observation retains the bank-supplied fields needed to explain it after confirmation.
 - A structured CSV/OFX pair must agree row for row before either file can affect the record.
-- A statement must reconcile from its opening balance to its closing balance before it can add history.
+- A supported statement must prove account identity, every balance step, summary totals, and structured overlap before it can affect the record.
 - A file for the wrong account is rejected before transaction matching begins.
 - An unresolved identity collision is reported as ambiguous. It is never silently counted or discarded.
 - A truncated or missing window creates no complete-coverage claim.
 - Analysis excludes incomplete months from comparisons and never represents a coverage gap as zero spending.
-- Preview is stateless. No file or row is stored until confirm succeeds.
+- Import preview is stateless. No import row is stored until confirm succeeds.
+- CSV, OFX, PDF, and extracted Markdown bytes are transient and are discarded after processing.
 
 ## The record's language
 
 A **bank transaction** is one posted movement in one owned account. It is the row that categorization, analysis, Portfolio, and Tax read.
 
-A **source observation** is one bank-supplied representation of that movement. A CSV row, its paired OFX row, and a statement row are separate observations that may all link to one bank transaction.
+A **source observation** is one bank-supplied representation of that movement. A CSV row and its paired OFX row are separate observations that link to one bank transaction. A supported statement may add another observation.
 
-An **import bundle** is the set of files submitted together for one account and source window. A recent-history bundle contains CSV and OFX. A statement bundle contains one PDF.
+An **import bundle** is the transient set of files submitted together for one account and source window. The enabled CommBank profiles accept a paired CSV/OFX bundle or one offset-statement PDF.
 
 The distinction prevents format choice from becoming transaction identity.
 
@@ -44,18 +45,18 @@ flowchart LR
     T --> A["Categories, transfers, analysis, tax"]
 ```
 
-The diagram shows a many-to-one evidence relationship. A source observation is never itself counted as spending.
+A source observation is never itself counted as spending. Uploaded files exist only while the import is being evaluated.
 
-The import process itself runs in the order of the numbered sections below, and nothing is stored until the last stage commits:
+Both enabled imports run through the same preview and confirm interface, and nothing is stored until the last stage commits:
 
 ```mermaid
 flowchart LR
-    U["Upload"] --> S1["§1 Profile<br/>account + source identity"] --> S2["§2–3 Parse<br/>CSV/OFX pair<br/>or statement"] --> S4["§4 Normalize"] --> S5["§5 Dedupe<br/>tiers 0–5"] --> S6["§6 Coverage"] --> S7["§7 Preview → confirm<br/>one Postgres commit"]
+    U["Upload CSV + OFX<br/>or statement PDF"] --> S1["§1 Profile<br/>account + source identity"] --> S2["§2–3 Extract, parse,<br/>and reconcile"] --> S4["§4 Normalize"] --> S5["§5 Dedupe and<br/>statement alignment"] --> S6["§6 Coverage"] --> S7["§7 Preview → confirm<br/>one Postgres commit"]
 ```
 
 ## 1. Account profiles and source profiles
 
-Every import is interpreted by one named and versioned source profile. A profile declares the account types it accepts, file grammar, character decoding, sign normalization, identifier policy, statement layout, and fixture corpus that proves those rules.
+Every import is interpreted by one named and versioned source profile. A profile declares the account types it accepts, file grammar, character decoding, sign normalization, identifier policy, and fixture corpus that proves those rules.
 
 The first account profiles are:
 
@@ -70,13 +71,14 @@ The CDIA and share accounts remain unconfigured while unused. Super is outside M
 
 Account identity is stored as a keyed HMAC of the bank, product type, and bank-supplied account identifier. The user interface stores only the product label and masked suffix. Changing the application key requires a deliberate fingerprint re-key job.
 
-The operator selects the expected account during upload. OFX or statement identity must map to that account and no other. CSV never chooses the account because the observed CSV files contain no identity.
+The operator selects the expected account during upload. OFX identity must map to that account and no other. CSV never chooses the account because the observed CSV files contain no identity. A statement must independently prove that its printed account identity maps to the selected account before adding observations.
 
-The initial source profiles are:
+The enabled source profiles are:
 
 - `cba-netbank-paired-v1` for an exact CSV/OFX pair.
-- `cba-offset-statement-v1` for the visually verified offset statement layout.
-- Separate Mastercard and home-loan statement profiles after representative PDFs pass the same fixture gates.
+- `cba-offset-statement-v1` for a text-based CommBank offset statement.
+
+Mastercard and home-loan statements remain unsupported until representative PDFs pass their own fixture gates. Uploading an unsupported statement fails visibly and retains no file.
 
 The empirical basis and collection procedure live in [CommBank export evidence](/technical/examples/commbank-exports). Fictional syntax examples live in [CommBank fixture shapes](/technical/examples/commbank-fixtures).
 
@@ -107,7 +109,7 @@ Observed behavior is part of the fixture contract:
 
 The raw text of every cell and the zero-based source row ordinal are retained. Decimals are parsed directly to `BigDecimal`. A JavaScript `number` never holds a financial value.
 
-The CSV carries no encoding declaration. The paired profile decodes it as Windows-1252, matching the character set declared by NetBank's OFX export and preserving every source byte without an ASCII-only acceptance rule.
+The CSV carries no encoding declaration. The paired profile decodes it as Windows-1252, matching the character set declared by NetBank's OFX export and preserving every source cell without an ASCII-only acceptance rule.
 
 ### OFX grammar
 
@@ -173,15 +175,13 @@ amount            -A$45.20
 row balance    A$1,954.80
 ```
 
-:::
-
 The OFX ledger balance is a moment rather than a window total. `DTASOF` records when the export was produced, so an export made after `DTEND` may include later account movement that the requested rows do not describe.
 
 The newest row balance must equal the ledger balance only when the ledger's as-of date falls on or after the newest posted row and no later than `DTEND`. Otherwise the ledger balance remains a balance observation but is not reconciled against that row. Mastercard has no per-row CSV balance, so its latest balance comes from OFX alone.
 
 Every observed liability export already signs its balance the way Portfolio reads it. The importer stores that sign exactly as supplied. A future profile that prints a liability unsigned needs its own normalization rule and a fixture that proves it; account type alone never authorizes sign rewriting.
 
-## 3. Statement extraction and backfill
+## 3. Statement extraction and parsing
 
 Statements recover history beyond the two-year transaction-search window. They are not a looser form of CSV. Each account and statement layout has its own source profile.
 
@@ -189,31 +189,25 @@ The observed offset statement is an eight-page, text-based PDF. It supplies full
 
 The transaction year is inferred from the statement period. A row outside that period is invalid. A statement that crosses a calendar year must assign each day/month to the unique in-period date.
 
-CommBank states inside the observed statement that statement transaction dates can differ from dates shown in other transaction lists. Cross-source matching therefore does not assume exact date equality until a fixture proves the allowed relationship for that statement profile.
+CommBank states inside the observed statement that statement transaction dates can differ from dates shown in other transaction lists. The offset profile therefore aligns structured overlap by exact amount and running balance, with a bounded date drift only at coverage edges.
 
 ### AnyDoc boundary
 
-[AnyDoc](https://github.com/firecrawl/anydoc) 0.1.7 is selected for PDF-to-Markdown extraction. A local evaluation succeeded on the real text-based statement and both observed CSV shapes. Its PDF output retained the statement tables, but a single visual transaction could span several Markdown table rows.
+[AnyDoc](https://github.com/firecrawl/anydoc) 0.1.9 is selected for PDF-to-Markdown extraction. A local evaluation succeeded on the real text-based statement and both observed CSV shapes. Its PDF output retained the statement tables, but a single visual transaction could span several Markdown table rows.
 
-AnyDoc is an extractor, not the financial parser. The importer runs it in the isolated compute container with network access disabled and no database credentials. The core service validates the returned Markdown with the statement profile's deterministic state machine.
+AnyDoc is an extractor, not the financial parser. The pinned native package runs in an isolated compute container with network access disabled and no database credentials. Core sends the PDF bytes directly to that container and validates the returned Markdown with the deterministic offset-statement parser.
 
-The confirmed import stores three artifacts:
-
-- the original PDF bytes;
-- the extracted Markdown; and
-- the exact AnyDoc version and extractor image digest.
-
-The PDF remains the source of truth. A later extractor version creates a new derived artifact and a new parse run. It never replaces the original bytes.
+PDF bytes, container-local files, and extracted Markdown are request-scoped. They are discarded when processing finishes. The confirmed import records file digests, sizes, display names, source roles, and the exact extractor identity alongside durable row-level observations; it does not retain either file body.
 
 AnyDoc is not used for structured CSV at runtime. A direct CSV parser preserves the empty fourth Mastercard cell that Markdown rendering can hide. AnyDoc is also not used for OFX because the evaluated version rejects OFX input.
 
 The PDF API produces Markdown rather than a structured AnyDoc document. The statement state machine must therefore reconstruct visual rows from table fragments before it parses financial fields.
 
-An image-only or extraction-empty PDF fails with `StatementNeedsManualExtraction`. The first release does not send private statements to a hosted OCR service.
+An image-only or extraction-empty PDF blocks the import and is discarded. The first release does not send private statements to a hosted OCR service.
 
-### Statement state machine
+### Deterministic statement parser
 
-The parser processes extracted blocks in page order. It is a state machine, not a linear pass — the table state loops once per transaction, and a transaction accumulates continuation lines until its amounts complete it:
+AnyDoc renders the observed visual table in three shapes across pages: prose, Markdown rows, and separated column blocks. The parser normalizes those shapes into a page-ordered token stream, identifies statement sentinels and transaction dates, and reconstructs each row from the running-balance chain. Printed debit and credit amounts independently corroborate every derived balance step.
 
 ```mermaid
 stateDiagram-v2
@@ -234,7 +228,7 @@ stateDiagram-v2
     validated --> [*]
 ```
 
-Page headers and footers are the only blocks the table state may skip, and only on an exact profile match — nothing else is silently ignored.
+Page furniture may be ignored only where the profile's observed extraction shape identifies it. Every transaction date, balance, and printed amount between the opening and closing sentinels must be consumed exactly once.
 
 A debit becomes a negative amount. A credit becomes a positive amount. A `CR` balance is normalized according to the account profile while its printed form is preserved.
 
@@ -255,7 +249,7 @@ Only rows outside complete structured coverage can create canonical transactions
 
 This precedence converts cross-format deduplication into a validation problem. It avoids choosing between descriptions whose formatting differs by source.
 
-The offset statement profile is enabled only after its real overlap fixture passes this rule. Mastercard and home-loan statement profiles remain disabled until representative PDFs and overlap fixtures exist.
+The offset statement profile is enabled under this rule. Mastercard and home-loan statement profiles remain disabled until representative PDFs and overlap fixtures exist.
 
 ## 4. Normalization
 
@@ -287,7 +281,7 @@ Deduplication evaluates evidence in a fixed order. It does not compute a fuzzy w
 
 Every incoming candidate ends as `new`, `duplicate`, `ambiguous`, or `blocked`. `Blocked` is a bundle-level validation failure. `Ambiguous` means the source is valid but transaction identity needs a decision.
 
-The cascade, end to end — each tier's subsection below carries its full rules:
+The diagram reserves the fixture-gated statement tier in the intended full cascade. Phase one executes bundle replay and tiers 1–3, then treats an unmatched candidate as new.
 
 ```mermaid
 flowchart TB
@@ -405,12 +399,16 @@ sequenceDiagram
     participant Op as Operator
     participant App as App
     participant Core as Core
-    participant R2
+    participant Compute as Extraction container
     participant PG as Postgres
     Op->>App: upload files, select account
     App->>Core: preview(source)
+    opt statement PDF
+        Core->>Compute: PDF bytes
+        Compute-->>Core: extracted Markdown + extractor identity
+    end
     Core->>Core: full parse + match in memory,<br/>against a consistent snapshot
-    Note over Core,PG: preview writes neither Postgres nor R2
+    Note over Core,PG: preview writes no durable state
     Core-->>App: digests, effects, coverage, ambiguities
     Op->>App: resolve ambiguities, confirm
     App->>Core: confirm(files, expected digests, resolutions)
@@ -420,14 +418,13 @@ sequenceDiagram
     else record moved on
         Core-->>App: PreviewStale — preview again
     else results match
-        Core->>R2: content-addressed source artifacts, first
-        Core->>PG: one transaction — import, files, observations,<br/>transactions, links, balances, coverage, feed event
-        Note over R2,PG: a failed transaction leaves only unreferenced<br/>immutable objects — a retry reuses their digest keys
+        Core->>PG: one transaction — import, source metadata,<br/>observations, transactions, links,<br/>balances, coverage, feed event
         Core-->>App: confirmed
+        Note over App,Compute: uploaded bytes and extracted text are discarded
     end
 ```
 
-Preview performs the full parse and match in memory against a consistent database snapshot. It writes neither Postgres nor R2. PDF extraction uses the isolated compute container and emits no source content to logs.
+Preview performs the full parse and match in memory against a consistent database snapshot. It writes no durable state.
 
 The preview response contains:
 
@@ -436,7 +433,7 @@ The preview response contains:
 - file digests and bundle digest;
 - logical source transactions and physical observation counts;
 - `new`, `duplicate`, and `ambiguous` canonical effects;
-- balance and statement reconciliation results;
+- balance reconciliation results;
 - coverage added, overlap retained, and gaps remaining;
 - narrative variants and other warnings; and
 - rows needing category review.
@@ -445,33 +442,32 @@ Confirm resends the same files, expected bundle digest, expected preview fingerp
 
 If the digest changes, confirm returns `ImportBytesChanged`. If the database result differs from the preview, confirm returns `PreviewStale`. The app then runs preview again.
 
-Core writes content-addressed source artifacts to R2 first. If that fails, Postgres is unchanged. Core then commits the import, source files, observations, canonical transactions, links, balance observations, coverage segments, ambiguity decisions, and one feed event in one Postgres transaction.
+Core commits the import, source metadata, observations, canonical transactions, links, balance observations, coverage segments, ambiguity decisions, and one feed event in one Postgres transaction. The request retains uploaded bytes only long enough to recompute and commit that graph.
 
-If the database transaction fails, the R2 artifacts are unreferenced immutable objects. A retry reuses their digest keys. A periodic job removes unreferenced objects after the retention delay owned by [Data](/technical/data).
-
-An imported observation is immutable. A parser correction creates a new parse run and supersedes the derived interpretation. It never edits the original bytes or source cells.
+An imported observation is immutable. A parser correction uses a new source-profile version; re-uploading the input under that profile produces new evidence without rewriting earlier observations.
 
 ## 8. Stored shapes
 
 The tables below follow the shared UUIDv7, timestamp, money, and append-only conventions in [Data](/technical/data).
 
-| Table                       | Required fields and invariant                                                                                                  |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `bank_accounts`             | product label, type, masked suffix, identity HMAC, currency, effective dates; identity HMAC unique per bank profile            |
-| `bank_imports`              | account, profile version, bundle digest, source window, status, confirmed time; bundle digest unique per account               |
-| `bank_source_files`         | import, role, media type, byte digest, R2 key, original display name, extractor metadata; raw bytes immutable                  |
-| `bank_observations`         | source file, source ordinal, raw fields, parsed fields, parser version, parse status; one row per bank-supplied representation |
-| `bank_transactions`         | account, posted date, signed amount, preferred display narrative, derived payee, creation import; counted once                 |
-| `bank_observation_links`    | observation, transaction, match tier, decision provenance; one effective transaction per observation                           |
-| `bank_balance_observations` | account, kind (`row`, `ledger`, `available`, `opening`, `closing`), source-signed value, as-of date/time, observation or file  |
-| `bank_coverage_segments`    | account, inclusive window, profile, confirming import, status; only complete segments satisfy coverage                         |
-| `transaction_splits`        | transaction, category or system `uncategorized`, signed amount, provenance; effective splits sum exactly to transaction amount |
-| `categorization_rules`      | versioned predicate and category action with effective dates; a correction may create a future rule                            |
-| `transfer_matches`          | two opposite transaction IDs, status, method, provenance; each transaction has at most one effective owned-transfer match      |
+| Table                        | Required fields and invariant                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `bank_accounts`              | product label, type, masked suffix, identity HMAC, currency, effective dates; identity HMAC unique per bank profile             |
+| `bank_imports`               | account, profile version, bundle digest, source window, status, confirmed time; bundle digest unique per account                |
+| `bank_source_files`          | import, role, media type, byte digest, byte size, original display name, extractor identity; metadata only                      |
+| `bank_observations`          | source file, source ordinal, raw fields, parsed fields, parser version, parse status; one row per bank-supplied representation  |
+| `bank_transactions`          | account, posted date, signed amount, preferred display narrative, derived payee, creation import; counted once                  |
+| `bank_observation_links`     | observation, transaction, match tier, decision provenance; one effective transaction per observation                            |
+| `bank_balance_observations`  | account, kind (`row`, `ledger`, `available`, `opening`, `closing`), source-signed value, as-of date/time, observation or file   |
+| `bank_coverage_segments`     | account, inclusive window, profile, confirming import, status; only complete segments satisfy coverage                          |
+| `transaction_splits`         | transaction, category or system `uncategorized`, signed amount, provenance; effective splits sum exactly to transaction amount  |
+| `categorization_rules`       | versioned predicate and category action with effective dates; a correction may create a future rule                             |
+| `categorization_assignments` | run, transaction, category, rationale, decision record, status `applied`/`kept`/`overridden`; one `applied` row per transaction |
+| `transfer_matches`           | two opposite transaction IDs, status, method, provenance; each transaction has at most one effective owned-transfer match       |
 
-Raw narratives live on observations. `bank_transactions.preferred_display_narrative` chooses the highest-precedence linked observation, and `derived_payee` applies the source profile's presentation grammar to it. Rebuilding either cannot lose source text, and neither participates in transaction identity.
+Raw narratives live on observations. `bank_transactions.display_narrative` holds the preferred rendering, and `derived_payee` applies the source profile's presentation grammar to it. Rebuilding either cannot lose source text, and neither participates in transaction identity.
 
-The application boundary uses two explicit operations rather than a mode flag:
+The application boundary presents one import interface with profile-specific source variants:
 
 ```ts bank-import.ts
 type BankImportSource =
@@ -500,7 +496,7 @@ interface ConfirmBankImportRequest {
 }
 ```
 
-`getImportHistory` returns import counts and coverage effects without returning raw narratives by default. `getBankCoverage` returns required-account intervals and gaps. `getMoneyAnalysis` refuses comparison series that contain incomplete months.
+`getImportHistory` returns import counts and coverage effects without returning raw narratives by default. `getBankCoverage` returns required-account intervals and gaps. `getMoneyAnalysis` refuses comparison series that contain incomplete months. `listTransactions` reads the ledger in one of two scopes: a calendar month, or `attention` — every row still `uncategorized` or filed by the AI, uncategorized first — each row carrying its effective splits, its provenance, and the AI's rationale where it did the filing.
 
 ## 9. Categorization and splits
 
@@ -508,13 +504,15 @@ Rules run before AI and stop further dispatch when they match. Rules inspect der
 
 Every transaction has one or more effective splits. An unsplit transaction has one split for its full signed amount. A split transaction can allocate across several categories, but the signed split sum must equal the transaction amount exactly.
 
-`uncategorized` is a system-owned category and the initial split for a new row that no rule matches. It contributes to total net spending and remains visible in the review queue. It cannot be renamed or deleted by the operator.
+`uncategorized` is a system-owned category and the initial split for a new row that no rule matches. It contributes to total net spending and sorts first in the ledger's attention scope. It cannot be renamed or deleted by the operator.
 
-Each split records `rule`, `ai`, or `manual` provenance. AI auto-apply is disabled at launch. Suggestions enter the review queue with a rationale and decision-record link.
+Each split records `system`, `rule`, `ai`, or `manual` provenance. A row's effective provenance is the strongest among its effective splits, and the ledger shows it on every row.
 
-Correcting a transaction can create an exact-payee rule for future rows. The preview shows that scope before confirm. Historical rows change only through a separate bulk reclassification preview.
+Categorization is a batch-triggered capability: each run answers one import batch of `uncategorized` rows, and its run ID derives from the capability, its configuration version, the bundle digest, and the batch index, so a redispatched batch collides with its earlier self instead of filing twice ([AI](/technical/ai)). The capability receives normalized narrative text and account labels rather than raw statement pages or account identifiers.
 
-Categorization is a batch-triggered capability: each run answers one import batch, and its run ID derives from the capability, its configuration version, the bundle digest, and the batch index, so a redispatched batch collides with its earlier self instead of suggesting twice ([AI](/technical/ai)). The capability receives normalized narrative text rather than raw statement pages or account identifiers. A failed AI run leaves the import intact and its `uncategorized` splits unchanged.
+When a run's output passes authoritative validation, core applies it: for every answered transaction whose effective split is still `uncategorized`, one new split revision is written with the model's category, the full transaction amount, and `ai` provenance, and one `categorization_assignments` row is written with status `applied`, the model's rationale, and the decision-record link. A transaction a rule or the operator filed between dispatch and delivery is left alone; the model never overwrites a stronger provenance. One `ai_categorized` feed event summarizes the run. A failed run emits an `ai_run_failed` warning, and its rows stay `uncategorized` — those are what the operator sees first.
+
+The operator's own categorization writes a `manual` split revision and settles the row's applied assignment as `kept` (same category) or `overridden`. Those two statuses are the correction corpus. Correcting a transaction can also create an exact-payee rule for future rows; the preview shows that scope before confirm. Historical rows change only through a separate bulk reclassification preview.
 
 ## 10. Transfers, refunds, and loan movements
 
@@ -590,46 +588,47 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 
 ## Values set in this chapter
 
-| Value                              | Default                                                                              | Owner                 | Status   |
-| ---------------------------------- | ------------------------------------------------------------------------------------ | --------------------- | -------- |
-| Required accounts                  | spending offset, savings offset, Mastercard, home loan                               | operator              | decided  |
-| Recent-history source              | exact CSV + OFX bundle for one account and window                                    | importer              | decided  |
-| Statement source                   | one PDF under an account-specific fixture-proven profile                             | importer              | decided  |
-| PDF extractor                      | AnyDoc 0.1.7 in an isolated, network-disabled compute image                          | compute image         | decided  |
-| CSV and OFX parser                 | direct RFC 4180 CSV and OFX SGML parsers                                             | importer              | decided  |
-| CSV line endings                   | CRLF only; a bare line feed blocks the file                                          | importer              | decided  |
-| CSV character decoding             | Windows-1252                                                                         | importer              | decided  |
-| OFX character decoding             | declared `ENCODING:USASCII` with `CHARSET:1252`, and no other pair                   | importer              | decided  |
-| OFX currency                       | `CURDEF` must be AUD                                                                 | importer              | decided  |
-| Bundle idempotency                 | SHA-256 over profile, account, and sorted source-role digests                        | importer              | decided  |
-| Structured row pairing             | exact date, signed amount, raw narrative, and equal-row occurrence                   | importer              | decided  |
-| Source row order                   | newest first in both files; any other order blocks the bundle                        | importer              | decided  |
-| Truncation signal                  | 600 or more logical transactions block coverage                                      | importer              | decided  |
-| Dedupe order                       | bundle, verified ID, row balance, content occurrence, statement alignment            | importer              | decided  |
-| Description role                   | supporting evidence except in the content-occurrence fallback                        | importer              | decided  |
-| Balance equality                   | exact decimal equality                                                               | importer              | decided  |
-| Balance sign                       | stored as the bank supplied it; account type does not rewrite it                     | importer              | decided  |
-| Card payee grammar                 | the first 25 characters, the observed merchant-field width                           | importer              | decided  |
-| Deposit payee grammar              | text before ` Card xx####` and before ` Value Date:`                                 | importer              | decided  |
-| Opaque reference token             | six or more digits in one whitespace-delimited token                                 | importer              | decided  |
-| Ledger reconciliation scope        | only when `DTASOF` falls between the newest posted row and `DTEND`                   | importer              | decided  |
-| Structured-over-statement priority | structured observations control canonical fields inside complete structured coverage | importer              | decided  |
-| Routine import cadence             | fifth day of each month                                                              | operator              | proposed |
-| Routine import window              | first day of previous month through import day                                       | operator              | proposed |
-| Weekly alternative window          | rolling 21 calendar days                                                             | operator              | proposed |
-| Backfill overlap                   | seven calendar days                                                                  | operator              | proposed |
-| Preview persistence                | none                                                                                 | importer              | decided  |
-| Confirm serialization              | advisory lock per bank account                                                       | importer              | decided  |
-| AI categorization auto-apply       | off until review-corpus calibration                                                  | operator              | decided  |
-| Categorization batch size          | 200 transactions                                                                     | categorization config | proposed |
-| Owned-transfer date window         | three calendar days, exact amount                                                    | analysis config       | decided  |
-| Recurring qualification            | 3 occurrences/400 days, ±5% median, gap deviation ≤20%                               | analysis config       | proposed |
-| Recurring cadence buckets          | 7±2, 14±3, 30±4, 91±7, 365±10 days                                                   | analysis config       | proposed |
-| Price-change notice                | >1% and ≥A$1.00                                                                      | analysis config       | proposed |
-| Anomaly thresholds                 | A$500/4× median; A$200/730 days; 1.5× average plus A$150                             | analysis config       | proposed |
-| Anomaly event identity             | rule, subject, calendar month                                                        | analysis config       | proposed |
-| Savings suggestion floor           | A$120 a year for a steady charge; a price rise carries no floor                      | analysis config       | proposed |
-| Savings suggestion impact          | a price rise quotes the rise annualised, not the charge's annual spend               | analysis config       | decided  |
+| Value                              | Default                                                                                | Owner                 | Status   |
+| ---------------------------------- | -------------------------------------------------------------------------------------- | --------------------- | -------- |
+| Required accounts                  | spending offset, savings offset, Mastercard, home loan                                 | operator              | decided  |
+| Recent-history source              | exact CSV + OFX bundle for one account and window                                      | importer              | decided  |
+| Statement source                   | parse one offset-statement PDF under `cba-offset-statement-v1`                         | importer              | decided  |
+| PDF extractor                      | AnyDoc 0.1.9 in an isolated, network-disabled compute image                            | compute image         | decided  |
+| CSV and OFX parser                 | direct RFC 4180 CSV and OFX SGML parsers                                               | importer              | decided  |
+| CSV line endings                   | CRLF only; a bare line feed blocks the file                                            | importer              | decided  |
+| CSV character decoding             | Windows-1252                                                                           | importer              | decided  |
+| OFX character decoding             | declared `ENCODING:USASCII` with `CHARSET:1252`, and no other pair                     | importer              | decided  |
+| OFX currency                       | `CURDEF` must be AUD                                                                   | importer              | decided  |
+| Bundle idempotency                 | SHA-256 over profile, account, and sorted source-role digests                          | importer              | decided  |
+| Structured row pairing             | exact date, signed amount, raw narrative, and equal-row occurrence                     | importer              | decided  |
+| Source row order                   | newest first in both files; any other order blocks the bundle                          | importer              | decided  |
+| Truncation signal                  | 600 or more logical transactions block coverage                                        | importer              | decided  |
+| Dedupe order                       | bundle, verified ID, row balance, content occurrence; statement alignment when enabled | importer              | decided  |
+| Description role                   | supporting evidence except in the content-occurrence fallback                          | importer              | decided  |
+| Balance equality                   | exact decimal equality                                                                 | importer              | decided  |
+| Balance sign                       | stored as the bank supplied it; account type does not rewrite it                       | importer              | decided  |
+| Card payee grammar                 | the first 25 characters, the observed merchant-field width                             | importer              | decided  |
+| Deposit payee grammar              | text before ` Card xx####` and before ` Value Date:`                                   | importer              | decided  |
+| Opaque reference token             | six or more digits in one whitespace-delimited token                                   | importer              | decided  |
+| Ledger reconciliation scope        | only when `DTASOF` falls between the newest posted row and `DTEND`                     | importer              | decided  |
+| Structured-over-statement priority | structured observations control canonical fields inside complete structured coverage   | importer              | decided  |
+| Routine import cadence             | fifth day of each month                                                                | operator              | proposed |
+| Routine import window              | first day of previous month through import day                                         | operator              | proposed |
+| Weekly alternative window          | rolling 21 calendar days                                                               | operator              | proposed |
+| Backfill overlap                   | seven calendar days                                                                    | operator              | proposed |
+| Preview persistence                | none                                                                                   | importer              | decided  |
+| Upload retention                   | none; uploaded bytes and extracted text are request-scoped                             | importer              | decided  |
+| Confirm serialization              | advisory lock per bank account                                                         | importer              | decided  |
+| AI categorization                  | applied on delivery to rows still uncategorized; never over a rule or the operator     | operator              | decided  |
+| Categorization batch size          | 200 transactions                                                                       | categorization config | proposed |
+| Owned-transfer date window         | three calendar days, exact amount                                                      | analysis config       | decided  |
+| Recurring qualification            | 3 occurrences/400 days, ±5% median, gap deviation ≤20%                                 | analysis config       | proposed |
+| Recurring cadence buckets          | 7±2, 14±3, 30±4, 91±7, 365±10 days                                                     | analysis config       | proposed |
+| Price-change notice                | >1% and ≥A$1.00                                                                        | analysis config       | proposed |
+| Anomaly thresholds                 | A$500/4× median; A$200/730 days; 1.5× average plus A$150                               | analysis config       | proposed |
+| Anomaly event identity             | rule, subject, calendar month                                                          | analysis config       | proposed |
+| Savings suggestion floor           | A$120 a year for a steady charge; a price rise carries no floor                        | analysis config       | proposed |
+| Savings suggestion impact          | a price rise quotes the rise annualised, not the charge's annual spend                 | analysis config       | decided  |
 
 ## Alternatives considered
 
@@ -649,28 +648,28 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 
 ## Open questions
 
-1. **Mastercard statement profile.** What row and balance structure does a representative Mastercard PDF expose? Safe fallback: archive the PDFs without importing them. Must close before: Mastercard history older than the structured window is added. Closing evidence: redacted PDFs from at least two layout periods, including one structured overlap, with all statement equations passing.
-2. **Home-loan statement profile.** Does the home-loan archive preserve per-row balances and principal/interest detail consistently? Safe fallback: archive the PDFs without importing them. Must close before: home-loan history older than the structured window is added. Closing evidence: redacted PDFs from at least two layout periods and a structured overlap.
-3. **Offset statement date alignment.** Which printed date or value-date rule maps statement rows to structured rows when their transaction dates differ? Safe fallback: the statement parser can reconcile a PDF but cannot add canonical history. Must close before: enabling `cba-offset-statement-v1` in production. Closing evidence: a statement and paired export for the same period with a one-to-one, balance-consistent mapping.
-4. **Categorization calibration.** What measured precision justifies automatic application? Safe fallback: every AI suggestion remains review-only. Must close before: enabling automatic application. Closing evidence: a held-out correction corpus with precision measured per candidate threshold.
-5. **Categorization batch size versus the queue envelope.** Does a 200-transaction batch, with its decision record, fit the 120,000-byte queue envelope in [Contracts](/technical/contracts)? Safe fallback: shrink the batch until it fits; an import simply produces more runs. Must close before: the categorization capability is configured. Closing evidence: measured envelope bytes for a maximum-size batch through the real serializer.
+1. **Mastercard statement profile.** What row and balance structure does a representative Mastercard PDF expose? Unsupported PDFs fail without retaining their bytes. Must close before: Mastercard history older than the structured window is added. Closing evidence: redacted PDFs from at least two layout periods, including one structured overlap, with all statement equations passing.
+2. **Home-loan statement profile.** Does the home-loan statement preserve per-row balances and principal/interest detail consistently? Unsupported PDFs fail without retaining their bytes. Must close before: home-loan history older than the structured window is added. Closing evidence: redacted PDFs from at least two layout periods and a structured overlap.
+3. **Categorization batch size versus the queue envelope.** Does a 200-transaction batch, with its decision record, fit the 120,000-byte queue envelope in [Contracts](/technical/contracts)? Safe fallback: shrink the batch until it fits; an import simply produces more runs. Must close before: the categorization capability is configured. Closing evidence: measured envelope bytes for a maximum-size batch through the real serializer.
 
 ## Build checklist
 
 - [x] Add redacted, parser-shape-preserving paired fixtures for all four observed account profiles and the overlapping spending-offset windows.
 - [ ] Add deterministic fixtures for a same-day equal-row collision, quoted commas, Windows-1252 text, an empty result, and the 600-row edge.
-- [ ] Implement direct CSV and OFX SGML decoders with exact source-cell preservation.
-- [ ] Implement account identity HMAC storage and require identity match before row processing.
-- [ ] Implement exact CSV/OFX multiset pairing, 600-row rejection, balance chains, and ledger reconciliation.
-- [ ] Package AnyDoc 0.1.7 in the isolated compute image and record its image digest with each extraction.
-- [ ] Implement the offset statement state machine and certify it only after the structured-overlap fixture passes.
+- [x] Implement direct CSV and OFX SGML decoders with exact source-cell preservation.
+- [x] Implement account identity HMAC storage and require identity match before row processing.
+- [x] Implement exact CSV/OFX multiset pairing, 600-row rejection, balance chains, and ledger reconciliation.
+- [x] Package native AnyDoc 0.1.9 in the isolated, network-disabled compute image.
+- [x] Record the exact extractor package and version with statement source metadata.
+- [x] Implement the offset statement parser and prove its balance equations and structured-overlap behavior.
+- [x] Keep uploaded files and extracted text transient; persist only digests, source metadata, and row-level observations.
 - [ ] Add Mastercard and home-loan statement profiles only after their own fixtures close the open questions.
-- [ ] Create the source-file, observation, canonical-transaction, link, balance, and coverage tables.
-- [ ] Implement the ordered dedupe tiers with claim-once and explicit ambiguity results.
+- [x] Create the source-metadata, observation, canonical-transaction, link, balance, and coverage tables.
+- [x] Implement the enabled ordered dedupe tiers with claim-once and explicit ambiguity results.
 - [ ] Property-test idempotency under repeated bundles, arbitrary overlapping windows, and repeated equal rows.
 - [ ] Property-test that deleting or changing a balanced row fails reconciliation.
-- [ ] Implement stateless preview and digest-verified confirm with stale-preview rejection and an account advisory lock.
-- [ ] Test that preview writes nothing and exact reconfirm writes nothing new.
-- [ ] Implement categories, exact splits, rule-first dispatch, review-only AI, and provenance.
-- [ ] Implement owned-transfer matching, refund treatment, home-loan principal treatment, and complete-month analysis.
-- [ ] Emit feed events for confirmed imports, coverage gaps and closures, recurring price changes, and anomalies; prove blocked previews emit none.
+- [x] Implement stateless preview and digest-verified confirm with stale-preview rejection and an account advisory lock.
+- [x] Test that preview writes nothing and exact reconfirm writes nothing new.
+- [x] Implement categories, exact splits, rule-first dispatch, AI application on delivery, and provenance.
+- [x] Implement owned-transfer matching, refund treatment, home-loan principal treatment, and complete-month analysis.
+- [x] Emit feed events for confirmed imports, coverage gaps and closures, recurring price changes, and anomalies; prove blocked previews emit none.

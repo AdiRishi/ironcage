@@ -3,15 +3,16 @@ import { fileURLToPath } from "node:url";
 import { adopt } from "alchemy/AdoptPolicy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Planetscale from "alchemy/Planetscale";
-import { retain } from "alchemy/RemovalPolicy";
 import * as Effect from "effect/Effect";
 
 import type { DeploymentConfig } from "./deployment-config.ts";
+import { cloudflareResourceNames } from "./resource-names.ts";
 
 const migrationsDir = fileURLToPath(new URL("../../migrations", import.meta.url));
 const runtimeRoles = ["pg_read_all_data", "pg_write_all_data"] as const;
 
 export const dataPlane = Effect.fn("Ironcage.DataPlane")(function* (config: DeploymentConfig) {
+  const names = cloudflareResourceNames(config.stage);
   const database =
     config._tag === "Production"
       ? yield* Planetscale.PostgresDatabase("Database", {
@@ -26,7 +27,7 @@ export const dataPlane = Effect.fn("Ironcage.DataPlane")(function* (config: Depl
           requireApprovalForDeploy: true,
           restrictBranchRegion: true,
           productionBranchWebConsole: false,
-        }).pipe(adopt(true), retain())
+        }).pipe(adopt(true))
       : yield* Planetscale.PostgresDatabase.ref("Database", { stage: "prod" });
 
   const branch =
@@ -40,7 +41,7 @@ export const dataPlane = Effect.fn("Ironcage.DataPlane")(function* (config: Depl
           replicas: 0,
           migrationsDir,
           migrationsTable: "__alchemy_migrations",
-        }).pipe(adopt(true), retain());
+        }).pipe(adopt(true));
 
   const uncachedRole = yield* Planetscale.PostgresRole("UncachedRuntimeRole", {
     name: config._tag === "Production" ? "ironcage_runtime" : "ironcage_dev_runtime",
@@ -56,14 +57,14 @@ export const dataPlane = Effect.fn("Ironcage.DataPlane")(function* (config: Depl
   });
 
   const uncachedDatabase = yield* Cloudflare.Hyperdrive.Connection("UncachedDatabase", {
-    name: "ironcage-without-cache",
+    name: names.hyperdrive.uncached,
     origin: uncachedRole.origin,
     ...(config._tag === "Development" && { dev: uncachedRole.pooledOrigin }),
     caching: { disabled: true },
     originConnectionLimit: 8,
   }).pipe(adopt(config._tag === "Production"));
   const cachedDatabase = yield* Cloudflare.Hyperdrive.Connection("CachedDatabase", {
-    name: "ironcage-with-cache",
+    name: names.hyperdrive.cached,
     origin: cachedRole.origin,
     ...(config._tag === "Development" && { dev: cachedRole.pooledOrigin }),
     caching: { maxAge: 60, staleWhileRevalidate: 15 },

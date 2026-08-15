@@ -1,0 +1,40 @@
+diff --git a/lib/Cloudflare/Queues/Consumer.js b/lib/Cloudflare/Queues/Consumer.js
+index 738de46cc40c2eeeecac524a5ab9de9d2da2a6f5..b973d0a2e3d5b9eec9d2db40bcffe10aa69b0358 100644
+--- a/lib/Cloudflare/Queues/Consumer.js
++++ b/lib/Cloudflare/Queues/Consumer.js
+@@ -456,11 +456,12 @@ export const ConsumerProviderLive = () => Provider.succeed(Consumer, {
+ const toObserved = (c) => c.consumerId && c.type === "worker"
+     ? { consumerId: c.consumerId, scriptName: c.scriptName ?? undefined }
+     : undefined;
+-// ~60s budget — Worker reconcile uploads typically land in 2–10s,
+-// but a fresh container/asset deploy can stretch that.
++// A Worker can wait on a fresh database or branch before its real upload.
++// Match PlanetScale's 30-minute readiness budget so the consumer cannot
++// time out while the Worker's infrastructure dependencies are still valid.
+ const queueHandlerReadinessSchedule = Schedule.max([
+     Schedule.spaced("2 seconds"),
+-    Schedule.recurs(30),
++    Schedule.recurs(900),
+ ]);
+ export const ConsumerProviderLocal = () => RpcProvider.effect(Consumer, LOCAL_ENTRY_URL, Effect.gen(function* () {
+     const localRuntimeState = yield* LocalRuntimeState;
+diff --git a/src/Cloudflare/Queues/Consumer.ts b/src/Cloudflare/Queues/Consumer.ts
+index 561ac876ce997599814834b9a41f78f5012de65c..1f1394a41a96ec73687a5b8a1391afaa73b651a7 100644
+--- a/src/Cloudflare/Queues/Consumer.ts
++++ b/src/Cloudflare/Queues/Consumer.ts
+@@ -678,11 +678,12 @@ const toObserved = (c: {
+     ? { consumerId: c.consumerId, scriptName: c.scriptName ?? undefined }
+     : undefined;
+ 
+-// ~60s budget — Worker reconcile uploads typically land in 2–10s,
+-// but a fresh container/asset deploy can stretch that.
++// A Worker can wait on a fresh database or branch before its real upload.
++// Match PlanetScale's 30-minute readiness budget so the consumer cannot
++// time out while the Worker's infrastructure dependencies are still valid.
+ const queueHandlerReadinessSchedule = Schedule.max([
+   Schedule.spaced("2 seconds"),
+-  Schedule.recurs(30),
++  Schedule.recurs(900),
+ ]);
+ 
+ export const ConsumerProviderLocal = () =>

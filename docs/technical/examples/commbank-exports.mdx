@@ -6,7 +6,7 @@ sidebar:
   icon: landmark
 ---
 
-This note records the NetBank behavior observed on 8 August 2026 and turns it into a repeatable collection procedure for Money. It is empirical evidence for [Money](/technical/money). Production parser contracts still require redacted byte-preserving fixtures.
+This note records the NetBank behavior observed on 8 August 2026 and turns it into a repeatable collection procedure for Money. It is empirical evidence for [Money](/technical/money). Production parser contracts require structure-preserving fixtures and private-corpus validation where raw evidence cannot be committed.
 
 No raw export or statement belongs in the repository. The files used for this investigation remain outside the workspace and contain private financial data.
 
@@ -183,23 +183,20 @@ Observed rendering: amounts print without currency symbols and with thousands se
 
 That makes pre-export history recoverable, but statements are a separate parser profile. Their narrative rendering differs from CSV/OFX and they must not be pushed through the structured-export dedupe rules.
 
-The safe older-history procedure is:
+The older-history collection procedure is:
 
 1. Open **Statements** from NetBank's account navigation.
 2. Select one account in scope and one available financial year.
-3. Download every listed statement PDF for that account and year.
-4. Rename it immediately with the account label, statement end date, and statement number when shown. For example: `cba_spending-offset_2026-06-24_statement-042.pdf`.
-5. Repeat every available year for the spending offset, savings offset, Mastercard, and home loan.
-6. Keep the raw PDFs immutable even before a statement parser exists. The seven-year window rolls forward, so delay can permanently lose the oldest year.
-7. Build and fixture-gate separate deposit, Mastercard, and home-loan statement parsers.
-8. Include at least one statement that overlaps the structured two-year history. Use that overlap to verify row extraction, statement totals, and the balance-chain handoff.
-9. Once the parser is proven, import only the pre-structured portion and close the corresponding historical gaps.
+3. Download one listed statement PDF for the spending offset.
+4. Upload it to the statement import flow while the file remains available from NetBank.
+5. Verify the preview's account, statement window, opening and closing balances, row counts, and overlap effects before confirming.
+6. Repeat for every available supported offset statement.
 
-For a first useful Money release, two years of paired structured exports are sufficient. Older statements should still be archived immediately, then parsed as the next backfill tranche.
+Mastercard and home-loan statements are not accepted by the offset profile. Each requires its own representative evidence and fixture-gated parser before its older history can be imported.
 
 ## AnyDoc evaluation
 
-[AnyDoc](https://github.com/firecrawl/anydoc) 0.1.7 was evaluated locally against the private sample corpus.
+[AnyDoc](https://github.com/firecrawl/anydoc) 0.1.9 was evaluated locally against the private sample corpus.
 
 | Input                | Result                                                                                       | Runtime decision                        |
 | -------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------- |
@@ -210,9 +207,9 @@ For a first useful Money release, two years of paired structured exports are suf
 
 The statement output was useful but not transaction-ready. Multi-line visual transactions could become several Markdown table rows. The Money parser must reconstruct those fragments, validate account identity, and prove the opening-to-closing balance equations.
 
-AnyDoc runs in an isolated compute image with network access disabled. The image is pinned to the exact evaluated version. Raw PDFs remain authoritative, and confirmed imports retain the extracted Markdown and extractor image digest for reproducibility.
+AnyDoc runs in an isolated compute image with network access disabled. The image is pinned to the exact evaluated version. PDF bytes and extracted Markdown are transient; confirmed imports retain the input digest, source metadata, extractor identity, and row-level observations.
 
-No hosted OCR service is part of the initial design. A scanned or extraction-empty PDF remains archived and fails visibly until a separate privacy decision authorizes another extraction path.
+No hosted OCR service is part of the initial design. A scanned or extraction-empty PDF fails visibly and is discarded until a separate privacy decision authorizes another extraction path.
 
 ## Import interface implied by the evidence
 
@@ -243,8 +240,7 @@ The filename is display metadata only. It never decides the account.
 
 This investigation closes the choice of recent-history format. The redacted observed corpus covers paired samples for all four account profiles and three overlapping spending-offset windows. It lives at [`apps/core/tests/fixtures/money/commbank`](https://github.com/AdiRishi/ironcage/tree/main/apps/core/tests/fixtures/money/commbank). Deterministic fixtures are sufficient evidence for behavior that does not require another bank export: equal-row occurrence, CSV quoting and character decoding, empty results, and truncation rejection.
 
-Statement work remains source-dependent:
+Additional statement profiles remain source-dependent:
 
-- Verify the oldest statement layout for each account type; a seven-year archive may span multiple templates.
 - Download a representative Mastercard and home-loan statement for parser assessment.
-- Prove offset statement-to-structured date alignment on a shared period before enabling statement imports.
+- Verify the oldest layout for each new statement profile because the available window may span multiple templates.

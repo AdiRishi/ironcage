@@ -3,21 +3,21 @@ import type { Duration } from "effect";
 import { DateTime, Effect, Layer } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 import type { Rpc, RpcGroup } from "effect/unstable/rpc";
+import { RpcGroup as RpcGroupModule } from "effect/unstable/rpc";
 
-import {
-  AppRpcs,
-  clientOverBinding,
-  intoTaxonomy,
-  timeouts,
-  type ServiceBinding,
-} from "../../src/client";
+import { clientOverBinding, intoTaxonomy, timeouts, type ServiceBinding } from "../../src/client";
 import { Internal } from "../../src/schema";
 import { rpcHttpRoute, systemPingHandler } from "../../src/server";
+import { systemPingRpc } from "../../src/surfaces/system";
 
-const serverWith = (handlers: Layer.Layer<Rpc.ToHandler<RpcGroup.Rpcs<typeof AppRpcs>>>) =>
+// Transport behavior only needs one representative operation; the full
+// surfaces have their own conformance tests.
+const PingRpcs = RpcGroupModule.make(systemPingRpc);
+
+const serverWith = (handlers: Layer.Layer<Rpc.ToHandler<RpcGroup.Rpcs<typeof PingRpcs>>>) =>
   Effect.acquireRelease(
     Effect.sync(() =>
-      HttpRouter.toWebHandler(rpcHttpRoute(AppRpcs, handlers), { disableLogger: true }),
+      HttpRouter.toWebHandler(rpcHttpRoute(PingRpcs, handlers), { disableLogger: true }),
     ),
     (server) => Effect.promise(() => server.dispose()),
   );
@@ -28,7 +28,7 @@ const bindingTo = (handler: (request: Request) => Promise<Response>): ServiceBin
 
 const callPing = (binding: ServiceBinding, timeout: Duration.Input = timeouts.appToCore) =>
   Effect.gen(function* () {
-    const client = yield* clientOverBinding(AppRpcs, { binding, surface: "core", timeout });
+    const client = yield* clientOverBinding(PingRpcs, { binding, surface: "core", timeout });
 
     return yield* intoTaxonomy(client.ping());
   });
@@ -37,7 +37,7 @@ describe("clientOverBinding", () => {
   it.effect("decodes a success from the other Worker", () =>
     Effect.gen(function* () {
       const server = yield* serverWith(
-        AppRpcs.toLayer({
+        PingRpcs.toLayer({
           ping: () => systemPingHandler({ worker: "ironcage-core", surface: "AppApi" }),
         }),
       );
@@ -52,7 +52,7 @@ describe("clientOverBinding", () => {
   it.effect("carries a declared error across as a typed value", () =>
     Effect.gen(function* () {
       const server = yield* serverWith(
-        AppRpcs.toLayer({
+        PingRpcs.toLayer({
           ping: () => Effect.fail(new Internal({ detail: "hyperdrive unreachable" })),
         }),
       );
@@ -67,7 +67,7 @@ describe("clientOverBinding", () => {
   // test clock, which never advances on its own.
   it.live("fails a call that outlives its budget", () =>
     Effect.gen(function* () {
-      const server = yield* serverWith(AppRpcs.toLayer({ ping: () => Effect.never }));
+      const server = yield* serverWith(PingRpcs.toLayer({ ping: () => Effect.never }));
       const result = yield* Effect.flip(callPing(bindingTo(server.handler), "20 millis"));
 
       expect(result).toBeInstanceOf(Internal);

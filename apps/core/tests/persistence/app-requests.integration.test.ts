@@ -29,8 +29,9 @@ it.effect("serializes concurrent idempotent mutations through real PostgreSQL", 
 
     const rows = yield* Effect.gen(function* () {
       const postgres = yield* Postgres;
-      return yield* postgres.query(
+      return yield* postgres.rows(
         "count app requests",
+        Schema.Struct({ count: Schema.Int }),
         "SELECT count(*)::integer AS count FROM app_requests",
       );
     }).pipe(Effect.provide(Postgres.layerForRequest(database.connectionString())));

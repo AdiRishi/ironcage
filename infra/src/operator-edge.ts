@@ -1,16 +1,17 @@
 import * as Cloudflare from "alchemy/Cloudflare";
-import { retain } from "alchemy/RemovalPolicy";
 import * as Effect from "effect/Effect";
 
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
-import { appBindings } from "./worker-bindings.ts";
+import { cloudflareResourceNames } from "./resource-names.ts";
+import { appBindings, appEntrypoints, bindWorkerEntrypoints } from "./worker-bindings.ts";
 import type { Workers } from "./workers.ts";
 
 export const operatorEdge = Effect.fn("Ironcage.OperatorEdge")(function* (
   config: DeploymentConfig,
   workers: Workers,
 ) {
+  const names = cloudflareResourceNames(config.stage);
   const access =
     config._tag === "Production"
       ? yield* Effect.gen(function* () {
@@ -19,7 +20,7 @@ export const operatorEdge = Effect.fn("Ironcage.OperatorEdge")(function* (
             decision: "allow",
             include: [{ email: { email: config.accessEmail } }],
             sessionDuration: "720h",
-          }).pipe(retain());
+          });
 
           return yield* Cloudflare.Access.Application("OperatorApplication", {
             type: "self_hosted",
@@ -28,12 +29,12 @@ export const operatorEdge = Effect.fn("Ironcage.OperatorEdge")(function* (
             sessionDuration: "720h",
             appLauncherVisible: false,
             policies: [policy.policyId],
-          }).pipe(retain());
+          });
         })
       : undefined;
 
   const app = yield* Cloudflare.Website.Vite("AppWorker", {
-    name: "ironcage-app",
+    name: names.workers.app,
     rootDir: "../apps/app",
     compatibility: workerCompatibility,
     workersDev: false,
@@ -44,8 +45,9 @@ export const operatorEdge = Effect.fn("Ironcage.OperatorEdge")(function* (
       include: ["**/*", "../../packages/contracts/src/**", "../../packages/ui/src/**"],
       lockfile: true,
     },
-    env: appBindings(workers.core, workers.agents, access?.aud ?? "", config.environment),
+    env: appBindings(access?.aud ?? "", config.environment),
   });
+  yield* bindWorkerEntrypoints(app, appEntrypoints(workers.core, workers.agents));
 
   return { access, app };
 });

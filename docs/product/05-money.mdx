@@ -28,25 +28,27 @@ The operator exports data from NetBank and uploads it to Money. Ironcage never s
 
 For recent history, one upload contains the CSV and OFX exported for the same account and date window. CSV supplies each row's running balance where CommBank provides one. OFX supplies account identity and the file-level ledger balance. The two files must describe exactly the same rows before the upload can continue.
 
-For older history, Money accepts archived statements after the parser for that account's statement layout has passed its fixture tests. Statements are reconciled from their opening balance through every row to their closing balance. A statement never overrides a complete structured-export window.
+For older history, one upload contains a CommBank offset statement PDF. Money extracts its text, verifies the account and statement period, reconstructs every transaction through the running-balance chain, and proves the opening balance, closing balance, and summary totals before preview. A statement never overrides a complete structured-export window.
 
 The import flow is:
 
 <Steps>
-  <Step title="Select">The two files for one recent-history bundle, or one statement.</Step>
+  <Step title="Select">A CSV/OFX pair for recent history or one supported statement PDF.</Step>
   <Step title="Preview">
     The account, source window, coverage effect, balances, and row verdicts.
   </Step>
   <Step title="Resolve">Any rows the system cannot identify unambiguously.</Step>
   <Step title="Confirm">The import.</Step>
-  <Step title="Review">Categories that no rule recognized.</Step>
+  <Step title="Inspect">The ledger — every new row filed, and by whom, open to change.</Step>
 </Steps>
 
-Nothing is stored before confirmation. The preview reports source rows, new transactions, known duplicates, ambiguities, and coverage gaps. A file for the wrong account is rejected before row matching begins. A structured export that reaches NetBank's observed 600-row ceiling is treated as truncated and cannot claim complete coverage.
+Nothing from an import is stored before confirmation. The preview reports source rows, new transactions, known duplicates, ambiguities, and coverage gaps. A file for the wrong account is rejected before row matching begins. A structured export that reaches NetBank's observed 600-row ceiling is treated as truncated and cannot claim complete coverage.
+
+Uploaded CSV, OFX, and PDF bytes are request-scoped. Statement extraction may use ephemeral container storage, but the uploaded bytes and extracted Markdown are discarded after processing. Confirmation retains the canonical transactions, source observations, balance evidence, import digest, and minimal source metadata needed to explain and safely replay the result.
 
 Re-uploading the same files is safe. Overlapping exports are expected and recommended. The system counts each bank transaction once even when several uploads or source formats contain it.
 
-The record distinguishes a bank transaction from the source observations that support it. A CSV/OFX pair and an overlapping statement may therefore provide several observations of one transaction. Every raw narrative and source file remains attached to that transaction for inspection.
+The record distinguishes a bank transaction from the source observations that support it. A CSV/OFX pair provides two observations of one transaction. An overlapping statement may provide another. Each observation retains the source fields needed to explain the transaction; it does not retain the uploaded file.
 
 Deduplication uses the strongest evidence the bank supplies, in order:
 
@@ -54,7 +56,7 @@ Deduplication uses the strongest evidence the bank supplies, in order:
 2. A proven bank transaction identifier is decisive within its account.
 3. A posted date, exact amount, and running balance identify rows on accounts that publish a balance for each transaction.
 4. Ordered occurrences distinguish repeated rows when no balance or identifier exists.
-5. Statement totals, balance sequences, account identity, and row order align statement observations with existing transactions.
+5. A supported statement profile uses its totals, balance sequence, account identity, and row order to align observations with existing transactions.
 
 Descriptions corroborate those decisions. They are not given an arbitrary fuzzy score. When two candidates remain plausible, Money asks the operator instead of silently dropping or double-counting a row.
 
@@ -64,7 +66,7 @@ The recommended routine is one manual import on the fifth day of each month. Eac
 
 The first backfill collects up to two years of structured CSV/OFX exports. Busy windows are split into quarters and then months when necessary. Adjacent windows overlap by seven days and are imported oldest to newest.
 
-Older history comes from the statement archive. The operator should download all available statements now because the archive window moves forward over time. Statement parsing may follow the first useful release, but preserving the source files cannot wait.
+Older history comes from supported statement imports. The operator should download and import all available statements while NetBank still exposes them because that window moves forward over time.
 
 Money maintains coverage separately for every required account. A missing interval is shown as a gap. A month with a gap in any required account is incomplete and is excluded from comparisons, averages, recurring-charge conclusions, and savings suggestions. The interface never renders missing history as zero spending.
 
@@ -76,9 +78,11 @@ The default taxonomy includes housing, groceries, eating out, transport, utiliti
 
 One transaction may be split across categories. Its split amounts must sum exactly to the signed transaction amount.
 
-Rules run before AI. Correcting a payee can create a visible rule for future transactions. AI suggestions show their confidence and rationale, but every suggestion requires review at launch. Automatic application remains disabled until reviewed decisions provide enough evidence to calibrate a threshold.
+Every transaction is filed the moment it arrives, the way a bank files it: rules first, then AI for whatever no rule recognized. The operator's job is to inspect and correct, never to file by hand as a matter of course.
 
-Every assignment records whether it came from a rule, AI suggestion, or manual choice. The underlying source narrative never changes when a category changes.
+Rules run first and are decisive. An AI run answers every row a rule left uncategorized, and its answer is applied as that row's category, with a one-line rationale kept alongside. The AI never touches a row a rule or the operator has already filed. A row stays uncategorized only when the AI run failed or produced no answer for it, and those rows are surfaced first in the ledger so they get a hand.
+
+Every assignment records whether it came from a rule, the AI, or the operator, and the ledger shows that provenance on every row. Correcting an AI-filed row records whether the operator kept or overrode the AI's category — the correction corpus that measures the AI's precision over time. Correcting a payee can create a visible rule for future transactions. The underlying source narrative never changes when a category changes.
 
 Transfers between owned accounts are matched and excluded from income and spending. Refunds and reversals reduce the expense category they belong to. They never become income merely because their amount is positive.
 

@@ -1,37 +1,38 @@
 import { adopt } from "alchemy/AdoptPolicy";
 import * as Cloudflare from "alchemy/Cloudflare";
-import { retain } from "alchemy/RemovalPolicy";
 import * as Effect from "effect/Effect";
 
 import { bucketLifecycleRules } from "./cloudflare-config.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
 import { QueueSettings } from "./providers/index.ts";
+import { cloudflareResourceNames } from "./resource-names.ts";
 
 export const platformControls = Effect.fn("Ironcage.PlatformControls")(function* (
   config: DeploymentConfig,
 ) {
+  const names = cloudflareResourceNames(config.stage);
   const blobs = yield* Cloudflare.R2.Bucket("Blobs", {
-    name: "ironcage-private",
+    name: names.buckets.blobs,
     lifecycleRules: [...bucketLifecycleRules],
-  }).pipe(adopt(config._tag === "Production"), retain());
+  }).pipe(adopt(config._tag === "Production"));
   const agentArtifacts = yield* Cloudflare.R2.Bucket("AgentArtifacts", {
-    name: "ironcage-agent-artifacts",
+    name: names.buckets.agentArtifacts,
     lifecycleRules: [...bucketLifecycleRules],
-  }).pipe(retain());
+  });
   const backups = yield* Cloudflare.R2.Bucket("Backups", {
-    name: "ironcage-backups",
+    name: names.buckets.backups,
     lifecycleRules: [...bucketLifecycleRules],
-  }).pipe(retain());
+  });
 
   const decisionRecordDeadLetters = yield* Cloudflare.Queues.Queue("DecisionRecordDeadLetters", {
-    name: "ironcage-decision-records-dlq",
-  }).pipe(retain());
+    name: names.queues.decisionRecordDeadLetters,
+  });
   const decisionRecords = yield* Cloudflare.Queues.Queue("DecisionRecords", {
-    name: "ironcage-decision-records",
-  }).pipe(retain());
+    name: names.queues.decisionRecords,
+  });
 
   const aiGateway = yield* Cloudflare.AI.Gateway("AiGateway", {
-    id: config._tag === "Production" ? "ironcage" : "ironcage-dev",
+    id: names.aiGateway,
     authentication: true,
     cacheTtl: null,
     collectLogs: true,
@@ -41,18 +42,18 @@ export const platformControls = Effect.fn("Ironcage.PlatformControls")(function*
       enabled: true,
       rules: [
         {
-          limit: config.gatewaySpendLimit,
+          limit: config.gatewayWeeklySpendLimitDollars,
           limitType: "cost",
           technique: "sliding",
-          window: "1 day",
+          window: "1 week",
         },
       ],
     },
-  }).pipe(retain());
+  });
 
   const flags = yield* Cloudflare.Flagship.App("Flags", {
-    name: config._tag === "Production" ? "ironcage" : "ironcage-dev",
-  }).pipe(retain());
+    name: names.flags,
+  });
   yield* Cloudflare.Flagship.Flag("LiveTrading", {
     appId: flags.appId,
     key: "trading_live_enabled",
@@ -60,7 +61,7 @@ export const platformControls = Effect.fn("Ironcage.PlatformControls")(function*
     defaultVariation: "off",
     variations: { off: false, on: true },
     description: "Independent production brake for every live order path.",
-  }).pipe(retain());
+  });
 
   if (config._tag === "Production") {
     yield* Effect.all(

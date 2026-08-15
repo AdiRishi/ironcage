@@ -1,20 +1,28 @@
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
-import * as Option from "effect/Option";
 
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
 import type { DataPlane } from "./data-plane.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
 import type { PlatformControls } from "./platform-controls.ts";
-import { agentsBindings, computeBindings, coreBindings } from "./worker-bindings.ts";
+import { cloudflareResourceNames } from "./resource-names.ts";
+import {
+  agentsBindings,
+  agentsEntrypoints,
+  bindWorkerEntrypoints,
+  computeBindings,
+  coreBindings,
+  coreEntrypoints,
+} from "./worker-bindings.ts";
 
 export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
   config: DeploymentConfig,
   data: DataPlane,
   platform: PlatformControls,
 ) {
+  const names = cloudflareResourceNames(config.stage);
   const compute = yield* Cloudflare.Worker("ComputeWorker", {
-    name: "ironcage-compute",
+    name: names.workers.compute,
     main: "../apps/compute/src/index.ts",
     compatibility: workerCompatibility,
     workersDev: false,
@@ -23,11 +31,12 @@ export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
   });
 
   const core = yield* Cloudflare.Worker("CoreWorker", {
-    name: "ironcage-core",
+    name: names.workers.core,
     main: "../apps/core/src/index.ts",
     compatibility: workerCompatibility,
     workersDev: false,
     observability: workerObservability,
+    crons: ["*/5 * * * *"],
     env: coreBindings(
       data,
       platform,
@@ -38,28 +47,32 @@ export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
   });
 
   const agents = yield* Cloudflare.Worker("AgentsWorker", {
-    name: "ironcage-agents",
-    main: "../apps/agents/src/index.ts",
+    name: names.workers.agents,
+    vite: {
+      main: "worker.mjs",
+      rootDir: "../apps/agents",
+    },
     compatibility: workerCompatibility,
     workersDev: false,
     observability: workerObservability,
-    env: agentsBindings(
-      core,
-      platform,
-      config.environment,
-      Option.getOrUndefined(config.aiGatewayToken),
-    ),
+    env: agentsBindings(platform, config.environment),
   });
 
-  yield* core.bind("AgentsDispatch", {
-    bindings: [
-      {
-        type: "service",
-        name: "AGENTS",
-        service: agents.workerName,
-        entrypoint: "DispatchApiEntrypoint",
-      },
-    ],
+  yield* bindWorkerEntrypoints(agents, agentsEntrypoints(core));
+  yield* bindWorkerEntrypoints(core, coreEntrypoints(agents));
+
+  // Core consumes capability runs one message at a time; exhausted deliveries
+  // route to the dead-letter queue, whose consumer records the loss.
+  yield* Cloudflare.Queues.Consumer("DecisionRecordConsumer", {
+    queueId: platform.decisionRecords.queueId,
+    scriptName: core.workerName,
+    deadLetterQueue: platform.decisionRecordDeadLetters.queueName,
+    settings: { batchSize: 1, maxRetries: 9 },
+  });
+  yield* Cloudflare.Queues.Consumer("DecisionRecordDeadLetterConsumer", {
+    queueId: platform.decisionRecordDeadLetters.queueId,
+    scriptName: core.workerName,
+    settings: { batchSize: 1 },
   });
 
   return { agents, compute, core };

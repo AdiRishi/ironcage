@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 
 import { Postgres } from "../../src/persistence/postgres";
 import { usePostgresTestDatabase } from "./postgres-test-database";
@@ -9,8 +9,9 @@ const database = usePostgresTestDatabase();
 it.effect("builds the repository schema in an empty Postgres 18 database", () =>
   Effect.gen(function* () {
     const postgres = yield* Postgres;
-    const tables = yield* postgres.query(
+    const tables = yield* postgres.rows(
       "list migrated tables",
+      Schema.Struct({ tableName: Schema.String }),
       `SELECT table_name AS "tableName"
          FROM information_schema.tables
         WHERE table_schema = 'public'
@@ -18,9 +19,39 @@ it.effect("builds the repository schema in an empty Postgres 18 database", () =>
     );
 
     expect(tables).toEqual([
+      { tableName: "acknowledgments" },
       { tableName: "app_requests" },
+      { tableName: "bank_accounts" },
+      { tableName: "bank_ambiguity_resolutions" },
+      { tableName: "bank_balance_observations" },
+      { tableName: "bank_coverage_segments" },
+      { tableName: "bank_imports" },
+      { tableName: "bank_observation_links" },
+      { tableName: "bank_observations" },
+      { tableName: "bank_source_files" },
+      { tableName: "bank_source_identifiers" },
+      { tableName: "bank_transactions" },
+      { tableName: "capability_configs" },
+      { tableName: "capability_dispatches" },
+      { tableName: "capability_outputs" },
+      { tableName: "categories" },
+      { tableName: "categorization_assignments" },
+      { tableName: "categorization_batch_categories" },
+      { tableName: "categorization_batch_transactions" },
+      { tableName: "categorization_batches" },
+      { tableName: "categorization_rules" },
+      { tableName: "decision_records" },
+      { tableName: "external_accounts" },
+      { tableName: "external_balance_observations" },
+      { tableName: "feed_dispatches" },
+      { tableName: "feed_events" },
+      { tableName: "queue_dedupe" },
+      { tableName: "reports" },
       { tableName: "sleeve_transitions" },
       { tableName: "sleeves" },
+      { tableName: "system_state" },
+      { tableName: "transaction_splits" },
+      { tableName: "transfer_matches" },
     ]);
   }).pipe(Effect.provide(Postgres.layerForRequest(database.connectionString()))),
 );
@@ -31,7 +62,7 @@ it.effect("rolls back a failed real PostgreSQL transaction", () =>
     const error = yield* Effect.flip(
       postgres.transaction((sql) =>
         sql
-          .query(
+          .execute(
             "insert app request",
             `INSERT INTO app_requests
                (request_id, operation, payload_hash, response, completed_at)
@@ -46,8 +77,9 @@ it.effect("rolls back a failed real PostgreSQL transaction", () =>
           .pipe(Effect.andThen(Effect.fail("abort"))),
       ),
     );
-    const rows = yield* postgres.query(
+    const rows = yield* postgres.rows(
       "count app requests",
+      Schema.Struct({ count: Schema.Int }),
       "SELECT count(*)::integer AS count FROM app_requests",
     );
 
