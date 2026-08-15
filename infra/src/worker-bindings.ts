@@ -55,10 +55,22 @@ export const computeBindings = (platform: PlatformBindings, environment: string)
   ENVIRONMENT: environment,
 });
 
+/**
+ * The Workers' script names, declared once. A binding that addresses another
+ * Worker's Durable Object takes the literal name rather than the resource's
+ * `workerName` output: the name is fixed here anyway, and a literal is known
+ * before anything is created, which a first-ever `dev` needs.
+ */
+export const workerNames = {
+  compute: "ironcage-compute",
+  core: "ironcage-core",
+  agents: "ironcage-agents",
+  app: "ironcage-app",
+} as const;
+
 export const coreBindings = (
   data: DataBindings,
   platform: PlatformBindings,
-  compute: Cloudflare.Worker,
   environment: string,
   secrets: CoreSecrets,
 ) => ({
@@ -70,11 +82,11 @@ export const coreBindings = (
   FLAGS: platform.flags,
   COMPUTE: Cloudflare.DurableObject<ComputeObjectBinding>("BacktestRunner", {
     className: "BacktestRunner",
-    scriptName: compute.workerName,
+    scriptName: workerNames.compute,
   }),
   STATEMENT_EXTRACTION: Cloudflare.DurableObject<StatementExtractorBinding>("StatementExtractor", {
     className: "StatementExtractor",
-    scriptName: compute.workerName,
+    scriptName: workerNames.compute,
   }),
   SLEEVES: Cloudflare.DurableObject<ActorBinding>("SleeveActor", {
     className: "SleeveActor",

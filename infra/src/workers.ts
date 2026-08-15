@@ -6,7 +6,7 @@ import { workerCompatibility, workerObservability } from "./cloudflare-config.ts
 import type { DataPlane } from "./data-plane.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
 import type { PlatformControls } from "./platform-controls.ts";
-import { agentsBindings, computeBindings, coreBindings } from "./worker-bindings.ts";
+import { agentsBindings, computeBindings, coreBindings, workerNames } from "./worker-bindings.ts";
 
 export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
   config: DeploymentConfig,
@@ -14,7 +14,7 @@ export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
   platform: PlatformControls,
 ) {
   const compute = yield* Cloudflare.Worker("ComputeWorker", {
-    name: "ironcage-compute",
+    name: workerNames.compute,
     main: "../apps/compute/src/index.ts",
     compatibility: workerCompatibility,
     workersDev: false,
@@ -23,7 +23,7 @@ export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
   });
 
   const core = yield* Cloudflare.Worker("CoreWorker", {
-    name: "ironcage-core",
+    name: workerNames.core,
     main: "../apps/core/src/index.ts",
     compatibility: workerCompatibility,
     workersDev: false,
@@ -31,14 +31,13 @@ export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
     env: coreBindings(
       data,
       platform,
-      compute,
       config.environment,
       config._tag === "Production" ? config.coreSecrets : {},
     ),
   });
 
   const agents = yield* Cloudflare.Worker("AgentsWorker", {
-    name: "ironcage-agents",
+    name: workerNames.agents,
     main: "../apps/agents/src/index.ts",
     compatibility: workerCompatibility,
     workersDev: false,

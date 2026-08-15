@@ -13,6 +13,7 @@
     "docs:doctor": "blume doctor",
     "fix": "pnpm compile && oxlint --disable-nested-config --fix && oxfmt",
     "plan": "pnpm --filter @ironcage/infra plan",
+    "reset:dev-db": "node scripts/reset-dev-database.ts",
     "sync:repos": "node scripts/sync-reference-repos.ts",
     "test": "turbo test test:integration",
     "test:integration": "turbo test:integration",

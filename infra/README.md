@@ -79,3 +79,48 @@ An existing development schema created by the retired `schema_migrations`
 runner must be reset or deliberately baselined before its first Alchemy
 reconcile. Do not manufacture `__alchemy_migrations` rows for a schema whose
 contents have not been verified.
+
+## Resetting development
+
+Two resets exist, for two questions. Neither touches production: the `dev`
+stage references the production database and never owns it, and every command
+below names `dev` explicitly.
+
+### The database only
+
+```sh
+pnpm reset:dev-db   # from the repository root; pnpm dev may keep running
+```
+
+Drops every table on the PlanetScale `dev` branch and re-applies every file in
+`migrations/` from scratch, recording each in `__alchemy_migrations` exactly as
+Alchemy would. Alchemy decides whether to run migrations from the file hashes
+in its own state, not from the database, so an emptied branch would otherwise
+stay empty; applying the files here keeps the two in agreement and `pnpm dev`
+stays a no-op. Needs `pscale` (authenticated) and `psql` on `PATH`
+(`brew install libpq`, then add `/opt/homebrew/opt/libpq/bin`). A trailing
+`failed to delete role … context deadline exceeded` is `pscale shell` failing
+to tidy its own temporary role and is harmless.
+
+Use this for the day-to-day loop: reset, import, inspect, repeat.
+
+### Everything the dev stage owns
+
+```sh
+cd infra && pnpm exec alchemy destroy --stage dev --yes
+pscale branch delete ironcage dev --org arishi-personal-org --force
+# delete the `ironcage-dev` AI Gateway and the `ironcage-dev` Flagship app
+# (dashboard, or the API); both are retained by policy, so destroy leaves them
+rm -rf infra/.alchemy apps/*/.alchemy apps/*/.wrangler apps/app/.output
+pnpm dev             # Plan: 21 to create; branch creation takes ~2 minutes
+```
+
+`destroy` removes the roles, Hyperdrive configurations, generated secrets, and
+every local simulation, and forgets the retained resources without deleting
+them. The branch, gateway, and Flagship app are deleted by hand so the next
+`pnpm dev` genuinely starts from nothing; forgetting them without deleting
+them would make that create collide. Do not stop at deleting the branch on
+its own: Alchemy will not notice a branch it still has in state is missing.
+
+Use this when infrastructure code changed and the question is whether a cold
+start still converges — that is the only path that exercises first-create.

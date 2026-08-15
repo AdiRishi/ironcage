@@ -4,7 +4,7 @@ import * as Effect from "effect/Effect";
 
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
-import { appBindings } from "./worker-bindings.ts";
+import { appBindings, workerNames } from "./worker-bindings.ts";
 import type { Workers } from "./workers.ts";
 
 export const operatorEdge = Effect.fn("Ironcage.OperatorEdge")(function* (
@@ -33,7 +33,7 @@ export const operatorEdge = Effect.fn("Ironcage.OperatorEdge")(function* (
       : undefined;
 
   const app = yield* Cloudflare.Website.Vite("AppWorker", {
-    name: "ironcage-app",
+    name: workerNames.app,
     rootDir: "../apps/app",
     compatibility: workerCompatibility,
     workersDev: false,
