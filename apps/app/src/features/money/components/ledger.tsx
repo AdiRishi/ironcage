@@ -25,7 +25,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@ironcage/ui/components
 import { cn } from "@ironcage/ui/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CircleAlertIcon, InboxIcon, SparklesIcon, UserIcon, ZapIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, type SetStateAction } from "react";
 
 import { keys } from "@/data/keys";
 import { mintRequestId } from "@/data/request";
@@ -136,18 +136,32 @@ function CategorySelect({
  * make that correction a rule. Changes stage locally and apply in one batch.
  */
 export function Ledger({
+  scope,
   entries,
   categories,
   emptyTitle,
   emptyDescription,
 }: {
+  readonly scope: string;
   readonly entries: readonly LedgerEntry[];
   readonly categories: readonly CategorySummary[];
   readonly emptyTitle: string;
   readonly emptyDescription: string;
 }) {
   const queryClient = useQueryClient();
-  const [staged, setStaged] = useState<Record<string, Staged>>({});
+  const [draft, setDraft] = useState<{
+    readonly scope: string;
+    readonly changes: Record<string, Staged>;
+  }>({ scope, changes: {} });
+  const staged = draft.scope === scope ? draft.changes : {};
+  const setStaged = (update: SetStateAction<Record<string, Staged>>) =>
+    setDraft((current) => {
+      const changes = current.scope === scope ? current.changes : {};
+      return {
+        scope,
+        changes: typeof update === "function" ? update(changes) : update,
+      };
+    });
 
   const assignable = categories.filter((category) => !category.system && !category.archived);
   const stagedCount = Object.keys(staged).length;

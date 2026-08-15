@@ -160,7 +160,7 @@ function MoneyTransactions() {
         </p>
       ) : (
         <Ledger
-          key={JSON.stringify([scope, view, search.category])}
+          scope={`${view}:${scope.kind === "month" ? scope.month : "attention"}:${search.category ?? "all"}`}
           entries={rows}
           categories={categories.data}
           emptyTitle={
