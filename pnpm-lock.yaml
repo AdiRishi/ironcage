@@ -196,7 +196,7 @@ overrides:
   workerd: 1.20260811.1
 
 patchedDependencies:
-  '@flue/vite@2.0.3': ff625a2f0f3edc31c49708ca1e19c7ae084d1dd05b82294f44c194b22816aef6
+  '@flue/vite@2.0.3': d6a03bee7372b5a6bee4f8971cfa50944e390f2f0dd5f51e14b96811bcc2cb4b
   alchemy@2.0.0-beta.72: 125dfb2ad32702131c4a46273a7573a47ed51746ff5b5172fac4c022895a5ea1
 
 importers:
@@ -264,7 +264,7 @@ importers:
         version: 2.0.3(@babel/core@8.0.1)(@babel/runtime@7.29.7)(@cloudflare/workers-types@5.20260813.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.4.3))(@modelcontextprotocol/server@2.0.0)(@types/node@26.1.2)(ai@7.0.64(zod@4.4.3))(esbuild@0.28.1)(hono@4.13.1)(jiti@2.7.0)(react@19.2.8)(rolldown@1.2.3)(supports-color@10.2.2)(typescript@7.0.2)(ws@8.21.3)(yaml@2.9.0)(zod@4.4.3)
       '@flue/vite':
         specifier: 'catalog:'
-        version: 2.0.3(patch_hash=ff625a2f0f3edc31c49708ca1e19c7ae084d1dd05b82294f44c194b22816aef6)(@babel/core@8.0.1)(@babel/runtime@7.29.7)(@cloudflare/workers-types@5.20260813.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.4.3))(@modelcontextprotocol/server@2.0.0)(ai@7.0.64(zod@4.4.3))(hono@4.13.1)(react@19.2.8)(rolldown@1.2.3)(supports-color@10.2.2)(typescript@7.0.2)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(ws@8.21.3)(zod@4.4.3)
+        version: 2.0.3(patch_hash=d6a03bee7372b5a6bee4f8971cfa50944e390f2f0dd5f51e14b96811bcc2cb4b)(@babel/core@8.0.1)(@babel/runtime@7.29.7)(@cloudflare/workers-types@5.20260813.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.4.3))(@modelcontextprotocol/server@2.0.0)(ai@7.0.64(zod@4.4.3))(hono@4.13.1)(react@19.2.8)(rolldown@1.2.3)(supports-color@10.2.2)(typescript@7.0.2)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(ws@8.21.3)(zod@4.4.3)
       '@ironcage/infra':
         specifier: workspace:*
         version: link:../../infra
@@ -10566,7 +10566,7 @@ snapshots:
   '@flue/cli@2.0.3(@babel/core@8.0.1)(@babel/runtime@7.29.7)(@cloudflare/workers-types@5.20260813.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.4.3))(@modelcontextprotocol/server@2.0.0)(@types/node@26.1.2)(ai@7.0.64(zod@4.4.3))(esbuild@0.28.1)(hono@4.13.1)(jiti@2.7.0)(react@19.2.8)(rolldown@1.2.3)(supports-color@10.2.2)(typescript@7.0.2)(ws@8.21.3)(yaml@2.9.0)(zod@4.4.3)':
     dependencies:
       '@flue/runtime': 2.0.3(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.4.3))(supports-color@10.2.2)(typescript@7.0.2)(ws@8.21.3)(zod@4.4.3)
-      '@flue/vite': 2.0.3(patch_hash=ff625a2f0f3edc31c49708ca1e19c7ae084d1dd05b82294f44c194b22816aef6)(@babel/core@8.0.1)(@babel/runtime@7.29.7)(@cloudflare/workers-types@5.20260813.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.4.3))(@modelcontextprotocol/server@2.0.0)(ai@7.0.64(zod@4.4.3))(hono@4.13.1)(react@19.2.8)(rolldown@1.2.3)(supports-color@10.2.2)(typescript@7.0.2)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(ws@8.21.3)(zod@4.4.3)
+      '@flue/vite': 2.0.3(patch_hash=d6a03bee7372b5a6bee4f8971cfa50944e390f2f0dd5f51e14b96811bcc2cb4b)(@babel/core@8.0.1)(@babel/runtime@7.29.7)(@cloudflare/workers-types@5.20260813.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.4.3))(@modelcontextprotocol/server@2.0.0)(ai@7.0.64(zod@4.4.3))(hono@4.13.1)(react@19.2.8)(rolldown@1.2.3)(supports-color@10.2.2)(typescript@7.0.2)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(ws@8.21.3)(zod@4.4.3)
       '@vercel/detect-agent': 1.2.5
       cac: 7.0.0
       minisearch: 7.2.0
@@ -10632,7 +10632,7 @@ snapshots:
       - ws
       - zod
 
-  '@flue/vite@2.0.3(patch_hash=ff625a2f0f3edc31c49708ca1e19c7ae084d1dd05b82294f44c194b22816aef6)(@babel/core@8.0.1)(@babel/runtime@7.29.7)(@cloudflare/workers-types@5.20260813.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.4.3))(@modelcontextprotocol/server@2.0.0)(ai@7.0.64(zod@4.4.3))(hono@4.13.1)(react@19.2.8)(rolldown@1.2.3)(supports-color@10.2.2)(typescript@7.0.2)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(ws@8.21.3)(zod@4.4.3)':
+  '@flue/vite@2.0.3(patch_hash=d6a03bee7372b5a6bee4f8971cfa50944e390f2f0dd5f51e14b96811bcc2cb4b)(@babel/core@8.0.1)(@babel/runtime@7.29.7)(@cloudflare/workers-types@5.20260813.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.4.3))(@modelcontextprotocol/server@2.0.0)(ai@7.0.64(zod@4.4.3))(hono@4.13.1)(react@19.2.8)(rolldown@1.2.3)(supports-color@10.2.2)(typescript@7.0.2)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(ws@8.21.3)(zod@4.4.3)':
     dependencies:
       '@flue/runtime': 2.0.3(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.4.3))(supports-color@10.2.2)(typescript@7.0.2)(ws@8.21.3)(zod@4.4.3)
       '@hono/node-server': 2.1.0(hono@4.13.1)
