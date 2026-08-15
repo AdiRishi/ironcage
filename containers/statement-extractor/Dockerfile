@@ -3,6 +3,7 @@ FROM node:24.13.0-bookworm-slim AS build
 RUN corepack enable
 WORKDIR /workspace
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY patches ./patches
 COPY tooling/tsconfig/package.json tooling/tsconfig/base.json ./tooling/tsconfig/
 COPY containers/statement-extractor/package.json ./containers/statement-extractor/
 RUN pnpm install --filter @ironcage/statement-extractor --frozen-lockfile
