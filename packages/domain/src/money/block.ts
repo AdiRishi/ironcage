@@ -17,6 +17,10 @@ export const ImportBlockCode = Schema.Literals([
   "BalanceChainFailed",
   "LedgerMismatch",
   "SourceIdentifierConflict",
+  "StatementGrammar",
+  "StatementReconciliation",
+  "StatementOverlapMismatch",
+  "StatementNeedsManualExtraction",
 ]);
 export type ImportBlockCode = typeof ImportBlockCode.Type;
 

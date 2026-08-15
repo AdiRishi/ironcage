@@ -20,7 +20,6 @@ export {
   BankCoverage,
   BankImportPreview,
   BankImportSource,
-  BankStatementArchive,
   CandidateEffect,
   CategorizeResult,
   CategorySummary,

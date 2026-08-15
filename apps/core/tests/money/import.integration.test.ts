@@ -23,15 +23,9 @@ const fixture = async (path: string) =>
   new Uint8Array(await readFile(resolve(fixturesDirectory, path)));
 
 const sha = Schema.decodeUnknownSync(Sha256);
-const artifacts = new Map<string, Uint8Array>();
 const deps: ImportDeps = {
   identityKey: "integration-identity-key",
-  artifacts: {
-    put: (key, bytes) => {
-      artifacts.set(key, bytes);
-      return Promise.resolve();
-    },
-  },
+  extractStatement: () => Promise.reject(new Error("statement extraction not expected")),
 };
 
 const withDatabase = <A, E>(effect: Effect.Effect<A, E, Postgres>) =>
@@ -62,8 +56,6 @@ const structuredSource = (
 
 it.effect("imports, dedupes, and covers the spending offset end to end", () =>
   Effect.gen(function* () {
-    artifacts.clear();
-
     const account = yield* withDatabase(
       configureBankAccount({
         requestId: yield* mintId(RequestId),
@@ -110,7 +102,6 @@ it.effect("imports, dedupes, and covers the spending offset end to end", () =>
     expect(yield* count("transaction_splits")).toBe(25);
     expect(yield* count("bank_coverage_segments")).toBe(1);
     expect(yield* count("feed_events WHERE event_type = 'bank_import_completed'")).toBe(1);
-    expect(artifacts.size).toBe(2);
 
     // The wider overlapping window adds only the rows the record lacks.
     const csvA = yield* Effect.promise(() => fixture("spending-offset/spending-offset-a.csv"));

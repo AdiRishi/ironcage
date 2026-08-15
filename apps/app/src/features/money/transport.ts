@@ -1,6 +1,5 @@
 import {
   BankAccountSummary,
-  BankStatementArchive,
   CategorizePayload,
   CategorizeResult,
   CategorySummary,
@@ -17,7 +16,6 @@ import {
 import { Schema } from "effect";
 
 export const decodePreviewOutcome = Schema.decodeUnknownSync(Outcome(PreviewBankImportResult));
-export const decodeArchiveOutcome = Schema.decodeUnknownSync(Outcome(BankStatementArchive));
 export const decodeConfirmOutcome = Schema.decodeUnknownSync(Outcome(ConfirmBankImportResult));
 export const decodeCategorizeOutcome = Schema.decodeUnknownSync(Outcome(CategorizeResult));
 export const decodeTransferOutcome = Schema.decodeUnknownSync(Outcome(TransferMatchSummary));

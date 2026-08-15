@@ -24,7 +24,7 @@ const sha = Schema.decodeUnknownSync(Sha256);
 
 const deps: ImportDeps = {
   identityKey: "feed-key",
-  artifacts: { put: () => Promise.resolve() },
+  extractStatement: () => Promise.reject(new Error("statement extraction not expected")),
 };
 
 const withDatabase = <A, E>(effect: Effect.Effect<A, E, Postgres>) =>

@@ -127,6 +127,26 @@ export const loadEvidence = (
     return { transactions, identifiers };
   });
 
+/** Statement dates can drift from structured dates, so the overlap lookup is range-based. */
+export const loadBalanceEvidenceRange = (
+  sql: SqlExecutor,
+  accountId: BankAccountId,
+  from: CalendarDate,
+  to: CalendarDate,
+): Effect.Effect<readonly StoredTransaction[], PersistenceError> =>
+  Effect.gen(function* () {
+    const rows = yield* sql.query(
+      "load stored transactions by range",
+      `SELECT id, posted_date AS "postedDate", amount::text AS amount,
+              narrative_fingerprint AS "fingerprint", row_balance::text AS "rowBalance"
+         FROM bank_transactions
+        WHERE account_id = $1 AND posted_date BETWEEN $2 AND $3
+        ORDER BY id`,
+      [accountId, from, to],
+    );
+    return yield* decodeRows("decode stored transactions", EvidenceRow, rows);
+  });
+
 const SpanRow = Schema.Struct({ start: CalendarDate, end: CalendarDate });
 
 export const loadCoverageSpans = (
@@ -201,7 +221,6 @@ export interface SourceFileInsert {
   readonly mediaType: string;
   readonly byteDigest: Sha256;
   readonly byteSize: number;
-  readonly r2Key: string;
   readonly displayName: string;
   readonly extractor: unknown;
 }
@@ -257,12 +276,12 @@ export const insertConfirmedImport = (
       yield* sql.query(
         "insert bank source files",
         `INSERT INTO bank_source_files
-           (id, import_id, role, media_type, byte_digest, byte_size, r2_key, display_name, extractor)
+           (id, import_id, role, media_type, byte_digest, byte_size, display_name, extractor)
          SELECT x.id::uuid, $1, x.role, x.media_type, x.byte_digest, x.byte_size,
-                x.r2_key, x.display_name, x.extractor
+                x.display_name, x.extractor
            FROM jsonb_to_recordset($2::jsonb) AS x(
              id text, role text, media_type text, byte_digest text, byte_size integer,
-             r2_key text, display_name text, extractor jsonb
+             display_name text, extractor jsonb
            )`,
         [
           importRow.id,
@@ -273,7 +292,6 @@ export const insertConfirmedImport = (
               media_type: file.mediaType,
               byte_digest: file.byteDigest,
               byte_size: file.byteSize,
-              r2_key: file.r2Key,
               display_name: file.displayName,
               extractor: file.extractor,
             })),

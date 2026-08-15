@@ -31,7 +31,10 @@ const bytes = async (name: string) => new Uint8Array(await readFile(resolve(priv
 
 const deps: ImportDeps = {
   identityKey: "real-validation-key",
-  artifacts: { put: () => Promise.resolve() },
+  extractStatement: async () => ({
+    markdown: new TextDecoder().decode(await bytes("statement-extracted.md")),
+    extractor: { package: "@firecrawl/anydoc", version: "0.1.7" },
+  }),
 };
 
 const withDatabase = <A, E>(effect: Effect.Effect<A, E, Postgres>) =>
@@ -125,6 +128,21 @@ it.effect("the real corpus imports, dedupes, reconciles, and analyzes", () =>
       "spending-a-replay",
     );
     expect(replay.preview.alreadyConfirmed).toBe(true);
+
+    const statement = yield* doImport(
+      {
+        kind: "commbank_statement",
+        accountId: spending.id,
+        pdf: {
+          displayName: "Statements20260624.pdf",
+          bytes: yield* Effect.promise(() => bytes("Statements20260624.pdf")),
+        },
+      },
+      "statement",
+    );
+    expect(statement.confirmed.effects.new + statement.confirmed.effects.duplicate).toBeGreaterThan(
+      100,
+    );
 
     const coverage = yield* withDatabase(getBankCoverage());
     for (const entry of coverage.accounts) {

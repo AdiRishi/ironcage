@@ -3,7 +3,6 @@ import {
   BankAccountId,
   BankAccountType,
   BankImportId,
-  BankStatementArchiveId,
   BankTransactionId,
   CalendarDate,
   CandidateStatus,
@@ -37,23 +36,20 @@ export const UploadedBytes = Schema.Struct({
 });
 export type UploadedBytes = typeof UploadedBytes.Type;
 
-export const BankImportSource = Schema.Struct({
-  kind: Schema.Literal("commbank_structured"),
-  accountId: BankAccountId,
-  csv: UploadedBytes,
-  ofx: UploadedBytes,
-});
+export const BankImportSource = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal("commbank_structured"),
+    accountId: BankAccountId,
+    csv: UploadedBytes,
+    ofx: UploadedBytes,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("commbank_statement"),
+    accountId: BankAccountId,
+    pdf: UploadedBytes,
+  }),
+]);
 export type BankImportSource = typeof BankImportSource.Type;
-
-export const BankStatementArchive = Schema.Struct({
-  id: BankStatementArchiveId,
-  accountId: BankAccountId,
-  displayName: Schema.String,
-  digest: Sha256,
-  byteSize: Schema.Int,
-  archivedAt: Instant,
-});
-export type BankStatementArchive = typeof BankStatementArchive.Type;
 
 export const CoverageSpan = Schema.Struct({ start: CalendarDate, end: CalendarDate });
 export type CoverageSpan = typeof CoverageSpan.Type;
@@ -464,16 +460,6 @@ export const confirmBankImportRpc = RpcModule.make("confirmBankImport", {
     requestId: RequestId,
   },
   success: ConfirmBankImportResult,
-  error: MutationError,
-});
-
-export const archiveBankStatementRpc = RpcModule.make("archiveBankStatement", {
-  payload: {
-    requestId: RequestId,
-    accountId: BankAccountId,
-    pdf: UploadedBytes,
-  },
-  success: BankStatementArchive,
   error: MutationError,
 });
 

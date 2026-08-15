@@ -39,5 +39,7 @@ behavior, but synthetic data does not close those fixture gates.
 
 The reviewed statement is an eight-page, text-based A4 spending-offset PDF. It
 is not committed because its values and layout contain private information.
-Statement parsing remains a later tranche requiring a separately redacted PDF
-and a matching structured-overlap fixture.
+The committed synthetic extracted-Markdown fixture preserves every observed
+page shape without private values. The private validation harness runs the
+production parser and structured-overlap import against the real PDF evidence
+when that corpus is available locally.

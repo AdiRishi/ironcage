@@ -32,7 +32,7 @@ const dining = categoryId("01900000-0000-7000-8000-000000000003");
 
 const deps: ImportDeps = {
   identityKey: "categorize-key",
-  artifacts: { put: () => Promise.resolve() },
+  extractStatement: () => Promise.reject(new Error("statement extraction not expected")),
 };
 
 const withDatabase = <A, E>(effect: Effect.Effect<A, E, Postgres>) =>

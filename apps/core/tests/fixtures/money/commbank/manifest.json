@@ -118,7 +118,7 @@
     "pageSize": "A4",
     "textBased": true,
     "committedArtifact": false,
-    "reason": "The only observed statement contains private data. Statement parsing remains a later, separately redacted fixture tranche."
+    "reason": "The observed PDF contains private data. CI uses a synthetic extraction-shape fixture; the local private-corpus harness validates the production profile against the real PDF and extracted Markdown."
   },
   "missingEvidence": [
     "same-day equal-row collision",
@@ -126,7 +126,6 @@
     "non-ASCII narrative bytes",
     "empty structured export",
     "true 600-row capped export",
-    "redacted statement PDF and structured-overlap pair",
     "representative Mastercard statement",
     "representative home-loan statement"
   ]

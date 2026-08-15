@@ -25,8 +25,7 @@ export function ImportHistory({ entries }: { readonly entries: readonly ImportHi
       <CardHeader>
         <Eyebrow>Confirmed imports</Eyebrow>
         <CardDescription>
-          Every source file stays attached to the record and can be re-uploaded safely — an
-          identical bundle writes nothing new.
+          Source digests make re-uploads safe. Uploaded files are discarded after processing.
         </CardDescription>
       </CardHeader>
       <CardContent>

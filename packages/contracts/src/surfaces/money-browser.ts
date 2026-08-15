@@ -14,7 +14,6 @@ import { Schema } from "effect";
 import {
   AmbiguityResolution,
   BankAccountSummary,
-  BankStatementArchive,
   CategorizeResult,
   CategorySummary,
   ConfirmBankImportResult,
@@ -31,19 +30,20 @@ export const UploadPayload = Schema.Struct({
 });
 export type UploadPayload = typeof UploadPayload.Type;
 
-export const ImportSourcePayload = Schema.Struct({
-  kind: Schema.Literal("commbank_structured"),
-  accountId: BankAccountId,
-  csv: UploadPayload,
-  ofx: UploadPayload,
-});
+export const ImportSourcePayload = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal("commbank_structured"),
+    accountId: BankAccountId,
+    csv: UploadPayload,
+    ofx: UploadPayload,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("commbank_statement"),
+    accountId: BankAccountId,
+    pdf: UploadPayload,
+  }),
+]);
 export type ImportSourcePayload = typeof ImportSourcePayload.Type;
-
-export const ArchiveBankStatementPayload = Schema.Struct({
-  requestId: RequestId,
-  accountId: BankAccountId,
-  pdf: UploadPayload,
-});
 
 export const PreviewPayload = Schema.Struct({ source: ImportSourcePayload });
 
@@ -110,7 +110,6 @@ export const EditRulePayload = Schema.Struct({
 
 export const MoneyMutationSuccess = {
   account: BankAccountSummary,
-  archiveStatement: BankStatementArchive,
   category: CategorySummary,
   categorize: CategorizeResult,
   confirm: ConfirmBankImportResult,

@@ -43,7 +43,6 @@ CREATE TABLE bank_source_files (
   media_type   text NOT NULL,
   byte_digest  text NOT NULL CHECK (byte_digest ~ '^[a-f0-9]{64}$'),
   byte_size    integer NOT NULL CHECK (byte_size >= 0),
-  r2_key       text NOT NULL,
   display_name text NOT NULL,
   extractor    jsonb,
   UNIQUE (import_id, role)
