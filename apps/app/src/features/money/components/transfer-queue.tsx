@@ -12,13 +12,10 @@ import { BigDecimal } from "effect";
 import { ArrowRightLeftIcon, CircleAlertIcon } from "lucide-react";
 
 import { keys } from "@/data/keys";
-import {
-  decodeTransferOutcome,
-  encodeDecideTransferPayload,
-  mintRequestId,
-} from "@/features/money/codec";
+import { mintRequestId } from "@/data/request";
 import { Eyebrow } from "@/features/money/components/eyebrow";
 import { describeError, formatAud, formatDay } from "@/features/money/format";
+import { decodeTransferOutcome, encodeDecideTransferPayload } from "@/features/money/transport";
 import { decideTransferMatch } from "@/server/money";
 
 function Leg({ leg }: { readonly leg: TransferLeg }) {

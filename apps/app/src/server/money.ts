@@ -1,65 +1,38 @@
-import { intoTaxonomy, timeouts } from "@ironcage/contracts/client";
-import type { BankImportSource, UploadedBytes } from "@ironcage/contracts/schema";
+import { timeouts } from "@ironcage/contracts/client";
+import type {
+  BankImportSource,
+  ImportSourcePayload,
+  UploadedBytes,
+  UploadPayload,
+} from "@ironcage/contracts/schema";
 import {
   BankAccountSummary,
   BankCoverage,
-  BoundaryError,
-  CategorySummary,
-  ConfirmBankImportResult,
-  ImportHistoryEntry,
-  MoneyAnalysis,
-  PreviewBankImportResult,
-  LedgerEntry,
-  LedgerScope,
-  RuleSummary,
-  TransferMatchSummary,
-} from "@ironcage/contracts/schema";
-import { createServerFn } from "@tanstack/react-start";
-import { Effect, Schema } from "effect";
-import type { RpcClientError } from "effect/unstable/rpc";
-
-import {
   CategorizePayload,
   CategorizeResult,
+  CategorySummary,
   ConfigureAccountPayload,
+  ConfirmBankImportResult,
   ConfirmPayload,
   CreateCategoryPayload,
   DecideTransferPayload,
   EditCategoryPayload,
   EditRulePayload,
-  type ImportSourcePayload,
+  ImportHistoryEntry,
+  PreviewBankImportResult,
   PreviewPayload,
+  LedgerEntry,
+  LedgerScope,
+  MoneyAnalysis,
+  RuleSummary,
+  TransferMatchSummary,
   TransferMatches,
-  type UploadPayload,
-} from "@/features/money/codec";
+} from "@ironcage/contracts/schema";
+import { createServerFn } from "@tanstack/react-start";
+import { Schema } from "effect";
+
+import { decodePayload, encodedRead, intoOutcome } from "@/server/boundary";
 import { callCore } from "@/server/core";
-
-const encodedRead = <S extends Schema.Codec<unknown, unknown>>(schema: S) => {
-  const encode = Schema.encodeSync(schema);
-  return <E, R>(effect: Effect.Effect<S["Type"], E | RpcClientError.RpcClientError, R>) =>
-    intoTaxonomy(effect).pipe(Effect.map(encode));
-};
-
-const encodeBoundaryError = Schema.encodeSync(BoundaryError);
-
-/** Fold a mutation's typed failure into data the route can branch on. */
-const intoOutcome = <S extends Schema.Codec<unknown, unknown>>(schema: S) => {
-  const encodeValue = Schema.encodeSync(schema);
-  return <E extends BoundaryError, R>(
-    effect: Effect.Effect<S["Type"], E | RpcClientError.RpcClientError, R>,
-  ) =>
-    intoTaxonomy(effect).pipe(
-      Effect.map((value) => ({ outcome: "ok", value: encodeValue(value) }) as const),
-      Effect.catch((error) =>
-        Effect.succeed({ outcome: "error", error: encodeBoundaryError(error) } as const),
-      ),
-    );
-};
-
-const decodePayload =
-  <S extends Schema.Codec<unknown, unknown>>(schema: S) =>
-  (input: S["Encoded"]): S["Type"] =>
-    Schema.decodeUnknownSync(schema)(input);
 
 const intoUpload = (upload: UploadPayload): UploadedBytes => ({
   displayName: upload.displayName,
@@ -101,7 +74,7 @@ export const getCategorizationRules = createServerFn().handler(() =>
 );
 
 export const listTransactions = createServerFn({ method: "POST" })
-  .inputValidator(decodePayload(LedgerScope))
+  .validator(decodePayload(LedgerScope))
   .handler(({ data }) =>
     callCore((client) =>
       encodedRead(Schema.Array(LedgerEntry))(client.listTransactions({ scope: data })),
@@ -113,7 +86,7 @@ export const getTransferMatches = createServerFn().handler(() =>
 );
 
 export const previewBankImport = createServerFn({ method: "POST" })
-  .inputValidator(decodePayload(PreviewPayload))
+  .validator(decodePayload(PreviewPayload))
   .handler(({ data }) =>
     callCore(
       (client) =>
@@ -125,7 +98,7 @@ export const previewBankImport = createServerFn({ method: "POST" })
   );
 
 export const confirmBankImport = createServerFn({ method: "POST" })
-  .inputValidator(decodePayload(ConfirmPayload))
+  .validator(decodePayload(ConfirmPayload))
   .handler(({ data }) =>
     callCore(
       (client) =>
@@ -137,37 +110,37 @@ export const confirmBankImport = createServerFn({ method: "POST" })
   );
 
 export const categorizeTransactions = createServerFn({ method: "POST" })
-  .inputValidator(decodePayload(CategorizePayload))
+  .validator(decodePayload(CategorizePayload))
   .handler(({ data }) =>
     callCore((client) => intoOutcome(CategorizeResult)(client.categorizeTransactions(data))),
   );
 
 export const decideTransferMatch = createServerFn({ method: "POST" })
-  .inputValidator(decodePayload(DecideTransferPayload))
+  .validator(decodePayload(DecideTransferPayload))
   .handler(({ data }) =>
     callCore((client) => intoOutcome(TransferMatchSummary)(client.decideTransferMatch(data))),
   );
 
 export const createCategory = createServerFn({ method: "POST" })
-  .inputValidator(decodePayload(CreateCategoryPayload))
+  .validator(decodePayload(CreateCategoryPayload))
   .handler(({ data }) =>
     callCore((client) => intoOutcome(CategorySummary)(client.createCategory(data))),
   );
 
 export const editCategory = createServerFn({ method: "POST" })
-  .inputValidator(decodePayload(EditCategoryPayload))
+  .validator(decodePayload(EditCategoryPayload))
   .handler(({ data }) =>
     callCore((client) => intoOutcome(CategorySummary)(client.editCategory(data))),
   );
 
 export const configureBankAccount = createServerFn({ method: "POST" })
-  .inputValidator(decodePayload(ConfigureAccountPayload))
+  .validator(decodePayload(ConfigureAccountPayload))
   .handler(({ data }) =>
     callCore((client) => intoOutcome(BankAccountSummary)(client.configureBankAccount(data))),
   );
 
 export const editCategorizationRule = createServerFn({ method: "POST" })
-  .inputValidator(decodePayload(EditRulePayload))
+  .validator(decodePayload(EditRulePayload))
   .handler(({ data }) =>
     callCore((client) => intoOutcome(RuleSummary)(client.editCategorizationRule(data))),
   );

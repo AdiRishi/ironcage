@@ -1,4 +1,6 @@
 import {
+  AmbiguityResolutionId,
+  BalanceObservationId,
   BankAccountId,
   BankImportId,
   BankObservationId,
@@ -7,10 +9,12 @@ import {
   CalendarDate,
   CategorizationRuleId,
   CategoryId,
+  CoverageSegmentId,
   MatchTier,
   Sha256,
   SourceFileRole,
   SourceProfile,
+  TransactionSplitId,
   type Instant,
 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
@@ -193,7 +197,7 @@ export interface TransactionInsert {
 }
 
 export interface SplitInsert {
-  readonly id: string;
+  readonly id: TransactionSplitId;
   readonly transactionId: BankTransactionId;
   readonly categoryId: CategoryId;
   readonly amount: BigDecimal.BigDecimal;
@@ -207,7 +211,7 @@ export interface IdentifierInsert {
 }
 
 export interface BalanceInsert {
-  readonly id: string;
+  readonly id: BalanceObservationId;
   readonly kind: "row" | "ledger" | "available" | "opening" | "closing";
   readonly value: BigDecimal.BigDecimal;
   readonly asOfDate: CalendarDate;
@@ -227,7 +231,7 @@ export interface SourceFileInsert {
 }
 
 export interface AmbiguityInsert {
-  readonly id: string;
+  readonly id: AmbiguityResolutionId;
   readonly subject: unknown;
   readonly resolution: unknown;
 }
@@ -241,7 +245,7 @@ export interface ConfirmedImportGraph {
   readonly balances: readonly BalanceInsert[];
   readonly splits: readonly SplitInsert[];
   readonly ambiguities: readonly AmbiguityInsert[];
-  readonly coverage: { readonly id: string; readonly span: CoveredSpan } | null;
+  readonly coverage: { readonly id: CoverageSegmentId; readonly span: CoveredSpan } | null;
   readonly feedEvent: FeedEventInsert;
 }
 

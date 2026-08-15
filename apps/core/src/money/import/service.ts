@@ -13,15 +13,19 @@ import {
 } from "@ironcage/contracts/schema";
 import {
   addDays,
+  AmbiguityResolutionId,
   Aud,
+  BalanceObservationId,
   BankImportId,
   BankObservationId,
   BankSourceFileId,
   BankTransactionId,
+  CoverageSegmentId,
   FeedEventId,
   monthOf,
   Sha256,
   SourceProfile,
+  TransactionSplitId,
   uncategorizedCategoryId,
   type BankAccountId,
   type CalendarDate,
@@ -29,10 +33,11 @@ import {
 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 
-import { mintId, mintRawUuidV7 } from "../../ids";
+import { mintId } from "../../ids";
 import { runIdempotentMutation } from "../../persistence/app-requests";
 import { PersistenceError, persistenceToBoundary } from "../../persistence/error";
 import { Postgres, type SqlExecutor } from "../../persistence/postgres";
+import { generateMonthlySpendingReports } from "../../reports/service";
 import {
   bindAccountIdentity,
   findAccountByIdentity,
@@ -116,7 +121,6 @@ interface StatementMatch {
 }
 
 type ImportPlan =
-  | { readonly kind: "replay" }
   | {
       readonly kind: "structured";
       readonly bundle: PairedBundle;
@@ -128,20 +132,28 @@ type ImportPlan =
       readonly matches: readonly StatementMatch[];
     };
 
-interface Computation {
+interface ComputationBase {
   readonly account: AccountRow;
   readonly digest: Sha256;
   readonly profile: string;
   readonly files: readonly DigestedFile[];
-  readonly replay: ImportRow | null;
+}
+
+interface ReplayComputation extends ComputationBase {
+  readonly kind: "replay";
+  readonly import: ImportRow;
+}
+
+interface NewImportComputation extends ComputationBase {
+  readonly kind: "new";
   readonly plan: ImportPlan;
-  readonly window: CoveredSpan | null;
-  readonly identityHmac: string | null;
+  readonly window: CoveredSpan;
+  readonly identityHmac: string;
   readonly maskedSuffix: string;
   readonly candidates: readonly CandidateEffect[];
   readonly ruleHits: ReadonlyMap<number, EffectiveRule>;
   readonly coverage: {
-    readonly segment: CoveredSpan | null;
+    readonly segment: CoveredSpan;
     readonly added: readonly CoveredSpan[];
     readonly overlapRetained: readonly CoveredSpan[];
     readonly gapsBefore: readonly CoveredSpan[];
@@ -156,15 +168,7 @@ interface Computation {
   readonly fingerprint: Sha256;
 }
 
-const emptyCoverage = {
-  segment: null,
-  added: [],
-  overlapRetained: [],
-  gapsBefore: [],
-  gapsRemaining: [],
-} as const;
-
-const noBalances = { ledger: null, available: null, ledgerReconciled: false } as const;
+type Computation = ReplayComputation | NewImportComputation;
 
 const intersect = (a: CoveredSpan, b: CoveredSpan): CoveredSpan | null => {
   const start = a.start > b.start ? a.start : b.start;
@@ -276,22 +280,13 @@ const replayComputation = (
   profile: string,
   files: readonly DigestedFile[],
   replay: ImportRow,
-): Computation => ({
+): ReplayComputation => ({
+  kind: "replay",
   account,
   digest,
   profile,
   files,
-  replay,
-  plan: { kind: "replay" },
-  window: { start: replay.windowStart, end: replay.windowEnd },
-  identityHmac: null,
-  maskedSuffix: "",
-  candidates: [],
-  ruleHits: new Map(),
-  coverage: emptyCoverage,
-  balances: noBalances,
-  warnings: [],
-  fingerprint: digest,
+  import: replay,
 });
 
 /**
@@ -398,11 +393,11 @@ const computeStructured = Effect.fn("computeStructuredImport")(function* (
   const fingerprint = yield* fingerprintOf(digest, candidates, segment);
 
   return {
+    kind: "new",
     account,
     digest,
     profile: pairedProfileName,
     files,
-    replay: null,
     plan: { kind: "structured", bundle, outcomes },
     window: bundle.window,
     identityHmac,
@@ -627,11 +622,11 @@ const computeStatement = Effect.fn("computeStatementImport")(function* (
   const fingerprint = yield* fingerprintOf(digest, candidates, segment);
 
   return {
+    kind: "new",
     account,
     digest,
     profile: statementProfileName,
     files,
-    replay: null,
     plan: { kind: "statement", statement, matches },
     window: statement.period,
     identityHmac,
@@ -662,7 +657,7 @@ const effectCounts = (candidates: readonly CandidateEffect[]) => ({
 });
 
 const toPreview = (computation: Computation): BankImportPreview => {
-  const { account, files, replay } = computation;
+  const { account, files } = computation;
   const fileViews = files.map((file) => ({
     role: file.role,
     displayName: file.displayName,
@@ -670,18 +665,21 @@ const toPreview = (computation: Computation): BankImportPreview => {
     byteSize: file.bytes.length,
   }));
 
-  if (replay !== null) {
-    const total = replay.effects.new + replay.effects.duplicate + replay.effects.ambiguous;
+  if (computation.kind === "replay") {
+    const total =
+      computation.import.effects.new +
+      computation.import.effects.duplicate +
+      computation.import.effects.ambiguous;
     return {
       accountId: account.id,
       sourceProfile: decodeProfile(computation.profile),
-      window: { start: replay.windowStart, end: replay.windowEnd },
+      window: { start: computation.import.windowStart, end: computation.import.windowEnd },
       files: fileViews,
       bundleDigest: computation.digest,
-      previewFingerprint: computation.fingerprint,
+      previewFingerprint: computation.digest,
       logicalTransactions: total,
       physicalObservations: total * (computation.profile === pairedProfileName ? 2 : 1),
-      effects: replay.effects,
+      effects: computation.import.effects,
       candidates: [],
       balances: { ledger: null, available: null, ledgerReconciled: false },
       coverage: { added: [], overlapRetained: [], gapsRemaining: [] },
@@ -694,7 +692,7 @@ const toPreview = (computation: Computation): BankImportPreview => {
   return {
     accountId: account.id,
     sourceProfile: decodeProfile(computation.profile),
-    window: computation.window!,
+    window: computation.window,
     files: fileViews,
     bundleDigest: computation.digest,
     previewFingerprint: computation.fingerprint,
@@ -863,7 +861,7 @@ export const confirmBankImport = (
       );
     }
 
-    if (!(preflight instanceof BankImportBlocked) && preflight.replay === null) {
+    if (!(preflight instanceof BankImportBlocked) && preflight.kind === "new") {
       yield* Effect.forEach(
         preflight.files,
         (file) =>
@@ -912,11 +910,11 @@ export const confirmBankImport = (
             );
           }
 
-          if (computation.replay !== null) {
+          if (computation.kind === "replay") {
             return {
               kind: "confirmed",
-              importId: computation.replay.id,
-              effects: computation.replay.effects,
+              importId: computation.import.id,
+              effects: computation.import.effects,
               coverageAdded: [],
             } as const;
           }
@@ -948,8 +946,9 @@ export const confirmBankImport = (
             sql,
             new Set(graph.transactions.map((transaction) => monthOf(transaction.postedDate))),
           );
+          yield* generateMonthlySpendingReports(sql);
 
-          if (computation.account.identityHmac === null && computation.identityHmac !== null) {
+          if (computation.account.identityHmac === null) {
             yield* bindAccountIdentity(
               sql,
               computation.account.id,
@@ -973,7 +972,7 @@ export const artifactKey = (digest: Sha256, file: { role: string; digest: Sha256
 
 /** Everything confirm writes, minted and assembled outside the SQL calls. */
 const buildGraph = Effect.fn("buildImportGraph")(function* (
-  computation: Computation,
+  computation: NewImportComputation,
   resolutions: readonly AmbiguityResolution[],
 ): Effect.fn.Return<ConfirmedImportGraph, ValidationFailed> {
   const account = computation.account;
@@ -1026,7 +1025,7 @@ const buildGraph = Effect.fn("buildImportGraph")(function* (
 
     const hit = computation.ruleHits.get(ordinal);
     splits.push({
-      id: mintRawUuidV7(),
+      id: yield* mintId(TransactionSplitId),
       transactionId,
       categoryId: hit?.categoryId ?? uncategorizedCategoryId,
       amount,
@@ -1110,7 +1109,7 @@ const buildGraph = Effect.fn("buildImportGraph")(function* (
 
       if (isNew && candidate.csv.balance !== null) {
         balances.push({
-          id: mintRawUuidV7(),
+          id: yield* mintId(BalanceObservationId),
           kind: "row",
           value: candidate.csv.balance,
           asOfDate: candidate.csv.postedDate,
@@ -1122,7 +1121,7 @@ const buildGraph = Effect.fn("buildImportGraph")(function* (
 
     if (bundle.ledger !== null) {
       balances.push({
-        id: mintRawUuidV7(),
+        id: yield* mintId(BalanceObservationId),
         kind: "ledger",
         value: bundle.ledger.amount,
         asOfDate: bundle.ledger.asOfDate,
@@ -1132,7 +1131,7 @@ const buildGraph = Effect.fn("buildImportGraph")(function* (
     }
     if (bundle.available !== null) {
       balances.push({
-        id: mintRawUuidV7(),
+        id: yield* mintId(BalanceObservationId),
         kind: "available",
         value: bundle.available.amount,
         asOfDate: bundle.available.asOfDate,
@@ -1195,7 +1194,7 @@ const buildGraph = Effect.fn("buildImportGraph")(function* (
 
       if (match.transactionId === null) {
         balances.push({
-          id: mintRawUuidV7(),
+          id: yield* mintId(BalanceObservationId),
           kind: "row",
           value: match.row.balance,
           asOfDate: match.row.postedDate,
@@ -1207,7 +1206,7 @@ const buildGraph = Effect.fn("buildImportGraph")(function* (
 
     balances.push(
       {
-        id: mintRawUuidV7(),
+        id: yield* mintId(BalanceObservationId),
         kind: "opening",
         value: statement.opening,
         asOfDate: statement.period.start,
@@ -1215,7 +1214,7 @@ const buildGraph = Effect.fn("buildImportGraph")(function* (
         sourceFileId: markdownFileId,
       },
       {
-        id: mintRawUuidV7(),
+        id: yield* mintId(BalanceObservationId),
         kind: "closing",
         value: statement.closing,
         asOfDate: statement.period.end,
@@ -1231,7 +1230,7 @@ const buildGraph = Effect.fn("buildImportGraph")(function* (
     ambiguous: resolutions.length,
   };
 
-  const window = computation.window!;
+  const window = computation.window;
   const importRow: ImportRow = {
     id: importId,
     accountId: account.id,
@@ -1268,15 +1267,17 @@ const buildGraph = Effect.fn("buildImportGraph")(function* (
     identifiers,
     balances,
     splits,
-    ambiguities: resolutions.map((resolution) => ({
-      id: mintRawUuidV7(),
-      subject: { ordinal: resolution.ordinal },
-      resolution: resolution.decision,
-    })),
-    coverage:
-      computation.coverage.segment === null
-        ? null
-        : { id: mintRawUuidV7(), span: computation.coverage.segment },
+    ambiguities: yield* Effect.forEach(resolutions, (resolution) =>
+      Effect.map(mintId(AmbiguityResolutionId), (id) => ({
+        id,
+        subject: { ordinal: resolution.ordinal },
+        resolution: resolution.decision,
+      })),
+    ),
+    coverage: {
+      id: yield* mintId(CoverageSegmentId),
+      span: computation.coverage.segment,
+    },
     feedEvent,
   } satisfies ConfirmedImportGraph;
 });

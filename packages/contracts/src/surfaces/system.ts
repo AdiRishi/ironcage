@@ -1,7 +1,8 @@
+import { Instant, RequestId, SystemMode } from "@ironcage/domain";
 import { DateTime, Effect, Schema } from "effect";
 import { Rpc as RpcModule } from "effect/unstable/rpc";
 
-import { Internal } from "./errors";
+import { Conflict, Internal, ValidationFailed } from "./errors";
 
 /**
  * What every Worker answers `ping` with. It names the surface as well as the
@@ -16,6 +17,27 @@ export const SystemPing = Schema.Struct({
 export type SystemPing = typeof SystemPing.Type;
 
 export const systemPingRpc = RpcModule.make("ping", { success: SystemPing, error: Internal });
+
+export const SystemStatus = Schema.Struct({
+  mode: SystemMode,
+  reason: Schema.NullOr(Schema.String),
+  changedAt: Instant,
+  unacknowledgedCriticals: Schema.Int,
+});
+export type SystemStatus = typeof SystemStatus.Type;
+
+export const getSystemStatusRpc = RpcModule.make("getSystemStatus", {
+  success: SystemStatus,
+  error: Internal,
+});
+
+export const HaltAllInput = Schema.Struct({ requestId: RequestId, reason: Schema.String });
+
+export const haltAllRpc = RpcModule.make("haltAll", {
+  payload: HaltAllInput.fields,
+  success: SystemStatus,
+  error: Schema.Union([ValidationFailed, Conflict, Internal]),
+});
 
 export const systemPingHandler = (identity: {
   readonly worker: string;

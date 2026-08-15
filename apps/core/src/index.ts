@@ -34,12 +34,25 @@ import {
   listTransactions,
   listCategories,
 } from "./money/categorization/service";
+import {
+  encodeFeedEvent,
+  listPendingFeedDispatches,
+  markFeedDispatched,
+  recordFeedDispatchFailure,
+} from "./money/feed/dispatch";
 import { acknowledge, getFeed } from "./money/feed/service";
 import { sha256Hex } from "./money/import/bytes";
 import { confirmBankImport, previewBankImport, type ImportDeps } from "./money/import/service";
 import { decideTransferMatch, getTransferMatches } from "./money/transfers/service";
+import {
+  getWholeWealth,
+  listExternalAccounts,
+  recordExternalBalance,
+} from "./money/wealth/service";
 import { persistenceToBoundary } from "./persistence/error";
 import { Postgres } from "./persistence/postgres";
+import { getReport, listReports, markReportOpened } from "./reports/service";
+import { getSystemStatus, haltAll } from "./system/service";
 
 const worker = "ironcage-core";
 const workerRequest = makeWorkerRequestContext<Env, ExecutionContext>(
@@ -56,7 +69,7 @@ const decodeSha = Schema.decodeUnknownSync(Sha256);
  * identity key and the R2 artifact writer.
  */
 const withMoney = <A, E>(use: (deps: ImportDeps) => Effect.Effect<A, E, Postgres>) =>
-  Effect.flatMap(workerRequest.service, ({ env }) =>
+  Effect.flatMap(workerRequest.service, ({ env, executionContext }) =>
     use({
       identityKey: env.MONEY_IDENTITY_KEY,
       artifacts: { put: (key, bytes) => env.BLOBS.put(key, bytes) },
@@ -65,6 +78,9 @@ const withMoney = <A, E>(use: (deps: ImportDeps) => Effect.Effect<A, E, Postgres
     }).pipe(
       Effect.provide(Postgres.layerForRequest(env.DB.connectionString)),
       persistenceToBoundary,
+      Effect.tap(() =>
+        Effect.sync(() => executionContext.waitUntil(dispatchFeedInBackground(env))),
+      ),
     ),
   );
 
@@ -108,6 +124,41 @@ const drainCategorizationDispatches = (env: Env) =>
     return dispatched;
   }).pipe(Effect.provide(Postgres.layerForRequest(env.DB.connectionString)), Effect.scoped);
 
+const drainFeedDispatches = (env: Env) =>
+  Effect.gen(function* () {
+    const postgres = yield* Postgres;
+    const pending = yield* postgres.readTransaction((sql) => listPendingFeedDispatches(sql, 100));
+    if (pending.length === 0) return 0;
+
+    const actor = env.FEEDS.getByName("operator");
+    let dispatched = 0;
+    for (const item of pending) {
+      const sent = yield* Effect.promise(() => actor.publish(encodeFeedEvent(item.event))).pipe(
+        Effect.matchCauseEffect({
+          onFailure: (cause) =>
+            postgres
+              .transaction((sql) =>
+                recordFeedDispatchFailure(sql, item.eventId, Cause.pretty(cause)),
+              )
+              .pipe(Effect.as(false)),
+          onSuccess: () =>
+            postgres
+              .transaction((sql) => markFeedDispatched(sql, item.eventId))
+              .pipe(Effect.as(true)),
+        }),
+      );
+      if (sent) dispatched += 1;
+    }
+    return dispatched;
+  }).pipe(Effect.provide(Postgres.layerForRequest(env.DB.connectionString)), Effect.scoped);
+
+const dispatchFeedInBackground = (env: Env) =>
+  Effect.runPromise(
+    drainFeedDispatches(env).pipe(
+      Effect.catchCause((cause) => Effect.logWarning("feed dispatch failed", cause)),
+    ),
+  );
+
 /**
  * Wraps a mutation handler with the app request-id idempotency contract: the
  * payload (minus the request ID itself) is hashed so a replayed request with
@@ -128,6 +179,8 @@ const appSurface = HttpRouter.toWebHandler(
     AppRpcs,
     AppRpcs.toLayer({
       ping: () => ping("AppApi"),
+      getSystemStatus: () => withMoney(() => getSystemStatus()),
+      haltAll: (payload) => idempotently(payload, haltAll),
       previewBankImport: ({ source }) => withMoney((deps) => previewBankImport(source, deps)),
       confirmBankImport: (payload) =>
         withMoney((deps) => confirmBankImport(payload, deps)).pipe(
@@ -159,6 +212,12 @@ const appSurface = HttpRouter.toWebHandler(
       getMoneyAnalysis: () => withMoney(() => getMoneyAnalysis()),
       getFeed: (payload) => withMoney(() => getFeed(payload)),
       acknowledge: (payload) => idempotently(payload, acknowledge),
+      getWholeWealth: () => withMoney(() => getWholeWealth()),
+      listExternalAccounts: () => withMoney(() => listExternalAccounts()),
+      recordExternalBalance: (payload) => idempotently(payload, recordExternalBalance),
+      listReports: () => withMoney(() => listReports()),
+      getReport: ({ reportId }) => withMoney(() => getReport(reportId)),
+      markReportOpened: (payload) => idempotently(payload, markReportOpened),
     }),
   ),
 );
@@ -176,13 +235,16 @@ class Actor extends DurableObject<Env> implements ActorBinding {
 export class SleeveActor extends Actor {}
 export class VenueActor extends Actor {}
 export class SystemCageActor extends Actor {}
-export class FeedActor extends Actor {}
+export { FeedActor } from "./money/feed/actor";
 
 // Two entrypoints rather than two paths on one: a service binding names the
 // entrypoint it targets, so the app cannot reach the agent surface and agents
 // cannot reach the operator surface.
 export class AppApiEntrypoint extends WorkerEntrypoint<Env> {
   override fetch(request: Request): Promise<Response> {
+    if (new URL(request.url).pathname === "/feed") {
+      return this.env.FEEDS.getByName("operator").fetch(request);
+    }
     return appSurface.handler(request, workerRequest.forRequest(this.env, this.ctx));
   }
 }
@@ -226,7 +288,9 @@ export default class extends WorkerEntrypoint<Env> {
   }
 
   override async scheduled(): Promise<void> {
-    await Effect.runPromise(drainCategorizationDispatches(this.env));
+    await Effect.runPromise(
+      Effect.all([drainCategorizationDispatches(this.env), drainFeedDispatches(this.env)]),
+    );
   }
 
   /**
@@ -244,6 +308,7 @@ export default class extends WorkerEntrypoint<Env> {
         );
         if (outcome._tag === "Failure") message.retry();
         else message.ack();
+        this.ctx.waitUntil(dispatchFeedInBackground(this.env));
         continue;
       }
 
@@ -255,6 +320,7 @@ export default class extends WorkerEntrypoint<Env> {
       } else {
         message.ack();
       }
+      this.ctx.waitUntil(dispatchFeedInBackground(this.env));
     }
   }
 }

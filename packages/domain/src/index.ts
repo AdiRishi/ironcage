@@ -12,6 +12,8 @@ export * from "./money/import";
 export * from "./money/transfer";
 export * from "./outbox/effect";
 export * from "./portfolio/sleeve";
+export * from "./portfolio/wealth";
+export * from "./reports/report";
 export * from "./trading/fill";
 export * from "./trading/intent";
 export * from "./values/calendar-date";

@@ -4,11 +4,13 @@ import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanst
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
 import { AppShell } from "@/components/shell/app-shell";
+import { systemStatusQuery } from "@/data/system";
 import { themeInitScript } from "@/lib/theme";
 
 import appCss from "@ironcage/ui/globals.css?url";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  loader: ({ context }) => context.queryClient.prefetchQuery(systemStatusQuery),
   head: () => ({
     meta: [
       {

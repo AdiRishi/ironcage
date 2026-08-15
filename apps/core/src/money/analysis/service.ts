@@ -535,34 +535,34 @@ export const computeSuggestions = (
   return { suggestions, unavailable: null };
 };
 
+export const analyzeMoney = (sql: SqlExecutor) =>
+  Effect.gen(function* () {
+    const coverage = yield* loadCoverageSummary(sql);
+    const lines = yield* loadSplitLines(sql);
+    const complete = new Set(coverage.completeMonths);
+
+    const months = computeMonths(lines, complete);
+    const recurring =
+      coverage.dataThrough === null ? [] : computeRecurring(lines, coverage.dataThrough);
+    const anomalies = computeAnomalies(lines, months, complete);
+    const { suggestions, unavailable } =
+      coverage.dataThrough === null
+        ? { suggestions: [], unavailable: "no covered history yet" as string | null }
+        : computeSuggestions(recurring, complete, coverage.dataThrough);
+
+    return {
+      months,
+      recurring: recurring.map(({ transactionIds: _, ...group }) => group),
+      anomalies,
+      suggestions,
+      suggestionsUnavailable: unavailable,
+      completeMonths: coverage.completeMonths,
+      dataThrough: coverage.dataThrough,
+    } satisfies MoneyAnalysis;
+  });
+
 export const getMoneyAnalysis = (): Effect.Effect<MoneyAnalysis, NotFound | Internal, Postgres> =>
   Effect.gen(function* () {
     const postgres = yield* Postgres;
-
-    return yield* postgres.readTransaction((sql) =>
-      Effect.gen(function* () {
-        const coverage = yield* loadCoverageSummary(sql);
-        const lines = yield* loadSplitLines(sql);
-        const complete = new Set(coverage.completeMonths);
-
-        const months = computeMonths(lines, complete);
-        const recurring =
-          coverage.dataThrough === null ? [] : computeRecurring(lines, coverage.dataThrough);
-        const anomalies = computeAnomalies(lines, months, complete);
-        const { suggestions, unavailable } =
-          coverage.dataThrough === null
-            ? { suggestions: [], unavailable: "no covered history yet" as string | null }
-            : computeSuggestions(recurring, complete, coverage.dataThrough);
-
-        return {
-          months,
-          recurring: recurring.map(({ transactionIds: _, ...group }) => group),
-          anomalies,
-          suggestions,
-          suggestionsUnavailable: unavailable,
-          completeMonths: coverage.completeMonths,
-          dataThrough: coverage.dataThrough,
-        };
-      }),
-    );
+    return yield* postgres.readTransaction(analyzeMoney);
   }).pipe(persistenceToBoundary);

@@ -1,6 +1,19 @@
 export * from "./ai/capability-run";
 export * from "./surfaces/errors";
-export { FeedEventView, FeedSeverity } from "./surfaces/feed";
+export {
+  AcknowledgeInput,
+  FeedClientFrame,
+  FeedEventView,
+  FeedFilter,
+  FeedPage,
+  FeedServerFrame,
+  FeedSeverity,
+  GetFeedInput,
+} from "./surfaces/feed";
+export * from "./surfaces/reports";
+export * from "./surfaces/wealth";
+export * from "./values/observed";
+export * from "./values/outcome";
 export {
   AmbiguityResolution,
   BankAccountSummary,
@@ -8,6 +21,7 @@ export {
   BankImportPreview,
   BankImportSource,
   CandidateEffect,
+  CategorizeResult,
   CategorySummary,
   ConfirmBankImportResult,
   CoverageSpan,
@@ -29,6 +43,8 @@ export {
   TransferCandidateGroup,
   TransferLeg,
   TransferMatchSummary,
+  TransferMatches,
   UploadedBytes,
 } from "./surfaces/money";
-export { SystemPing } from "./surfaces/system";
+export * from "./surfaces/money-browser";
+export { HaltAllInput, SystemPing, SystemStatus } from "./surfaces/system";

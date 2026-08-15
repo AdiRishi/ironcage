@@ -8,9 +8,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { XIcon } from "lucide-react";
 
 import { keys } from "@/data/keys";
-import { decodeRuleOutcome, encodeEditRulePayload, mintRequestId } from "@/features/money/codec";
+import { mintRequestId } from "@/data/request";
 import { Eyebrow } from "@/features/money/components/eyebrow";
 import { formatAud } from "@/features/money/format";
+import { decodeRuleOutcome, encodeEditRulePayload } from "@/features/money/transport";
 import { editCategorizationRule } from "@/server/money";
 
 const describePredicate = (predicate: RulePredicate): string => {

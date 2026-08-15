@@ -1,15 +1,25 @@
+import { ReportId } from "@ironcage/domain";
+import { Skeleton } from "@ironcage/ui/components/skeleton";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Schema } from "effect";
 
-import { PagePlaceholder } from "@/components/common/page-placeholder";
+import { MonthlySpendingReportView } from "@/features/reports/components/monthly-spending-report";
+import { reportQuery } from "@/features/reports/queries";
 
-export const Route = createFileRoute("/reports/$reportId")({ component: ReportDetail });
+const decodeReportId = Schema.decodeUnknownSync(ReportId);
+
+export const Route = createFileRoute("/reports/$reportId")({
+  loader: ({ context, params }) =>
+    context.queryClient.ensureQueryData(reportQuery(decodeReportId(params.reportId))),
+  component: ReportDetail,
+});
 
 function ReportDetail() {
-  return (
-    <PagePlaceholder
-      title="Report"
-      description="One rendered report."
-      doc="docs/product/06-reports.md"
-    />
-  );
+  const { reportId } = Route.useParams();
+  const report = useQuery(reportQuery(decodeReportId(reportId)));
+  if (report.isPending) return <Skeleton className="h-96 w-full rounded-xl" />;
+  if (report.isError)
+    return <p className="text-sm text-destructive">Report unavailable — {String(report.error)}</p>;
+  return <MonthlySpendingReportView report={report.data} />;
 }

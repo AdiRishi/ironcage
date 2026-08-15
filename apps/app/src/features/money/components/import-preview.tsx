@@ -1,4 +1,10 @@
-import type { BankImportPreview, BoundaryError, CandidateEffect } from "@ironcage/contracts/schema";
+import {
+  ConfirmPayload,
+  PreviewPayload,
+  type BankImportPreview,
+  type BoundaryError,
+  type CandidateEffect,
+} from "@ironcage/contracts/schema";
 import type { MatchTier } from "@ironcage/domain";
 import { Alert, AlertDescription, AlertTitle } from "@ironcage/ui/components/alert";
 import { Badge } from "@ironcage/ui/components/badge";
@@ -32,7 +38,7 @@ import { cn } from "@ironcage/ui/lib/utils";
 import { CircleAlertIcon, CircleCheckIcon, InfoIcon, RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
 
-import { type ConfirmPayload, type PreviewPayload, mintRequestId } from "@/features/money/codec";
+import { mintRequestId } from "@/data/request";
 import { describeError, formatAud, formatDay, formatSpan } from "@/features/money/format";
 
 export type SourceDraft = (typeof PreviewPayload)["Encoded"]["source"];

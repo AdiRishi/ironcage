@@ -1,15 +1,19 @@
+import { Skeleton } from "@ironcage/ui/components/skeleton";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
-import { PagePlaceholder } from "@/components/common/page-placeholder";
+import { ActivityFeedView } from "@/features/activity/components/activity-feed";
+import { feedQuery } from "@/features/activity/queries";
 
-export const Route = createFileRoute("/activity/")({ component: ActivityFeed });
+export const Route = createFileRoute("/activity/")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(feedQuery),
+  component: ActivityFeed,
+});
 
 function ActivityFeed() {
-  return (
-    <PagePlaceholder
-      title="Activity"
-      description="The append-only record of everything that happened, filterable by origin, category, severity, time, and text."
-      doc="docs/product/03-activity.md"
-    />
-  );
+  const feed = useQuery(feedQuery);
+  if (feed.isPending) return <Skeleton className="h-96 w-full rounded-xl" />;
+  if (feed.isError)
+    return <p className="text-sm text-destructive">Activity unavailable — {String(feed.error)}</p>;
+  return <ActivityFeedView events={feed.data.events} />;
 }

@@ -19,11 +19,15 @@ import {
   listCategoriesRpc,
   previewBankImportRpc,
 } from "./money";
-import { systemPingRpc } from "./system";
+import { getReportRpc, listReportsRpc, markReportOpenedRpc } from "./reports";
+import { getSystemStatusRpc, haltAllRpc, systemPingRpc } from "./system";
+import { getWholeWealthRpc, listExternalAccountsRpc, recordExternalBalanceRpc } from "./wealth";
 
 /** Served by core, called by the app. The operator surface. */
 export const AppRpcs = RpcGroup.make(
   systemPingRpc,
+  getSystemStatusRpc,
+  haltAllRpc,
   previewBankImportRpc,
   confirmBankImportRpc,
   getBankAccountsRpc,
@@ -42,4 +46,10 @@ export const AppRpcs = RpcGroup.make(
   getMoneyAnalysisRpc,
   getFeedRpc,
   acknowledgeRpc,
+  getWholeWealthRpc,
+  listExternalAccountsRpc,
+  recordExternalBalanceRpc,
+  listReportsRpc,
+  getReportRpc,
+  markReportOpenedRpc,
 );

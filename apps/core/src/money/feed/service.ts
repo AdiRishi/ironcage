@@ -1,5 +1,5 @@
 import { FeedEventView, NotFound } from "@ironcage/contracts/schema";
-import { FeedEventId, monthOf, type RequestId, type Sha256 } from "@ironcage/domain";
+import { FeedCursor, FeedEventId, monthOf, type RequestId, type Sha256 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 
 import { mintId } from "../../ids";
@@ -17,25 +17,63 @@ import {
 import type { CoveredSpan } from "../import/coverage";
 import { insertFeedEvent } from "./repository";
 
-const FeedEventRow = Schema.Struct({
+export const FeedEventRow = Schema.Struct({
   id: FeedEventId,
+  cursor: FeedCursor,
   occurredAt: Schema.DateTimeUtcFromDate,
   origin: Schema.String,
   category: Schema.String,
   eventType: Schema.String,
   severity: Schema.Literals(["info", "notice", "warning", "critical"]),
   summary: Schema.String,
-  payload: Schema.Unknown,
-  links: Schema.NullOr(Schema.Unknown),
+  payload: Schema.Json,
+  links: Schema.NullOr(Schema.Json),
   acknowledgedAt: Schema.NullOr(Schema.DateTimeUtcFromDate),
 });
 
-const feedColumns = `e.id, e.occurred_at AS "occurredAt", e.origin, e.category,
+export const feedColumns = `e.id, e.sequence::text AS cursor, e.occurred_at AS "occurredAt", e.origin, e.category,
   e.event_type AS "eventType", e.severity, e.summary, e.payload, e.links,
   a.acknowledged_at AS "acknowledgedAt"`;
 
+export const replayFeed = (
+  sql: SqlExecutor,
+  input: {
+    readonly since: FeedCursor | null;
+    readonly categories: readonly string[];
+    readonly severities: readonly string[];
+    readonly limit: number;
+  },
+) =>
+  Effect.gen(function* () {
+    const highWaterRows = yield* sql.query(
+      "read feed high water",
+      "SELECT sequence::text AS cursor FROM feed_events ORDER BY sequence DESC LIMIT 1",
+    );
+    const cursorValue = highWaterRows[0]?.cursor ?? null;
+    const cursor =
+      cursorValue === null ? null : yield* Schema.decodeUnknownEffect(FeedCursor)(cursorValue);
+    if (input.since === null || cursor === null) return { cursor, events: [] };
+
+    const rows = yield* sql.query(
+      "replay feed",
+      `SELECT ${feedColumns}
+         FROM feed_events e
+         LEFT JOIN acknowledgments a ON a.event_id = e.id
+        WHERE e.sequence > $1::bigint AND e.sequence <= $2::bigint
+          AND (cardinality($3::text[]) = 0 OR e.category = ANY($3))
+          AND (cardinality($4::text[]) = 0 OR e.severity = ANY($4))
+        ORDER BY e.sequence
+        LIMIT ${input.limit}`,
+      [input.since, cursor, [...input.categories], [...input.severities]],
+    );
+    return {
+      cursor,
+      events: yield* decodeRows("decode feed replay", FeedEventRow, rows),
+    };
+  });
+
 export const getFeed = (input: {
-  readonly cursor: FeedEventId | null;
+  readonly cursor: FeedCursor | null;
   readonly categories: readonly string[];
   readonly severities: readonly string[];
   readonly limit: number;
@@ -50,10 +88,10 @@ export const getFeed = (input: {
         `SELECT ${feedColumns}
            FROM feed_events e
            LEFT JOIN acknowledgments a ON a.event_id = e.id
-          WHERE ($1::uuid IS NULL OR e.id < $1)
+          WHERE ($1::bigint IS NULL OR e.sequence < $1)
             AND (cardinality($2::text[]) = 0 OR e.category = ANY($2))
             AND (cardinality($3::text[]) = 0 OR e.severity = ANY($3))
-          ORDER BY e.id DESC
+          ORDER BY e.sequence DESC
           LIMIT ${limit}`,
         [input.cursor, [...input.categories], [...input.severities]],
       ),
@@ -62,7 +100,7 @@ export const getFeed = (input: {
 
     return {
       events,
-      nextCursor: events.length === limit ? events[events.length - 1]!.id : null,
+      nextCursor: events.length === limit ? events[events.length - 1]!.cursor : null,
     };
   }).pipe(persistenceToBoundary);
 

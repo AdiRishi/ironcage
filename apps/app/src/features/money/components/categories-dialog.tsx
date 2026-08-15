@@ -22,13 +22,13 @@ import { ArchiveIcon, ArchiveRestoreIcon, LockIcon, SettingsIcon } from "lucide-
 import { useState } from "react";
 
 import { keys } from "@/data/keys";
+import { mintRequestId } from "@/data/request";
+import { describeError } from "@/features/money/format";
 import {
   decodeCategoryOutcome,
   encodeCreateCategoryPayload,
   encodeEditCategoryPayload,
-  mintRequestId,
-} from "@/features/money/codec";
-import { describeError } from "@/features/money/format";
+} from "@/features/money/transport";
 import { createCategory, editCategory } from "@/server/money";
 
 /**

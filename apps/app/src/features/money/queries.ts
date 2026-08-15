@@ -7,12 +7,12 @@ import {
   LedgerEntry,
   LedgerScope,
   RuleSummary,
+  TransferMatches,
 } from "@ironcage/contracts/schema";
 import { queryOptions } from "@tanstack/react-query";
 import { Schema } from "effect";
 
 import { keys } from "@/data/keys";
-import { TransferMatches } from "@/features/money/codec";
 import {
   getBankAccounts,
   getBankCoverage,

@@ -1,5 +1,6 @@
 import { TooltipProvider } from "@ironcage/ui/components/tooltip";
 
+import { FeedProvider } from "@/data/feed";
 import { ThemeProvider } from "@/lib/theme";
 
 // App-wide providers, wrapping every route via the router's `Wrap` option.
@@ -8,7 +9,9 @@ import { ThemeProvider } from "@/lib/theme";
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
-      <TooltipProvider>{children}</TooltipProvider>
+      <TooltipProvider>
+        <FeedProvider>{children}</FeedProvider>
+      </TooltipProvider>
     </ThemeProvider>
   );
 }

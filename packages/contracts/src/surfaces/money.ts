@@ -305,6 +305,9 @@ export const editCategorizationRuleRpc = RpcModule.make("editCategorizationRule"
   error: MutationError,
 });
 
+export const CategorizeResult = Schema.Struct({ updated: Schema.Int, rulesCreated: Schema.Int });
+export type CategorizeResult = typeof CategorizeResult.Type;
+
 export const categorizeTransactionsRpc = RpcModule.make("categorizeTransactions", {
   payload: {
     requestId: RequestId,
@@ -317,7 +320,7 @@ export const categorizeTransactionsRpc = RpcModule.make("categorizeTransactions"
     /** Exact-payee rules created from these corrections, applying forward only. */
     createRules: Schema.Array(RuleInput),
   },
-  success: Schema.Struct({ updated: Schema.Int, rulesCreated: Schema.Int }),
+  success: CategorizeResult,
   error: MutationError,
 });
 
@@ -425,11 +428,14 @@ export const TransferCandidateGroup = Schema.Struct({
 });
 export type TransferCandidateGroup = typeof TransferCandidateGroup.Type;
 
+export const TransferMatches = Schema.Struct({
+  matches: Schema.Array(TransferMatchSummary),
+  unresolved: Schema.Array(TransferCandidateGroup),
+});
+export type TransferMatches = typeof TransferMatches.Type;
+
 export const getTransferMatchesRpc = RpcModule.make("getTransferMatches", {
-  success: Schema.Struct({
-    matches: Schema.Array(TransferMatchSummary),
-    unresolved: Schema.Array(TransferCandidateGroup),
-  }),
+  success: TransferMatches,
   error: ReadError,
 });
 

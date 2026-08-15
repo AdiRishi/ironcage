@@ -28,12 +28,9 @@ import { CircleAlertIcon, InboxIcon, SparklesIcon, UserIcon, ZapIcon } from "luc
 import { useState } from "react";
 
 import { keys } from "@/data/keys";
-import {
-  decodeCategorizeOutcome,
-  encodeCategorizePayload,
-  mintRequestId,
-} from "@/features/money/codec";
+import { mintRequestId } from "@/data/request";
 import { describeError, formatAud, formatDay } from "@/features/money/format";
+import { decodeCategorizeOutcome, encodeCategorizePayload } from "@/features/money/transport";
 import { categorizeTransactions } from "@/server/money";
 
 type Staged = { readonly categoryId: CategoryId; readonly rule: boolean };

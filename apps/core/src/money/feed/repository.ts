@@ -18,8 +18,8 @@ export const insertFeedEvent = (
   sql: SqlExecutor,
   event: FeedEventInsert,
 ): Effect.Effect<void, PersistenceError> =>
-  sql
-    .query(
+  Effect.gen(function* () {
+    yield* sql.query(
       "insert feed event",
       `INSERT INTO feed_events (id, occurred_at, origin, category, event_type, severity, summary, payload, links)
        VALUES ($1, now(), $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb)`,
@@ -33,5 +33,11 @@ export const insertFeedEvent = (
         JSON.stringify(event.payload),
         event.links === null ? null : JSON.stringify(event.links),
       ],
-    )
-    .pipe(Effect.asVoid);
+    );
+    yield* sql.query(
+      "enqueue feed event",
+      `INSERT INTO feed_dispatches (event_id, status, created_at)
+       VALUES ($1, 'pending', now())`,
+      [event.id],
+    );
+  }).pipe(Effect.asVoid);

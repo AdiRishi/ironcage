@@ -7,8 +7,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
 import { keys } from "@/data/keys";
-import { decodeAccountOutcome, mintRequestId } from "@/features/money/codec";
+import { mintRequestId } from "@/data/request";
 import { describeError } from "@/features/money/format";
+import { decodeAccountOutcome } from "@/features/money/transport";
 import { configureBankAccount } from "@/server/money";
 
 /**

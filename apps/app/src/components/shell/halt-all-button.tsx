@@ -1,3 +1,4 @@
+import { HaltAllInput, Outcome, SystemStatus } from "@ironcage/contracts/schema";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,6 +11,15 @@ import {
   AlertDialogTrigger,
 } from "@ironcage/ui/components/alert-dialog";
 import { Button } from "@ironcage/ui/components/button";
+import { Schema } from "effect";
+import { useState } from "react";
+
+import { mintRequestId } from "@/data/request";
+import { describeError } from "@/features/money/format";
+import { haltAll } from "@/server/system";
+
+const encodeHalt = Schema.encodeSync(HaltAllInput);
+const decodeOutcome = Schema.decodeUnknownSync(Outcome(SystemStatus));
 
 /**
  * The always-available intervention.
@@ -22,8 +32,37 @@ import { Button } from "@ironcage/ui/components/button";
  * remove the guarantee.
  */
 export function HaltAllButton() {
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string>();
+
+  const halt = async (event: React.MouseEvent) => {
+    event.preventDefault();
+    setPending(true);
+    setError(undefined);
+    try {
+      const outcome = decodeOutcome(
+        await haltAll({
+          data: encodeHalt({
+            requestId: mintRequestId(),
+            reason: "Operator invoked Halt All",
+          }),
+        }),
+      );
+      if (outcome.outcome === "error") {
+        setError(describeError(outcome.error));
+      } else {
+        setOpen(false);
+      }
+    } catch (cause) {
+      setError(String(cause));
+    } finally {
+      setPending(false);
+    }
+  };
+
   return (
-    <AlertDialog>
+    <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger
         render={<Button variant="destructive" size="sm" className="font-mono tracking-widest" />}
       >
@@ -39,10 +78,11 @@ export function HaltAllButton() {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Keep running</AlertDialogCancel>
-          {/* Calls nothing yet. The server function lands with core's
-              risk-reducing surface, and it goes here — not behind a loader. */}
-          <AlertDialogAction variant="destructive">Halt all</AlertDialogAction>
+          <AlertDialogAction variant="destructive" disabled={pending} onClick={() => void halt()}>
+            {pending ? "Halting…" : "Halt all"}
+          </AlertDialogAction>
         </AlertDialogFooter>
+        {error === undefined ? null : <p className="text-sm text-destructive">{error}</p>}
       </AlertDialogContent>
     </AlertDialog>
   );

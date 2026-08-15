@@ -20,6 +20,10 @@ export interface ActorBinding extends Workers.Rpc.DurableObjectBranded {
   ping(): Promise<{ readonly worker: string; readonly object: string }>;
 }
 
+export interface FeedActorBinding extends ActorBinding {
+  publish(event: unknown): Promise<void>;
+}
+
 export interface CoreSecrets {
   readonly KRAKEN_KEY?: Redacted.Redacted<string>;
   readonly KRAKEN_SECRET?: Redacted.Redacted<string>;
@@ -95,7 +99,7 @@ export const coreBindings = (
   SYSTEM_CAGE: Cloudflare.DurableObject<ActorBinding>("SystemCageActor", {
     className: "SystemCageActor",
   }),
-  FEEDS: Cloudflare.DurableObject<ActorBinding>("FeedActor", { className: "FeedActor" }),
+  FEEDS: Cloudflare.DurableObject<FeedActorBinding>("FeedActor", { className: "FeedActor" }),
   ENVIRONMENT: environment,
   HEALTH_SIGNING_KEY: Alchemy.makeRandom("HealthSigningKey"),
   MONEY_IDENTITY_KEY: Alchemy.makeRandom("MoneyIdentityKey"),

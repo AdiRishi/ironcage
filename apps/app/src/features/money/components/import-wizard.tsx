@@ -15,11 +15,10 @@ import { cn } from "@ironcage/ui/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { CircleAlertIcon, CircleCheckIcon } from "lucide-react";
-import { useState } from "react";
+import { useReducer } from "react";
 
 import { keys } from "@/data/keys";
 import { blockGuidance } from "@/features/money/blocks";
-import { decodeConfirmOutcome, decodePreviewOutcome } from "@/features/money/codec";
 import { AccountSetup } from "@/features/money/components/account-setup";
 import {
   type ConfirmDraft,
@@ -28,6 +27,7 @@ import {
 } from "@/features/money/components/import-preview";
 import { describeError, formatSpan } from "@/features/money/format";
 import { accountsQuery } from "@/features/money/queries";
+import { decodeConfirmOutcome, decodePreviewOutcome } from "@/features/money/transport";
 import { confirmBankImport, previewBankImport } from "@/server/money";
 
 const toBase64 = async (file: File): Promise<string> => {
@@ -96,8 +96,8 @@ function AccountPicker({
   onSelect,
 }: {
   readonly accounts: readonly BankAccountSummary[];
-  readonly selected: string | null;
-  readonly onSelect: (id: string) => void;
+  readonly selected: BankAccountSummary["id"] | null;
+  readonly onSelect: (id: BankAccountSummary["id"]) => void;
 }) {
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -124,27 +124,86 @@ function AccountPicker({
   );
 }
 
-/**
- * Select → preview → resolve → confirm, with the stateless-preview contract
- * made visible: the operator always sees exactly what a confirm would write
- * before anything is stored, and a blocked bundle explains itself.
- */
+type Selection =
+  | {
+      readonly mode: "structured";
+      readonly accountId: BankAccountSummary["id"] | null;
+      readonly csv: File | null;
+      readonly ofx: File | null;
+    }
+  | {
+      readonly mode: "statement";
+      readonly accountId: BankAccountSummary["id"] | null;
+      readonly pdf: File | null;
+    };
+
+type WizardState =
+  | { readonly stage: "select"; readonly selection: Selection }
+  | { readonly stage: "preview"; readonly source: SourceDraft; readonly refreshed: boolean };
+
+type WizardAction =
+  | { readonly type: "selectAccount"; readonly accountId: BankAccountSummary["id"] }
+  | { readonly type: "selectMode"; readonly mode: Selection["mode"] }
+  | { readonly type: "selectCsv"; readonly file: File }
+  | { readonly type: "selectOfx"; readonly file: File }
+  | { readonly type: "selectPdf"; readonly file: File }
+  | { readonly type: "previewed"; readonly source: SourceDraft }
+  | { readonly type: "refreshed" }
+  | { readonly type: "reset" };
+
+const initialState: WizardState = {
+  stage: "select",
+  selection: { mode: "structured", accountId: null, csv: null, ofx: null },
+};
+
+const reduceWizard = (state: WizardState, action: WizardAction): WizardState => {
+  if (action.type === "reset") return initialState;
+  if (action.type === "previewed") {
+    return {
+      stage: "preview",
+      source: action.source,
+      refreshed: state.stage === "preview" && state.refreshed,
+    };
+  }
+  if (action.type === "refreshed") {
+    return state.stage === "preview" ? { ...state, refreshed: true } : state;
+  }
+  if (state.stage !== "select") return state;
+  if (action.type === "selectAccount") {
+    return { ...state, selection: { ...state.selection, accountId: action.accountId } };
+  }
+  if (action.type === "selectMode") {
+    return {
+      stage: "select",
+      selection:
+        action.mode === "structured"
+          ? { mode: "structured", accountId: state.selection.accountId, csv: null, ofx: null }
+          : { mode: "statement", accountId: state.selection.accountId, pdf: null },
+    };
+  }
+  if (action.type === "selectCsv" && state.selection.mode === "structured") {
+    return { ...state, selection: { ...state.selection, csv: action.file } };
+  }
+  if (action.type === "selectOfx" && state.selection.mode === "structured") {
+    return { ...state, selection: { ...state.selection, ofx: action.file } };
+  }
+  if (action.type === "selectPdf" && state.selection.mode === "statement") {
+    return { ...state, selection: { ...state.selection, pdf: action.file } };
+  }
+  return state;
+};
+
 export function ImportWizard() {
   const queryClient = useQueryClient();
   const accounts = useQuery(accountsQuery);
-
-  const [mode, setMode] = useState<"structured" | "statement">("structured");
-  const [accountId, setAccountId] = useState<string | null>(null);
-  const [csv, setCsv] = useState<File | null>(null);
-  const [ofx, setOfx] = useState<File | null>(null);
-  const [pdf, setPdf] = useState<File | null>(null);
-  const [draft, setDraft] = useState<SourceDraft | null>(null);
-  const [refreshedNotice, setRefreshedNotice] = useState(false);
+  const [state, dispatch] = useReducer(reduceWizard, initialState);
 
   const preview = useMutation({
     mutationFn: async (source: SourceDraft) =>
       decodePreviewOutcome(await previewBankImport({ data: { source } })),
-    onSuccess: (_outcome, source) => setDraft(source),
+    onSuccess: (outcome, source) => {
+      if (outcome.outcome === "ok") dispatch({ type: "previewed", source });
+    },
   });
 
   const confirm = useMutation({
@@ -161,39 +220,37 @@ export function ImportWizard() {
         outcome.outcome === "error" &&
         (outcome.error._tag === "Stale" || outcome.error._tag === "Conflict")
       ) {
-        setRefreshedNotice(true);
+        dispatch({ type: "refreshed" });
         preview.mutate(input.source);
       }
     },
   });
 
   const startOver = () => {
-    setDraft(null);
-    setRefreshedNotice(false);
-    setCsv(null);
-    setOfx(null);
-    setPdf(null);
+    dispatch({ type: "reset" });
     preview.reset();
     confirm.reset();
   };
 
   const submitSelection = async () => {
-    if (accountId === null) return;
-    setRefreshedNotice(false);
+    if (state.stage !== "select") return;
+    const selection = state.selection;
+    if (selection.accountId === null) return;
+    const accountId = selection.accountId;
     confirm.reset();
-    if (mode === "structured" && csv !== null && ofx !== null) {
+    if (selection.mode === "structured" && selection.csv !== null && selection.ofx !== null) {
       preview.mutate({
         kind: "commbank_structured",
         accountId,
-        csv: { displayName: csv.name, base64: await toBase64(csv) },
-        ofx: { displayName: ofx.name, base64: await toBase64(ofx) },
+        csv: { displayName: selection.csv.name, base64: await toBase64(selection.csv) },
+        ofx: { displayName: selection.ofx.name, base64: await toBase64(selection.ofx) },
       });
     }
-    if (mode === "statement" && pdf !== null) {
+    if (selection.mode === "statement" && selection.pdf !== null) {
       preview.mutate({
         kind: "commbank_statement",
         accountId,
-        pdf: { displayName: pdf.name, base64: await toBase64(pdf) },
+        pdf: { displayName: selection.pdf.name, base64: await toBase64(selection.pdf) },
       });
     }
   };
@@ -283,7 +340,7 @@ export function ImportWizard() {
       ? preview.data.value.preview
       : undefined;
 
-  if (ready !== undefined && draft !== null) {
+  if (ready !== undefined && state.stage === "preview") {
     return (
       <ImportPreviewPanel
         // Remounting on a new fingerprint drops stale ambiguity decisions.
@@ -293,9 +350,9 @@ export function ImportWizard() {
           "account"
         }
         preview={ready}
-        source={draft}
+        source={state.source}
         confirming={confirm.isPending || preview.isPending}
-        refreshedNotice={refreshedNotice}
+        refreshedNotice={state.refreshed}
         confirmError={
           confirm.data?.outcome === "error" &&
           confirm.data.error._tag !== "Stale" &&
@@ -318,7 +375,28 @@ export function ImportWizard() {
         ? String(preview.error)
         : undefined;
 
-  const filesChosen = mode === "structured" ? csv !== null && ofx !== null : pdf !== null;
+  if (state.stage !== "select") {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-display text-base tracking-tight">
+            The refreshed preview didn't run
+          </CardTitle>
+          <CardDescription>{previewError ?? "The import preview is unavailable."}</CardDescription>
+        </CardHeader>
+        <CardFooter>
+          <Button variant="outline" onClick={startOver}>
+            Start over
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
+  const { selection } = state;
+  const filesChosen =
+    selection.mode === "structured"
+      ? selection.csv !== null && selection.ofx !== null
+      : selection.pdf !== null;
 
   return (
     <Card>
@@ -343,12 +421,21 @@ export function ImportWizard() {
           ) : accounts.data.length === 0 ? (
             <AccountSetup existing={accounts.data} />
           ) : (
-            <AccountPicker accounts={accounts.data} selected={accountId} onSelect={setAccountId} />
+            <AccountPicker
+              accounts={accounts.data}
+              selected={selection.accountId}
+              onSelect={(accountId) => dispatch({ type: "selectAccount", accountId })}
+            />
           )}
         </div>
         <Tabs
-          value={mode}
-          onValueChange={(value) => setMode(value === "statement" ? "statement" : "structured")}
+          value={selection.mode}
+          onValueChange={(value) =>
+            dispatch({
+              type: "selectMode",
+              mode: value === "statement" ? "statement" : "structured",
+            })
+          }
         >
           <TabsList variant="line">
             <TabsTrigger value="structured">Recent export</TabsTrigger>
@@ -364,15 +451,15 @@ export function ImportWizard() {
                 label="CSV"
                 hint="Drop the CSV here, or browse"
                 accept=".csv,text/csv"
-                file={csv}
-                onFile={setCsv}
+                file={selection.mode === "structured" ? selection.csv : null}
+                onFile={(file) => dispatch({ type: "selectCsv", file })}
               />
               <FileSlot
                 label="OFX"
                 hint="Drop the OFX here, or browse"
                 accept=".ofx"
-                file={ofx}
-                onFile={setOfx}
+                file={selection.mode === "structured" ? selection.ofx : null}
+                onFile={(file) => dispatch({ type: "selectOfx", file })}
               />
             </div>
           </TabsContent>
@@ -385,8 +472,8 @@ export function ImportWizard() {
               label="PDF"
               hint="Drop the statement here, or browse"
               accept=".pdf,application/pdf"
-              file={pdf}
-              onFile={setPdf}
+              file={selection.mode === "statement" ? selection.pdf : null}
+              onFile={(file) => dispatch({ type: "selectPdf", file })}
             />
           </TabsContent>
         </Tabs>
@@ -400,7 +487,7 @@ export function ImportWizard() {
       </CardContent>
       <CardFooter>
         <Button
-          disabled={accountId === null || !filesChosen || preview.isPending}
+          disabled={selection.accountId === null || !filesChosen || preview.isPending}
           onClick={() => void submitSelection()}
         >
           {preview.isPending ? <Spinner /> : null}

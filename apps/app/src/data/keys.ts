@@ -9,14 +9,14 @@ export type MoneySection =
   | "rules"
   | "transfers";
 
-/**
- * The query-key catalog from `docs/technical/11-app.md` §2. Keys are
- * prefix-hierarchical so one feed event can invalidate a whole family:
- * a confirmed import invalidates `["money"]` and every section refetches.
- * Sections for surfaces that are not built yet are added when they are.
- */
 export const keys = {
   vitals: () => ["vitals"] as const,
+  system: () => ["system"] as const,
+  feed: () => ["feed"] as const,
+  wealth: () => ["wealth"] as const,
+  externalAccounts: () => ["wealth", "external-accounts"] as const,
+  reports: () => ["reports"] as const,
+  report: (id: string) => ["reports", id] as const,
   money: (section: MoneySection) => ["money", section] as const,
   ledger: (scope: LedgerScope) => ["money", "ledger", scope] as const,
   moneyAll: () => ["money"] as const,
