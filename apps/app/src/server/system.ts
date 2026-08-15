@@ -2,7 +2,7 @@ import { HaltAllInput, SystemStatus } from "@ironcage/contracts/schema";
 import { createServerFn } from "@tanstack/react-start";
 
 import { decodePayload, encodedRead, intoOutcome } from "@/server/boundary";
-import { callCore } from "@/server/core";
+import { callCore } from "@/server/core.server";
 
 export const getSystemStatus = createServerFn().handler(() =>
   callCore((client) => encodedRead(SystemStatus)(client.getSystemStatus())),

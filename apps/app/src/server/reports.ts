@@ -8,7 +8,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 
 import { decodePayload, encodedRead, intoOutcome } from "@/server/boundary";
-import { callCore } from "@/server/core";
+import { callCore } from "@/server/core.server";
 
 export const listReports = createServerFn().handler(() =>
   callCore((client) => encodedRead(Schema.Array(ReportSummary))(client.listReports())),
