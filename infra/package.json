@@ -12,6 +12,7 @@
   "scripts": {
     "build": "tsc --noEmit",
     "deploy": "alchemy deploy --stage prod",
+    "deploy:dev": "alchemy deploy --stage dev",
     "dev": "alchemy dev --stage dev",
     "plan": "alchemy plan --stage prod",
     "test": "vitest run",
