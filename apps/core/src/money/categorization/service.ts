@@ -30,7 +30,7 @@ import { BigDecimal, Effect, Schema } from "effect";
 import { mintId, mintUuidV7 } from "../../ids";
 import { runIdempotentMutation } from "../../persistence/app-requests";
 import { persistenceToBoundary } from "../../persistence/error";
-import { decodeRows, Postgres, type SqlExecutor } from "../../persistence/postgres";
+import { Postgres, type SqlExecutor } from "../../persistence/postgres";
 
 const CategoryRow = CategorySummary;
 
@@ -38,22 +38,22 @@ const categoryColumns = `id, name, kind, system, archived`;
 
 export const listCategoryRows = (sql: SqlExecutor) =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    return yield* sql.rows(
       "list categories",
+      CategoryRow,
       `SELECT ${categoryColumns} FROM categories ORDER BY system DESC, name`,
     );
-    return yield* decodeRows("decode categories", CategoryRow, rows);
   });
 
 const getCategoryRow = (sql: SqlExecutor, id: CategoryId) =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    const rows = yield* sql.rows(
       "read category",
+      CategoryRow,
       `SELECT ${categoryColumns} FROM categories WHERE id = $1`,
       [id],
     );
-    const categories = yield* decodeRows("decode category", CategoryRow, rows);
-    return categories[0] ?? null;
+    return rows[0] ?? null;
   });
 
 export const listCategories = () =>
@@ -84,7 +84,7 @@ export const createCategory = (input: {
           );
         }
         const id = yield* mintId(CategoryId);
-        yield* sql.query(
+        yield* sql.execute(
           "insert category",
           `INSERT INTO categories (id, name, kind, system, archived, created_at)
            VALUES ($1, $2, $3, false, false, now())`,
@@ -124,7 +124,7 @@ export const editCategory = (input: {
         }
         const name = input.name ?? category.name;
         const archived = input.archived ?? category.archived;
-        yield* sql.query(
+        yield* sql.execute(
           "update category",
           "UPDATE categories SET name = $2, archived = $3 WHERE id = $1",
           [category.id, name, archived],
@@ -148,12 +148,12 @@ const ruleColumns = `r.id, r.predicate, r.category_id AS "categoryId", c.name AS
 
 const listRuleRows = (sql: SqlExecutor) =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    return yield* sql.rows(
       "list categorization rules",
+      RuleRow,
       `SELECT ${ruleColumns} FROM categorization_rules r JOIN categories c ON c.id = r.category_id
         ORDER BY r.effective_from, r.id`,
     );
-    return yield* decodeRows("decode categorization rules", RuleRow, rows);
   });
 
 export const getCategorizationRules = () =>
@@ -165,7 +165,7 @@ export const getCategorizationRules = () =>
 const insertRule = (sql: SqlExecutor, rule: RuleInput, createdBy: "operator" | "correction") =>
   Effect.gen(function* () {
     const id = yield* mintId(CategorizationRuleId);
-    yield* sql.query(
+    yield* sql.execute(
       "insert categorization rule",
       `INSERT INTO categorization_rules (id, predicate, category_id, created_by, effective_from, effective_to, created_at)
        VALUES ($1, $2::jsonb, $3, $4, now(), NULL, now())`,
@@ -193,14 +193,14 @@ const requireCategory = (sql: SqlExecutor, categoryId: CategoryId) =>
 
 const readRule = (sql: SqlExecutor, ruleId: CategorizationRuleId) =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    const rows = yield* sql.rows(
       "read categorization rule",
+      RuleRow,
       `SELECT ${ruleColumns} FROM categorization_rules r JOIN categories c ON c.id = r.category_id
         WHERE r.id = $1`,
       [ruleId],
     );
-    const rules = yield* decodeRows("decode categorization rule", RuleRow, rows);
-    return rules[0] ?? null;
+    return rows[0] ?? null;
   });
 
 export const editCategorizationRule = (input: {
@@ -228,7 +228,7 @@ export const editCategorizationRule = (input: {
                 new NotFound({ entity: "categorization rule", id: ruleId }),
               );
             }
-            yield* sql.query(
+            yield* sql.execute(
               "close categorization rule",
               "UPDATE categorization_rules SET effective_to = now() WHERE id = $1 AND effective_to IS NULL",
               [ruleId],
@@ -290,15 +290,15 @@ export const categorizeTransactions = (input: {
             );
           }
 
-          const rows = yield* sql.query(
+          const rows = yield* sql.rows(
             "read transaction for categorization",
+            TransactionAmountRow,
             `SELECT t.id, t.amount::text AS amount,
                     COALESCE((SELECT max(revision) FROM transaction_splits s WHERE s.transaction_id = t.id), 0)::integer AS revision
                FROM bank_transactions t WHERE t.id = $1`,
             [change.transactionId],
           );
-          const decoded = yield* decodeRows("decode transaction", TransactionAmountRow, rows);
-          const transaction = decoded[0];
+          const transaction = rows[0];
           if (transaction === undefined) {
             return yield* Effect.fail(
               new NotFound({ entity: "bank transaction", id: change.transactionId }),
@@ -319,7 +319,7 @@ export const categorizeTransactions = (input: {
             if (split.categoryId !== uncategorizedCategoryId) {
               yield* requireCategory(sql, split.categoryId);
             }
-            yield* sql.query(
+            yield* sql.execute(
               "insert manual split",
               `INSERT INTO transaction_splits (id, transaction_id, revision, category_id, amount, provenance, rule_id, created_at)
                VALUES ($1, $2, $3, $4, $5, 'manual', NULL, now())`,
@@ -335,7 +335,7 @@ export const categorizeTransactions = (input: {
 
           // The operator's choice settles the model's applied assignment:
           // kept when they chose the same category, overridden otherwise.
-          yield* sql.query(
+          yield* sql.execute(
             "settle applied assignment",
             `UPDATE categorization_assignments
                 SET status = CASE WHEN category_id = ANY($2::uuid[]) THEN 'kept' ELSE 'overridden' END
@@ -380,8 +380,9 @@ export const listTransactions = (
     const postgres = yield* Postgres;
     const attention = scope.kind === "attention";
     const rows = yield* postgres.readTransaction((sql) =>
-      sql.query(
+      sql.rows(
         "load ledger",
+        LedgerRow,
         `WITH effective AS (
            SELECT s.transaction_id, s.category_id, s.amount, s.provenance
              FROM transaction_splits s
@@ -415,9 +416,7 @@ export const listTransactions = (
         [uncategorizedCategoryId, attention, scope.kind === "month" ? scope.month : null],
       ),
     );
-    const decoded = yield* decodeRows("decode ledger", LedgerRow, rows);
-
-    return decoded.map((row) => ({
+    return rows.map((row) => ({
       ...row,
       filedBy: row.splits.reduce<SplitProvenance>(
         (strongest, split) =>

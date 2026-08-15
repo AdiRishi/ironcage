@@ -2,7 +2,7 @@ import { FeedEventView } from "@ironcage/contracts/schema";
 import { FeedEventId } from "@ironcage/domain";
 import { Effect, Schema } from "effect";
 
-import { decodeRows, type SqlExecutor } from "../../persistence/postgres";
+import type { SqlExecutor } from "../../persistence/postgres";
 import { feedColumns } from "./service";
 
 const PendingFeedDispatch = Schema.Struct({
@@ -12,8 +12,9 @@ const PendingFeedDispatch = Schema.Struct({
 
 export const listPendingFeedDispatches = (sql: SqlExecutor, limit: number) =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    return yield* sql.rows(
       "list pending feed dispatches",
+      PendingFeedDispatch,
       `SELECT d.event_id AS "eventId", to_jsonb(event_row) AS event
          FROM feed_dispatches d
          JOIN LATERAL (
@@ -26,30 +27,25 @@ export const listPendingFeedDispatches = (sql: SqlExecutor, limit: number) =>
         ORDER BY event_row.cursor::bigint
         LIMIT ${Math.min(Math.max(limit, 1), 500)}`,
     );
-    return yield* decodeRows("decode pending feed dispatches", PendingFeedDispatch, rows);
   });
 
 export const encodeFeedEvent = Schema.encodeSync(FeedEventView);
 
 export const markFeedDispatched = (sql: SqlExecutor, eventId: FeedEventId) =>
-  sql
-    .query(
-      "mark feed dispatched",
-      `UPDATE feed_dispatches
+  sql.execute(
+    "mark feed dispatched",
+    `UPDATE feed_dispatches
           SET status = 'dispatched', dispatched_at = now(), attempts = attempts + 1,
               last_error = NULL
         WHERE event_id = $1`,
-      [eventId],
-    )
-    .pipe(Effect.asVoid);
+    [eventId],
+  );
 
 export const recordFeedDispatchFailure = (sql: SqlExecutor, eventId: FeedEventId, error: string) =>
-  sql
-    .query(
-      "record feed dispatch failure",
-      `UPDATE feed_dispatches
+  sql.execute(
+    "record feed dispatch failure",
+    `UPDATE feed_dispatches
           SET attempts = attempts + 1, last_error = left($2, 4000)
         WHERE event_id = $1`,
-      [eventId, error],
-    )
-    .pipe(Effect.asVoid);
+    [eventId, error],
+  );

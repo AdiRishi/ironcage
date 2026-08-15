@@ -26,6 +26,7 @@ const database = usePostgresTestDatabase();
 const fixturesDirectory = resolve(import.meta.dirname, "../fixtures/money/commbank");
 
 const sha = Schema.decodeUnknownSync(Sha256);
+const CountRow = Schema.Struct({ count: Schema.Int });
 const groceries = Schema.decodeUnknownSync(CategoryId)("01900000-0000-7000-8000-000000000002");
 
 const deps: ImportDeps = {
@@ -121,11 +122,12 @@ const count = (table: string) =>
   withDatabase(
     Effect.gen(function* () {
       const postgres = yield* Postgres;
-      const rows = yield* postgres.query(
+      const rows = yield* postgres.rows(
         `count ${table}`,
+        CountRow,
         `SELECT count(*)::integer AS count FROM ${table}`,
       );
-      return rows[0]!["count"] as number;
+      return rows[0]!.count;
     }),
   );
 

@@ -21,7 +21,7 @@ import { Effect, Schema } from "effect";
 import { mintId } from "../../ids";
 import { runIdempotentMutation } from "../../persistence/app-requests";
 import { persistenceToBoundary, type PersistenceError } from "../../persistence/error";
-import { decodeRows, Postgres, type SqlExecutor } from "../../persistence/postgres";
+import { Postgres, type SqlExecutor } from "../../persistence/postgres";
 
 /** Candidate legs must post within this many calendar days of each other. */
 const transferWindowDays = 3;
@@ -45,8 +45,9 @@ const PairRow = Schema.Struct({ aId: BankTransactionId, bId: BankTransactionId }
  */
 const openPairs = (sql: SqlExecutor) =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    return yield* sql.rows(
       "load open transfer pairs",
+      PairRow,
       `SELECT t.id AS "aId", o.id AS "bId"
          FROM bank_transactions t
          JOIN bank_transactions o
@@ -63,21 +64,20 @@ const openPairs = (sql: SqlExecutor) =>
                                OR (m.transaction_a = o.id AND m.transaction_b = t.id)))
         ORDER BY t.posted_date, t.id`,
     );
-    return yield* decodeRows("decode transfer pairs", PairRow, rows);
   });
 
 const loadLegs = (sql: SqlExecutor, ids: readonly BankTransactionId[]) =>
   Effect.gen(function* () {
     if (ids.length === 0) return new Map<BankTransactionId, TransferLeg>();
-    const rows = yield* sql.query(
+    const legs = yield* sql.rows(
       "load transfer legs",
+      LegRow,
       `SELECT t.id AS "transactionId", t.account_id AS "accountId", a.product_label AS "productLabel",
               t.posted_date AS "postedDate", t.amount::text AS amount, t.display_narrative AS narrative
          FROM bank_transactions t JOIN bank_accounts a ON a.id = t.account_id
         WHERE t.id = ANY($1::uuid[])`,
       [[...ids]],
     );
-    const legs = yield* decodeRows("decode transfer legs", LegRow, rows);
     return new Map(legs.map((leg) => [leg.transactionId, leg]));
   });
 
@@ -104,7 +104,7 @@ const insertMatch = (
 ) =>
   Effect.gen(function* () {
     const id = yield* mintId(TransferMatchId);
-    yield* sql.query(
+    yield* sql.execute(
       "insert transfer match",
       `INSERT INTO transfer_matches (id, transaction_a, transaction_b, status, method, provenance, created_at)
        VALUES ($1, $2, $3, $4, $5, $6::jsonb, now())`,
@@ -126,10 +126,8 @@ export const detectOwnedTransfers = (
   Effect.gen(function* () {
     if (scope.length === 0) return 0;
     const scoped = new Set(scope);
-    const pairs = (yield* openPairs(sql)).filter(
-      (pair) => scoped.has(pair.aId) || scoped.has(pair.bId),
-    );
     const all = yield* openPairs(sql);
+    const pairs = all.filter((pair) => scoped.has(pair.aId) || scoped.has(pair.bId));
     const legs = yield* loadLegs(sql, [...new Set(all.flatMap((pair) => [pair.aId, pair.bId]))]);
 
     const degree = new Map<BankTransactionId, number>();
@@ -194,12 +192,12 @@ export const getTransferMatches = () =>
 
     return yield* postgres.readTransaction((sql) =>
       Effect.gen(function* () {
-        const matchRows = yield* sql.query(
+        const matches = yield* sql.rows(
           "list transfer matches",
+          MatchRow,
           `SELECT id, transaction_a AS "aId", transaction_b AS "bId", status, method, created_at AS "createdAt"
              FROM transfer_matches ORDER BY created_at DESC LIMIT 500`,
         );
-        const matches = yield* decodeRows("decode transfer matches", MatchRow, matchRows);
         const pairs = yield* openPairs(sql);
         const legIds = [
           ...new Set([
@@ -275,13 +273,14 @@ export const decideTransferMatch = (input: {
           provenance: { decidedBy: "operator" },
         });
 
-        const rows = yield* sql.query(
+        const rows = yield* sql.rows(
           "read transfer match",
+          MatchRow,
           `SELECT id, transaction_a AS "aId", transaction_b AS "bId", status, method, created_at AS "createdAt"
              FROM transfer_matches WHERE id = $1`,
           [id],
         );
-        const match = (yield* decodeRows("decode transfer match", MatchRow, rows))[0];
+        const match = rows[0];
         const legs = yield* loadLegs(sql, [pair.aId, pair.bId]);
         const a = legs.get(pair.aId);
         const b = legs.get(pair.bId);

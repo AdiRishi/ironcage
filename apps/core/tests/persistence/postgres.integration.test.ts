@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 
 import { Postgres } from "../../src/persistence/postgres";
 import { usePostgresTestDatabase } from "./postgres-test-database";
@@ -9,8 +9,9 @@ const database = usePostgresTestDatabase();
 it.effect("builds the repository schema in an empty Postgres 18 database", () =>
   Effect.gen(function* () {
     const postgres = yield* Postgres;
-    const tables = yield* postgres.query(
+    const tables = yield* postgres.rows(
       "list migrated tables",
+      Schema.Struct({ tableName: Schema.String }),
       `SELECT table_name AS "tableName"
          FROM information_schema.tables
         WHERE table_schema = 'public'
@@ -61,7 +62,7 @@ it.effect("rolls back a failed real PostgreSQL transaction", () =>
     const error = yield* Effect.flip(
       postgres.transaction((sql) =>
         sql
-          .query(
+          .execute(
             "insert app request",
             `INSERT INTO app_requests
                (request_id, operation, payload_hash, response, completed_at)
@@ -76,8 +77,9 @@ it.effect("rolls back a failed real PostgreSQL transaction", () =>
           .pipe(Effect.andThen(Effect.fail("abort"))),
       ),
     );
-    const rows = yield* postgres.query(
+    const rows = yield* postgres.rows(
       "count app requests",
+      Schema.Struct({ count: Schema.Int }),
       "SELECT count(*)::integer AS count FROM app_requests",
     );
 

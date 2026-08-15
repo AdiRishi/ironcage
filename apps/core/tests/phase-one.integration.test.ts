@@ -85,8 +85,9 @@ it.effect("records external assets and liabilities as one observed net worth", (
     expect(BigDecimal.format(wealth.netWorth.value)).toBe("490000");
 
     const postgres = yield* Postgres;
-    const history = yield* postgres.query(
+    const history = yield* postgres.rows(
       "count external balance history",
+      Schema.Struct({ count: Schema.Int }),
       "SELECT count(*)::integer AS count FROM external_balance_observations WHERE account_id = $1",
       [asset.id],
     );
@@ -124,8 +125,9 @@ it.effect("halts once and exposes the resulting critical state", () =>
     expect(repeated.unacknowledgedCriticals).toBe(1);
 
     const postgres = yield* Postgres;
-    const events = yield* postgres.query(
+    const events = yield* postgres.rows(
       "count halt events",
+      Schema.Struct({ count: Schema.Int }),
       "SELECT count(*)::integer AS count FROM feed_events WHERE event_type = 'system_halted'",
     );
     expect(events).toEqual([{ count: 1 }]);
@@ -136,7 +138,7 @@ it.effect("persists one immutable report for each complete month", () =>
   Effect.gen(function* () {
     const postgres = yield* Postgres;
     yield* postgres.transaction((sql) =>
-      sql.query(
+      sql.execute(
         "seed complete month",
         `WITH account AS (
            INSERT INTO bank_accounts
@@ -208,8 +210,9 @@ it.effect("persists one immutable report for each complete month", () =>
     );
     expect(opened.openedAt).not.toBeNull();
 
-    const eventRows = yield* postgres.query(
+    const eventRows = yield* postgres.rows(
       "count report generated events",
+      Schema.Struct({ count: Schema.Int }),
       "SELECT count(*)::integer AS count FROM feed_events WHERE event_type = 'report_generated'",
     );
     expect(eventRows).toEqual([{ count: 1 }]);

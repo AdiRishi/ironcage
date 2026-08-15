@@ -23,6 +23,7 @@ const fixture = async (path: string) =>
   new Uint8Array(await readFile(resolve(fixturesDirectory, path)));
 
 const sha = Schema.decodeUnknownSync(Sha256);
+const CountRow = Schema.Struct({ count: Schema.Int });
 const deps: ImportDeps = {
   identityKey: "integration-identity-key",
   extractStatement: () => Promise.reject(new Error("statement extraction not expected")),
@@ -35,11 +36,12 @@ const count = (table: string) =>
   withDatabase(
     Effect.gen(function* () {
       const postgres = yield* Postgres;
-      const rows = yield* postgres.query(
+      const rows = yield* postgres.rows(
         `count ${table}`,
+        CountRow,
         `SELECT count(*)::integer AS count FROM ${table}`,
       );
-      return rows[0]!["count"] as number;
+      return rows[0]!.count;
     }),
   );
 

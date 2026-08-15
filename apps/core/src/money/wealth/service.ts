@@ -20,7 +20,7 @@ import { BigDecimal, DateTime, Effect, Schema } from "effect";
 import { mintId } from "../../ids";
 import { runIdempotentMutation } from "../../persistence/app-requests";
 import { persistenceToBoundary } from "../../persistence/error";
-import { decodeRows, Postgres, type SqlExecutor } from "../../persistence/postgres";
+import { Postgres, type SqlExecutor } from "../../persistence/postgres";
 import { insertFeedEvent } from "../feed/repository";
 
 const BalancePositionRow = Schema.Struct({
@@ -108,8 +108,9 @@ const sumObserved = (
 
 const loadPositions = (sql: SqlExecutor) =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    return yield* sql.rows(
       "load whole wealth positions",
+      BalancePositionRow,
       `SELECT a.id, 'money' AS source, a.product_label AS label,
               CASE WHEN a.account_type = 'deposit' THEN 'asset' ELSE 'liability' END AS kind,
               latest.value::text AS balance, latest.as_of_date AS "balanceDate",
@@ -140,13 +141,13 @@ const loadPositions = (sql: SqlExecutor) =>
         WHERE NOT a.archived
         ORDER BY source, label`,
     );
-    return yield* decodeRows("decode whole wealth positions", BalancePositionRow, rows);
   });
 
 const loadExternalAccounts = (sql: SqlExecutor) =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    return yield* sql.rows(
       "list external accounts",
+      ExternalAccountRow,
       `SELECT a.id, a.label, a.kind, a.archived,
               latest.balance::text AS "latestBalance", latest.balance_date AS "balanceDate",
               latest.observed_at AS "observedAt"
@@ -160,7 +161,6 @@ const loadExternalAccounts = (sql: SqlExecutor) =>
          ) latest ON true
         ORDER BY a.archived, a.label`,
     );
-    return yield* decodeRows("decode external accounts", ExternalAccountRow, rows);
   });
 
 const toExternalAccount = (row: typeof ExternalAccountRow.Type): typeof ExternalAccount.Type => ({
@@ -229,8 +229,9 @@ export const recordExternalBalance = (input: {
       (sql) =>
         Effect.gen(function* () {
           const accountId = input.accountId ?? (yield* mintId(ExternalAccountId));
-          const accountRows = yield* sql.query(
+          const accountRows = yield* sql.rows(
             input.accountId === null ? "create external account" : "update external account",
+            Schema.Struct({ id: ExternalAccountId }),
             input.accountId === null
               ? `INSERT INTO external_accounts (id, label, kind, currency, created_at)
                  VALUES ($1, $2, $3, 'AUD', now()) RETURNING id`
@@ -246,7 +247,7 @@ export const recordExternalBalance = (input: {
             );
           }
 
-          yield* sql.query(
+          yield* sql.execute(
             "record external balance",
             `INSERT INTO external_balance_observations
                (id, account_id, balance, balance_date, observed_at)

@@ -5,7 +5,7 @@ import { BigDecimal, Effect, Schema } from "effect";
 import { mintId } from "../../ids";
 import { runIdempotentMutation } from "../../persistence/app-requests";
 import { persistenceToBoundary, type PersistenceError } from "../../persistence/error";
-import { decodeRows, Postgres, type SqlExecutor } from "../../persistence/postgres";
+import { Postgres, type SqlExecutor } from "../../persistence/postgres";
 import type { AccountRow } from "../accounts/repository";
 import { loadCoverageSummary } from "../accounts/service";
 import {
@@ -45,17 +45,17 @@ export const replayFeed = (
   },
 ) =>
   Effect.gen(function* () {
-    const highWaterRows = yield* sql.query(
+    const highWaterRows = yield* sql.rows(
       "read feed high water",
+      Schema.Struct({ cursor: FeedCursor }),
       "SELECT sequence::text AS cursor FROM feed_events ORDER BY sequence DESC LIMIT 1",
     );
-    const cursorValue = highWaterRows[0]?.cursor ?? null;
-    const cursor =
-      cursorValue === null ? null : yield* Schema.decodeUnknownEffect(FeedCursor)(cursorValue);
+    const cursor = highWaterRows[0]?.cursor ?? null;
     if (input.since === null || cursor === null) return { cursor, events: [] };
 
-    const rows = yield* sql.query(
+    const events = yield* sql.rows(
       "replay feed",
+      FeedEventRow,
       `SELECT ${feedColumns}
          FROM feed_events e
          LEFT JOIN acknowledgments a ON a.event_id = e.id
@@ -68,7 +68,7 @@ export const replayFeed = (
     );
     return {
       cursor,
-      events: yield* decodeRows("decode feed replay", FeedEventRow, rows),
+      events,
     };
   });
 
@@ -83,8 +83,9 @@ export const getFeed = (input: {
     const limit = Math.min(Math.max(input.limit, 1), 200);
 
     const rows = yield* postgres.readTransaction((sql) =>
-      sql.query(
+      sql.rows(
         "read feed",
+        FeedEventRow,
         `SELECT ${feedColumns}
            FROM feed_events e
            LEFT JOIN acknowledgments a ON a.event_id = e.id
@@ -96,11 +97,9 @@ export const getFeed = (input: {
         [input.cursor, [...input.categories], [...input.severities]],
       ),
     );
-    const events = yield* decodeRows("decode feed events", FeedEventRow, rows);
-
     return {
-      events,
-      nextCursor: events.length === limit ? events[events.length - 1]!.cursor : null,
+      events: rows,
+      nextCursor: rows.length === limit ? rows[rows.length - 1]!.cursor : null,
     };
   }).pipe(persistenceToBoundary);
 
@@ -118,20 +117,20 @@ export const acknowledge = (input: {
     },
     (sql) =>
       Effect.gen(function* () {
-        yield* sql.query(
+        yield* sql.execute(
           "insert acknowledgment",
           `INSERT INTO acknowledgments (event_id, acknowledged_at)
            VALUES ($1, now()) ON CONFLICT (event_id) DO NOTHING`,
           [input.eventId],
         );
-        const rows = yield* sql.query(
+        const events = yield* sql.rows(
           "read acknowledged event",
+          FeedEventRow,
           `SELECT ${feedColumns}
              FROM feed_events e LEFT JOIN acknowledgments a ON a.event_id = e.id
             WHERE e.id = $1`,
           [input.eventId],
         );
-        const events = yield* decodeRows("decode feed event", FeedEventRow, rows);
         const event = events[0];
         if (event === undefined) {
           return yield* Effect.fail(new NotFound({ entity: "feed event", id: input.eventId }));
@@ -194,9 +193,10 @@ const eventExists = (
   month: string,
 ) =>
   Effect.map(
-    sql.query(
+    sql.rows(
       "check derived event dedupe",
-      `SELECT 1 FROM feed_events
+      Schema.Struct({ exists: Schema.Int }),
+      `SELECT 1 AS exists FROM feed_events
         WHERE event_type = $1 AND lower(payload->>'${subjectKey}') = lower($2) AND payload->>'month' = $3
         LIMIT 1`,
       [eventType, subject, month],

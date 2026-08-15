@@ -1,6 +1,10 @@
 import {
+  CategorizationDispatch as CategorizationDispatchSchema,
   CategorizationBatchItem,
   CategorizationCategory,
+  type CategorizationDispatch as CategorizationDispatchPayload,
+} from "@ironcage/contracts/schema";
+import {
   RunId,
   Sha256,
   categorizationCapability,
@@ -9,9 +13,11 @@ import {
 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 
-import { decodeRows, type PersistenceError, type SqlExecutor } from "../../persistence";
+import type { PersistenceError, SqlExecutor } from "../../persistence";
 import { sha256Hex } from "../import/bytes";
 import type { ConfirmedImportGraph } from "../import/repository";
+
+export type CategorizationDispatch = CategorizationDispatchPayload;
 
 const CapabilityConfigRow = Schema.Struct({
   version: Schema.Int,
@@ -20,19 +26,6 @@ const CapabilityConfigRow = Schema.Struct({
 });
 
 const AccountLabelRow = Schema.Struct({ label: Schema.String });
-
-const DispatchRow = Schema.Struct({
-  runId: RunId,
-  configVersion: Schema.Int,
-  bundleDigest: Sha256,
-  batchIndex: Schema.Int,
-  inputDigest: Sha256,
-  model: Schema.String,
-  batch: Schema.Array(CategorizationBatchItem),
-  categories: Schema.Array(CategorizationCategory),
-});
-
-export type CategorizationDispatch = typeof DispatchRow.Type;
 
 const decodeSha = Schema.decodeUnknownSync(Sha256);
 
@@ -45,43 +38,32 @@ export const enqueueCategorizationBatches = Effect.fn("enqueueCategorizationBatc
   sql: SqlExecutor,
   graph: ConfirmedImportGraph,
 ): Effect.fn.Return<number, PersistenceError> {
-  const configRows = yield* sql.query(
+  const configRows = yield* sql.rows(
     "read categorization capability config",
+    CapabilityConfigRow,
     `SELECT version, model, enabled
          FROM capability_configs
         WHERE capability = $1 AND version = $2`,
     [categorizationCapability.name, categorizationCapability.configVersion],
   );
-  const config = (yield* decodeRows(
-    "decode categorization capability config",
-    CapabilityConfigRow,
-    configRows,
-  ))[0];
+  const config = configRows[0];
   if (config === undefined || !config.enabled) return 0;
 
-  const categoryRows = yield* sql.query(
+  const categories = yield* sql.rows(
     "list categories offered to categorization",
+    CategorizationCategory,
     `SELECT id, name, kind
          FROM categories
         WHERE system = false AND archived = false
         ORDER BY id`,
   );
-  const categories = yield* decodeRows(
-    "decode categories offered to categorization",
-    CategorizationCategory,
-    categoryRows,
-  );
-
-  const accountRows = yield* sql.query(
+  const accountRows = yield* sql.rows(
     "read account label for categorization",
+    AccountLabelRow,
     "SELECT product_label AS label FROM bank_accounts WHERE id = $1",
     [graph.importRow.accountId],
   );
-  const account = (yield* decodeRows(
-    "decode account label for categorization",
-    AccountLabelRow,
-    accountRows,
-  ))[0]!;
+  const account = accountRows[0]!;
   const uncategorized = new Set(
     graph.splits
       .filter((split) => split.categoryId === uncategorizedCategoryId)
@@ -110,7 +92,7 @@ export const enqueueCategorizationBatches = Effect.fn("enqueueCategorizationBatc
     const digest = yield* inputDigest({ batch: encodedBatch, categories });
     const runId = deriveRunId(categorizationCapability.name, config.version, digest);
 
-    yield* sql.query(
+    yield* sql.execute(
       "insert categorization batch",
       `INSERT INTO categorization_batches
            (run_id, import_id, capability, bundle_digest, batch_index, config_version, input_digest,
@@ -129,7 +111,7 @@ export const enqueueCategorizationBatches = Effect.fn("enqueueCategorizationBatc
       ],
     );
 
-    yield* sql.query(
+    yield* sql.execute(
       "insert categorization batch transactions",
       `INSERT INTO categorization_batch_transactions (run_id, transaction_id, ordinal)
          SELECT $1, x.transaction_id::uuid, x.ordinal
@@ -141,13 +123,13 @@ export const enqueueCategorizationBatches = Effect.fn("enqueueCategorizationBatc
         ),
       ],
     );
-    yield* sql.query(
+    yield* sql.execute(
       "insert categorization batch categories",
       `INSERT INTO categorization_batch_categories (run_id, category_id)
          SELECT $1, value::uuid FROM jsonb_array_elements_text($2::jsonb)`,
       [runId, JSON.stringify(categories.map((category) => category.id))],
     );
-    yield* sql.query(
+    yield* sql.execute(
       "enqueue categorization dispatch",
       `INSERT INTO capability_dispatches
            (run_id, status, attempt_count, last_error, created_at, dispatched_at)
@@ -163,10 +145,11 @@ export const enqueueCategorizationBatches = Effect.fn("enqueueCategorizationBatc
 export const listPendingCategorizationDispatches = (
   sql: SqlExecutor,
   limit: number,
-): Effect.Effect<readonly CategorizationDispatch[], PersistenceError> =>
+): Effect.Effect<readonly CategorizationDispatchPayload[], PersistenceError> =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    return yield* sql.rows(
       "list pending categorization dispatches",
+      CategorizationDispatchSchema,
       `SELECT b.run_id AS "runId", b.config_version AS "configVersion",
               b.bundle_digest AS "bundleDigest", b.batch_index AS "batchIndex",
               b.input_digest AS "inputDigest", c.model, b.batch, b.categories
@@ -179,35 +162,30 @@ export const listPendingCategorizationDispatches = (
         LIMIT $2`,
       [categorizationCapability.name, limit],
     );
-    return yield* decodeRows("decode pending categorization dispatches", DispatchRow, rows);
   });
 
 export const markCategorizationDispatched = (
   sql: SqlExecutor,
   runId: RunId,
 ): Effect.Effect<void, PersistenceError> =>
-  sql
-    .query(
-      "mark categorization dispatch complete",
-      `UPDATE capability_dispatches
+  sql.execute(
+    "mark categorization dispatch complete",
+    `UPDATE capability_dispatches
           SET status = 'dispatched', attempt_count = attempt_count + 1,
               last_error = NULL, dispatched_at = now()
         WHERE run_id = $1 AND status = 'pending'`,
-      [runId],
-    )
-    .pipe(Effect.asVoid);
+    [runId],
+  );
 
 export const recordCategorizationDispatchFailure = (
   sql: SqlExecutor,
   runId: RunId,
   detail: string,
 ): Effect.Effect<void, PersistenceError> =>
-  sql
-    .query(
-      "record categorization dispatch failure",
-      `UPDATE capability_dispatches
+  sql.execute(
+    "record categorization dispatch failure",
+    `UPDATE capability_dispatches
           SET attempt_count = attempt_count + 1, last_error = $2
         WHERE run_id = $1 AND status = 'pending'`,
-      [runId, detail.slice(0, 2_000)],
-    )
-    .pipe(Effect.asVoid);
+    [runId, detail.slice(0, 2_000)],
+  );

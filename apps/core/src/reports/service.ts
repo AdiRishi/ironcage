@@ -12,7 +12,7 @@ import { analyzeMoney } from "../money/analysis/service";
 import { insertFeedEvent } from "../money/feed/repository";
 import { runIdempotentMutation } from "../persistence/app-requests";
 import { decodeStored, persistenceToBoundary } from "../persistence/error";
-import { decodeRows, Postgres, type SqlExecutor } from "../persistence/postgres";
+import { Postgres, type SqlExecutor } from "../persistence/postgres";
 
 const ReportRow = Schema.Struct({
   id: ReportId,
@@ -28,6 +28,7 @@ const ReportRow = Schema.Struct({
 const reportColumns = `id, report_type AS type, title,
   period_start AS "periodStart", period_end AS "periodEnd", content,
   generated_at AS "generatedAt", opened_at AS "openedAt"`;
+const ReportIdRow = Schema.Struct({ id: ReportId });
 
 const monthBounds = (month: string) => {
   const periodStart = Schema.decodeUnknownSync(CalendarDate)(`${month}-01`);
@@ -70,8 +71,9 @@ export const generateMonthlySpendingReports = (sql: SqlExecutor) =>
         dataThrough: analysis.dataThrough,
       } satisfies typeof MonthlySpendingReportContent.Type;
       const encoded = Schema.encodeSync(MonthlySpendingReportContent)(content);
-      const inserted = yield* sql.query(
+      const inserted = yield* sql.rows(
         "generate monthly spending report",
+        ReportIdRow,
         `INSERT INTO reports
            (id, report_type, title, period_start, period_end, content, generated_at)
          VALUES ($1, 'monthly_spending', $2, $3, $4, $5::jsonb, now())
@@ -107,21 +109,24 @@ export const listReports = () =>
   Effect.gen(function* () {
     const postgres = yield* Postgres;
     const rows = yield* postgres.readTransaction((sql) =>
-      sql.query(
+      sql.rows(
         "list reports",
+        ReportRow,
         `SELECT ${reportColumns} FROM reports ORDER BY generated_at DESC, id DESC`,
       ),
     );
-    return (yield* decodeRows("decode reports", ReportRow, rows)).map(toSummary);
+    return rows.map(toSummary);
   }).pipe(persistenceToBoundary);
 
 export const getReport = (reportId: ReportId) =>
   Effect.gen(function* () {
     const postgres = yield* Postgres;
     const rows = yield* postgres.readTransaction((sql) =>
-      sql.query("get report", `SELECT ${reportColumns} FROM reports WHERE id = $1`, [reportId]),
+      sql.rows("get report", ReportRow, `SELECT ${reportColumns} FROM reports WHERE id = $1`, [
+        reportId,
+      ]),
     );
-    const row = (yield* decodeRows("decode report", ReportRow, rows))[0];
+    const row = rows[0];
     if (row === undefined) {
       return yield* Effect.fail(new NotFound({ entity: "report", id: reportId }));
     }
@@ -142,13 +147,14 @@ export const markReportOpened = (input: {
     },
     (sql) =>
       Effect.gen(function* () {
-        const rows = yield* sql.query(
+        const rows = yield* sql.rows(
           "mark report opened",
+          ReportRow,
           `UPDATE reports SET opened_at = COALESCE(opened_at, now()) WHERE id = $1
            RETURNING ${reportColumns}`,
           [input.reportId],
         );
-        const row = (yield* decodeRows("decode opened report", ReportRow, rows))[0];
+        const row = rows[0];
         if (row === undefined) {
           return yield* Effect.fail(new NotFound({ entity: "report", id: input.reportId }));
         }

@@ -1,7 +1,7 @@
 import { BankAccountId, BankAccountType, CalendarDate } from "@ironcage/domain";
 import { Effect, Schema } from "effect";
 
-import { decodeRows, type PersistenceError, type SqlExecutor } from "../../persistence";
+import type { PersistenceError, SqlExecutor } from "../../persistence";
 
 export const AccountRow = Schema.Struct({
   id: BankAccountId,
@@ -23,60 +23,58 @@ const accountColumns = `id, bank, product_label AS "productLabel", account_type 
 
 export const getAccount = (sql: SqlExecutor, id: BankAccountId) =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    const rows = yield* sql.rows(
       "read bank account",
+      AccountRow,
       `SELECT ${accountColumns} FROM bank_accounts WHERE id = $1`,
       [id],
     );
-    const accounts = yield* decodeRows("decode bank account", AccountRow, rows);
-    return accounts[0] ?? null;
+    return rows[0] ?? null;
   });
 
 export const listAccounts = (sql: SqlExecutor) =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    return yield* sql.rows(
       "list bank accounts",
+      AccountRow,
       `SELECT ${accountColumns} FROM bank_accounts ORDER BY created_at`,
     );
-    return yield* decodeRows("decode bank accounts", AccountRow, rows);
   });
 
 export const findAccountByIdentity = (sql: SqlExecutor, bank: string, identityHmac: string) =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    const rows = yield* sql.rows(
       "find bank account by identity",
+      AccountRow,
       `SELECT ${accountColumns} FROM bank_accounts WHERE bank = $1 AND identity_hmac = $2`,
       [bank, identityHmac],
     );
-    const accounts = yield* decodeRows("decode bank account", AccountRow, rows);
-    return accounts[0] ?? null;
+    return rows[0] ?? null;
   });
 
 export const insertAccount = (
   sql: SqlExecutor,
   account: AccountRow,
 ): Effect.Effect<void, PersistenceError> =>
-  sql
-    .query(
-      "insert bank account",
-      `INSERT INTO bank_accounts
+  sql.execute(
+    "insert bank account",
+    `INSERT INTO bank_accounts
          (id, bank, product_label, account_type, masked_suffix, identity_hmac, currency,
           required, opened_on, closed_on, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())`,
-      [
-        account.id,
-        account.bank,
-        account.productLabel,
-        account.accountType,
-        account.maskedSuffix,
-        account.identityHmac,
-        account.currency,
-        account.required,
-        account.openedOn,
-        account.closedOn,
-      ],
-    )
-    .pipe(Effect.asVoid);
+    [
+      account.id,
+      account.bank,
+      account.productLabel,
+      account.accountType,
+      account.maskedSuffix,
+      account.identityHmac,
+      account.currency,
+      account.required,
+      account.openedOn,
+      account.closedOn,
+    ],
+  );
 
 export const bindAccountIdentity = (
   sql: SqlExecutor,
@@ -84,11 +82,9 @@ export const bindAccountIdentity = (
   identityHmac: string,
   maskedSuffix: string,
 ): Effect.Effect<void, PersistenceError> =>
-  sql
-    .query(
-      "bind bank account identity",
-      `UPDATE bank_accounts SET identity_hmac = $2, masked_suffix = $3
+  sql.execute(
+    "bind bank account identity",
+    `UPDATE bank_accounts SET identity_hmac = $2, masked_suffix = $3
         WHERE id = $1 AND identity_hmac IS NULL`,
-      [accountId, identityHmac, maskedSuffix],
-    )
-    .pipe(Effect.asVoid);
+    [accountId, identityHmac, maskedSuffix],
+  );

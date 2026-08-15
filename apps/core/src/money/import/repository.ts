@@ -19,7 +19,7 @@ import {
 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 
-import { decodeRows, type PersistenceError, type SqlExecutor } from "../../persistence";
+import type { PersistenceError, SqlExecutor } from "../../persistence";
 import type { AccountRow } from "../accounts/repository";
 import { insertFeedEvent, type FeedEventInsert } from "../feed/repository";
 import type { CoveredSpan } from "./coverage";
@@ -48,16 +48,16 @@ export const findImportByDigest = (
   bundleDigest: string,
 ) =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    const rows = yield* sql.rows(
       "find bank import by digest",
+      ImportRowSchema,
       `SELECT id, account_id AS "accountId", source_profile AS "sourceProfile",
               bundle_digest AS "bundleDigest", window_start AS "windowStart",
               window_end AS "windowEnd", effects
          FROM bank_imports WHERE account_id = $1 AND bundle_digest = $2`,
       [accountId, bundleDigest],
     );
-    const imports = yield* decodeRows("decode bank import", ImportRowSchema, rows);
-    return imports[0] ?? null;
+    return rows[0] ?? null;
   });
 
 const EvidenceRow = Schema.Struct({
@@ -89,8 +89,9 @@ export const loadEvidence = (
   fitids: readonly string[],
 ): Effect.Effect<StoredEvidence, PersistenceError> =>
   Effect.gen(function* () {
-    const transactionRows = yield* sql.query(
+    const transactions: readonly StoredTransaction[] = yield* sql.rows(
       "load stored transactions",
+      EvidenceRow,
       `SELECT id, posted_date AS "postedDate", amount::text AS amount,
               narrative_fingerprint AS "fingerprint", row_balance::text AS "rowBalance"
          FROM bank_transactions
@@ -98,16 +99,11 @@ export const loadEvidence = (
         ORDER BY id`,
       [accountId, [...dates]],
     );
-    const transactions: readonly StoredTransaction[] = yield* decodeRows(
-      "decode stored transactions",
-      EvidenceRow,
-      transactionRows,
-    );
-
     const identifiers = new Map<string, StoredIdentifier>();
     if (fitids.length > 0) {
-      const identifierRows = yield* sql.query(
+      const identifierRows = yield* sql.rows(
         "load stored identifiers",
+        IdentifierRow,
         `SELECT si.fitid, si.transaction_id AS "transactionId", t.posted_date AS "postedDate",
                 t.amount::text AS amount, t.narrative_fingerprint AS "fingerprint"
            FROM bank_source_identifiers si
@@ -115,11 +111,7 @@ export const loadEvidence = (
           WHERE si.account_id = $1 AND si.source_profile = $2 AND si.fitid = ANY($3::text[])`,
         [accountId, profile, [...fitids]],
       );
-      for (const row of yield* decodeRows(
-        "decode stored identifiers",
-        IdentifierRow,
-        identifierRows,
-      )) {
+      for (const row of identifierRows) {
         identifiers.set(row.fitid, row);
       }
     }
@@ -135,8 +127,9 @@ export const loadBalanceEvidenceRange = (
   to: CalendarDate,
 ): Effect.Effect<readonly StoredTransaction[], PersistenceError> =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    return yield* sql.rows(
       "load stored transactions by range",
+      EvidenceRow,
       `SELECT id, posted_date AS "postedDate", amount::text AS amount,
               narrative_fingerprint AS "fingerprint", row_balance::text AS "rowBalance"
          FROM bank_transactions
@@ -144,7 +137,6 @@ export const loadBalanceEvidenceRange = (
         ORDER BY id`,
       [accountId, from, to],
     );
-    return yield* decodeRows("decode stored transactions", EvidenceRow, rows);
   });
 
 const SpanRow = Schema.Struct({ start: CalendarDate, end: CalendarDate });
@@ -154,14 +146,14 @@ export const loadCoverageSpans = (
   accountId: BankAccountId,
 ): Effect.Effect<readonly CoveredSpan[], PersistenceError> =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    return yield* sql.rows(
       "load coverage segments",
+      SpanRow,
       `SELECT start_date AS "start", end_date AS "end"
          FROM bank_coverage_segments WHERE account_id = $1 AND status = 'complete'
         ORDER BY start_date`,
       [accountId],
     );
-    return yield* decodeRows("decode coverage segments", SpanRow, rows);
   });
 
 const money = (value: BigDecimal.BigDecimal | null) =>
@@ -256,7 +248,7 @@ export const insertConfirmedImport = (
   Effect.gen(function* () {
     const { importRow } = graph;
 
-    yield* sql.query(
+    yield* sql.execute(
       "insert bank import",
       `INSERT INTO bank_imports
          (id, account_id, source_profile, bundle_digest, window_start, window_end, status, effects, confirmed_at)
@@ -273,7 +265,7 @@ export const insertConfirmedImport = (
     );
 
     if (graph.files.length > 0) {
-      yield* sql.query(
+      yield* sql.execute(
         "insert bank source files",
         `INSERT INTO bank_source_files
            (id, import_id, role, media_type, byte_digest, byte_size, display_name, extractor)
@@ -301,7 +293,7 @@ export const insertConfirmedImport = (
     }
 
     if (graph.transactions.length > 0) {
-      yield* sql.query(
+      yield* sql.execute(
         "insert bank transactions",
         `INSERT INTO bank_transactions
            (id, account_id, posted_date, amount, currency, display_narrative, derived_payee,
@@ -347,7 +339,7 @@ export const insertConfirmedImport = (
           decided_by: observation.decidedBy,
         })),
       );
-      yield* sql.query(
+      yield* sql.execute(
         "insert bank observations",
         `INSERT INTO bank_observations
            (id, source_file_id, source_ordinal, raw, parsed, parser_version, parse_status)
@@ -359,7 +351,7 @@ export const insertConfirmedImport = (
            )`,
         [observations],
       );
-      yield* sql.query(
+      yield* sql.execute(
         "insert bank observation links",
         `INSERT INTO bank_observation_links
            (id, observation_id, transaction_id, import_id, match_tier, decided_by, created_at)
@@ -373,7 +365,7 @@ export const insertConfirmedImport = (
     }
 
     if (graph.identifiers.length > 0) {
-      yield* sql.query(
+      yield* sql.execute(
         "insert bank source identifiers",
         `INSERT INTO bank_source_identifiers (account_id, source_profile, fitid, transaction_id)
          SELECT $1, $2, x.fitid, x.transaction_id::uuid
@@ -392,7 +384,7 @@ export const insertConfirmedImport = (
     }
 
     if (graph.balances.length > 0) {
-      yield* sql.query(
+      yield* sql.execute(
         "insert bank balance observations",
         `INSERT INTO bank_balance_observations
            (id, account_id, kind, value, as_of_date, as_of_time, observation_id, source_file_id)
@@ -419,7 +411,7 @@ export const insertConfirmedImport = (
     }
 
     if (graph.splits.length > 0) {
-      yield* sql.query(
+      yield* sql.execute(
         "insert transaction splits",
         `INSERT INTO transaction_splits (id, transaction_id, revision, category_id, amount, provenance, rule_id, created_at)
          SELECT x.id::uuid, x.transaction_id::uuid, 1, x.category_id::uuid,
@@ -444,7 +436,7 @@ export const insertConfirmedImport = (
     }
 
     if (graph.ambiguities.length > 0) {
-      yield* sql.query(
+      yield* sql.execute(
         "insert ambiguity resolutions",
         `INSERT INTO bank_ambiguity_resolutions (id, import_id, subject, resolution, resolved_at)
          SELECT x.id::uuid, $1, x.subject, x.resolution, now()
@@ -456,7 +448,7 @@ export const insertConfirmedImport = (
     }
 
     if (graph.coverage !== null) {
-      yield* sql.query(
+      yield* sql.execute(
         "insert coverage segment",
         `INSERT INTO bank_coverage_segments (id, account_id, start_date, end_date, source_profile, import_id, status)
          VALUES ($1, $2, $3, $4, $5, $6, 'complete')`,
@@ -491,8 +483,9 @@ export type HistoryRow = typeof HistoryRow.Type;
 
 export const listImportHistory = (sql: SqlExecutor) =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    return yield* sql.rows(
       "list import history",
+      HistoryRow,
       `SELECT i.id AS "importId", i.account_id AS "accountId", a.product_label AS "productLabel",
               i.source_profile AS "sourceProfile", i.window_start AS "windowStart",
               i.window_end AS "windowEnd", i.effects, i.confirmed_at AS "confirmedAt",
@@ -505,22 +498,16 @@ export const listImportHistory = (sql: SqlExecutor) =>
         ORDER BY i.confirmed_at DESC
         LIMIT 200`,
     );
-    return yield* decodeRows("decode import history", HistoryRow, rows);
   });
 
 export const latestConfirmedAt = (
   sql: SqlExecutor,
 ): Effect.Effect<Instant | null, PersistenceError> =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    const rows = yield* sql.rows(
       "latest confirmed import",
+      Schema.Struct({ latest: Schema.NullOr(Schema.DateTimeUtcFromDate) }),
       "SELECT max(confirmed_at) AS latest FROM bank_imports",
     );
-    const value = rows[0]?.["latest"];
-    if (value == null) return null;
-    return yield* decodeRows(
-      "decode confirmed time",
-      Schema.Struct({ latest: Schema.DateTimeUtcFromDate }),
-      [{ latest: value }],
-    ).pipe(Effect.map((decoded) => decoded[0]!.latest));
+    return rows[0]?.latest ?? null;
   });

@@ -27,14 +27,9 @@ const RecordParameters = Schema.Tuple([RequestId, Schema.String, Sha256, Schema.
 const memoryPostgres = () => {
   const requests = new Map<RequestId, StoredRequest>();
   const sql: SqlExecutor = {
-    query: (operation, _statement, parameters = []) =>
+    execute: (operation, _statement, parameters = []) =>
       Effect.sync(() => {
-        if (operation === "lock app request") return [];
-        if (operation === "read app request") {
-          const [id] = Schema.decodeUnknownSync(RequestParameters)(parameters);
-          const request = requests.get(id);
-          return request === undefined ? [] : [request];
-        }
+        if (operation === "lock app request" || operation === "apply mutation") return;
         if (operation === "record app request") {
           const [id, recordedOperation, recordedHash, recordedResponse] =
             Schema.decodeUnknownSync(RecordParameters)(parameters);
@@ -45,9 +40,19 @@ const memoryPostgres = () => {
             payloadHash: recordedHash,
             response: storedResponse,
           });
-          return [];
+          return;
         }
         throw new Error(`unexpected database operation: ${operation}`);
+      }),
+    rows: (operation, schema, _statement, parameters = []) =>
+      Effect.sync(() => {
+        if (operation !== "read app request") {
+          throw new Error(`unexpected database operation: ${operation}`);
+        }
+        const [id] = Schema.decodeUnknownSync(RequestParameters)(parameters);
+        const request = requests.get(id);
+        const decode = Schema.decodeUnknownSync(schema);
+        return request === undefined ? [] : [decode(request)];
       }),
   };
   const service: PostgresService = {
@@ -73,7 +78,7 @@ describe("app request replay", () => {
       ).pipe(Effect.provideService(Postgres, memoryPostgres()));
       const databaseMutation = runIdempotentMutation(
         { requestId, operation: stored.operation, payloadHash, response },
-        (sql) => sql.query("apply mutation", "SELECT true").pipe(Effect.as({ accepted: true })),
+        (sql) => sql.execute("apply mutation", "SELECT true").pipe(Effect.as({ accepted: true })),
       );
 
       expectTypeOf<Effect.Error<typeof mutation>>().toEqualTypeOf<Conflict | Internal>();

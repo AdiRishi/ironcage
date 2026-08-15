@@ -6,7 +6,7 @@ import { mintId } from "../ids";
 import { insertFeedEvent } from "../money/feed/repository";
 import { runIdempotentMutation } from "../persistence/app-requests";
 import { persistenceToBoundary } from "../persistence/error";
-import { decodeRows, Postgres, type SqlExecutor } from "../persistence/postgres";
+import { Postgres, type SqlExecutor } from "../persistence/postgres";
 
 const SystemStateRow = Schema.Struct({
   mode: SystemMode,
@@ -17,8 +17,9 @@ const SystemStateRow = Schema.Struct({
 
 const loadSystemStatus = (sql: SqlExecutor) =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    const rows = yield* sql.rows(
       "read system status",
+      SystemStateRow,
       `SELECT s.mode, s.reason, s.changed_at AS "changedAt",
               (SELECT count(*)::integer
                  FROM feed_events e
@@ -26,7 +27,7 @@ const loadSystemStatus = (sql: SqlExecutor) =>
                 WHERE e.severity = 'critical' AND a.event_id IS NULL) AS "unacknowledgedCriticals"
          FROM system_state s WHERE s.singleton`,
     );
-    const status = (yield* decodeRows("decode system status", SystemStateRow, rows))[0];
+    const status = rows[0];
     return status ?? (yield* Effect.die(new Error("system state singleton is missing")));
   });
 
@@ -58,8 +59,9 @@ export const haltAll = (input: {
       },
       (sql) =>
         Effect.gen(function* () {
-          const changed = yield* sql.query(
+          const changed = yield* sql.rows(
             "halt system",
+            Schema.Struct({ mode: SystemMode }),
             `UPDATE system_state
                 SET mode = 'halted', reason = $1, changed_at = now()
               WHERE singleton AND mode <> 'halted'

@@ -15,7 +15,7 @@ import { DateTime, Effect, Schema } from "effect";
 import { mintId, mintUuidV7 } from "../ids";
 import { insertFeedEvent } from "../money/feed/repository";
 import { sha256Hex } from "../money/import/bytes";
-import { decodeRows, Postgres, type SqlExecutor } from "../persistence/postgres";
+import { Postgres, type SqlExecutor } from "../persistence/postgres";
 
 export type ConsumeOutcome =
   | { readonly kind: "accepted"; readonly filed: number }
@@ -42,8 +42,9 @@ type ExpectedBatch = typeof ExpectedBatchRow.Type;
 
 const loadExpectedBatch = (sql: SqlExecutor, runId: RunId) =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    const rows = yield* sql.rows(
       "load expected categorization batch",
+      ExpectedBatchRow,
       `SELECT b.run_id AS "runId", b.bundle_digest AS "bundleDigest",
               b.batch_index AS "batchIndex", b.config_version AS "configVersion",
               b.input_digest AS "inputDigest", c.model, b.batch, b.categories
@@ -53,12 +54,7 @@ const loadExpectedBatch = (sql: SqlExecutor, runId: RunId) =>
         WHERE b.run_id = $1`,
       [runId, categorizationCapability.name],
     );
-    const batches = yield* decodeRows(
-      "decode expected categorization batch",
-      ExpectedBatchRow,
-      rows,
-    );
-    return batches[0] ?? null;
+    return rows[0] ?? null;
   });
 
 const invalidAnchor = (
@@ -132,19 +128,21 @@ export const consumeCapabilityRun = (
     const postgres = yield* Postgres;
     return yield* postgres.transaction((sql) =>
       Effect.gen(function* () {
-        const inserted = yield* sql.query(
+        const inserted = yield* sql.rows(
           "insert queue dedupe",
+          Schema.Struct({ runId: RunId }),
           `INSERT INTO queue_dedupe (run_id, payload_hash, consumed_at)
-           VALUES ($1, $2, now()) ON CONFLICT (run_id) DO NOTHING RETURNING run_id`,
+           VALUES ($1, $2, now()) ON CONFLICT (run_id) DO NOTHING RETURNING run_id AS "runId"`,
           [message.runId, payloadHash],
         );
         if (inserted.length === 0) {
-          const stored = yield* sql.query(
+          const stored = yield* sql.rows(
             "read queue dedupe",
+            Schema.Struct({ hash: Sha256 }),
             "SELECT payload_hash AS hash FROM queue_dedupe WHERE run_id = $1",
             [message.runId],
           );
-          if (stored[0]?.["hash"] === payloadHash) return { kind: "duplicate" } as const;
+          if (stored[0]?.hash === payloadHash) return { kind: "duplicate" } as const;
 
           // Two executions claimed one identity: a producer is broken. Keep
           // the stored original and raise the defect loudly.
@@ -188,7 +186,7 @@ export const consumeCapabilityRun = (
           }
         }
 
-        yield* sql.query(
+        yield* sql.execute(
           "insert capability output",
           `INSERT INTO capability_outputs
              (run_id, capability, sleeve_id, trigger, scheduled_at, output, failure, payload_hash, config_version, produced_at, valid_until)
@@ -207,7 +205,7 @@ export const consumeCapabilityRun = (
         );
 
         const decisionRecordId = mintUuidV7();
-        yield* sql.query(
+        yield* sql.execute(
           "insert decision record",
           `INSERT INTO decision_records
              (id, capability, asked, inputs_summary, decided, rationale, model, config_version, gateway_log_ids, otel_trace_id, otel_parent_span_ids, occurred_at)
@@ -246,8 +244,9 @@ export const consumeCapabilityRun = (
         // operator filed meanwhile is theirs; the model never overwrites it.
         let landed = 0;
         for (const suggestion of output.suggestions) {
-          const applied = yield* sql.query(
+          const applied = yield* sql.rows(
             "apply ai categorization",
+            Schema.Struct({ id: Schema.String }),
             `WITH target AS (
                SELECT t.id, t.amount,
                       (SELECT max(revision) FROM transaction_splits s WHERE s.transaction_id = t.id) AS revision
@@ -314,9 +313,10 @@ export const consumeDeadLetter = (
     const postgres = yield* Postgres;
     yield* postgres.transaction((sql) =>
       Effect.gen(function* () {
-        const existing = yield* sql.query(
+        const existing = yield* sql.rows(
           "check dead letter dedupe",
-          `SELECT 1 FROM feed_events
+          Schema.Struct({ exists: Schema.Int }),
+          `SELECT 1 AS exists FROM feed_events
             WHERE event_type = 'decision_record_lost' AND payload->>'messageId' = $1`,
           [messageId],
         );

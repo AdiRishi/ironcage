@@ -118,7 +118,7 @@ export const confirmBankImport = (
       },
       (sql) =>
         Effect.gen(function* () {
-          yield* sql.query(
+          yield* sql.execute(
             "lock bank account for confirm",
             "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
             [`bank-import:${input.source.accountId}`],

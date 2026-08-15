@@ -21,7 +21,7 @@ import {
 import { BigDecimal, Effect, Option, Schema } from "effect";
 
 import { persistenceToBoundary } from "../../persistence/error";
-import { decodeRows, Postgres, type SqlExecutor } from "../../persistence/postgres";
+import { Postgres, type SqlExecutor } from "../../persistence/postgres";
 import { loadCoverageSummary } from "../accounts/service";
 
 /**
@@ -81,8 +81,9 @@ const SplitLineRow = Schema.Struct({
  */
 export const loadSplitLines = (sql: SqlExecutor) =>
   Effect.gen(function* () {
-    const rows = yield* sql.query(
+    return yield* sql.rows(
       "load analysis split lines",
+      SplitLineRow,
       `SELECT t.id AS "transactionId", t.account_id AS "accountId", t.posted_date AS "postedDate",
               t.derived_payee AS payee, s.category_id AS "categoryId", c.name AS "categoryName",
               c.kind, s.amount::text AS amount
@@ -97,7 +98,6 @@ export const loadSplitLines = (sql: SqlExecutor) =>
                              AND (m.transaction_a = t.id OR m.transaction_b = t.id))
         ORDER BY t.posted_date, t.id`,
     );
-    return yield* decodeRows("decode analysis split lines", SplitLineRow, rows);
   });
 
 const decodeAud = Schema.decodeUnknownSync(Aud);
