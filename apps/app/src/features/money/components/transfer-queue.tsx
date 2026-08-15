@@ -63,9 +63,9 @@ export function TransferQueue({
           data: encodeDecideTransferPayload({ requestId: mintRequestId(), ...input }),
         }),
       ),
-    onSuccess: (outcome) => {
+    onSuccess: async (outcome) => {
       if (outcome.outcome === "ok") {
-        void queryClient.invalidateQueries({ queryKey: keys.moneyAll() });
+        await queryClient.invalidateQueries({ queryKey: keys.moneyAll() });
       }
     },
   });

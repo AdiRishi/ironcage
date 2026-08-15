@@ -54,9 +54,9 @@ export function RulesCard({ rules }: { readonly rules: readonly RuleSummary[] })
           }),
         }),
       ),
-    onSuccess: (outcome) => {
+    onSuccess: async (outcome) => {
       if (outcome.outcome === "ok") {
-        void queryClient.invalidateQueries({ queryKey: keys.money("rules") });
+        await queryClient.invalidateQueries({ queryKey: keys.money("rules") });
       }
     },
   });
@@ -66,8 +66,8 @@ export function RulesCard({ rules }: { readonly rules: readonly RuleSummary[] })
       <CardHeader>
         <CardTitle className="font-display text-lg tracking-tight">Rules</CardTitle>
         <CardDescription>
-          Created when you tick "always" on a correction. A rule files future rows only; closing
-          it moves nothing that's already filed.
+          Created when you tick "always" on a correction. A rule files future rows only; closing it
+          moves nothing that's already filed.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-1">

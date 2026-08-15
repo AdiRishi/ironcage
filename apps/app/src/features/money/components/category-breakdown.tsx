@@ -1,6 +1,12 @@
 import type { MonthAnalysis, MonthCategoryLine } from "@ironcage/contracts/schema";
 import { uncategorizedCategoryId } from "@ironcage/domain";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ironcage/ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ironcage/ui/components/card";
 import { cn } from "@ironcage/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { BigDecimal } from "effect";
@@ -19,9 +25,7 @@ function CategoryRow({
 }) {
   const refunded = BigDecimal.isNegative(line.amount);
   const share =
-    scale === 0 || refunded
-      ? 0
-      : BigDecimal.toNumberUnsafe(BigDecimal.abs(line.amount)) / scale;
+    scale === 0 || refunded ? 0 : BigDecimal.toNumberUnsafe(BigDecimal.abs(line.amount)) / scale;
   const uncategorized = line.categoryId === uncategorizedCategoryId;
 
   return (
@@ -59,8 +63,12 @@ function CategoryRow({
  * money back rather than being clamped to nothing.
  */
 export function CategoryBreakdown({ month }: { readonly month: MonthAnalysis }) {
-  const expenses = month.categories.filter((line) => line.kind === "expense").sort(byAmountDescending);
-  const incomes = month.categories.filter((line) => line.kind === "income").sort(byAmountDescending);
+  const expenses = month.categories
+    .filter((line) => line.kind === "expense")
+    .sort(byAmountDescending);
+  const incomes = month.categories
+    .filter((line) => line.kind === "income")
+    .sort(byAmountDescending);
   const scale = expenses
     .filter((line) => !BigDecimal.isNegative(line.amount))
     .reduce((max, line) => Math.max(max, BigDecimal.toNumberUnsafe(line.amount)), 0);

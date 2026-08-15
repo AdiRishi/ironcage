@@ -1,6 +1,12 @@
 import type { ImportHistoryEntry } from "@ironcage/contracts/schema";
 import { Badge } from "@ironcage/ui/components/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ironcage/ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ironcage/ui/components/card";
 import {
   Table,
   TableBody,
@@ -76,7 +82,7 @@ export function ImportHistory({ entries }: { readonly entries: readonly ImportHi
                   <TableCell className="text-right font-mono text-xs tabular-nums">
                     {entry.effects.new}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-xs tabular-nums text-muted-foreground">
+                  <TableCell className="text-right font-mono text-xs text-muted-foreground tabular-nums">
                     {entry.effects.duplicate}
                   </TableCell>
                 </TableRow>

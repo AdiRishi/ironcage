@@ -19,13 +19,13 @@ import { useState } from "react";
 
 import { keys } from "@/data/keys";
 import { blockGuidance } from "@/features/money/blocks";
+import { decodeConfirmOutcome, decodePreviewOutcome } from "@/features/money/codec";
 import {
   type ConfirmDraft,
   ImportPreviewPanel,
   type SourceDraft,
 } from "@/features/money/components/import-preview";
-import { decodeConfirmOutcome, decodePreviewOutcome } from "@/features/money/codec";
-import { formatSpan } from "@/features/money/format";
+import { describeError, formatSpan } from "@/features/money/format";
 import { accountsQuery } from "@/features/money/queries";
 import { confirmBankImport, previewBankImport } from "@/server/money";
 
@@ -52,6 +52,8 @@ function FileSlot({
   readonly onFile: (file: File) => void;
 }) {
   return (
+    // The drop target is a convenience over the label's own file input, which stays operable.
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <label
       className="flex cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-input bg-surface px-4 py-3 transition-colors hover:border-ring/60 has-focus-visible:border-ring"
       onDragOver={(event) => event.preventDefault()}
@@ -106,9 +108,7 @@ function AccountPicker({
           onClick={() => onSelect(account.id)}
           className={cn(
             "flex flex-col gap-0.5 rounded-lg border px-4 py-3 text-left transition-colors",
-            account.id === selected
-              ? "border-ring bg-accent"
-              : "border-border hover:bg-row-hover",
+            account.id === selected ? "border-ring bg-accent" : "border-border hover:bg-row-hover",
           )}
         >
           <span className="text-sm font-medium text-foreground">{account.productLabel}</span>
@@ -149,9 +149,9 @@ export function ImportWizard() {
   const confirm = useMutation({
     mutationFn: async (input: ConfirmDraft) =>
       decodeConfirmOutcome(await confirmBankImport({ data: input })),
-    onSuccess: (outcome, input) => {
+    onSuccess: async (outcome, input) => {
       if (outcome.outcome === "ok" && outcome.value.kind === "confirmed") {
-        void queryClient.invalidateQueries({ queryKey: keys.moneyAll() });
+        await queryClient.invalidateQueries({ queryKey: keys.moneyAll() });
         return;
       }
       // The record moved between preview and confirm; previewing again is the
@@ -307,21 +307,20 @@ export function ImportWizard() {
 
   const previewError =
     preview.data?.outcome === "error"
-      ? String(preview.data.error.detail ?? preview.data.error._tag)
+      ? describeError(preview.data.error)
       : preview.error !== null
         ? String(preview.error)
         : undefined;
 
-  const filesChosen =
-    mode === "structured" ? csv !== null && ofx !== null : pdf !== null;
+  const filesChosen = mode === "structured" ? csv !== null && ofx !== null : pdf !== null;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="font-display text-lg tracking-tight">Bring in bank files</CardTitle>
         <CardDescription>
-          Nothing is stored until you confirm what the preview shows. Re-uploading the same files
-          is always safe — the record counts each bank transaction once.
+          Nothing is stored until you confirm what the preview shows. Re-uploading the same files is
+          always safe — the record counts each bank transaction once.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
@@ -336,11 +335,7 @@ export function ImportWizard() {
               Accounts unavailable — {String(accounts.error)}
             </p>
           ) : (
-            <AccountPicker
-              accounts={accounts.data}
-              selected={accountId}
-              onSelect={setAccountId}
-            />
+            <AccountPicker accounts={accounts.data} selected={accountId} onSelect={setAccountId} />
           )}
         </div>
         <Tabs
@@ -353,8 +348,8 @@ export function ImportWizard() {
           </TabsList>
           <TabsContent value="structured" className="flex flex-col gap-2 pt-3">
             <p className="text-sm text-muted-foreground">
-              Export CSV and OFX from NetBank for the same account and the same date window. The
-              two must describe exactly the same rows.
+              Export CSV and OFX from NetBank for the same account and the same date window. The two
+              must describe exactly the same rows.
             </p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <FileSlot
@@ -375,8 +370,8 @@ export function ImportWizard() {
           </TabsContent>
           <TabsContent value="statement" className="flex flex-col gap-2 pt-3">
             <p className="text-sm text-muted-foreground">
-              One archived PDF statement. A statement must reconcile from its opening balance to
-              its closing balance before it can add history.
+              One archived PDF statement. A statement must reconcile from its opening balance to its
+              closing balance before it can add history.
             </p>
             <FileSlot
               label="PDF"

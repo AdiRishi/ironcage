@@ -1,3 +1,4 @@
+import { intoTaxonomy } from "@ironcage/contracts/client";
 import type { BankImportSource, UploadedBytes } from "@ironcage/contracts/schema";
 import {
   BankAccountSummary,
@@ -12,7 +13,6 @@ import {
   RuleSummary,
   TransferMatchSummary,
 } from "@ironcage/contracts/schema";
-import { intoTaxonomy } from "@ironcage/contracts/client";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 import type { RpcClientError } from "effect/unstable/rpc";

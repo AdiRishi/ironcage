@@ -1,8 +1,4 @@
-import type {
-  BankImportPreview,
-  BoundaryError,
-  CandidateEffect,
-} from "@ironcage/contracts/schema";
+import type { BankImportPreview, BoundaryError, CandidateEffect } from "@ironcage/contracts/schema";
 import type { MatchTier } from "@ironcage/domain";
 import { Alert, AlertDescription, AlertTitle } from "@ironcage/ui/components/alert";
 import { Badge } from "@ironcage/ui/components/badge";
@@ -15,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@ironcage/ui/components/card";
-import { ScrollArea } from "@ironcage/ui/components/scroll-area";
 import {
   Select,
   SelectContent,
@@ -163,9 +158,7 @@ export function ImportPreviewPanel({
         </CardTitle>
         <CardDescription className="font-mono text-xs">
           {profileLabel[preview.sourceProfile]} · {formatSpan(preview.window)} ·{" "}
-          {preview.files
-            .map((file) => `${file.role} ${file.digest.slice(0, 8)}…`)
-            .join(" · ")}
+          {preview.files.map((file) => `${file.role} ${file.digest.slice(0, 8)}…`).join(" · ")}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
@@ -174,8 +167,8 @@ export function ImportPreviewPanel({
             <RefreshCwIcon />
             <AlertTitle>The record moved on</AlertTitle>
             <AlertDescription>
-              Something changed between preview and confirm, so this preview was recomputed.
-              Check it and confirm again.
+              Something changed between preview and confirm, so this preview was recomputed. Check
+              it and confirm again.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -197,8 +190,7 @@ export function ImportPreviewPanel({
         </div>
         {preview.balances.ledger === null ? null : (
           <p className="font-mono text-xs text-muted-foreground">
-            ledger{" "}
-            <span className="text-foreground">{formatAud(preview.balances.ledger)}</span>
+            ledger <span className="text-foreground">{formatAud(preview.balances.ledger)}</span>
             {preview.balances.available === null ? null : (
               <>
                 <span className="mx-2 text-ink-faint">·</span>available{" "}
@@ -255,7 +247,7 @@ export function ImportPreviewPanel({
             </AlertDescription>
           </Alert>
         ) : null}
-        <ScrollArea className="max-h-[26rem] rounded-lg border">
+        <div className="max-h-[26rem] overflow-y-auto rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -282,7 +274,7 @@ export function ImportPreviewPanel({
                       </span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm tabular-nums whitespace-nowrap">
+                  <TableCell className="text-right font-mono text-sm whitespace-nowrap tabular-nums">
                     {formatAud(candidate.amount, { sign: "always" })}
                   </TableCell>
                   <TableCell>
@@ -295,7 +287,7 @@ export function ImportPreviewPanel({
               ))}
             </TableBody>
           </Table>
-        </ScrollArea>
+        </div>
         {ambiguous.length > 0 ? (
           <div className="flex flex-col gap-3 rounded-lg border border-warning/40 p-4">
             <div>
@@ -304,8 +296,8 @@ export function ImportPreviewPanel({
                 decision
               </h3>
               <p className="text-sm text-muted-foreground">
-                The record holds more than one plausible match. Nothing is dropped or
-                double-counted silently — you decide, and the decision is kept.
+                The record holds more than one plausible match. Nothing is dropped or double-counted
+                silently — you decide, and the decision is kept.
               </p>
             </div>
             {ambiguous.map((candidate) => (

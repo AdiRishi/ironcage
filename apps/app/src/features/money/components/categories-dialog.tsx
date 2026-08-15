@@ -46,25 +46,29 @@ export function CategoriesDialog({
   const [kind, setKind] = useState<"expense" | "income">("expense");
   const [message, setMessage] = useState<string | undefined>(undefined);
 
-  const settle = (outcome: ReturnType<typeof decodeCategoryOutcome>) => {
+  const settle = async (outcome: ReturnType<typeof decodeCategoryOutcome>) => {
     if (outcome.outcome === "error") {
       setMessage(describeError(outcome.error));
       return;
     }
     setMessage(undefined);
-    void queryClient.invalidateQueries({ queryKey: keys.money("categories") });
+    await queryClient.invalidateQueries({ queryKey: keys.money("categories") });
   };
 
   const create = useMutation({
     mutationFn: async () =>
       decodeCategoryOutcome(
         await createCategory({
-          data: encodeCreateCategoryPayload({ requestId: mintRequestId(), name: name.trim(), kind }),
+          data: encodeCreateCategoryPayload({
+            requestId: mintRequestId(),
+            name: name.trim(),
+            kind,
+          }),
         }),
       ),
-    onSuccess: (outcome) => {
-      settle(outcome);
+    onSuccess: async (outcome) => {
       if (outcome.outcome === "ok") setName("");
+      await settle(outcome);
     },
   });
 
@@ -130,7 +134,9 @@ export function CategoriesDialog({
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  aria-label={category.archived ? `Restore ${category.name}` : `Archive ${category.name}`}
+                  aria-label={
+                    category.archived ? `Restore ${category.name}` : `Archive ${category.name}`
+                  }
                   disabled={edit.isPending}
                   onClick={() =>
                     edit.mutate({ categoryId: category.id, archived: !category.archived })

@@ -1,6 +1,12 @@
 import type { BankCoverage, CoverageSpan } from "@ironcage/contracts/schema";
 import { type CalendarDate, daysBetween } from "@ironcage/domain";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ironcage/ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ironcage/ui/components/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@ironcage/ui/components/tooltip";
 
 import { formatSpan } from "@/features/money/format";
@@ -33,7 +39,12 @@ function CoverageBand({
       {covered.map((span) => (
         <Tooltip key={`${span.start}:${span.end}`}>
           <TooltipTrigger
-            render={<span className="absolute inset-y-0 rounded-[3px] bg-live/75" style={position(span)} />}
+            render={
+              <span
+                className="absolute inset-y-0 rounded-[3px] bg-live/75"
+                style={position(span)}
+              />
+            }
           />
           <TooltipContent>
             <span className="font-mono">covered {formatSpan(span)}</span>

@@ -1,6 +1,12 @@
 import type { MonthAnalysis } from "@ironcage/contracts/schema";
 import { Alert, AlertDescription, AlertTitle } from "@ironcage/ui/components/alert";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ironcage/ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ironcage/ui/components/card";
 import { cn } from "@ironcage/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { BigDecimal } from "effect";

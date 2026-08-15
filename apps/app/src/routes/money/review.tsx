@@ -7,12 +7,7 @@ import { EvidenceLine } from "@/features/money/components/evidence-line";
 import { ReviewQueue } from "@/features/money/components/review-queue";
 import { RulesCard } from "@/features/money/components/rules-card";
 import { TransferQueue } from "@/features/money/components/transfer-queue";
-import {
-  categoriesQuery,
-  reviewQuery,
-  rulesQuery,
-  transfersQuery,
-} from "@/features/money/queries";
+import { categoriesQuery, reviewQuery, rulesQuery, transfersQuery } from "@/features/money/queries";
 
 export const Route = createFileRoute("/money/review")({
   loader: ({ context }) =>

@@ -1,5 +1,11 @@
 import type { MonthAnalysis } from "@ironcage/contracts/schema";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ironcage/ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ironcage/ui/components/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@ironcage/ui/components/tooltip";
 import { cn } from "@ironcage/ui/lib/utils";
 import { BigDecimal } from "effect";

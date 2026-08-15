@@ -1,3 +1,4 @@
+import { Button } from "@ironcage/ui/components/button";
 import {
   Empty,
   EmptyContent,
@@ -6,7 +7,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@ironcage/ui/components/empty";
-import { Button } from "@ironcage/ui/components/button";
 import { Skeleton } from "@ironcage/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -82,8 +82,10 @@ function MoneySpending() {
 
   const fallback = months.findLast((month) => month.complete) ?? months[months.length - 1]!;
   const selected = months.find((month) => month.month === search.month) ?? fallback;
-  const select = (month: string) =>
-    navigate({ search: { month }, replace: true, resetScroll: false });
+  const select = (month: string) => {
+    // Navigation failures surface through the router's own error boundary.
+    navigate({ search: { month }, replace: true, resetScroll: false }).catch(() => undefined);
+  };
 
   return (
     <div className="flex flex-col gap-6">

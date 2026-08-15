@@ -41,7 +41,9 @@ export function EvidenceLine() {
       <span className="mx-2 text-ink-faint">·</span>
       imported {formatAgo(freshestImportAt)}
       <span className="mx-2 text-ink-faint">·</span>
-      {months === 0 ? "no complete months yet" : `${months} complete ${months === 1 ? "month" : "months"}`}
+      {months === 0
+        ? "no complete months yet"
+        : `${months} complete ${months === 1 ? "month" : "months"}`}
     </p>
   );
 }

@@ -120,9 +120,7 @@ export function ReviewQueue({
         .filter((entry) => staged[entry.transactionId] !== undefined)
         .map((entry) => ({
           transactionId: entry.transactionId,
-          splits: [
-            { categoryId: staged[entry.transactionId]!.categoryId, amount: entry.amount },
-          ],
+          splits: [{ categoryId: staged[entry.transactionId]!.categoryId, amount: entry.amount }],
         }));
       const createRules = entries
         .filter((entry) => staged[entry.transactionId]?.rule === true && entry.payee !== "")
@@ -136,10 +134,10 @@ export function ReviewQueue({
         }),
       );
     },
-    onSuccess: (outcome) => {
+    onSuccess: async (outcome) => {
       if (outcome.outcome === "ok") {
         setStaged({});
-        void queryClient.invalidateQueries({ queryKey: keys.moneyAll() });
+        await queryClient.invalidateQueries({ queryKey: keys.moneyAll() });
       }
     },
   });
@@ -240,6 +238,7 @@ export function ReviewQueue({
                         render={
                           <button
                             type="button"
+                            aria-label={`Stage the suggestion: ${entry.suggestion.categoryName}`}
                             onClick={() =>
                               setStaged((current) => ({
                                 ...current,
@@ -283,8 +282,9 @@ export function ReviewQueue({
                 <Tooltip>
                   <TooltipTrigger
                     render={
-                      <label className="flex w-16 items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className="flex w-16 items-center gap-1.5 text-xs text-muted-foreground">
                         <Checkbox
+                          aria-label={`Always file ${entry.payee} this way`}
                           disabled={stagedEntry === undefined}
                           checked={stagedEntry?.rule ?? false}
                           onCheckedChange={(checked) =>
@@ -303,12 +303,12 @@ export function ReviewQueue({
                           }
                         />
                         always
-                      </label>
+                      </span>
                     }
                   />
                   <TooltipContent>
-                    From now on, file "{entry.payee}" this way automatically. The rule appears
-                    below and can be removed.
+                    From now on, file "{entry.payee}" this way automatically. The rule appears below
+                    and can be removed.
                   </TooltipContent>
                 </Tooltip>
               )}
