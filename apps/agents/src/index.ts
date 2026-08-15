@@ -1,5 +1,4 @@
 import { AgentReadRpcs, clientOverBinding, timeouts } from "@ironcage/contracts/client";
-import { Internal } from "@ironcage/contracts/schema";
 import {
   ConversationRpcs,
   DispatchRpcs,
@@ -32,29 +31,36 @@ const dispatchSurface = HttpRouter.toWebHandler(
     DispatchRpcs,
     DispatchRpcs.toLayer({
       ping: () => ping("DispatchApi"),
+      // Acknowledge, then work. The model call can outlive core's dispatch
+      // budget many times over, and the run's only real exit is the queue —
+      // so the RPC answers as soon as the run is accepted and the inference
+      // continues under waitUntil. A run that dies here still surfaces: core
+      // sees no delivery, and the rows it would have filed stay uncategorized.
       dispatchCategorization: (payload) =>
-        Effect.flatMap(workerRequest.service, ({ env }) =>
-          Effect.tryPromise({
-            try: () =>
-              runCategorization(payload, {
-                model: categorizationModel,
-                infer: async (prompt) => {
-                  const answer = await env.AI_GATEWAY.run(categorizationModel, {
-                    messages: [{ role: "user", content: prompt }],
-                    max_tokens: 4096,
-                  });
-                  return typeof answer === "object" && answer !== null && "response" in answer
-                    ? String((answer as { response: unknown }).response)
-                    : JSON.stringify(answer);
-                },
-                send: (message) => env.DECISION_RECORDS.send(message),
-              }),
-            catch: (cause) =>
-              new Internal({
-                detail: cause instanceof Error ? cause.message : "categorization dispatch failed",
-              }),
-          }),
-        ),
+        Effect.map(workerRequest.service, ({ env, executionContext }) => {
+          executionContext.waitUntil(
+            runCategorization(payload, {
+              model: categorizationModel,
+              infer: async (prompt) => {
+                const answer = await env.AI_GATEWAY.run(categorizationModel, {
+                  messages: [{ role: "user", content: prompt }],
+                  max_tokens: 4096,
+                });
+                // Workers AI hands back `{ response }`; the response is a
+                // string, or an object when the model's text was itself JSON.
+                const response =
+                  typeof answer === "object" && answer !== null && "response" in answer
+                    ? (answer as { response: unknown }).response
+                    : answer;
+                return typeof response === "string" ? response : JSON.stringify(response);
+              },
+              send: (message) => env.DECISION_RECORDS.send(message),
+            }).catch((cause: unknown) => {
+              console.error("categorization run failed to deliver", cause);
+            }),
+          );
+          return { accepted: true };
+        }),
     }),
   ),
 );

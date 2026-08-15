@@ -61,19 +61,25 @@ const prompt = (run: CategorizationRun): string => {
   ].join("\n");
 };
 
+/** Enough of a bad answer to see what the model actually said, never the whole thing. */
+const excerpt = (answer: string): string =>
+  answer.length <= 240 ? JSON.stringify(answer) : `${JSON.stringify(answer.slice(0, 240))}…`;
+
 const parseAnswer = (
   run: CategorizationRun,
   answer: string,
 ): CategorizationOutput | { readonly invalid: string } => {
   const start = answer.indexOf("{");
   const end = answer.lastIndexOf("}");
-  if (start < 0 || end <= start) return { invalid: "no JSON object in the answer" };
+  if (start < 0 || end <= start) {
+    return { invalid: `no JSON object in the answer: ${excerpt(answer)}` };
+  }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(answer.slice(start, end + 1));
   } catch {
-    return { invalid: "the answer is not valid JSON" };
+    return { invalid: `the answer is not valid JSON: ${excerpt(answer)}` };
   }
 
   let decoded: CategorizationOutput;
