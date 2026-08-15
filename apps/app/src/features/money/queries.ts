@@ -4,7 +4,8 @@ import {
   CategorySummary,
   ImportHistoryEntry,
   MoneyAnalysis,
-  ReviewQueueEntry,
+  LedgerEntry,
+  LedgerScope,
   RuleSummary,
 } from "@ironcage/contracts/schema";
 import { queryOptions } from "@tanstack/react-query";
@@ -18,7 +19,7 @@ import {
   getCategorizationRules,
   getImportHistory,
   getMoneyAnalysis,
-  getReviewQueue,
+  listTransactions,
   getTransferMatches,
   listCategories,
 } from "@/server/money";
@@ -66,11 +67,12 @@ export const rulesQuery = queryOptions({
   select: Schema.decodeSync(Schema.Array(RuleSummary)),
 });
 
-export const reviewQuery = queryOptions({
-  queryKey: keys.money("review"),
-  queryFn: () => getReviewQueue(),
-  select: Schema.decodeSync(Schema.Array(ReviewQueueEntry)),
-});
+export const ledgerQuery = (scope: LedgerScope) =>
+  queryOptions({
+    queryKey: keys.ledger(scope),
+    queryFn: () => listTransactions({ data: scope }),
+    select: Schema.decodeSync(Schema.Array(LedgerEntry)),
+  });
 
 export const transfersQuery = queryOptions({
   queryKey: keys.money("transfers"),

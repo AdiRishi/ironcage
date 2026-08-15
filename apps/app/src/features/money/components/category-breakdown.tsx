@@ -14,9 +14,11 @@ const byAmountDescending = (a: MonthCategoryLine, b: MonthCategoryLine) =>
 function CategoryRow({
   line,
   scale,
+  month,
 }: {
   readonly line: MonthCategoryLine;
   readonly scale: number;
+  readonly month: string;
 }) {
   const refunded = BigDecimal.isNegative(line.amount);
   const share =
@@ -25,14 +27,20 @@ function CategoryRow({
 
   return (
     <div className="grid grid-cols-[minmax(7rem,10rem)_1fr_7.5rem] items-center gap-4">
-      <span className={cn("truncate text-sm", uncategorized && "text-warning")}>
+      <Link
+        to="/money/transactions"
+        search={
+          uncategorized
+            ? { view: "attention" }
+            : { view: "month", month, category: line.categoryId }
+        }
+        className={cn(
+          "truncate text-sm underline-offset-4 hover:underline",
+          uncategorized && "text-warning",
+        )}
+      >
         {line.name}
-        {uncategorized ? (
-          <Link to="/money/review" className="ml-2 text-xs underline underline-offset-4">
-            review
-          </Link>
-        ) : null}
-      </span>
+      </Link>
       <div className="h-2 rounded-[4px] bg-chart-fill">
         <div
           className={cn("h-full rounded-[4px]", uncategorized ? "bg-warning/70" : "bg-chart-1")}
@@ -54,8 +62,9 @@ function CategoryRow({
 
 /**
  * Where the month went. Expense bars share one scale — the largest category —
- * so length reads as proportion. A category refunded past zero prints as
- * money back rather than being clamped to nothing.
+ * so length reads as proportion, and every line opens into its transactions.
+ * A category refunded past zero prints as money back rather than being
+ * clamped to nothing.
  */
 export function CategoryBreakdown({ month }: { readonly month: MonthAnalysis }) {
   const expenses = month.categories
@@ -83,7 +92,7 @@ export function CategoryBreakdown({ month }: { readonly month: MonthAnalysis }) 
         {expenses.length > 0 ? (
           <div className="flex flex-col gap-2.5">
             {expenses.map((line) => (
-              <CategoryRow key={line.categoryId} line={line} scale={scale} />
+              <CategoryRow key={line.categoryId} line={line} scale={scale} month={month.month} />
             ))}
           </div>
         ) : null}

@@ -1,3 +1,5 @@
+import type { LedgerScope } from "@ironcage/contracts/schema";
+
 export type MoneySection =
   | "accounts"
   | "coverage"
@@ -5,7 +7,6 @@ export type MoneySection =
   | "analysis"
   | "categories"
   | "rules"
-  | "review"
   | "transfers";
 
 /**
@@ -17,5 +18,6 @@ export type MoneySection =
 export const keys = {
   vitals: () => ["vitals"] as const,
   money: (section: MoneySection) => ["money", section] as const,
+  ledger: (scope: LedgerScope) => ["money", "ledger", scope] as const,
   moneyAll: () => ["money"] as const,
 } as const;

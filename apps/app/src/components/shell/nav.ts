@@ -12,7 +12,7 @@ export type SurfaceTab = {
   readonly label: string;
   readonly to: AppPath;
   /** A live count the tab surfaces beside its label, when the section has one. */
-  readonly count?: "moneyReview";
+  readonly count?: "moneyAttention";
 };
 
 export type NavSection = {
@@ -84,7 +84,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     tabs: [
       { label: "Spending", to: "/money" },
       { label: "Import", to: "/money/import" },
-      { label: "Review", to: "/money/review", count: "moneyReview" },
+      { label: "Transactions", to: "/money/transactions", count: "moneyAttention" },
       { label: "Recurring", to: "/money/recurring" },
     ],
   },

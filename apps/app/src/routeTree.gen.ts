@@ -14,7 +14,7 @@ import { Route as ActivityIndexRouteImport } from './routes/activity/index'
 import { Route as MoneyIndexRouteImport } from './routes/money/index'
 import { Route as MoneyImportRouteImport } from './routes/money/import'
 import { Route as MoneyRecurringRouteImport } from './routes/money/recurring'
-import { Route as MoneyReviewRouteImport } from './routes/money/review'
+import { Route as MoneyTransactionsRouteImport } from './routes/money/transactions'
 import { Route as PortfolioIndexRouteImport } from './routes/portfolio/index'
 import { Route as PortfolioCageRouteImport } from './routes/portfolio/cage'
 import { Route as PortfolioCapitalRouteImport } from './routes/portfolio/capital'
@@ -69,9 +69,9 @@ const MoneyRecurringRoute = MoneyRecurringRouteImport.update({
   path: '/money/recurring',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MoneyReviewRoute = MoneyReviewRouteImport.update({
-  id: '/money/review',
-  path: '/money/review',
+const MoneyTransactionsRoute = MoneyTransactionsRouteImport.update({
+  id: '/money/transactions',
+  path: '/money/transactions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PortfolioIndexRoute = PortfolioIndexRouteImport.update({
@@ -228,7 +228,7 @@ export interface FileRoutesByFullPath {
   '/sleeves/$sleeveId': typeof SleevesSleeveIdRouteRouteWithChildren
   '/money/import': typeof MoneyImportRoute
   '/money/recurring': typeof MoneyRecurringRoute
-  '/money/review': typeof MoneyReviewRoute
+  '/money/transactions': typeof MoneyTransactionsRoute
   '/portfolio/cage': typeof PortfolioCageRoute
   '/portfolio/capital': typeof PortfolioCapitalRoute
   '/portfolio/costs': typeof PortfolioCostsRoute
@@ -263,7 +263,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/money/import': typeof MoneyImportRoute
   '/money/recurring': typeof MoneyRecurringRoute
-  '/money/review': typeof MoneyReviewRoute
+  '/money/transactions': typeof MoneyTransactionsRoute
   '/portfolio/cage': typeof PortfolioCageRoute
   '/portfolio/capital': typeof PortfolioCapitalRoute
   '/portfolio/costs': typeof PortfolioCostsRoute
@@ -300,7 +300,7 @@ export interface FileRoutesById {
   '/sleeves/$sleeveId': typeof SleevesSleeveIdRouteRouteWithChildren
   '/money/import': typeof MoneyImportRoute
   '/money/recurring': typeof MoneyRecurringRoute
-  '/money/review': typeof MoneyReviewRoute
+  '/money/transactions': typeof MoneyTransactionsRoute
   '/portfolio/cage': typeof PortfolioCageRoute
   '/portfolio/capital': typeof PortfolioCapitalRoute
   '/portfolio/costs': typeof PortfolioCostsRoute
@@ -338,7 +338,7 @@ export interface FileRouteTypes {
     | '/sleeves/$sleeveId'
     | '/money/import'
     | '/money/recurring'
-    | '/money/review'
+    | '/money/transactions'
     | '/portfolio/cage'
     | '/portfolio/capital'
     | '/portfolio/costs'
@@ -373,7 +373,7 @@ export interface FileRouteTypes {
     | '/'
     | '/money/import'
     | '/money/recurring'
-    | '/money/review'
+    | '/money/transactions'
     | '/portfolio/cage'
     | '/portfolio/capital'
     | '/portfolio/costs'
@@ -409,7 +409,7 @@ export interface FileRouteTypes {
     | '/sleeves/$sleeveId'
     | '/money/import'
     | '/money/recurring'
-    | '/money/review'
+    | '/money/transactions'
     | '/portfolio/cage'
     | '/portfolio/capital'
     | '/portfolio/costs'
@@ -446,7 +446,7 @@ export interface RootRouteChildren {
   SleevesSleeveIdRouteRoute: typeof SleevesSleeveIdRouteRouteWithChildren
   MoneyImportRoute: typeof MoneyImportRoute
   MoneyRecurringRoute: typeof MoneyRecurringRoute
-  MoneyReviewRoute: typeof MoneyReviewRoute
+  MoneyTransactionsRoute: typeof MoneyTransactionsRoute
   PortfolioCageRoute: typeof PortfolioCageRoute
   PortfolioCapitalRoute: typeof PortfolioCapitalRoute
   PortfolioCostsRoute: typeof PortfolioCostsRoute
@@ -508,11 +508,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MoneyRecurringRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/money/review': {
-      id: '/money/review'
-      path: '/money/review'
-      fullPath: '/money/review'
-      preLoaderRoute: typeof MoneyReviewRouteImport
+    '/money/transactions': {
+      id: '/money/transactions'
+      path: '/money/transactions'
+      fullPath: '/money/transactions'
+      preLoaderRoute: typeof MoneyTransactionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/portfolio/': {
@@ -742,7 +742,7 @@ const rootRouteChildren: RootRouteChildren = {
   SleevesSleeveIdRouteRoute: SleevesSleeveIdRouteRouteWithChildren,
   MoneyImportRoute: MoneyImportRoute,
   MoneyRecurringRoute: MoneyRecurringRoute,
-  MoneyReviewRoute: MoneyReviewRoute,
+  MoneyTransactionsRoute: MoneyTransactionsRoute,
   PortfolioCageRoute: PortfolioCageRoute,
   PortfolioCapitalRoute: PortfolioCapitalRoute,
   PortfolioCostsRoute: PortfolioCostsRoute,

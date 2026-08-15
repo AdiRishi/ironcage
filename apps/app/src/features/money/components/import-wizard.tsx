@@ -214,7 +214,7 @@ export function ImportWizard() {
           <CardDescription>
             {confirmed.effects.new === 0
               ? "The record already held every row — nothing new was written."
-              : `${confirmed.effects.new} new ${confirmed.effects.new === 1 ? "transaction" : "transactions"} joined the record; ${confirmed.effects.duplicate} arrived as further evidence for rows already counted.`}
+              : `${confirmed.effects.new} new ${confirmed.effects.new === 1 ? "transaction" : "transactions"} joined the record; ${confirmed.effects.duplicate} arrived as further evidence for rows already counted. Rules have filed what they recognize; the AI is filing the rest now.`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -235,8 +235,11 @@ export function ImportWizard() {
           <Button variant="outline" onClick={startOver}>
             Import another
           </Button>
-          <Button nativeButton={false} render={<Link to="/money/review" />}>
-            Review new categories
+          <Button
+            nativeButton={false}
+            render={<Link to="/money/transactions" search={{ view: "ai" }} />}
+          >
+            Inspect what the AI filed
           </Button>
         </CardFooter>
       </Card>

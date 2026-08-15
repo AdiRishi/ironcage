@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import type { SurfaceTab } from "@/components/shell/nav";
-import { reviewQuery } from "@/features/money/queries";
+import { ledgerQuery } from "@/features/money/queries";
 
 type CountKey = NonNullable<SurfaceTab["count"]>;
 
@@ -13,8 +13,12 @@ type CountKey = NonNullable<SurfaceTab["count"]>;
 export function useTabCounts(
   tabs: readonly SurfaceTab[],
 ): Partial<Record<CountKey, number | undefined>> {
-  const wantsReview = tabs.some((tab) => tab.count === "moneyReview");
-  const review = useQuery({ ...reviewQuery, enabled: wantsReview });
+  const wantsAttention = tabs.some((tab) => tab.count === "moneyAttention");
+  const attention = useQuery({ ...ledgerQuery({ kind: "attention" }), enabled: wantsAttention });
 
-  return { moneyReview: wantsReview ? review.data?.length : undefined };
+  return {
+    moneyAttention: wantsAttention
+      ? attention.data?.filter((entry) => entry.filedBy === "system").length
+      : undefined,
+  };
 }

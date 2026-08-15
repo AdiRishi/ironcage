@@ -186,7 +186,7 @@ export function ImportPreviewPanel({
           <EffectFigure label="New" value={preview.effects.new} />
           <EffectFigure label="Duplicates" value={preview.effects.duplicate} />
           <EffectFigure label="Ambiguous" value={preview.effects.ambiguous} tone="text-warning" />
-          <EffectFigure label="To review" value={preview.reviewCount} />
+          <EffectFigure label="For the AI" value={preview.reviewCount} />
         </div>
         {preview.balances.ledger === null ? null : (
           <p className="font-mono text-xs text-muted-foreground">

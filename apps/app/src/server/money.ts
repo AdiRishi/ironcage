@@ -9,7 +9,8 @@ import {
   ImportHistoryEntry,
   MoneyAnalysis,
   PreviewBankImportResult,
-  ReviewQueueEntry,
+  LedgerEntry,
+  LedgerScope,
   RuleSummary,
   TransferMatchSummary,
 } from "@ironcage/contracts/schema";
@@ -99,9 +100,13 @@ export const getCategorizationRules = createServerFn().handler(() =>
   callCore((client) => encodedRead(Schema.Array(RuleSummary))(client.getCategorizationRules())),
 );
 
-export const getReviewQueue = createServerFn().handler(() =>
-  callCore((client) => encodedRead(Schema.Array(ReviewQueueEntry))(client.getReviewQueue())),
-);
+export const listTransactions = createServerFn({ method: "POST" })
+  .inputValidator(decodePayload(LedgerScope))
+  .handler(({ data }) =>
+    callCore((client) =>
+      encodedRead(Schema.Array(LedgerEntry))(client.listTransactions({ scope: data })),
+    ),
+  );
 
 export const getTransferMatches = createServerFn().handler(() =>
   callCore((client) => encodedRead(TransferMatches)(client.getTransferMatches())),
