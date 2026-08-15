@@ -1,5 +1,5 @@
 import type { CoverageSpan } from "@ironcage/contracts/schema";
-import type { CalendarDate, Money } from "@ironcage/domain";
+import type { CalendarDate } from "@ironcage/domain";
 import { BigDecimal, DateTime } from "effect";
 
 /**
@@ -14,7 +14,7 @@ const MINUS = "−";
 type SignMode = "auto" | "always" | "none";
 
 export const formatAud = (
-  amount: Money<"AUD">,
+  amount: BigDecimal.BigDecimal,
   { sign = "auto" }: { sign?: SignMode } = {},
 ): string => {
   const rounded = BigDecimal.round(amount, { scale: 2, mode: "half-even" });
