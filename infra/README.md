@@ -29,9 +29,9 @@ one another's Workers, Hyperdrive configurations, buckets, queues, gateways, or
 flags. The PlanetScale database is shared deliberately; development uses only
 its `dev` branch and development runtime roles.
 
-There is deliberately no production destroy script. Permanent stores and
-safety control-plane resources use Alchemy retention policies as another guard
-against accidental removal.
+All managed resources use Alchemy's normal destroy lifecycle. Running
+`alchemy destroy --stage dev` or `alchemy destroy --stage prod` removes the
+resources tracked by that stage in reverse dependency order.
 
 Production deployment is a manually dispatched GitHub Actions workflow scoped
 to the `production` environment. It runs the complete repository verification

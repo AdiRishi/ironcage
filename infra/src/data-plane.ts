@@ -3,7 +3,6 @@ import { fileURLToPath } from "node:url";
 import { adopt } from "alchemy/AdoptPolicy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Planetscale from "alchemy/Planetscale";
-import { retain } from "alchemy/RemovalPolicy";
 import * as Effect from "effect/Effect";
 
 import type { DeploymentConfig } from "./deployment-config.ts";
@@ -28,7 +27,7 @@ export const dataPlane = Effect.fn("Ironcage.DataPlane")(function* (config: Depl
           requireApprovalForDeploy: true,
           restrictBranchRegion: true,
           productionBranchWebConsole: false,
-        }).pipe(adopt(true), retain())
+        }).pipe(adopt(true))
       : yield* Planetscale.PostgresDatabase.ref("Database", { stage: "prod" });
 
   const branch =
@@ -42,7 +41,7 @@ export const dataPlane = Effect.fn("Ironcage.DataPlane")(function* (config: Depl
           replicas: 0,
           migrationsDir,
           migrationsTable: "__alchemy_migrations",
-        }).pipe(adopt(true), retain());
+        }).pipe(adopt(true));
 
   const uncachedRole = yield* Planetscale.PostgresRole("UncachedRuntimeRole", {
     name: config._tag === "Production" ? "ironcage_runtime" : "ironcage_dev_runtime",

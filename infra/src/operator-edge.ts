@@ -1,5 +1,4 @@
 import * as Cloudflare from "alchemy/Cloudflare";
-import { retain } from "alchemy/RemovalPolicy";
 import * as Effect from "effect/Effect";
 
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
@@ -21,7 +20,7 @@ export const operatorEdge = Effect.fn("Ironcage.OperatorEdge")(function* (
             decision: "allow",
             include: [{ email: { email: config.accessEmail } }],
             sessionDuration: "720h",
-          }).pipe(retain());
+          });
 
           return yield* Cloudflare.Access.Application("OperatorApplication", {
             type: "self_hosted",
@@ -30,7 +29,7 @@ export const operatorEdge = Effect.fn("Ironcage.OperatorEdge")(function* (
             sessionDuration: "720h",
             appLauncherVisible: false,
             policies: [policy.policyId],
-          }).pipe(retain());
+          });
         })
       : undefined;
 
