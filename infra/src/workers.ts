@@ -27,7 +27,6 @@ export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
     compatibility: workerCompatibility,
     workersDev: false,
     observability: workerObservability,
-    crons: ["*/5 * * * *"],
     env: computeBindings(platform, config.environment),
   });
 
@@ -37,6 +36,7 @@ export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
     compatibility: workerCompatibility,
     workersDev: false,
     observability: workerObservability,
+    crons: ["*/5 * * * *"],
     env: coreBindings(
       data,
       platform,
@@ -49,6 +49,7 @@ export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
   const agents = yield* Cloudflare.Worker("AgentsWorker", {
     name: names.workers.agents,
     vite: {
+      main: "worker.mjs",
       rootDir: "../apps/agents",
       viteEnvironments: { entry: "ironcage_agents" },
     },

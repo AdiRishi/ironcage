@@ -95,11 +95,12 @@ minimumReleaseAge: 1440
 overrides:
   "@effect/sql-d1": 4.0.0-beta.105
   "@effect/sql-sqlite-do": 4.0.0-beta.105
-  workerd: 1.20260801.1
+  workerd: 1.20260811.1
 
 peerDependencyRules:
   allowedVersions:
     "capnp-es@0.0.14>typescript": "7"
 
 patchedDependencies:
+  "@flue/vite@2.0.3": patches/@flue__vite@2.0.3.patch
   alchemy@2.0.0-beta.72: patches/alchemy@2.0.0-beta.72.patch

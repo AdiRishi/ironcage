@@ -1,0 +1,23 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+index ce9240f02a6f1bb8e197cd013db58552b88d7b10..c7e3aeaf6386160fe80bec1431c0e96295a5eb13 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -1021,7 +1021,8 @@ function flue(config = {}) {
+ 			state.pendingWarnings = [];
+ 			if (resolved.plugins.filter((plugin) => plugin.name === "flue").length > 1) throw stackless(/* @__PURE__ */ new Error("[flue] flue() was added to the Vite config more than once."));
+ 			if (normalizePath(path.resolve(resolved.root)) !== normalizePath(state.root)) throw stackless(/* @__PURE__ */ new Error(`[flue] The resolved Vite root (${resolved.root}) differs from the root flue() resolved its project against (${state.root}). Another plugin changed \`root\` after flue() ran; set \`root\` in the Vite config itself instead.`));
+-			const cloudflareDetected = resolved.plugins.some((plugin) => isCloudflarePluginName(plugin.name));
++			const alchemyManagesCloudflare = process.env.ALCHEMY_CLOUDFLARE_VITE_INJECTED === "1";
++			const cloudflareDetected = alchemyManagesCloudflare || resolved.plugins.some((plugin) => isCloudflarePluginName(plugin.name));
+ 			const target = state.explicitTarget ?? (cloudflareDetected ? "cloudflare" : "node");
+ 			state.target = target;
+ 			state.resolved = {
+@@ -1039,7 +1040,7 @@ function flue(config = {}) {
+ 				const cloudflareIndex = resolved.plugins.findIndex((plugin) => plugin.name === "vite-plugin-cloudflare");
+ 				if (cloudflareIndex !== -1 && flueIndex !== -1 && cloudflareIndex < flueIndex) throw cloudflareOrderingError();
+ 				if (!state.cloudflarePrepared && !state.isPreview) throw stackless(/* @__PURE__ */ new Error("[flue] The Cloudflare plugin is present, but flue() could not see it while Vite resolved the config, so flue() configured the Node target instead. Add flue() and cloudflare() as plain entries of the same `plugins` array (not wrapped in a Promise or added by another plugin), with flue() first."));
+-				if (!workerConfigSource.customizerInvoked && !state.isPreview) throw stackless(/* @__PURE__ */ new Error("[flue] The Cloudflare plugin is not receiving Flue's Worker configuration (the generated Worker entry and per-agent Durable Object bindings). Pass Flue's config customizer to cloudflare():\n\n  import { flue, flueWorkerConfig } from '@flue/vite';\n  plugins: [flue(), cloudflare({ config: flueWorkerConfig() })]\n"));
++				if (!workerConfigSource.customizerInvoked && !state.isPreview && !alchemyManagesCloudflare) throw stackless(/* @__PURE__ */ new Error("[flue] The Cloudflare plugin is not receiving Flue's Worker configuration (the generated Worker entry and per-agent Durable Object bindings). Pass Flue's config customizer to cloudflare():\n\n  import { flue, flueWorkerConfig } from '@flue/vite';\n  plugins: [flue(), cloudflare({ config: flueWorkerConfig() })]\n"));
+ 			}
+ 		},
+ 		resolveId(source) {
