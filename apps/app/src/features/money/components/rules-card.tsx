@@ -1,5 +1,5 @@
 import type { RuleSummary } from "@ironcage/contracts/schema";
-import type { RulePredicate } from "@ironcage/domain";
+import { newRequestId, type RulePredicate } from "@ironcage/domain";
 import { Badge } from "@ironcage/ui/components/badge";
 import { Button } from "@ironcage/ui/components/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@ironcage/ui/components/card";
@@ -8,7 +8,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { XIcon } from "lucide-react";
 
 import { keys } from "@/data/keys";
-import { mintRequestId } from "@/data/request";
 import { Eyebrow } from "@/features/money/components/eyebrow";
 import { formatAud } from "@/features/money/format";
 import { decodeRuleOutcome, encodeEditRulePayload } from "@/features/money/transport";
@@ -45,7 +44,7 @@ export function RulesCard({ rules }: { readonly rules: readonly RuleSummary[] })
       decodeRuleOutcome(
         await editCategorizationRule({
           data: encodeEditRulePayload({
-            requestId: mintRequestId(),
+            requestId: newRequestId(),
             action: { kind: "close", ruleId },
           }),
         }),

@@ -3,6 +3,7 @@ import type {
   TransferLeg,
   TransferMatchSummary,
 } from "@ironcage/contracts/schema";
+import { newRequestId } from "@ironcage/domain";
 import { Alert, AlertDescription, AlertTitle } from "@ironcage/ui/components/alert";
 import { Button } from "@ironcage/ui/components/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@ironcage/ui/components/card";
@@ -12,7 +13,6 @@ import { BigDecimal } from "effect";
 import { ArrowRightLeftIcon, CircleAlertIcon } from "lucide-react";
 
 import { keys } from "@/data/keys";
-import { mintRequestId } from "@/data/request";
 import { Eyebrow } from "@/features/money/components/eyebrow";
 import { describeError, formatAud, formatDay } from "@/features/money/format";
 import { decodeTransferOutcome, encodeDecideTransferPayload } from "@/features/money/transport";
@@ -52,7 +52,7 @@ export function TransferQueue({
     }) =>
       decodeTransferOutcome(
         await decideTransferMatch({
-          data: encodeDecideTransferPayload({ requestId: mintRequestId(), ...input }),
+          data: encodeDecideTransferPayload({ requestId: newRequestId(), ...input }),
         }),
       ),
     onSuccess: async (outcome) => {

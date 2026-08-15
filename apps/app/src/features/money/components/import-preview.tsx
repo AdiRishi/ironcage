@@ -3,7 +3,7 @@ import {
   type BoundaryError,
   type CandidateEffect,
 } from "@ironcage/contracts/schema";
-import type { BankTransactionId, MatchTier } from "@ironcage/domain";
+import { newRequestId, type BankTransactionId, type MatchTier } from "@ironcage/domain";
 import { Alert, AlertDescription, AlertTitle } from "@ironcage/ui/components/alert";
 import { Badge } from "@ironcage/ui/components/badge";
 import { Button } from "@ironcage/ui/components/button";
@@ -36,7 +36,6 @@ import { cn } from "@ironcage/ui/lib/utils";
 import { CircleAlertIcon, CircleCheckIcon, InfoIcon, RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
 
-import { mintRequestId } from "@/data/request";
 import { describeError, formatAud, formatDay, formatSpan } from "@/features/money/format";
 import type { ConfirmImportDraft, ImportSourceDraft } from "@/features/money/import-upload";
 
@@ -149,7 +148,7 @@ export function ImportPreviewPanel({
               : { kind: "link", transactionId: decision },
         };
       }),
-      requestId: mintRequestId(),
+      requestId: newRequestId(),
     });
 
   return (

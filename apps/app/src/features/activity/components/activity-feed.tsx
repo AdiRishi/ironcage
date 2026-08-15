@@ -4,6 +4,7 @@ import {
   Outcome,
   type FeedEventView as FeedEvent,
 } from "@ironcage/contracts/schema";
+import { newRequestId } from "@ironcage/domain";
 import { Badge } from "@ironcage/ui/components/badge";
 import { Button } from "@ironcage/ui/components/button";
 import { Card, CardContent } from "@ironcage/ui/components/card";
@@ -13,7 +14,6 @@ import { Schema } from "effect";
 import { useMemo, useState } from "react";
 
 import { keys } from "@/data/keys";
-import { mintRequestId } from "@/data/request";
 import { formatAgo } from "@/features/money/format";
 import { acknowledge } from "@/server/feed";
 
@@ -44,7 +44,7 @@ export function ActivityFeedView({ events }: { readonly events: readonly FeedEve
   const markRead = async (event: FeedEvent) => {
     const outcome = decodeOutcome(
       await acknowledge({
-        data: encodeAcknowledge({ requestId: mintRequestId(), eventId: event.id }),
+        data: encodeAcknowledge({ requestId: newRequestId(), eventId: event.id }),
       }),
     );
     if (outcome.outcome === "ok") {

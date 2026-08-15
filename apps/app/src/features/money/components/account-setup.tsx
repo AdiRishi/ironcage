@@ -1,5 +1,5 @@
 import type { BankAccountSummary } from "@ironcage/contracts/schema";
-import type { BankAccountType } from "@ironcage/domain";
+import { newRequestId, type BankAccountType } from "@ironcage/domain";
 import { Alert, AlertDescription, AlertTitle } from "@ironcage/ui/components/alert";
 import { Button } from "@ironcage/ui/components/button";
 import { Spinner } from "@ironcage/ui/components/spinner";
@@ -7,7 +7,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
 import { keys } from "@/data/keys";
-import { mintRequestId } from "@/data/request";
 import { describeError } from "@/features/money/format";
 import { decodeAccountOutcome } from "@/features/money/transport";
 import { configureBankAccount } from "@/server/money";
@@ -39,7 +38,7 @@ export function AccountSetup({ existing }: { readonly existing: readonly BankAcc
         const outcome = decodeAccountOutcome(
           await configureBankAccount({
             data: {
-              requestId: mintRequestId(),
+              requestId: newRequestId(),
               productLabel: account.productLabel,
               accountType: account.accountType,
               required: true,

@@ -1,5 +1,5 @@
 import type { CategorySummary, LedgerEntry } from "@ironcage/contracts/schema";
-import type { CategoryId, SplitProvenance } from "@ironcage/domain";
+import { newRequestId, type CategoryId, type SplitProvenance } from "@ironcage/domain";
 import { Alert, AlertDescription, AlertTitle } from "@ironcage/ui/components/alert";
 import { Button } from "@ironcage/ui/components/button";
 import { Card, CardContent, CardFooter } from "@ironcage/ui/components/card";
@@ -28,7 +28,6 @@ import { CircleAlertIcon, InboxIcon, SparklesIcon, UserIcon, ZapIcon } from "luc
 import { useState, type SetStateAction } from "react";
 
 import { keys } from "@/data/keys";
-import { mintRequestId } from "@/data/request";
 import { describeError, formatAud, formatDay } from "@/features/money/format";
 import { decodeCategorizeOutcome, encodeCategorizePayload } from "@/features/money/transport";
 import { categorizeTransactions } from "@/server/money";
@@ -182,7 +181,7 @@ export function Ledger({
         }));
       return decodeCategorizeOutcome(
         await categorizeTransactions({
-          data: encodeCategorizePayload({ requestId: mintRequestId(), changes, createRules }),
+          data: encodeCategorizePayload({ requestId: newRequestId(), changes, createRules }),
         }),
       );
     },

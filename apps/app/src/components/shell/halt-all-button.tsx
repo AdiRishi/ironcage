@@ -1,4 +1,5 @@
 import { HaltAllInput, Outcome, SystemStatus } from "@ironcage/contracts/schema";
+import { newRequestId } from "@ironcage/domain";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,7 +15,6 @@ import { Button } from "@ironcage/ui/components/button";
 import { Schema } from "effect";
 import { useState } from "react";
 
-import { mintRequestId } from "@/data/request";
 import { describeError } from "@/features/money/format";
 import { haltAll } from "@/server/system";
 
@@ -44,7 +44,7 @@ export function HaltAllButton() {
       const outcome = decodeOutcome(
         await haltAll({
           data: encodeHalt({
-            requestId: mintRequestId(),
+            requestId: newRequestId(),
             reason: "Operator invoked Halt All",
           }),
         }),

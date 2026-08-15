@@ -4,7 +4,7 @@ import {
   RecordExternalBalanceInput,
   type ExternalAccount as ExternalAccountView,
 } from "@ironcage/contracts/schema";
-import { Aud, CalendarDate } from "@ironcage/domain";
+import { Aud, CalendarDate, newRequestId } from "@ironcage/domain";
 import { Button } from "@ironcage/ui/components/button";
 import {
   Card,
@@ -27,7 +27,6 @@ import { BigDecimal, Schema } from "effect";
 import { useState } from "react";
 
 import { keys } from "@/data/keys";
-import { mintRequestId } from "@/data/request";
 import { describeError } from "@/features/money/format";
 import { recordExternalBalance } from "@/server/portfolio";
 
@@ -70,7 +69,7 @@ export function ExternalBalanceForm({
       const outcome = decodeOutcome(
         await recordExternalBalance({
           data: encodeInput({
-            requestId: mintRequestId(),
+            requestId: newRequestId(),
             accountId: selected?.id ?? null,
             label,
             kind,

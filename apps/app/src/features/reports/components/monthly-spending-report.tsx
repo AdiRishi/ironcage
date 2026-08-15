@@ -4,6 +4,7 @@ import {
   ReportSummary,
   type MonthlySpendingReport,
 } from "@ironcage/contracts/schema";
+import { newRequestId } from "@ironcage/domain";
 import {
   Card,
   CardContent,
@@ -25,7 +26,6 @@ import { Schema } from "effect";
 import { useEffect } from "react";
 
 import { keys } from "@/data/keys";
-import { mintRequestId } from "@/data/request";
 import { formatAgo, formatAud, formatDay, formatMonth, formatRate } from "@/features/money/format";
 import { markReportOpened } from "@/server/reports";
 
@@ -38,7 +38,7 @@ export function MonthlySpendingReportView({ report }: { readonly report: Monthly
   useEffect(() => {
     if (report.openedAt !== null) return;
     markReportOpened({
-      data: encodeOpened({ requestId: mintRequestId(), reportId: report.id }),
+      data: encodeOpened({ requestId: newRequestId(), reportId: report.id }),
     }).then(
       (encoded) => {
         const outcome = decodeOpened(encoded);

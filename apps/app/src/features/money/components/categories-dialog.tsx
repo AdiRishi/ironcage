@@ -1,4 +1,5 @@
 import type { CategorySummary } from "@ironcage/contracts/schema";
+import { newRequestId } from "@ironcage/domain";
 import { Badge } from "@ironcage/ui/components/badge";
 import { Button } from "@ironcage/ui/components/button";
 import {
@@ -22,7 +23,6 @@ import { ArchiveIcon, ArchiveRestoreIcon, LockIcon, SettingsIcon } from "lucide-
 import { useState } from "react";
 
 import { keys } from "@/data/keys";
-import { mintRequestId } from "@/data/request";
 import { describeError } from "@/features/money/format";
 import {
   decodeCategoryOutcome,
@@ -60,7 +60,7 @@ export function CategoriesDialog({
       decodeCategoryOutcome(
         await createCategory({
           data: encodeCreateCategoryPayload({
-            requestId: mintRequestId(),
+            requestId: newRequestId(),
             name: name.trim(),
             kind,
           }),
@@ -80,7 +80,7 @@ export function CategoriesDialog({
       decodeCategoryOutcome(
         await editCategory({
           data: encodeEditCategoryPayload({
-            requestId: mintRequestId(),
+            requestId: newRequestId(),
             categoryId: input.categoryId,
             name: null,
             archived: input.archived,
