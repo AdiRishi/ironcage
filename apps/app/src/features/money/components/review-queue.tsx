@@ -224,7 +224,9 @@ export function ReviewQueue({
                 </span>
                 <span className="block truncate font-mono text-xs text-ink-faint">
                   {entry.productLabel}
-                  {entry.payee === "" ? "" : ` · ${entry.narrative}`}
+                  {entry.payee === "" || entry.payee === entry.narrative
+                    ? ""
+                    : ` · ${entry.narrative}`}
                 </span>
               </div>
               <span className="w-28 shrink-0 text-right font-mono text-sm tabular-nums">

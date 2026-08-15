@@ -47,6 +47,9 @@ export const httpClientOverBinding = (
  */
 export const timeouts = {
   appToCore: Duration.seconds(10),
+  /** Import preview and confirm parse whole files and commit one large
+   * transaction under an advisory lock; they earn a budget of their own. */
+  appToCoreImport: Duration.seconds(60),
   agentsToCore: Duration.seconds(10),
   coreToAgents: Duration.seconds(30),
   appToAgents: Duration.seconds(30),

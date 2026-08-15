@@ -6,13 +6,16 @@ import { env } from "cloudflare:workers";
 import { Effect, Schema } from "effect";
 
 /** Effect stops at this boundary; the browser sees whatever a server function returns. */
-export const callCore = <A, E>(use: (client: AppClient) => Effect.Effect<A, E>): Promise<A> =>
+export const callCore = <A, E>(
+  use: (client: AppClient) => Effect.Effect<A, E>,
+  options?: { readonly timeout?: (typeof timeouts)[keyof typeof timeouts] },
+): Promise<A> =>
   Effect.runPromise(
     Effect.gen(function* () {
       const client = yield* clientOverBinding(AppRpcs, {
         binding: env.CORE,
         surface: "core",
-        timeout: timeouts.appToCore,
+        timeout: options?.timeout ?? timeouts.appToCore,
       });
 
       return yield* use(client);

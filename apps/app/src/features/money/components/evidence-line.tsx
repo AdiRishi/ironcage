@@ -25,10 +25,22 @@ export function EvidenceLine() {
 
   const { dataThrough, freshestImportAt, completeMonths } = coverage.data;
 
-  if (dataThrough === null || freshestImportAt === null) {
+  if (freshestImportAt === null) {
     return (
       <p className="font-mono text-xs tracking-wide text-muted-foreground">
         The record is empty — nothing has been imported yet.
+      </p>
+    );
+  }
+
+  // Data-through is the latest date covered across every required account, so
+  // it stays null until all four have history.
+  if (dataThrough === null) {
+    return (
+      <p className="font-mono text-xs tracking-wide text-muted-foreground">
+        imported {formatAgo(freshestImportAt)}
+        <span className="mx-2 text-ink-faint">·</span>
+        no date is covered by all four required accounts yet
       </p>
     );
   }

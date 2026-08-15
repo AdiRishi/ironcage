@@ -73,7 +73,9 @@ function MoneySpending() {
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button render={<Link to="/money/import" />}>Import an export</Button>
+            <Button nativeButton={false} render={<Link to="/money/import" />}>
+              Import an export
+            </Button>
           </EmptyContent>
         </Empty>
       </div>

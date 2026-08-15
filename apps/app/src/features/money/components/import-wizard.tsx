@@ -20,6 +20,7 @@ import { useState } from "react";
 import { keys } from "@/data/keys";
 import { blockGuidance } from "@/features/money/blocks";
 import { decodeConfirmOutcome, decodePreviewOutcome } from "@/features/money/codec";
+import { AccountSetup } from "@/features/money/components/account-setup";
 import {
   type ConfirmDraft,
   ImportPreviewPanel,
@@ -234,7 +235,9 @@ export function ImportWizard() {
           <Button variant="outline" onClick={startOver}>
             Import another
           </Button>
-          <Button render={<Link to="/money/review" />}>Review new categories</Button>
+          <Button nativeButton={false} render={<Link to="/money/review" />}>
+            Review new categories
+          </Button>
         </CardFooter>
       </Card>
     );
@@ -334,6 +337,8 @@ export function ImportWizard() {
             <p className="text-sm text-destructive">
               Accounts unavailable — {String(accounts.error)}
             </p>
+          ) : accounts.data.length === 0 ? (
+            <AccountSetup existing={accounts.data} />
           ) : (
             <AccountPicker accounts={accounts.data} selected={accountId} onSelect={setAccountId} />
           )}

@@ -268,7 +268,7 @@ export function ImportPreviewPanel({
                     <span className="block truncate text-sm" title={candidate.narrative}>
                       {candidate.payee === "" ? candidate.narrative : candidate.payee}
                     </span>
-                    {candidate.payee === "" ? null : (
+                    {candidate.payee === "" || candidate.payee === candidate.narrative ? null : (
                       <span className="block truncate font-mono text-xs text-ink-faint">
                         {candidate.narrative}
                       </span>

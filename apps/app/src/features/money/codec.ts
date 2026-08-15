@@ -1,5 +1,6 @@
 import {
   AmbiguityResolution,
+  BankAccountSummary,
   BoundaryError,
   CategorySummary,
   ConfirmBankImportResult,
@@ -12,7 +13,9 @@ import {
 } from "@ironcage/contracts/schema";
 import {
   BankAccountId,
+  BankAccountType,
   BankTransactionId,
+  CalendarDate,
   CategorizationRuleId,
   CategoryId,
   CategoryKind,
@@ -96,6 +99,15 @@ export const EditCategoryPayload = Schema.Struct({
   archived: Schema.NullOr(Schema.Boolean),
 });
 
+export const ConfigureAccountPayload = Schema.Struct({
+  requestId: RequestId,
+  productLabel: Schema.String,
+  accountType: BankAccountType,
+  required: Schema.Boolean,
+  openedOn: Schema.NullOr(CalendarDate),
+  closedOn: Schema.NullOr(CalendarDate),
+});
+
 export const EditRulePayload = Schema.Struct({
   requestId: RequestId,
   action: Schema.Union([
@@ -138,6 +150,7 @@ export const decodeConfirmOutcome = Schema.decodeUnknownSync(Outcome(ConfirmBank
 export const decodeCategorizeOutcome = Schema.decodeUnknownSync(Outcome(CategorizeResult));
 export const decodeTransferOutcome = Schema.decodeUnknownSync(Outcome(TransferMatchSummary));
 export const decodeCategoryOutcome = Schema.decodeUnknownSync(Outcome(CategorySummary));
+export const decodeAccountOutcome = Schema.decodeUnknownSync(Outcome(BankAccountSummary));
 export const decodeRuleOutcome = Schema.decodeUnknownSync(Outcome(RuleSummary));
 
 /**

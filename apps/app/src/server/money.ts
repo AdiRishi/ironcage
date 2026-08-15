@@ -1,4 +1,4 @@
-import { intoTaxonomy } from "@ironcage/contracts/client";
+import { intoTaxonomy, timeouts } from "@ironcage/contracts/client";
 import type { BankImportSource, UploadedBytes } from "@ironcage/contracts/schema";
 import {
   BankAccountSummary,
@@ -20,6 +20,7 @@ import type { RpcClientError } from "effect/unstable/rpc";
 import {
   CategorizePayload,
   CategorizeResult,
+  ConfigureAccountPayload,
   ConfirmPayload,
   CreateCategoryPayload,
   DecideTransferPayload,
@@ -109,20 +110,24 @@ export const getTransferMatches = createServerFn().handler(() =>
 export const previewBankImport = createServerFn({ method: "POST" })
   .inputValidator(decodePayload(PreviewPayload))
   .handler(({ data }) =>
-    callCore((client) =>
-      intoOutcome(PreviewBankImportResult)(
-        client.previewBankImport({ source: intoSource(data.source) }),
-      ),
+    callCore(
+      (client) =>
+        intoOutcome(PreviewBankImportResult)(
+          client.previewBankImport({ source: intoSource(data.source) }),
+        ),
+      { timeout: timeouts.appToCoreImport },
     ),
   );
 
 export const confirmBankImport = createServerFn({ method: "POST" })
   .inputValidator(decodePayload(ConfirmPayload))
   .handler(({ data }) =>
-    callCore((client) =>
-      intoOutcome(ConfirmBankImportResult)(
-        client.confirmBankImport({ ...data, source: intoSource(data.source) }),
-      ),
+    callCore(
+      (client) =>
+        intoOutcome(ConfirmBankImportResult)(
+          client.confirmBankImport({ ...data, source: intoSource(data.source) }),
+        ),
+      { timeout: timeouts.appToCoreImport },
     ),
   );
 
@@ -148,6 +153,12 @@ export const editCategory = createServerFn({ method: "POST" })
   .inputValidator(decodePayload(EditCategoryPayload))
   .handler(({ data }) =>
     callCore((client) => intoOutcome(CategorySummary)(client.editCategory(data))),
+  );
+
+export const configureBankAccount = createServerFn({ method: "POST" })
+  .inputValidator(decodePayload(ConfigureAccountPayload))
+  .handler(({ data }) =>
+    callCore((client) => intoOutcome(BankAccountSummary)(client.configureBankAccount(data))),
   );
 
 export const editCategorizationRule = createServerFn({ method: "POST" })
