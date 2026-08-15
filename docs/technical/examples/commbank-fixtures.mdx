@@ -129,7 +129,7 @@ An empty element is not an identifier. Home-loan rows use their running balance.
 
 ## Extracted offset-statement Markdown
 
-AnyDoc can represent one visual transaction as several Markdown rows. The planned statement state machine must join continuation rows before parsing the amount and balance.
+AnyDoc can represent one visual transaction as several Markdown rows. The offset-statement parser joins continuation rows before proving the amount and running balance.
 
 The statement table prints no currency symbols. Amounts use thousands separators, balances carry a `CR` suffix, dates are a zero-padded day and abbreviated month without a year, and the continuation lines render `Value Date` without the colon that structured-export narratives include.
 

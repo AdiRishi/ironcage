@@ -15,7 +15,7 @@ This chapter defines what is stored, where, and in what shape: the three storage
 - Every byte of Ironcage's trading-actor Durable Object storage is rebuildable from Postgres. Flue-owned Durable Object state is a separate, explicitly inventoried platform record and never financial authority.
 - Append-only tables are enforced by the database role, not by discipline: the application role has no `UPDATE` or `DELETE` privilege on them.
 - No financial value is ever a float — not in a table, not in a contract, not in a computation.
-- Every displayed figure in the product is recomputable from Postgres rows plus R2 blobs.
+- Every displayed figure in the product is recomputable from Postgres rows and any artifacts its owning domain explicitly retains.
 - Nothing is deleted, except rows in the three named mechanism tables.
 
 ## The four storage classes
@@ -27,7 +27,7 @@ The system's state lives in four storage classes with different durability, cost
 | **PlanetScale Postgres** | The blotter, intents, ticks, mandates, capital acts, transfers, reservations, feed events, decision records, scorecards, candles, bank transactions, tax events, reports, ceremonies, pending effects | The record. Append-only where the domain is append-only. Money is `NUMERIC`, never a float.                         |
 | **Ironcage DO SQLite**   | Each trading actor's working set: cached mandate, cage counters, tick bookkeeping, in-flight markers                                                                                                  | A cache plus in-flight markers. Rebuildable from Postgres; never the only holder of a fact.                         |
 | **Flue DO SQLite**       | Canonical research-conversation streams; accepted submissions; attachment references/bytes; workflow inputs, results, errors, and durable events as the pinned runtime persists them                  | Durable sensitive platform state. Not financial authority; access and retention are defined in [AI](/technical/ai). |
-| **R2**                   | Raw external files, candle archives, backtest artifacts, report bodies, proposal bundles, logical dumps                                                                                               | Blobs, addressed by keys stored in Postgres rows. Immutable once written.                                           |
+| **R2**                   | Tax source evidence, candle archives, backtest artifacts, report bodies, proposal bundles, logical dumps                                                                                              | Blobs retained only under an explicit owning-domain policy. Money import uploads are excluded.                      |
 
 Core-owned Cloudflare Workflows are orchestration, never the domain record. A step writes its real output to Postgres or R2 and returns only a pointer. The selected paid-plan contract currently retains completed state for 30 days (Free is 3 days), caps non-streaming step results at 1 MiB, and becomes a metered cost dimension on 2026-08-10; the deployment register pins and rechecks those terms. Flue's own durable execution state is the separately disclosed Flue class above, not a substitute for the Postgres decision record.
 
@@ -42,7 +42,7 @@ These rules bind every table in the system.
 - **Enums are `text` with a `CHECK` constraint** — the cheapest representation to extend in a system that will add event and tax types for years.
 - **Payloads are `jsonb`, validated at the boundary.** Every `jsonb` column has an Effect Schema in `packages/domain`. A stored row that fails decoding is a defect, and the failure is loud.
 - **Provenance is mandatory.** A row derived from an external source carries where it came from and when it was fetched. A row derived by computation carries the code or config version that computed it.
-- **R2 by reference.** Postgres rows hold R2 keys; R2 keys embed the ID of the owning row. Neither store is ever the only holder of the other's existence.
+- **R2 by reference.** When a domain retains an R2 blob, Postgres holds its key and the key embeds the owning row's ID. Money imports persist source metadata and observations without retaining upload blobs.
 
 ## The commit point
 
@@ -493,7 +493,6 @@ One primary bucket, prefixed by domain, keys embedding owner UUIDs; plus the age
 
 <FileTree>
 
-- `exports/{source}/{import_id}/…` raw bank/venue/exchange files, exactly as received
 - `candles/{venue}/{instrument}/…` backfill archives (e.g. Kraken quarterly CSVs)
 - `backtests/{run_id}/…` manifest, inputs hash, outputs, equity series
 - `reports/{report_id}.html` rendered report bodies
@@ -503,7 +502,7 @@ One primary bucket, prefixed by domain, keys embedding owner UUIDs; plus the age
 
 </FileTree>
 
-Raw external files are treated as immutable once written, and nothing in R2 is the only record of a fact; Postgres always holds the row that names the key. Application write paths use content-addressed keys and never overwrite referenced objects. R2 is not protected against operator deletion, and losing an object is an accepted failure mode: the missing artifact or evidence is surfaced rather than silently reconstructed or allowed to change the financial record.
+Artifacts governed by an owning domain's retention policy are immutable once written, and nothing in R2 is the only record of a fact; Postgres always holds the row that names the key. Application write paths use content-addressed keys and never overwrite referenced objects. R2 is not protected against operator deletion, and losing an object is an accepted failure mode: the missing artifact or evidence is surfaced rather than silently reconstructed or allowed to change the financial record. Money's CSV, OFX, PDF, and extracted Markdown never enter this layout.
 
 ## Migrations
 
@@ -515,7 +514,7 @@ Ironcage actor SQLite schemas carry a version number. A mismatch at wake trigger
 
 ## Retention and backups
 
-Nothing in the financial record is deleted. Corrections append; retirement archives; permanent product retention avoids collapsing the different tax and asset-record clocks into one slogan. There are exactly three named exceptions, all mechanism tables whose rows are machinery rather than record: `queue_dedupe` rows older than 30 days, `pending_effects` rows delivered more than 90 days ago, and `app_requests` rows completed more than 90 days ago (all proposed). An app request far past its retry horizon can never be replayed; the mutation it recorded lives on in the domain tables. At one operator's volume the entire record for years fits in single-digit gigabytes; the only genuine growth item, fine-timeframe candles, stays within comfort (a year of 1-minute candles for twenty instruments is roughly 10 million rows).
+Nothing in the durable financial record is deleted. Transient processing inputs are not part of that record: Money upload bytes and extracted statement text are discarded after each request. Corrections append; retirement archives; permanent product retention avoids collapsing the different tax and asset-record clocks into one slogan. There are exactly three retained-record exceptions, all mechanism tables whose rows are machinery rather than record: `queue_dedupe` rows older than 30 days, `pending_effects` rows delivered more than 90 days ago, and `app_requests` rows completed more than 90 days ago (all proposed). An app request far past its retry horizon can never be replayed; the mutation it recorded lives on in the domain tables. At one operator's volume the entire record for years fits in single-digit gigabytes; the only genuine growth item, fine-timeframe candles, stays within comfort (a year of 1-minute candles for twenty instruments is roughly 10 million rows).
 
 The data side of backups: PlanetScale point-in-time recovery covers only the purchased retention window and stops five minutes before the present. A scheduled logical dump runs in a separate trusted backup-container profile (Workers cannot run `pg_dump`) under a dedicated read-only dump credential, landing under `dumps/{yyyy-mm-dd}/`. Untrusted backtest code never sees that credential. The dump schedule, exact PITR window/RPO, restore runbook, and periodic edge-window restore tests are [Operations](/technical/operations).
 

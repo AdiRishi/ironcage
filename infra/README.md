@@ -58,9 +58,9 @@ builders.
 
 The decision-record consumer, scheduled dispatch, and statement-extraction
 container are part of the deployed graph. Statement extraction has no database
-binding or public Internet access, and statement parsing remains disabled until
-its fixture gate passes. Workflows and the backup database credential remain
-absent until their handlers exist.
+binding, public Internet access, or durable input storage. Core uses it for the
+enabled CommBank offset-statement import profile. Workflows and the backup
+database credential remain absent until their handlers exist.
 
 ## Migrations and first adoption
 

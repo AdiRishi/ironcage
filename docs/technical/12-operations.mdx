@@ -305,7 +305,7 @@ The result is a feed event either way, so a silently broken backup becomes a vis
   </Step>
 </Steps>
 
-**Retention: nothing is deleted.** The entire record for years fits in single-digit gigabytes. Two mechanism tables are the named exceptions, prunable by policy because they carry no history: the queue dedupe table, and `pending_effects` rows that have been delivered.
+**Retention: nothing in the durable record is deleted.** Transient processing inputs, including Money uploads and extracted statement text, are discarded by their owning request. The retained record for years fits in single-digit gigabytes. Two mechanism tables are the named exceptions, prunable by policy because they carry no history: the queue dedupe table, and `pending_effects` rows that have been delivered.
 
 ## 9. Incidents
 
@@ -358,37 +358,37 @@ The Postgres major version is chosen only after Hyperdrive and the Effect driver
 
 Every number above, its owner, and its status. "Proposed" means: pick differently and only configuration changes.
 
-| Value                          | Default                                                    | Owner            | Status   |
-| ------------------------------ | ---------------------------------------------------------- | ---------------- | -------- |
-| Environments                   | local + production only                                    | operations       | decided  |
-| CI database                    | local Postgres container                                   | operations       | decided  |
-| Human dev database             | PlanetScale dev branch via direct local connection         | operations       | decided  |
-| Hyperdrive integration lane    | deployed dev Worker                                        | operations       | decided  |
-| AI Gateway spend cap           | $50/week, sliding, gateway-wide                            | gateway config   | decided  |
-| Release unit                   | entire repository from `main`                              | operations       | decided  |
-| Deployment rollout             | no percentage rollout; immediate whole release             | operations       | decided  |
-| Entry block during deploy      | whole deploy-and-verify window                             | operations       | decided  |
-| Destructive migration delay    | ≥ 7 days after every reader and writer stops               | operations       | proposed |
-| Failure recovery               | fix-forward; previous whole commit only when compatible    | operations       | decided  |
-| Dry-run soak before live       | 7 days or 50 ticks, longer of                              | operations       | proposed |
-| Secret rotation cadence        | quarterly                                                  | operator         | proposed |
-| Vitals recompute cron          | every 60 s                                                 | core cron        | proposed |
-| Vitals panel unknown threshold | row older than 180 s                                       | core             | proposed |
-| Engine vital thresholds        | > 25% / > 100% overdue                                     | core             | proposed |
-| Venue vital thresholds         | > 5 min / 3 failures or 15 min                             | core             | proposed |
-| Decision queue thresholds      | 50 msgs or 5 min / 500 or 30 min                           | core             | proposed |
-| Outbox lag thresholds          | 60 s / 300 s                                               | core             | proposed |
-| Database latency thresholds    | p95 250 ms / 1000 ms                                       | core             | proposed |
-| Backup vital thresholds        | dump > 26 h / > 50 h or failed restore test                | core             | proposed |
-| Watchdog cadence               | every 5 min, off Postgres `next_due_at`                    | core cron        | proposed |
-| Dead-man poll interval         | every 5 min, alert on 2 consecutive failures               | external monitor | proposed |
-| AI estimated-cost pull         | 01:00 UTC daily                                            | core cron        | proposed |
-| Infrastructure cost            | Cloudflare billing dashboard; no automated API yet         | operator         | decided  |
-| Nightly logical dump           | 03:00 UTC, trusted backup-container profile                | backup workflow  | proposed |
-| Independent-copy RPO           | 24 h                                                       | operations       | proposed |
-| Restore test cadence           | quarterly                                                  | operations       | proposed |
-| Register review cadence        | quarterly                                                  | operator         | proposed |
-| Retention                      | nothing deleted; prunable: queue dedupe, delivered effects | data policy      | decided  |
+| Value                          | Default                                                                      | Owner            | Status   |
+| ------------------------------ | ---------------------------------------------------------------------------- | ---------------- | -------- |
+| Environments                   | local + production only                                                      | operations       | decided  |
+| CI database                    | local Postgres container                                                     | operations       | decided  |
+| Human dev database             | PlanetScale dev branch via direct local connection                           | operations       | decided  |
+| Hyperdrive integration lane    | deployed dev Worker                                                          | operations       | decided  |
+| AI Gateway spend cap           | $50/week, sliding, gateway-wide                                              | gateway config   | decided  |
+| Release unit                   | entire repository from `main`                                                | operations       | decided  |
+| Deployment rollout             | no percentage rollout; immediate whole release                               | operations       | decided  |
+| Entry block during deploy      | whole deploy-and-verify window                                               | operations       | decided  |
+| Destructive migration delay    | ≥ 7 days after every reader and writer stops                                 | operations       | proposed |
+| Failure recovery               | fix-forward; previous whole commit only when compatible                      | operations       | decided  |
+| Dry-run soak before live       | 7 days or 50 ticks, longer of                                                | operations       | proposed |
+| Secret rotation cadence        | quarterly                                                                    | operator         | proposed |
+| Vitals recompute cron          | every 60 s                                                                   | core cron        | proposed |
+| Vitals panel unknown threshold | row older than 180 s                                                         | core             | proposed |
+| Engine vital thresholds        | > 25% / > 100% overdue                                                       | core             | proposed |
+| Venue vital thresholds         | > 5 min / 3 failures or 15 min                                               | core             | proposed |
+| Decision queue thresholds      | 50 msgs or 5 min / 500 or 30 min                                             | core             | proposed |
+| Outbox lag thresholds          | 60 s / 300 s                                                                 | core             | proposed |
+| Database latency thresholds    | p95 250 ms / 1000 ms                                                         | core             | proposed |
+| Backup vital thresholds        | dump > 26 h / > 50 h or failed restore test                                  | core             | proposed |
+| Watchdog cadence               | every 5 min, off Postgres `next_due_at`                                      | core cron        | proposed |
+| Dead-man poll interval         | every 5 min, alert on 2 consecutive failures                                 | external monitor | proposed |
+| AI estimated-cost pull         | 01:00 UTC daily                                                              | core cron        | proposed |
+| Infrastructure cost            | Cloudflare billing dashboard; no automated API yet                           | operator         | decided  |
+| Nightly logical dump           | 03:00 UTC, trusted backup-container profile                                  | backup workflow  | proposed |
+| Independent-copy RPO           | 24 h                                                                         | operations       | proposed |
+| Restore test cadence           | quarterly                                                                    | operations       | proposed |
+| Register review cadence        | quarterly                                                                    | operator         | proposed |
+| Retention                      | durable record retained; transient inputs discarded; mechanism rows prunable | data policy      | decided  |
 
 ## Alternatives considered
 
