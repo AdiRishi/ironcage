@@ -26,9 +26,15 @@ export interface CategorizationRun {
   readonly categories: readonly CategorizationCategory[];
 }
 
+/** One model answer and the gateway log that recorded it, when the gateway returned one. */
+export interface Inference {
+  readonly text: string;
+  readonly gatewayLogId: string | null;
+}
+
 export interface CategorizationDeps {
-  /** One model call through the AI Gateway; the answer is raw text. */
-  readonly infer: (prompt: string) => Promise<string>;
+  /** One model call through the AI Gateway. */
+  readonly infer: (prompt: string) => Promise<Inference>;
   readonly send: (message: unknown) => Promise<unknown>;
   readonly model: string;
 }
@@ -111,11 +117,14 @@ export const runCategorization = async (
 ): Promise<{ readonly accepted: boolean }> => {
   let output: CategorizationOutput | null = null;
   let failure: FailureDetail | null = null;
+  const gatewayLogIds: string[] = [];
 
   for (let attempt = 0; attempt <= retryBudget && output === null; attempt += 1) {
     let answer: string;
     try {
-      answer = await deps.infer(prompt(run));
+      const inference = await deps.infer(prompt(run));
+      answer = inference.text;
+      if (inference.gatewayLogId !== null) gatewayLogIds.push(inference.gatewayLogId);
     } catch (error) {
       failure = {
         reason: "InferenceFailed",
@@ -146,7 +155,7 @@ export const runCategorization = async (
         ? `run failed: ${failure?.detail ?? "unknown"}`
         : `suggested categories for ${output.suggestions.length} of ${run.batch.length} transactions`,
     model: deps.model,
-    gatewayLogIds: [],
+    gatewayLogIds,
     otelTraceId: crypto.randomUUID(),
     otelParentSpanIds: [],
   };

@@ -42,17 +42,21 @@ const dispatchSurface = HttpRouter.toWebHandler(
             runCategorization(payload, {
               model: categorizationModel,
               infer: async (prompt) => {
-                const answer = await env.AI_GATEWAY.run(categorizationModel, {
-                  messages: [{ role: "user", content: prompt }],
-                  max_tokens: 4096,
-                });
+                const answer = await env.AI_GATEWAY.run(
+                  categorizationModel,
+                  { messages: [{ role: "user", content: prompt }], max_tokens: 4096 },
+                  { gateway: { id: env.AI_GATEWAY_ID } },
+                );
                 // Workers AI hands back `{ response }`; the response is a
                 // string, or an object when the model's text was itself JSON.
                 const response =
                   typeof answer === "object" && answer !== null && "response" in answer
                     ? (answer as { response: unknown }).response
                     : answer;
-                return typeof response === "string" ? response : JSON.stringify(response);
+                return {
+                  text: typeof response === "string" ? response : JSON.stringify(response),
+                  gatewayLogId: env.AI_GATEWAY.aiGatewayLogId,
+                };
               },
               send: (message) => env.DECISION_RECORDS.send(message),
             }).catch((cause: unknown) => {

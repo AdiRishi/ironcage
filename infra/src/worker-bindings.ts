@@ -98,7 +98,10 @@ export const agentsBindings = (
 ) => ({
   CORE: Cloudflare.WorkerEntrypoint(core, "AgentReadApiEntrypoint"),
   DECISION_RECORDS: platform.decisionRecords,
+  // The gateway binds as a Workers AI binding; only a `run` that names the
+  // gateway routes through it, so its id travels beside it.
   AI_GATEWAY: platform.aiGateway,
+  AI_GATEWAY_ID: platform.aiGateway.gatewayId,
   FLAGS: platform.flags,
   ENVIRONMENT: environment,
   ...(aiGatewayToken === undefined ? {} : { AI_GATEWAY_TOKEN: aiGatewayToken }),

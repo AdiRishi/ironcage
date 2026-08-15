@@ -55,7 +55,7 @@ describe("the categorization capability", () => {
     const sent: unknown[] = [];
     const result = await runCategorization(await makeRun(), {
       model: "test-model",
-      infer: () => Promise.resolve(goodAnswer),
+      infer: () => Promise.resolve({ text: goodAnswer, gatewayLogId: "log-1" }),
       send: (message) => {
         sent.push(message);
         return Promise.resolve();
@@ -76,7 +76,10 @@ describe("the categorization capability", () => {
       model: "test-model",
       infer: () => {
         calls += 1;
-        return Promise.resolve(calls < 3 ? "sorry, here is prose" : goodAnswer);
+        return Promise.resolve({
+          text: calls < 3 ? "sorry, here is prose" : goodAnswer,
+          gatewayLogId: `log-${calls}`,
+        });
       },
       send: (message) => {
         sent.push(message);
@@ -86,6 +89,9 @@ describe("the categorization capability", () => {
 
     expect(calls).toBe(3);
     expect((sent[0] as { result: { _tag: string } }).result._tag).toBe("Output");
+    expect(
+      (sent[0] as { decisionRecord: { gatewayLogIds: string[] } }).decisionRecord.gatewayLogIds,
+    ).toEqual(["log-1", "log-2", "log-3"]);
   });
 
   test("an answer naming unknown ids exhausts the budget into a failed run", async () => {
@@ -93,8 +99,9 @@ describe("the categorization capability", () => {
     await runCategorization(await makeRun(), {
       model: "test-model",
       infer: () =>
-        Promise.resolve(
-          JSON.stringify({
+        Promise.resolve({
+          gatewayLogId: null,
+          text: JSON.stringify({
             suggestions: [
               {
                 transactionId: transactionId(99),
@@ -103,7 +110,7 @@ describe("the categorization capability", () => {
               },
             ],
           }),
-        ),
+        }),
       send: (message) => {
         sent.push(message);
         return Promise.resolve();
