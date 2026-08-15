@@ -5,7 +5,7 @@ import * as Effect from "effect/Effect";
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
 import { cloudflareResourceNames } from "./resource-names.ts";
-import { appBindings } from "./worker-bindings.ts";
+import { appBindings, appEntrypoints, bindWorkerEntrypoints } from "./worker-bindings.ts";
 import type { Workers } from "./workers.ts";
 
 export const operatorEdge = Effect.fn("Ironcage.OperatorEdge")(function* (
@@ -46,8 +46,9 @@ export const operatorEdge = Effect.fn("Ironcage.OperatorEdge")(function* (
       include: ["**/*", "../../packages/contracts/src/**", "../../packages/ui/src/**"],
       lockfile: true,
     },
-    env: appBindings(workers.core, workers.agents, access?.aud ?? "", config.environment),
+    env: appBindings(access?.aud ?? "", config.environment),
   });
+  yield* bindWorkerEntrypoints(app, appEntrypoints(workers.core, workers.agents));
 
   return { access, app };
 });

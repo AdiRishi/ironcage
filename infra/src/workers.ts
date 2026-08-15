@@ -6,7 +6,14 @@ import type { DataPlane } from "./data-plane.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
 import type { PlatformControls } from "./platform-controls.ts";
 import { cloudflareResourceNames } from "./resource-names.ts";
-import { agentsBindings, computeBindings, coreBindings } from "./worker-bindings.ts";
+import {
+  agentsBindings,
+  agentsEntrypoints,
+  bindWorkerEntrypoints,
+  computeBindings,
+  coreBindings,
+  coreEntrypoints,
+} from "./worker-bindings.ts";
 
 export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
   config: DeploymentConfig,
@@ -48,19 +55,11 @@ export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
     compatibility: workerCompatibility,
     workersDev: false,
     observability: workerObservability,
-    env: agentsBindings(core, platform, config.environment),
+    env: agentsBindings(platform, config.environment),
   });
 
-  yield* core.bind("AgentsDispatch", {
-    bindings: [
-      {
-        type: "service",
-        name: "AGENTS",
-        service: agents.workerName,
-        entrypoint: "DispatchApiEntrypoint",
-      },
-    ],
-  });
+  yield* bindWorkerEntrypoints(agents, agentsEntrypoints(core));
+  yield* bindWorkerEntrypoints(core, coreEntrypoints(agents));
 
   // Core consumes capability runs one message at a time; exhausted deliveries
   // route to the dead-letter queue, whose consumer records the loss.

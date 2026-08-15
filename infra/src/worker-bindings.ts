@@ -101,12 +101,7 @@ export const coreBindings = (
   ...secrets,
 });
 
-export const agentsBindings = (
-  core: Cloudflare.Worker,
-  platform: PlatformBindings,
-  environment: string,
-) => ({
-  CORE: Cloudflare.WorkerEntrypoint(core, "AgentReadApiEntrypoint"),
+export const agentsBindings = (platform: PlatformBindings, environment: string) => ({
   DECISION_RECORDS: platform.decisionRecords,
   AI: platform.aiGateway,
   AI_GATEWAY_ID: platform.aiGateway.gatewayId,
@@ -120,21 +115,49 @@ export const agentsBindings = (
   ENVIRONMENT: environment,
 });
 
-export const appBindings = (
-  core: Cloudflare.Worker,
-  agents: Cloudflare.Worker,
-  accessAud: Input<string>,
-  environment: string,
-) => ({
-  CORE: Cloudflare.WorkerEntrypoint(core, "AppApiEntrypoint"),
-  AGENTS: Cloudflare.WorkerEntrypoint(agents, "ConversationApiEntrypoint"),
+export const appBindings = (accessAud: Input<string>, environment: string) => ({
   ACCESS_AUD: accessAud,
   ENVIRONMENT: environment,
 });
 
-export type AgentsEnv = Cloudflare.InferEnv<ReturnType<typeof agentsBindings>>;
-export type AppEnv = Cloudflare.InferEnv<ReturnType<typeof appBindings>>;
-export type ComputeEnv = Cloudflare.InferEnv<ReturnType<typeof computeBindings>>;
-export type CoreEnv = Cloudflare.InferEnv<ReturnType<typeof coreBindings>> & {
-  readonly AGENTS: { readonly fetch: typeof globalThis.fetch };
+export const agentsEntrypoints = (core: Cloudflare.Worker) => ({
+  CORE: Cloudflare.WorkerEntrypoint(core, "AgentReadApiEntrypoint"),
+});
+
+export const appEntrypoints = (core: Cloudflare.Worker, agents: Cloudflare.Worker) => ({
+  CORE: Cloudflare.WorkerEntrypoint(core, "AppApiEntrypoint"),
+  AGENTS: Cloudflare.WorkerEntrypoint(agents, "ConversationApiEntrypoint"),
+});
+
+export const coreEntrypoints = (agents: Cloudflare.Worker) => ({
+  AGENTS: Cloudflare.WorkerEntrypoint(agents, "DispatchApiEntrypoint"),
+});
+
+type WorkerEntrypoints = Record<string, Cloudflare.WorkerEntrypointBinding>;
+
+export const bindWorkerEntrypoints = (
+  worker: Cloudflare.Worker,
+  entrypoints: WorkerEntrypoints,
+) => {
+  const bindings: Input<Cloudflare.WorkerBinding[]> = Object.entries(entrypoints).map(
+    ([name, entrypoint]) => ({
+      type: "service" as const,
+      name,
+      service: entrypoint.worker.workerName,
+      ...(entrypoint.entrypoint === undefined ? {} : { entrypoint: entrypoint.entrypoint }),
+      ...(entrypoint.props === undefined ? {} : { props: entrypoint.props }),
+    }),
+  );
+  return worker.bind("Entrypoints", { bindings });
 };
+
+export type AgentsEnv = Cloudflare.InferEnv<
+  ReturnType<typeof agentsBindings> & ReturnType<typeof agentsEntrypoints>
+>;
+export type AppEnv = Cloudflare.InferEnv<
+  ReturnType<typeof appBindings> & ReturnType<typeof appEntrypoints>
+>;
+export type ComputeEnv = Cloudflare.InferEnv<ReturnType<typeof computeBindings>>;
+export type CoreEnv = Cloudflare.InferEnv<
+  ReturnType<typeof coreBindings> & ReturnType<typeof coreEntrypoints>
+>;
