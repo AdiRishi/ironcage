@@ -4,6 +4,7 @@ import {
   BankAccountId,
   BankImportId,
   BankObservationId,
+  BankObservationLinkId,
   BankSourceFileId,
   BankTransactionId,
   CalendarDate,
@@ -161,6 +162,7 @@ const money = (value: BigDecimal.BigDecimal | null) =>
 
 export interface ObservationInsert {
   readonly id: BankObservationId;
+  readonly linkId: BankObservationLinkId;
   readonly sourceFileId: BankSourceFileId;
   readonly sourceOrdinal: number;
   readonly raw: unknown;
@@ -329,6 +331,7 @@ export const insertConfirmedImport = (
       const observations = JSON.stringify(
         graph.observations.map((observation) => ({
           id: observation.id,
+          link_id: observation.linkId,
           source_file_id: observation.sourceFileId,
           source_ordinal: observation.sourceOrdinal,
           raw: observation.raw,
@@ -355,10 +358,10 @@ export const insertConfirmedImport = (
         "insert bank observation links",
         `INSERT INTO bank_observation_links
            (id, observation_id, transaction_id, import_id, match_tier, decided_by, created_at)
-         SELECT gen_random_uuid(), x.id::uuid, x.transaction_id::uuid, $1,
+         SELECT x.link_id::uuid, x.id::uuid, x.transaction_id::uuid, $1,
                 x.match_tier, x.decided_by, now()
            FROM jsonb_to_recordset($2::jsonb) AS x(
-             id text, transaction_id text, match_tier text, decided_by text
+             id text, link_id text, transaction_id text, match_tier text, decided_by text
            )`,
         [importRow.id, observations],
       );

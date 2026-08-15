@@ -4,6 +4,7 @@ import {
   BalanceObservationId,
   BankImportId,
   BankObservationId,
+  BankObservationLinkId,
   BankSourceFileId,
   BankTransactionId,
   CoverageSegmentId,
@@ -172,6 +173,7 @@ export const buildConfirmedImport = Effect.fn("buildConfirmedImport")(function* 
       observations.push(
         {
           id: csvObservationId,
+          linkId: yield* mintId(BankObservationLinkId),
           sourceFileId: csvFileId,
           sourceOrdinal: candidate.csv.ordinal,
           raw: candidate.csv.raw,
@@ -185,6 +187,7 @@ export const buildConfirmedImport = Effect.fn("buildConfirmedImport")(function* 
         },
         {
           id: yield* mintId(BankObservationId),
+          linkId: yield* mintId(BankObservationLinkId),
           sourceFileId: ofxFileId,
           sourceOrdinal: candidate.ofx.ordinal,
           raw: candidate.ofx.raw,
@@ -258,6 +261,7 @@ export const buildConfirmedImport = Effect.fn("buildConfirmedImport")(function* 
       const observationId = yield* mintId(BankObservationId);
       observations.push({
         id: observationId,
+        linkId: yield* mintId(BankObservationLinkId),
         sourceFileId: markdownFileId,
         sourceOrdinal: match.row.ordinal,
         raw: {

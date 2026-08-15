@@ -1,6 +1,8 @@
 # Migrations
 
-Numbered SQL files, applied in order, never edited once applied. This schema
+Numbered SQL files are applied in order. Before the first deployment, rewrite
+and squash them into the clearest cold schema. Once a file has been applied,
+its name and contents are immutable. This schema
 carries every guarantee in [Data](../docs/technical/03-data.md), so a migration
 is reviewed like engine code.
 

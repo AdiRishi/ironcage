@@ -12,6 +12,9 @@ export type BankSourceFileId = typeof BankSourceFileId.Type;
 export const BankObservationId = uuidV7("BankObservationId");
 export type BankObservationId = typeof BankObservationId.Type;
 
+export const BankObservationLinkId = uuidV7("BankObservationLinkId");
+export type BankObservationLinkId = typeof BankObservationLinkId.Type;
+
 export const BankTransactionId = uuidV7("BankTransactionId");
 export type BankTransactionId = typeof BankTransactionId.Type;
 
