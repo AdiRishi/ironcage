@@ -22,7 +22,7 @@ import {
   editCategorizationRule,
   editCategory,
   getCategorizationRules,
-  getReviewQueue,
+  listTransactions,
   listCategories,
   listCategoryRows,
 } from "./money/categorize";
@@ -162,7 +162,7 @@ const appSurface = HttpRouter.toWebHandler(
       getCategorizationRules: () => withMoney(() => getCategorizationRules()),
       editCategorizationRule: (payload) => idempotently(payload, editCategorizationRule),
       categorizeTransactions: (payload) => idempotently(payload, categorizeTransactions),
-      getReviewQueue: () => withMoney(() => getReviewQueue()),
+      listTransactions: (payload) => withMoney(() => listTransactions(payload.scope)),
       getTransferMatches: () => withMoney(() => getTransferMatches()),
       decideTransferMatch: (payload) => idempotently(payload, decideTransferMatch),
       getMoneyAnalysis: () => withMoney(() => getMoneyAnalysis()),

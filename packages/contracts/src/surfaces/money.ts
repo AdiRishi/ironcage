@@ -230,7 +230,13 @@ export const RuleSummary = Schema.Struct({
 });
 export type RuleSummary = typeof RuleSummary.Type;
 
-export const ReviewQueueEntry = Schema.Struct({
+/**
+ * One row of the ledger: a bank transaction with its effective splits and who
+ * filed them. `filedBy` is the strongest provenance among the splits —
+ * `system` means still uncategorized. `rationale` is the model's one-line
+ * reason when it did the filing.
+ */
+export const LedgerEntry = Schema.Struct({
   transactionId: BankTransactionId,
   accountId: BankAccountId,
   productLabel: Schema.String,
@@ -238,16 +244,22 @@ export const ReviewQueueEntry = Schema.Struct({
   amount: Aud,
   narrative: Schema.String,
   payee: Schema.String,
-  /** A pending AI suggestion, when one exists; auto-apply stays off. */
-  suggestion: Schema.NullOr(
-    Schema.Struct({
-      categoryId: CategoryId,
-      categoryName: Schema.String,
-      rationale: Schema.String,
-    }),
-  ),
+  splits: Schema.Array(EffectiveSplit),
+  filedBy: SplitProvenance,
+  rationale: Schema.NullOr(Schema.String),
 });
-export type ReviewQueueEntry = typeof ReviewQueueEntry.Type;
+export type LedgerEntry = typeof LedgerEntry.Type;
+
+/**
+ * Which slice of the ledger to read. A month reads every transaction posted
+ * in it; `attention` reads what still needs a hand or was filed by the model,
+ * newest first — the working set the operator inspects after an import.
+ */
+export const LedgerScope = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("month"), month: Schema.String }),
+  Schema.Struct({ kind: Schema.Literal("attention") }),
+]);
+export type LedgerScope = typeof LedgerScope.Type;
 
 export const listCategoriesRpc = RpcModule.make("listCategories", {
   success: Schema.Array(CategorySummary),
@@ -309,8 +321,9 @@ export const categorizeTransactionsRpc = RpcModule.make("categorizeTransactions"
   error: MutationError,
 });
 
-export const getReviewQueueRpc = RpcModule.make("getReviewQueue", {
-  success: Schema.Array(ReviewQueueEntry),
+export const listTransactionsRpc = RpcModule.make("listTransactions", {
+  payload: { scope: LedgerScope },
+  success: Schema.Array(LedgerEntry),
   error: ReadError,
 });
 

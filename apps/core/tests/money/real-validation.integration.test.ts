@@ -9,7 +9,7 @@ import { Effect, Schema } from "effect";
 
 import { mintId } from "../../src/ids";
 import { getMoneyAnalysis } from "../../src/money/analysis";
-import { getReviewQueue } from "../../src/money/categorize";
+import { listTransactions } from "../../src/money/categorize";
 import { confirmBankImport, previewBankImport, type ImportDeps } from "../../src/money/import";
 import { configureBankAccount, getBankCoverage } from "../../src/money/queries";
 import { getTransferMatches } from "../../src/money/transfers";
@@ -168,7 +168,7 @@ it.effect("the real corpus imports, dedupes, reconciles, and analyzes", () =>
       `transfers: confirmed=${transfers.matches.filter((m) => m.status === "confirmed").length} unresolved=${transfers.unresolved.length}`,
     );
 
-    const review = yield* withDatabase(getReviewQueue());
+    const review = yield* withDatabase(listTransactions({ kind: "attention" }));
     yield* log(`review queue: ${review.length}`);
     expect(analysis.months.length).toBeGreaterThan(0);
   }),

@@ -1,11 +1,13 @@
 import {
   CategorySummary,
   Conflict,
+  EffectiveSplit,
   Internal,
   NotFound,
   RuleSummary,
   ValidationFailed,
-  type ReviewQueueEntry,
+  type LedgerEntry,
+  type LedgerScope,
   type RuleInput,
   type SplitInput,
 } from "@ironcage/contracts/schema";
@@ -21,6 +23,7 @@ import {
   uncategorizedCategoryId,
   type RequestId,
   type Sha256,
+  type SplitProvenance,
 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 
@@ -330,13 +333,13 @@ export const categorizeTransactions = (input: {
             );
           }
 
-          // The correction settles any pending AI suggestion: accepted when
-          // the operator chose the suggested category, superseded otherwise.
+          // The operator's choice settles the model's applied assignment:
+          // kept when they chose the same category, overridden otherwise.
           yield* sql.query(
-            "settle pending suggestion",
-            `UPDATE categorization_suggestions
-                SET status = CASE WHEN category_id = ANY($2::uuid[]) THEN 'accepted' ELSE 'superseded' END
-              WHERE transaction_id = $1 AND status = 'pending'`,
+            "settle applied assignment",
+            `UPDATE categorization_assignments
+                SET status = CASE WHEN category_id = ANY($2::uuid[]) THEN 'kept' ELSE 'overridden' END
+              WHERE transaction_id = $1 AND status = 'applied'`,
             [transaction.id, change.splits.map((split) => split.categoryId)],
           );
         }
@@ -350,7 +353,7 @@ export const categorizeTransactions = (input: {
       }),
   );
 
-const ReviewRow = Schema.Struct({
+const LedgerRow = Schema.Struct({
   transactionId: BankTransactionId,
   accountId: BankAccountId,
   productLabel: Schema.String,
@@ -358,56 +361,70 @@ const ReviewRow = Schema.Struct({
   amount: Aud,
   narrative: Schema.String,
   payee: Schema.String,
-  suggestedCategoryId: Schema.NullOr(CategoryId),
-  suggestedCategoryName: Schema.NullOr(Schema.String),
-  suggestionRationale: Schema.NullOr(Schema.String),
+  splits: Schema.Array(EffectiveSplit),
+  rationale: Schema.NullOr(Schema.String),
 });
 
-export const getReviewQueue = (): Effect.Effect<
-  readonly ReviewQueueEntry[],
-  NotFound | Internal,
-  Postgres
-> =>
+const provenanceRank: Record<SplitProvenance, number> = { manual: 3, rule: 2, ai: 1, system: 0 };
+
+/**
+ * The ledger read: every transaction in scope with its effective splits, who
+ * filed them, and the model's rationale where it did. The attention scope
+ * puts uncategorized rows first so a long AI-filed history can never crowd
+ * out the few that need a hand.
+ */
+export const listTransactions = (
+  scope: LedgerScope,
+): Effect.Effect<readonly LedgerEntry[], NotFound | Internal, Postgres> =>
   Effect.gen(function* () {
     const postgres = yield* Postgres;
+    const attention = scope.kind === "attention";
     const rows = yield* postgres.readTransaction((sql) =>
       sql.query(
-        "load review queue",
-        `SELECT t.id AS "transactionId", t.account_id AS "accountId", a.product_label AS "productLabel",
+        "load ledger",
+        `WITH effective AS (
+           SELECT s.transaction_id, s.category_id, s.amount, s.provenance
+             FROM transaction_splits s
+            WHERE s.revision = (SELECT max(revision) FROM transaction_splits latest
+                                 WHERE latest.transaction_id = s.transaction_id)
+         ),
+         per_transaction AS (
+           SELECT e.transaction_id,
+                  jsonb_agg(jsonb_build_object(
+                    'categoryId', e.category_id, 'categoryName', c.name,
+                    'amount', e.amount::text, 'provenance', e.provenance
+                  ) ORDER BY e.amount) AS splits,
+                  bool_or(e.category_id = $1) AS uncategorized,
+                  bool_or(e.provenance = 'ai') AS ai_filed
+             FROM effective e JOIN categories c ON c.id = e.category_id
+            GROUP BY e.transaction_id
+         )
+         SELECT t.id AS "transactionId", t.account_id AS "accountId", a.product_label AS "productLabel",
                 t.posted_date AS "postedDate", t.amount::text AS amount,
                 t.display_narrative AS narrative, t.derived_payee AS payee,
-                cs.category_id AS "suggestedCategoryId", sc.name AS "suggestedCategoryName",
-                cs.rationale AS "suggestionRationale"
+                p.splits, ca.rationale
            FROM bank_transactions t
            JOIN bank_accounts a ON a.id = t.account_id
-           LEFT JOIN categorization_suggestions cs
-             ON cs.transaction_id = t.id AND cs.status = 'pending'
-           LEFT JOIN categories sc ON sc.id = cs.category_id
-          WHERE EXISTS (
-                  SELECT 1 FROM transaction_splits s
-                   WHERE s.transaction_id = t.id
-                     AND s.revision = (SELECT max(revision) FROM transaction_splits latest
-                                        WHERE latest.transaction_id = t.id)
-                     AND s.category_id = $1
-                )
-          ORDER BY t.posted_date DESC, t.id DESC
-          LIMIT 500`,
-        [uncategorizedCategoryId],
+           JOIN per_transaction p ON p.transaction_id = t.id
+           LEFT JOIN categorization_assignments ca
+             ON ca.transaction_id = t.id AND ca.status = 'applied'
+          WHERE CASE WHEN $2::boolean THEN (p.uncategorized OR p.ai_filed)
+                     ELSE to_char(t.posted_date, 'YYYY-MM') = $3 END
+          ORDER BY p.uncategorized DESC, t.posted_date DESC, t.id DESC
+          LIMIT 1000`,
+        [uncategorizedCategoryId, attention, scope.kind === "month" ? scope.month : null],
       ),
     );
-    const decoded = yield* decodeRows("decode review queue", ReviewRow, rows);
+    const decoded = yield* decodeRows("decode ledger", LedgerRow, rows);
 
-    return decoded.map(
-      ({ suggestedCategoryId, suggestedCategoryName, suggestionRationale, ...row }) => ({
-        ...row,
-        suggestion:
-          suggestedCategoryId === null || suggestedCategoryName === null
-            ? null
-            : {
-                categoryId: suggestedCategoryId,
-                categoryName: suggestedCategoryName,
-                rationale: suggestionRationale ?? "",
-              },
-      }),
-    );
+    return decoded.map((row) => ({
+      ...row,
+      filedBy: row.splits.reduce<SplitProvenance>(
+        (strongest, split) =>
+          provenanceRank[split.provenance] > provenanceRank[strongest]
+            ? split.provenance
+            : strongest,
+        "system",
+      ),
+    }));
   }).pipe(persistenceToBoundary);

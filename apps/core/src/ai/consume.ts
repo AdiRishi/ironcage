@@ -12,7 +12,7 @@ import { insertFeedEvent } from "../money/store";
 import { Postgres, type SqlExecutor } from "../persistence/postgres";
 
 export type ConsumeOutcome =
-  | { readonly kind: "accepted"; readonly suggestions: number }
+  | { readonly kind: "accepted"; readonly filed: number }
   | { readonly kind: "failed_run" }
   | { readonly kind: "duplicate" }
   | { readonly kind: "collision" }
@@ -24,8 +24,8 @@ const decodeOutput = Schema.decodeUnknownEffect(CategorizationOutput);
 /**
  * The decision-records consumer: insert-first deduplication on the run ID,
  * hash comparison on redelivery, authoritative output validation, and one
- * transaction for the dedupe row, output, decision record, suggestions, and
- * any feed event. An undecodable body follows the queue's retry path; a
+ * transaction for the dedupe row, output, decision record, the applied
+ * splits, and any feed event. An undecodable body follows the queue's retry path; a
  * same-ID different-hash collision keeps the stored original and raises a
  * critical event.
  */
@@ -153,45 +153,70 @@ export const consumeCapabilityRun = (
             category: "system",
             eventType: "ai_run_failed",
             severity: "warning",
-            summary: `categorization run ${message.runId} failed; suggestions stay absent`,
+            summary: `categorization run ${message.runId} failed; its rows stay uncategorized`,
             payload: { runId: message.runId, failure },
             links: null,
           });
           return { kind: "failed_run" } as const;
         }
 
+        // The model's answer becomes the effective split — but only for a
+        // transaction still sitting uncategorized. A row a rule or the
+        // operator filed meanwhile is theirs; the model never overwrites it.
         let landed = 0;
         for (const suggestion of output.suggestions) {
-          // Only transactions still sitting uncategorized take a suggestion;
-          // a row the operator categorized meanwhile is left alone.
-          const landing = yield* sql.query(
-            "insert categorization suggestion",
-            `INSERT INTO categorization_suggestions
+          const applied = yield* sql.query(
+            "apply ai categorization",
+            `WITH target AS (
+               SELECT t.id, t.amount,
+                      (SELECT max(revision) FROM transaction_splits s WHERE s.transaction_id = t.id) AS revision
+                 FROM bank_transactions t
+                WHERE t.id = $1
+                  AND EXISTS (
+                        SELECT 1 FROM transaction_splits s
+                         WHERE s.transaction_id = t.id
+                           AND s.revision = (SELECT max(revision) FROM transaction_splits latest
+                                              WHERE latest.transaction_id = t.id)
+                           AND s.category_id = $2
+                      )
+             ),
+             split AS (
+               INSERT INTO transaction_splits (id, transaction_id, revision, category_id, amount, provenance, rule_id, created_at)
+               SELECT $3, id, revision + 1, $4, amount, 'ai', NULL, now() FROM target
+               RETURNING transaction_id
+             )
+             INSERT INTO categorization_assignments
                (id, run_id, transaction_id, category_id, rationale, decision_record_id, status, created_at)
-             SELECT $1, $2, $3, $4, $5, $6, 'pending', now()
-              WHERE EXISTS (
-                      SELECT 1 FROM transaction_splits s
-                       WHERE s.transaction_id = $3
-                         AND s.revision = (SELECT max(revision) FROM transaction_splits latest
-                                            WHERE latest.transaction_id = $3)
-                         AND s.category_id = $7
-                    )
-              ON CONFLICT DO NOTHING
-              RETURNING id`,
+             SELECT $5, $6, transaction_id, $4, $7, $8, 'applied', now() FROM split
+             RETURNING id`,
             [
+              suggestion.transactionId,
+              uncategorizedCategoryId,
+              mintRawUuidV7(),
+              suggestion.categoryId,
               mintRawUuidV7(),
               message.runId,
-              suggestion.transactionId,
-              suggestion.categoryId,
               suggestion.rationale,
               decisionRecordId,
-              uncategorizedCategoryId,
             ],
           );
-          landed += landing.length;
+          landed += applied.length;
         }
 
-        return { kind: "accepted", suggestions: landed } as const;
+        if (landed > 0) {
+          yield* insertFeedEvent(sql, {
+            id: yield* mintId(FeedEventId),
+            origin: "money",
+            category: "money_tax",
+            eventType: "ai_categorized",
+            severity: "info",
+            summary: `AI filed ${landed} of ${output.suggestions.length} transactions in batch ${message.trigger._tag === "batch" ? message.trigger.batchIndex : 0}`,
+            payload: { runId: message.runId, filed: landed, answered: output.suggestions.length },
+            links: null,
+          });
+        }
+
+        return { kind: "accepted", filed: landed } as const;
       }),
     );
   });

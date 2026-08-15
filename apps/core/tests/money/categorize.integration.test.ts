@@ -10,7 +10,7 @@ import { mintId } from "../../src/ids";
 import {
   categorizeTransactions,
   getCategorizationRules,
-  getReviewQueue,
+  listTransactions,
 } from "../../src/money/categorize";
 import { confirmBankImport, previewBankImport, type ImportDeps } from "../../src/money/import";
 import { configureBankAccount } from "../../src/money/queries";
@@ -86,7 +86,7 @@ it.effect("corrections drain the review queue and teach rules that apply forward
 
     yield* importFixture(account.id, "spending-offset-b");
 
-    const queue = yield* withDatabase(getReviewQueue());
+    const queue = yield* withDatabase(listTransactions({ kind: "attention" }));
     expect(queue).toHaveLength(25);
 
     // A manual correction with a two-way split, plus a correction rule that
@@ -114,14 +114,14 @@ it.effect("corrections drain the review queue and teach rules that apply forward
     );
     expect(result).toEqual({ updated: 1, rulesCreated: 1 });
 
-    expect(yield* withDatabase(getReviewQueue())).toHaveLength(24);
+    expect(yield* withDatabase(listTransactions({ kind: "attention" }))).toHaveLength(24);
 
     const rules = yield* withDatabase(getCategorizationRules());
     expect(rules).toHaveLength(1);
     expect(rules[0]!.createdBy).toBe("correction");
 
     // The wider window's 15 new rows all hit the rule at preview and confirm,
-    // so none of them lands in the review queue.
+    // so none of them needs attention.
     const wider = yield* importFixture(account.id, "spending-offset-a");
     expect(wider.preview.effects).toEqual({ new: 15, duplicate: 25, ambiguous: 0 });
     expect(wider.preview.reviewCount).toBe(0);
@@ -131,7 +131,7 @@ it.effect("corrections drain the review queue and teach rules that apply forward
         .every((candidate) => candidate.category === "dining"),
     ).toBe(true);
 
-    expect(yield* withDatabase(getReviewQueue())).toHaveLength(24);
+    expect(yield* withDatabase(listTransactions({ kind: "attention" }))).toHaveLength(24);
   }),
 );
 
@@ -150,7 +150,7 @@ it.effect("a split set that does not sum to the transaction refuses", () =>
     );
     yield* importFixture(account.id, "spending-offset-c");
 
-    const queue = yield* withDatabase(getReviewQueue());
+    const queue = yield* withDatabase(listTransactions({ kind: "attention" }));
     const subject = queue[0]!;
 
     const error = yield* withDatabase(
