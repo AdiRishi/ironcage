@@ -111,16 +111,20 @@ cd infra && pnpm exec alchemy destroy --stage dev --yes
 pscale branch delete ironcage dev --org arishi-personal-org --force
 # delete the `ironcage-dev` AI Gateway and the `ironcage-dev` Flagship app
 # (dashboard, or the API); both are retained by policy, so destroy leaves them
-rm -rf infra/.alchemy apps/*/.alchemy apps/*/.wrangler apps/app/.output
+rm -rf infra/.alchemy/local   # the simulated R2 objects, queues, and DO storage
 pnpm dev             # Plan: 21 to create; branch creation takes ~2 minutes
 ```
 
 `destroy` removes the roles, Hyperdrive configurations, generated secrets, and
-every local simulation, and forgets the retained resources without deleting
-them. The branch, gateway, and Flagship app are deleted by hand so the next
-`pnpm dev` genuinely starts from nothing; forgetting them without deleting
-them would make that create collide. Do not stop at deleting the branch on
-its own: Alchemy will not notice a branch it still has in state is missing.
+the local Workers, and forgets the retained resources without deleting them —
+including the local ones: the simulated buckets and Durable Object storage
+under `infra/.alchemy/local` survive by the same policy as the remote buckets,
+so a wipe deletes that directory too. The branch, gateway, and Flagship app
+are deleted by hand so the next `pnpm dev` genuinely starts from nothing;
+forgetting them without deleting them would make that create collide. Do not
+stop at deleting the branch on its own: Alchemy will not notice a branch it
+still has in state is missing. (`apps/*/.alchemy`, `apps/*/.wrangler`, and
+`apps/app/.output` are build caches and can be left alone.)
 
 Use this when infrastructure code changed and the question is whether a cold
 start still converges — that is the only path that exercises first-create.
