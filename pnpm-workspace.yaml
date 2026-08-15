@@ -100,3 +100,6 @@ overrides:
 peerDependencyRules:
   allowedVersions:
     "capnp-es@0.0.14>typescript": "7"
+
+patchedDependencies:
+  alchemy@2.0.0-beta.72: patches/alchemy@2.0.0-beta.72.patch
