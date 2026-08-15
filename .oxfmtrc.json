@@ -11,6 +11,7 @@
     "**/worker-configuration.d.ts",
     "pnpm-lock.yaml",
     ".agents/**",
-    ".claude/**"
+    ".claude/**",
+    "tooling/oxlint/anti-slop/**"
   ]
 }

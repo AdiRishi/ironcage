@@ -24,6 +24,7 @@
     "blume": "catalog:"
   },
   "devDependencies": {
+    "@oxlint/plugins": "catalog:",
     "@types/node": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
