@@ -12,6 +12,12 @@ import { customCloudflareProviders } from "./src/providers/index.ts";
 import { workerGraph } from "./src/workers.ts";
 
 const Infrastructure = Effect.gen(function* () {
+  const stack = yield* Alchemy.Stack;
+  // Alchemy evaluates the program under this sentinel when its state CLI only
+  // needs the configured state layer. Building the deployment graph there
+  // would require a real stage and unrelated application configuration.
+  if (stack.stage === "placeholder") return {};
+
   const config = yield* deploymentConfig();
   const data = yield* dataPlane(config);
   const platform = yield* platformControls(config);
