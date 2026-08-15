@@ -1,0 +1,17 @@
+**
+!package.json
+!pnpm-workspace.yaml
+!pnpm-lock.yaml
+!tooling/
+!tooling/tsconfig/
+!tooling/tsconfig/package.json
+!tooling/tsconfig/base.json
+!containers/
+!containers/statement-extractor/
+!containers/statement-extractor/package.json
+!containers/statement-extractor/tsconfig.json
+!containers/statement-extractor/src/
+!containers/statement-extractor/src/**
+!containers/statement-extractor/runtime/
+!containers/statement-extractor/runtime/package.json
+!containers/statement-extractor/runtime/pnpm-lock.yaml

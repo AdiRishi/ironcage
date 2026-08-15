@@ -85,7 +85,7 @@ Every arrow is a binding declared in the Alchemy stack. Cross-Worker calls are t
 | agents → core         | `AgentReadApi` (read-only)       | Context for AI work: candles, positions, mandates, scorecards. No mutating operation exists on this surface.                                                                         |
 | agents → queue → core | `decision-records` queue         | The only write path out of the AI: outputs and decision records, consumed and validated by core                                                                                      |
 | core → agents         | Flue dispatch                    | Core or schedules invoke agents; agents never invoke themselves into core                                                                                                            |
-| core → compute        | Durable Object binding           | Workflows start backtest runs; Money requests isolated statement extraction                                                                                                          |
+| core → compute        | Durable Object binding           | Workflows start backtest runs; the dormant statement-parser design has an isolated extraction seam                                                                                   |
 | core → Postgres       | Hyperdrive ×2                    | Uncached binding is the default; cached binding is opt-in for analytics reads ([Data](/technical/data))                                                                              |
 | core → R2             | bucket bindings                  | Blobs, exports, and the proposal-bundle quarantine bucket                                                                                                                            |
 | compute wrapper → R2  | narrow bucket bindings           | Run-scoped content-addressed inputs/outputs only; the container reaches them through outbound handlers and never receives a database credential                                      |
@@ -116,7 +116,7 @@ All engine actors live in core, use SQLite-backed storage, and are addressed by 
 
 **Backtest container** — a container-backed Durable Object class in compute. It runs `packages/engine`, the same code core runs, against pinned inputs. It emits content-addressed R2 artifacts only; trusted core verifies and commits their summary. Specified in [Workbench](/technical/workbench).
 
-**Statement-extraction container** — a separate container profile in compute. It runs the pinned AnyDoc image against PDF bytes supplied by core and returns derived Markdown plus its image digest. It has no database credential, no general egress, and no authority to interpret financial rows. Core performs that validation under [Money](/technical/money).
+**Statement-extraction container** — a separate container profile in compute. It runs pinned AnyDoc against PDF bytes and returns derived Markdown plus the exact extractor identity. It has no database credential, no general egress, and no authority to interpret financial rows. Phase one packages and isolates this native boundary but does not call it; core will perform financial validation only after the statement fixture gate passes ([Money](/technical/money)).
 
 ## The mode and the brakes
 

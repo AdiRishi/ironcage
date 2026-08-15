@@ -31,7 +31,6 @@ const groceries = Schema.decodeUnknownSync(CategoryId)("01900000-0000-7000-8000-
 const deps: ImportDeps = {
   identityKey: "ai-consume-key",
   artifacts: { put: () => Promise.resolve() },
-  extractStatement: () => Promise.reject(new Error("no statements in this test")),
 };
 
 const withDatabase = <A, E>(effect: Effect.Effect<A, E, Postgres>) =>

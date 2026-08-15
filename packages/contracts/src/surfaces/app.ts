@@ -2,6 +2,7 @@ import { RpcGroup } from "effect/unstable/rpc";
 
 import { acknowledgeRpc, getFeedRpc } from "./feed";
 import {
+  archiveBankStatementRpc,
   categorizeTransactionsRpc,
   configureBankAccountRpc,
   confirmBankImportRpc,
@@ -28,6 +29,7 @@ export const AppRpcs = RpcGroup.make(
   systemPingRpc,
   getSystemStatusRpc,
   haltAllRpc,
+  archiveBankStatementRpc,
   previewBankImportRpc,
   confirmBankImportRpc,
   getBankAccountsRpc,

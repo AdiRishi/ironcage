@@ -32,7 +32,6 @@ const deps: ImportDeps = {
       return Promise.resolve();
     },
   },
-  extractStatement: () => Promise.reject(new Error("no statement extraction in this test")),
 };
 
 const withDatabase = <A, E>(effect: Effect.Effect<A, E, Postgres>) =>

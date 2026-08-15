@@ -51,20 +51,4 @@ export const blockGuidance: Record<ImportBlockCode, { title: string; hint: strin
     title: "A bank identifier contradicts the record",
     hint: "The same identifier already exists with a different date or amount. Nothing was written; this needs a closer look.",
   },
-  StatementGrammar: {
-    title: "The statement didn't parse under its layout profile",
-    hint: "Only known statement layouts can add history. Keep the PDF — the profile may follow.",
-  },
-  StatementReconciliation: {
-    title: "The statement doesn't reconcile from opening to closing",
-    hint: "Its rows and totals disagree with its own balances. Re-download it and try again.",
-  },
-  StatementOverlapMismatch: {
-    title: "The statement disagrees with structured history it overlaps",
-    hint: "Where CSV/OFX coverage is complete, a statement must align row for row. Nothing was written.",
-  },
-  StatementNeedsManualExtraction: {
-    title: "No text could be extracted from this PDF",
-    hint: "It may be a scanned image. Keep the file — image-only statements aren't importable yet.",
-  },
 };

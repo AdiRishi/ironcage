@@ -56,11 +56,11 @@ every Worker environment. The Alchemy resources consume its binding builders,
 and application `Env` declarations consume the types inferred from those same
 builders.
 
-Workflows, Cron triggers, the decision-record consumer, the compute container,
-and the backup database credential remain in the technical specification but
-are deliberately absent from the deployed graph until their handlers exist.
-Declaring them early would turn scheduled work into failures or give an unused
-credential access to the financial record.
+The decision-record consumer, scheduled dispatch, and statement-extraction
+container are part of the deployed graph. Statement extraction has no database
+binding or public Internet access, and statement parsing remains disabled until
+its fixture gate passes. Workflows and the backup database credential remain
+absent until their handlers exist.
 
 ## Migrations and first adoption
 

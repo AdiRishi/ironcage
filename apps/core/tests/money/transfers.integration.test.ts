@@ -21,7 +21,6 @@ const sha = Schema.decodeUnknownSync(Sha256);
 const deps: ImportDeps = {
   identityKey: "transfers-key",
   artifacts: { put: () => Promise.resolve() },
-  extractStatement: () => Promise.reject(new Error("no statement extraction in this test")),
 };
 
 const withDatabase = <A, E>(effect: Effect.Effect<A, E, Postgres>) =>

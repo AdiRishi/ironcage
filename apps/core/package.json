@@ -20,7 +20,6 @@
     "@cloudflare/vitest-pool-workers": "catalog:",
     "@cloudflare/workers-types": "catalog:",
     "@effect/vitest": "catalog:",
-    "@ironcage/compute": "workspace:*",
     "@ironcage/infra": "workspace:*",
     "@ironcage/tsconfig": "workspace:*",
     "@testcontainers/postgresql": "catalog:",

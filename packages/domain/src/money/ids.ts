@@ -6,6 +6,9 @@ export type BankAccountId = typeof BankAccountId.Type;
 export const BankImportId = uuidV7("BankImportId");
 export type BankImportId = typeof BankImportId.Type;
 
+export const BankStatementArchiveId = uuidV7("BankStatementArchiveId");
+export type BankStatementArchiveId = typeof BankStatementArchiveId.Type;
+
 export const BankSourceFileId = uuidV7("BankSourceFileId");
 export type BankSourceFileId = typeof BankSourceFileId.Type;
 

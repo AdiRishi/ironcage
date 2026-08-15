@@ -210,7 +210,7 @@ For a first useful Money release, two years of paired structured exports are suf
 
 The statement output was useful but not transaction-ready. Multi-line visual transactions could become several Markdown table rows. The Money parser must reconstruct those fragments, validate account identity, and prove the opening-to-closing balance equations.
 
-AnyDoc runs in an isolated compute image with network access disabled. The image is pinned to the exact evaluated version. Raw PDFs remain authoritative, and confirmed imports retain the extracted Markdown and extractor image digest for reproducibility.
+AnyDoc runs in an isolated compute image with network access disabled. The image is pinned to the exact evaluated version. Raw PDFs remain authoritative. When statement parsing is enabled, confirmed imports must retain the extracted Markdown, exact AnyDoc version, and deployed image digest for reproducibility.
 
 No hosted OCR service is part of the initial design. A scanned or extraction-empty PDF remains archived and fails visibly until a separate privacy decision authorizes another extraction path.
 

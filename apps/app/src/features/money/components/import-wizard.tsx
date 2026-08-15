@@ -18,6 +18,7 @@ import { CircleAlertIcon, CircleCheckIcon } from "lucide-react";
 import { useReducer } from "react";
 
 import { keys } from "@/data/keys";
+import { mintRequestId } from "@/data/request";
 import { blockGuidance } from "@/features/money/blocks";
 import { AccountSetup } from "@/features/money/components/account-setup";
 import {
@@ -27,8 +28,12 @@ import {
 } from "@/features/money/components/import-preview";
 import { describeError, formatSpan } from "@/features/money/format";
 import { accountsQuery } from "@/features/money/queries";
-import { decodeConfirmOutcome, decodePreviewOutcome } from "@/features/money/transport";
-import { confirmBankImport, previewBankImport } from "@/server/money";
+import {
+  decodeArchiveOutcome,
+  decodeConfirmOutcome,
+  decodePreviewOutcome,
+} from "@/features/money/transport";
+import { archiveBankStatement, confirmBankImport, previewBankImport } from "@/server/money";
 
 const toBase64 = async (file: File): Promise<string> => {
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -226,10 +231,32 @@ export function ImportWizard() {
     },
   });
 
+  const archive = useMutation({
+    mutationFn: async (input: {
+      readonly accountId: BankAccountSummary["id"];
+      readonly pdf: File;
+    }) =>
+      decodeArchiveOutcome(
+        await archiveBankStatement({
+          data: {
+            requestId: mintRequestId(),
+            accountId: input.accountId,
+            pdf: { displayName: input.pdf.name, base64: await toBase64(input.pdf) },
+          },
+        }),
+      ),
+    onSuccess: async (outcome) => {
+      if (outcome.outcome === "ok") {
+        await queryClient.invalidateQueries({ queryKey: keys.moneyAll() });
+      }
+    },
+  });
+
   const startOver = () => {
     dispatch({ type: "reset" });
     preview.reset();
     confirm.reset();
+    archive.reset();
   };
 
   const submitSelection = async () => {
@@ -247,13 +274,38 @@ export function ImportWizard() {
       });
     }
     if (selection.mode === "statement" && selection.pdf !== null) {
-      preview.mutate({
-        kind: "commbank_statement",
-        accountId,
-        pdf: { displayName: selection.pdf.name, base64: await toBase64(selection.pdf) },
-      });
+      archive.mutate({ accountId, pdf: selection.pdf });
     }
   };
+
+  const archived = archive.data?.outcome === "ok" ? archive.data.value : undefined;
+
+  if (archived !== undefined) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 font-display text-base tracking-tight">
+            <CircleCheckIcon className="size-5 text-live" />
+            Statement archived
+          </CardTitle>
+          <CardDescription>
+            {archived.displayName} is preserved exactly as uploaded. It has not changed the
+            transaction record; statement parsing stays disabled until its overlap fixtures pass.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="font-mono text-xs text-muted-foreground">
+            sha256 <span className="text-live">{archived.digest}</span>
+          </p>
+        </CardContent>
+        <CardFooter>
+          <Button variant="outline" onClick={startOver}>
+            Add another file
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
 
   const confirmed =
     confirm.data?.outcome === "ok" && confirm.data.value.kind === "confirmed"
@@ -374,6 +426,12 @@ export function ImportWizard() {
       : preview.error !== null
         ? String(preview.error)
         : undefined;
+  const archiveError =
+    archive.data?.outcome === "error"
+      ? describeError(archive.data.error)
+      : archive.error !== null
+        ? String(archive.error)
+        : undefined;
 
   if (state.stage !== "select") {
     return (
@@ -403,8 +461,8 @@ export function ImportWizard() {
       <CardHeader>
         <CardTitle className="font-display text-base tracking-tight">Bring in bank files</CardTitle>
         <CardDescription>
-          Nothing is stored until you confirm what the preview shows. Re-uploading the same files is
-          always safe — the record counts each bank transaction once.
+          Recent exports are previewed before they change the record. Statements are archived
+          exactly as uploaded. Re-uploading either is safe.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
@@ -465,8 +523,8 @@ export function ImportWizard() {
           </TabsContent>
           <TabsContent value="statement" className="flex flex-col gap-2 pt-3">
             <p className="text-sm text-muted-foreground">
-              One archived PDF statement. A statement must reconcile from its opening balance to its
-              closing balance before it can add history.
+              Preserve one PDF statement without adding transactions. Parsing will be enabled only
+              after a redacted overlap fixture proves the account-specific profile.
             </p>
             <FileSlot
               label="PDF"
@@ -484,14 +542,23 @@ export function ImportWizard() {
             <AlertDescription>{previewError}</AlertDescription>
           </Alert>
         )}
+        {archiveError === undefined ? null : (
+          <Alert variant="destructive">
+            <CircleAlertIcon />
+            <AlertTitle>The statement wasn't archived</AlertTitle>
+            <AlertDescription>{archiveError}</AlertDescription>
+          </Alert>
+        )}
       </CardContent>
       <CardFooter>
         <Button
-          disabled={selection.accountId === null || !filesChosen || preview.isPending}
+          disabled={
+            selection.accountId === null || !filesChosen || preview.isPending || archive.isPending
+          }
           onClick={() => void submitSelection()}
         >
-          {preview.isPending ? <Spinner /> : null}
-          Preview import
+          {preview.isPending || archive.isPending ? <Spinner /> : null}
+          {selection.mode === "statement" ? "Archive statement" : "Preview import"}
         </Button>
       </CardFooter>
     </Card>

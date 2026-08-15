@@ -50,13 +50,11 @@ const tierLabel: Record<MatchTier, string> = {
   identifier: "matched by its bank identifier",
   row_balance: "matched by date, amount, and running balance",
   content: "matched by date, amount, and narrative",
-  statement: "aligned to existing history by statement evidence",
   new: "no stored evidence matches this row",
 };
 
 const profileLabel = {
   "cba-netbank-paired-v1": "CSV + OFX pair",
-  "cba-offset-statement-v1": "Offset statement",
 } as const;
 
 function VerdictBadge({ candidate }: { readonly candidate: CandidateEffect }) {

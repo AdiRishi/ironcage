@@ -68,10 +68,9 @@ interface Pending {
 }
 
 /**
- * Tiers 1–3 and 5 of the dedupe cascade, in their fixed order. Tier 0 (bundle
- * digest) never reaches this code — an already-confirmed bundle returns its
- * earlier result before matching begins — and tier 4 belongs to the statement
- * pipeline. Each linked stored transaction is claimed at most once per bundle.
+ * The active matching cascade in its fixed order. Exact-bundle replay never
+ * reaches this code. Each linked stored transaction is claimed at most once
+ * per bundle.
  */
 export const matchCandidates = Effect.fn("matchCandidates")(function* (
   candidates: readonly PairedCandidate[],

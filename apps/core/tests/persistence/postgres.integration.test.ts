@@ -29,6 +29,7 @@ it.effect("builds the repository schema in an empty Postgres 18 database", () =>
       { tableName: "bank_observations" },
       { tableName: "bank_source_files" },
       { tableName: "bank_source_identifiers" },
+      { tableName: "bank_statement_archives" },
       { tableName: "bank_transactions" },
       { tableName: "capability_configs" },
       { tableName: "capability_dispatches" },

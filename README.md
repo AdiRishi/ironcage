@@ -46,6 +46,7 @@ the same gates first.
 | Path          | Holds                                                               |
 | ------------- | ------------------------------------------------------------------- |
 | `apps/`       | The four Workers: `app`, `core`, `agents`, `compute`                |
+| `containers/` | Isolated native compute images                                      |
 | `packages/`   | `domain`, `contracts`, `engine`, `tax`, `ui`                        |
 | `infra/`      | The Alchemy stack — every resource and binding, typed               |
 | `migrations/` | Numbered SQL files, applied in order, never edited                  |

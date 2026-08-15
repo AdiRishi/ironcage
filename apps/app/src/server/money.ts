@@ -6,7 +6,9 @@ import type {
   UploadPayload,
 } from "@ironcage/contracts/schema";
 import {
+  ArchiveBankStatementPayload,
   BankAccountSummary,
+  BankStatementArchive,
   BankCoverage,
   CategorizePayload,
   CategorizeResult,
@@ -39,15 +41,22 @@ const intoUpload = (upload: UploadPayload): UploadedBytes => ({
   bytes: Uint8Array.from(atob(upload.base64), (char) => char.charCodeAt(0)),
 });
 
-const intoSource = (source: ImportSourcePayload): BankImportSource =>
-  source.kind === "commbank_structured"
-    ? {
-        kind: source.kind,
-        accountId: source.accountId,
-        csv: intoUpload(source.csv),
-        ofx: intoUpload(source.ofx),
-      }
-    : { kind: source.kind, accountId: source.accountId, pdf: intoUpload(source.pdf) };
+const intoSource = (source: ImportSourcePayload): BankImportSource => ({
+  kind: source.kind,
+  accountId: source.accountId,
+  csv: intoUpload(source.csv),
+  ofx: intoUpload(source.ofx),
+});
+
+export const archiveBankStatement = createServerFn({ method: "POST" })
+  .validator(decodePayload(ArchiveBankStatementPayload))
+  .handler(({ data }) =>
+    callCore((client) =>
+      intoOutcome(BankStatementArchive)(
+        client.archiveBankStatement({ ...data, pdf: intoUpload(data.pdf) }),
+      ),
+    ),
+  );
 
 export const getBankAccounts = createServerFn().handler(() =>
   callCore((client) => encodedRead(Schema.Array(BankAccountSummary))(client.getBankAccounts())),

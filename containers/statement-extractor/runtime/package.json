@@ -1,0 +1,10 @@
+{
+  "name": "@ironcage/statement-extractor-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@firecrawl/anydoc": "0.1.7"
+  },
+  "packageManager": "pnpm@11.20.0"
+}

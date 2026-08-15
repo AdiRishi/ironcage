@@ -12,7 +12,6 @@ import {
   type PreviewBankImportResult,
 } from "@ironcage/contracts/schema";
 import {
-  addDays,
   AmbiguityResolutionId,
   Aud,
   BalanceObservationId,
@@ -24,7 +23,7 @@ import {
   FeedEventId,
   monthOf,
   Sha256,
-  SourceProfile,
+  type SourceProfile,
   TransactionSplitId,
   uncategorizedCategoryId,
   type BankAccountId,
@@ -44,6 +43,7 @@ import {
   getAccount,
   type AccountRow,
 } from "../accounts/repository";
+import type { ArtifactStore } from "../artifacts";
 import { enqueueCategorizationBatches } from "../categorization/dispatch";
 import { loadEffectiveRules } from "../categorization/repository";
 import { firstMatchingRule, type EffectiveRule } from "../categorization/rules";
@@ -54,7 +54,7 @@ import { bundleDigest, validatePairedBundle, type PairedBundle } from "./bundle"
 import { sha256Hex } from "./bytes";
 import { coverageGaps, mergeSpans, type CoveredSpan } from "./coverage";
 import { parseBankCsv } from "./csv";
-import { matchCandidates, type MatchOutcome, type StoredTransaction } from "./matching";
+import { matchCandidates, type MatchOutcome } from "./matching";
 import {
   derivePayee,
   displayNarrative,
@@ -66,76 +66,41 @@ import { accountIdentityInput, hmacSha256Hex, pairedProfileName, pairedRules } f
 import {
   findImportByDigest,
   insertConfirmedImport,
-  loadBalanceEvidenceRange,
   loadCoverageSpans,
   loadEvidence,
   type ConfirmedImportGraph,
   type ImportRow,
 } from "./repository";
-import { parseOffsetStatement, type ParsedStatement, type StatementRow } from "./statement";
 
 /** The v1 import parser version stored on every observation. */
 const parserVersion = 1;
-
-export const statementProfileName = "cba-offset-statement-v1";
-
-/** How far a statement's printed date may drift from the structured lists. */
-const statementDateDriftDays = 3;
-
-export interface StatementExtraction {
-  readonly markdown: string;
-  readonly extractor: { readonly package: string; readonly version: string };
-}
 
 export interface ImportDeps {
   /** Keys the account-identity HMAC; provisioned per environment. */
   readonly identityKey: string;
   /** Content-addressed source artifacts; writes happen before the DB commit. */
-  readonly artifacts: {
-    readonly put: (key: string, bytes: Uint8Array) => Promise<unknown>;
-  };
-  /** PDF-to-Markdown in the isolated compute container; never runs in core. */
-  readonly extractStatement: (pdf: Uint8Array) => Promise<StatementExtraction>;
+  readonly artifacts: ArtifactStore;
 }
 
 const decodeAud = Schema.decodeUnknownSync(Aud);
 const decodeSha = Schema.decodeUnknownSync(Sha256);
-const decodeProfile = Schema.decodeUnknownSync(SourceProfile);
 
 const aud = (value: BigDecimal.BigDecimal) =>
   decodeAud(BigDecimal.format(BigDecimal.normalize(value)));
 
 interface DigestedFile {
-  readonly role: "csv" | "ofx" | "pdf" | "extracted_markdown";
+  readonly role: "csv" | "ofx";
   readonly bytes: Uint8Array;
   readonly displayName: string;
   readonly digest: Sha256;
   readonly mediaType: string;
-  readonly extractor: StatementExtraction["extractor"] | null;
+  readonly extractor: null;
 }
-
-/** One statement row's fate after tier-4 alignment; a null link creates a row. */
-interface StatementMatch {
-  readonly row: StatementRow;
-  readonly transactionId: BankTransactionId | null;
-}
-
-type ImportPlan =
-  | {
-      readonly kind: "structured";
-      readonly bundle: PairedBundle;
-      readonly outcomes: readonly MatchOutcome[];
-    }
-  | {
-      readonly kind: "statement";
-      readonly statement: ParsedStatement;
-      readonly matches: readonly StatementMatch[];
-    };
 
 interface ComputationBase {
   readonly account: AccountRow;
   readonly digest: Sha256;
-  readonly profile: string;
+  readonly profile: SourceProfile;
   readonly files: readonly DigestedFile[];
 }
 
@@ -146,7 +111,8 @@ interface ReplayComputation extends ComputationBase {
 
 interface NewImportComputation extends ComputationBase {
   readonly kind: "new";
-  readonly plan: ImportPlan;
+  readonly bundle: PairedBundle;
+  readonly outcomes: readonly MatchOutcome[];
   readonly window: CoveredSpan;
   readonly identityHmac: string;
   readonly maskedSuffix: string;
@@ -181,7 +147,6 @@ const digestFile = (
   bytes: Uint8Array,
   displayName: string,
   mediaType: string,
-  extractor: StatementExtraction["extractor"] | null = null,
 ) =>
   Effect.map(
     Effect.promise(() => sha256Hex(bytes)),
@@ -191,11 +156,11 @@ const digestFile = (
       displayName,
       digest: decodeSha(digest),
       mediaType,
-      extractor,
+      extractor: null,
     }),
   );
 
-/** The identity guard shared by both profiles; a wrong-account file refuses here. */
+/** Refuses files whose bank identity contradicts the selected account. */
 const verifyIdentity = Effect.fn("verifyAccountIdentity")(function* (
   sql: SqlExecutor,
   account: AccountRow,
@@ -277,7 +242,7 @@ const fingerprintOf = (
 const replayComputation = (
   account: AccountRow,
   digest: Sha256,
-  profile: string,
+  profile: SourceProfile,
   files: readonly DigestedFile[],
   replay: ImportRow,
 ): ReplayComputation => ({
@@ -296,7 +261,7 @@ const replayComputation = (
  */
 const computeStructured = Effect.fn("computeStructuredImport")(function* (
   sql: SqlExecutor,
-  source: Extract<BankImportSource, { kind: "commbank_structured" }>,
+  source: BankImportSource,
   deps: ImportDeps,
   account: AccountRow,
 ): Effect.fn.Return<Computation, BankImportBlocked | PersistenceError> {
@@ -398,7 +363,8 @@ const computeStructured = Effect.fn("computeStructuredImport")(function* (
     digest,
     profile: pairedProfileName,
     files,
-    plan: { kind: "structured", bundle, outcomes },
+    bundle,
+    outcomes,
     window: bundle.window,
     identityHmac,
     maskedSuffix: ofx.account.acctId.slice(-4),
@@ -414,241 +380,6 @@ const computeStructured = Effect.fn("computeStructuredImport")(function* (
     fingerprint,
   };
 });
-
-/**
- * The statement computation: extraction in the isolated container, the
- * chain-anchored parse, identity, and tier-4 alignment. Structured evidence
- * is authoritative inside complete coverage — an overlap row must map
- * one-to-one onto an existing transaction by exact amount and running
- * balance, and only rows outside coverage may create history.
- */
-const computeStatement = Effect.fn("computeStatementImport")(function* (
-  sql: SqlExecutor,
-  source: Extract<BankImportSource, { kind: "commbank_statement" }>,
-  deps: ImportDeps,
-  account: AccountRow,
-): Effect.fn.Return<Computation, BankImportBlocked | PersistenceError> {
-  if (account.accountType !== "deposit") {
-    return yield* blocked(
-      "StatementGrammar",
-      `${statementProfileName} covers offset accounts; ${account.productLabel} is ${account.accountType}`,
-    );
-  }
-
-  const pdfFile = yield* digestFile(
-    "pdf",
-    source.pdf.bytes,
-    source.pdf.displayName,
-    "application/pdf",
-  );
-  const digest = decodeSha(
-    yield* Effect.promise(() =>
-      bundleDigest(statementProfileName, account.id, [
-        { role: pdfFile.role, digest: pdfFile.digest },
-      ]),
-    ),
-  );
-
-  const replay = yield* findImportByDigest(sql, account.id, digest);
-  if (replay !== null) {
-    return replayComputation(account, digest, statementProfileName, [pdfFile], replay);
-  }
-
-  const extraction = yield* Effect.tryPromise({
-    try: () => deps.extractStatement(source.pdf.bytes),
-    catch: (cause) =>
-      new BankImportBlocked({
-        code: "StatementNeedsManualExtraction",
-        detail: cause instanceof Error ? cause.message : "extraction failed",
-      }),
-  });
-  const markdownBytes = new TextEncoder().encode(extraction.markdown);
-  const markdownFile = yield* digestFile(
-    "extracted_markdown",
-    markdownBytes,
-    `${source.pdf.displayName}.md`,
-    "text/markdown",
-    extraction.extractor,
-  );
-  const files = [pdfFile, markdownFile];
-
-  const statement = yield* parseOffsetStatement(extraction.markdown);
-
-  // The printed account number is BSB then account: the same identity the
-  // OFX declares as BANKID and ACCTID, so both sources map to one HMAC.
-  const digits = statement.accountNumber.split(" ");
-  const bankId = digits.slice(0, 2).join("");
-  const acctId = digits.slice(2).join("");
-  if (bankId.length !== 6 || acctId.length === 0) {
-    return yield* blocked(
-      "StatementGrammar",
-      `unrecognized account number shape "${statement.accountNumber}"`,
-    );
-  }
-  const identityHmac = yield* Effect.promise(() =>
-    hmacSha256Hex(deps.identityKey, accountIdentityInput(account.accountType, { bankId, acctId })),
-  );
-  yield* verifyIdentity(sql, account, identityHmac);
-
-  const segment = intersect(statement.period, accountLife(account));
-  if (segment === null) {
-    return yield* blocked(
-      "WindowOutsideAccountLifetime",
-      `${statement.period.start}..${statement.period.end} is outside the account's life`,
-    );
-  }
-
-  // Tier 4: statement dates may differ from structured dates, so alignment
-  // uses exact amount and exact running balance. Ambiguity blocks rather
-  // than asking — a plausible double mapping is a profile failure.
-  const stored = yield* loadBalanceEvidenceRange(
-    sql,
-    account.id,
-    addDays(statement.period.start, -7),
-    addDays(statement.period.end, 7),
-  );
-  const byKey = new Map<string, StoredTransaction[]>();
-  const key = (amount: BigDecimal.BigDecimal, balance: BigDecimal.BigDecimal) =>
-    `${BigDecimal.format(BigDecimal.normalize(amount))}|${BigDecimal.format(BigDecimal.normalize(balance))}`;
-  for (const transaction of stored) {
-    if (transaction.rowBalance === null) continue;
-    const signature = key(transaction.amount, transaction.rowBalance);
-    const group = byKey.get(signature);
-    if (group === undefined) byKey.set(signature, [transaction]);
-    else group.push(transaction);
-  }
-
-  const coverageSpans = mergeSpans(yield* loadCoverageSpans(sql, account.id));
-  const covered = (date: CalendarDate) =>
-    coverageSpans.some((span) => span.start <= date && date <= span.end);
-  // Statement dates drift from the structured lists, so a row printed within
-  // the drift of a coverage edge can describe a movement posted just outside
-  // it. Running balances are the identity: an unmatched edge row is prior
-  // history, while an unmatched row deep inside coverage is a real
-  // inconsistency and blocks.
-  const nearCoverageEdge = (date: CalendarDate) =>
-    coverageSpans.some(
-      (span) =>
-        (date >= addDays(span.start, -statementDateDriftDays) &&
-          date <= addDays(span.start, statementDateDriftDays)) ||
-        (date >= addDays(span.end, -statementDateDriftDays) &&
-          date <= addDays(span.end, statementDateDriftDays)),
-    );
-
-  const claimed = new Set<BankTransactionId>();
-  const matches: StatementMatch[] = [];
-  for (const row of statement.rows) {
-    const signature = key(row.amount, row.balance);
-    const group = (byKey.get(signature) ?? []).filter(
-      (transaction) => !claimed.has(transaction.id),
-    );
-    if (group.length > 1) {
-      return yield* blocked(
-        "StatementOverlapMismatch",
-        `row ${row.ordinal + 1} maps to ${group.length} stored transactions`,
-      );
-    }
-    const match = group[0];
-    if (match !== undefined) {
-      claimed.add(match.id);
-      matches.push({ row, transactionId: match.id });
-      continue;
-    }
-    if (covered(row.postedDate) && !nearCoverageEdge(row.postedDate)) {
-      return yield* blocked(
-        "StatementOverlapMismatch",
-        `row ${row.ordinal + 1} (${row.postedDate}) lies inside complete structured coverage but matches nothing`,
-      );
-    }
-    matches.push({ row, transactionId: null });
-  }
-
-  // The reverse direction: every structured transaction inside the shared
-  // window must be claimed, or the statement is missing an overlap row. The
-  // same drift applies — a row posted near the period's edge can print on
-  // the neighbouring statement instead.
-  for (const transaction of stored) {
-    if (transaction.rowBalance === null || claimed.has(transaction.id)) continue;
-    if (
-      transaction.postedDate >= addDays(statement.period.start, statementDateDriftDays) &&
-      transaction.postedDate <= addDays(statement.period.end, -statementDateDriftDays) &&
-      covered(transaction.postedDate)
-    ) {
-      return yield* blocked(
-        "StatementOverlapMismatch",
-        `stored transaction on ${transaction.postedDate} has no statement counterpart`,
-      );
-    }
-  }
-
-  const effectiveRules = yield* loadEffectiveRules(sql);
-  const ruleHits = new Map<number, EffectiveRule>();
-  const candidates: CandidateEffect[] = [];
-
-  for (const [ordinal, match] of matches.entries()) {
-    const narrative = displayNarrative(match.row.narrative);
-    const payee = derivePayee(match.row.narrative, "deposit");
-
-    let category: string | null = null;
-    if (match.transactionId === null) {
-      const hit = firstMatchingRule(effectiveRules, {
-        accountId: account.id,
-        payee,
-        fingerprint: narrativeFingerprint(match.row.narrative),
-        amount: match.row.amount,
-      });
-      if (hit !== null) {
-        ruleHits.set(ordinal, hit);
-        category = hit.categoryName;
-      }
-    }
-
-    candidates.push({
-      ordinal,
-      postedDate: match.row.postedDate,
-      amount: aud(match.row.amount),
-      narrative,
-      payee,
-      status: match.transactionId === null ? "new" : "duplicate",
-      tier: match.transactionId === null ? "new" : "statement",
-      transactionId: match.transactionId,
-      options: [],
-      narrativeVariant: false,
-      category,
-    });
-  }
-
-  const coverage = yield* computeCoverageEffects(sql, account.id, segment);
-  const fingerprint = yield* fingerprintOf(digest, candidates, segment);
-
-  return {
-    kind: "new",
-    account,
-    digest,
-    profile: statementProfileName,
-    files,
-    plan: { kind: "statement", statement, matches },
-    window: statement.period,
-    identityHmac,
-    maskedSuffix: acctId.slice(-4),
-    candidates,
-    ruleHits,
-    coverage,
-    balances: { ledger: statement.closing, available: null, ledgerReconciled: true },
-    warnings: [],
-    fingerprint,
-  };
-});
-
-const computeImport = (
-  sql: SqlExecutor,
-  source: BankImportSource,
-  deps: ImportDeps,
-  account: AccountRow,
-) =>
-  source.kind === "commbank_structured"
-    ? computeStructured(sql, source, deps, account)
-    : computeStatement(sql, source, deps, account);
 
 const effectCounts = (candidates: readonly CandidateEffect[]) => ({
   new: candidates.filter((candidate) => candidate.status === "new").length,
@@ -672,13 +403,13 @@ const toPreview = (computation: Computation): BankImportPreview => {
       computation.import.effects.ambiguous;
     return {
       accountId: account.id,
-      sourceProfile: decodeProfile(computation.profile),
+      sourceProfile: computation.profile,
       window: { start: computation.import.windowStart, end: computation.import.windowEnd },
       files: fileViews,
       bundleDigest: computation.digest,
       previewFingerprint: computation.digest,
       logicalTransactions: total,
-      physicalObservations: total * (computation.profile === pairedProfileName ? 2 : 1),
+      physicalObservations: total * 2,
       effects: computation.import.effects,
       candidates: [],
       balances: { ledger: null, available: null, ledgerReconciled: false },
@@ -691,14 +422,13 @@ const toPreview = (computation: Computation): BankImportPreview => {
 
   return {
     accountId: account.id,
-    sourceProfile: decodeProfile(computation.profile),
+    sourceProfile: computation.profile,
     window: computation.window,
     files: fileViews,
     bundleDigest: computation.digest,
     previewFingerprint: computation.fingerprint,
     logicalTransactions: computation.candidates.length,
-    physicalObservations:
-      computation.candidates.length * (computation.plan.kind === "structured" ? 2 : 1),
+    physicalObservations: computation.candidates.length * 2,
     effects: effectCounts(computation.candidates),
     candidates: computation.candidates,
     balances: {
@@ -740,7 +470,7 @@ export const previewBankImport = (
     return yield* postgres.readTransaction((sql) =>
       Effect.gen(function* () {
         const account = yield* getAccountOrFail(sql, source.accountId);
-        const computation = yield* computeImport(sql, source, deps, account);
+        const computation = yield* computeStructured(sql, source, deps, account);
         return { kind: "ready", preview: toPreview(computation) } as const;
       }).pipe(
         Effect.catchIf(
@@ -828,19 +558,11 @@ export const confirmBankImport = (
 > =>
   Effect.gen(function* () {
     const payloadHash = decodeSha(yield* Effect.promise(() => confirmPayloadHash(input)));
-    let statementExtraction: Promise<StatementExtraction> | undefined;
-    const preparedDeps: ImportDeps = {
-      ...deps,
-      extractStatement: (pdf) => {
-        statementExtraction ??= deps.extractStatement(pdf);
-        return statementExtraction;
-      },
-    };
     const postgres = yield* Postgres;
     const preflight = yield* postgres.readTransaction((sql) =>
       Effect.gen(function* () {
         const account = yield* getAccountOrFail(sql, input.source.accountId);
-        return yield* computeImport(sql, input.source, preparedDeps, account).pipe(
+        return yield* computeStructured(sql, input.source, deps, account).pipe(
           Effect.catchIf(
             (error): error is BankImportBlocked => error instanceof BankImportBlocked,
             (error) => Effect.succeed(error),
@@ -891,7 +613,7 @@ export const confirmBankImport = (
           );
 
           const account = yield* getAccountOrFail(sql, input.source.accountId);
-          const computation = yield* computeImport(sql, input.source, preparedDeps, account).pipe(
+          const computation = yield* computeStructured(sql, input.source, deps, account).pipe(
             Effect.catchIf(
               (error): error is BankImportBlocked => error instanceof BankImportBlocked,
               (error) => Effect.succeed(error),
@@ -1036,192 +758,107 @@ const buildGraph = Effect.fn("buildImportGraph")(function* (
     return transactionId;
   };
 
-  if (computation.plan.kind === "structured") {
-    const { bundle, outcomes } = computation.plan;
-    const rules = pairedRules[account.accountType];
-    const links = yield* applyResolutions(outcomes, resolutions);
-    const csvFileId = fileIds.get("csv")!;
-    const ofxFileId = fileIds.get("ofx")!;
+  const { bundle, outcomes } = computation;
+  const rules = pairedRules[account.accountType];
+  const links = yield* applyResolutions(outcomes, resolutions);
+  const csvFileId = fileIds.get("csv")!;
+  const ofxFileId = fileIds.get("ofx")!;
 
-    for (const [ordinal, outcome] of outcomes.entries()) {
-      const { candidate, result } = outcome;
+  for (const [ordinal, outcome] of outcomes.entries()) {
+    const { candidate, result } = outcome;
 
-      let transactionId: BankTransactionId;
-      let tier: ConfirmedImportGraph["observations"][number]["matchTier"];
-      let decidedBy: "cascade" | "operator" = "cascade";
-      let isNew = false;
+    let transactionId: BankTransactionId;
+    let tier: ConfirmedImportGraph["observations"][number]["matchTier"];
+    let decidedBy: "cascade" | "operator" = "cascade";
+    let isNew = false;
 
-      if (result.kind === "duplicate") {
-        transactionId = result.transactionId;
-        tier = result.tier;
-        linked += 1;
-      } else if (result.kind === "ambiguous" && links.get(ordinal)!.transactionId !== null) {
-        transactionId = links.get(ordinal)!.transactionId!;
-        tier = "content";
-        decidedBy = "operator";
-        linked += 1;
-      } else {
-        transactionId = yield* newTransaction(
-          ordinal,
-          candidate.csv.postedDate,
-          candidate.csv.amount,
-          candidate.csv.raw.narrative,
-          candidate.csv.balance,
-        );
-        tier = "new";
-        decidedBy = result.kind === "ambiguous" ? "operator" : "cascade";
-        isNew = true;
-
-        if (rules.fitids === "verified") {
-          identifiers.push({ fitid: candidate.ofx.fitid, transactionId });
-        }
-      }
-
-      const csvObservationId = yield* mintId(BankObservationId);
-      observations.push(
-        {
-          id: csvObservationId,
-          sourceFileId: csvFileId,
-          sourceOrdinal: candidate.csv.ordinal,
-          raw: candidate.csv.raw,
-          parsed: parsedCsv(candidate),
-          parserVersion,
-          transactionId,
-          matchTier: tier,
-          decidedBy,
-          rowBalance: candidate.csv.balance,
-          postedDate: candidate.csv.postedDate,
-        },
-        {
-          id: yield* mintId(BankObservationId),
-          sourceFileId: ofxFileId,
-          sourceOrdinal: candidate.ofx.ordinal,
-          raw: candidate.ofx.raw,
-          parsed: parsedOfx(candidate),
-          parserVersion,
-          transactionId,
-          matchTier: tier,
-          decidedBy,
-          rowBalance: null,
-          postedDate: candidate.csv.postedDate,
-        },
+    if (result.kind === "duplicate") {
+      transactionId = result.transactionId;
+      tier = result.tier;
+      linked += 1;
+    } else if (result.kind === "ambiguous" && links.get(ordinal)!.transactionId !== null) {
+      transactionId = links.get(ordinal)!.transactionId!;
+      tier = "content";
+      decidedBy = "operator";
+      linked += 1;
+    } else {
+      transactionId = yield* newTransaction(
+        ordinal,
+        candidate.csv.postedDate,
+        candidate.csv.amount,
+        candidate.csv.raw.narrative,
+        candidate.csv.balance,
       );
+      tier = "new";
+      decidedBy = result.kind === "ambiguous" ? "operator" : "cascade";
+      isNew = true;
 
-      if (isNew && candidate.csv.balance !== null) {
-        balances.push({
-          id: yield* mintId(BalanceObservationId),
-          kind: "row",
-          value: candidate.csv.balance,
-          asOfDate: candidate.csv.postedDate,
-          observationId: csvObservationId,
-          sourceFileId: null,
-        });
+      if (rules.fitids === "verified") {
+        identifiers.push({ fitid: candidate.ofx.fitid, transactionId });
       }
     }
 
-    if (bundle.ledger !== null) {
-      balances.push({
-        id: yield* mintId(BalanceObservationId),
-        kind: "ledger",
-        value: bundle.ledger.amount,
-        asOfDate: bundle.ledger.asOfDate,
-        observationId: null,
-        sourceFileId: ofxFileId,
-      });
-    }
-    if (bundle.available !== null) {
-      balances.push({
-        id: yield* mintId(BalanceObservationId),
-        kind: "available",
-        value: bundle.available.amount,
-        asOfDate: bundle.available.asOfDate,
-        observationId: null,
-        sourceFileId: ofxFileId,
-      });
-    }
-  } else if (computation.plan.kind === "statement") {
-    const { statement, matches } = computation.plan;
-    if (resolutions.length > 0) {
-      return yield* Effect.fail(
-        new ValidationFailed({
-          reason: "InvalidResolution",
-          detail: "a statement import carries no operator ambiguities",
-        }),
-      );
-    }
-    const markdownFileId = fileIds.get("extracted_markdown")!;
-
-    for (const [ordinal, match] of matches.entries()) {
-      let transactionId: BankTransactionId;
-      let tier: ConfirmedImportGraph["observations"][number]["matchTier"];
-
-      if (match.transactionId !== null) {
-        transactionId = match.transactionId;
-        tier = "statement";
-        linked += 1;
-      } else {
-        transactionId = yield* newTransaction(
-          ordinal,
-          match.row.postedDate,
-          match.row.amount,
-          match.row.narrative,
-          match.row.balance,
-        );
-        tier = "new";
-      }
-
-      const observationId = yield* mintId(BankObservationId);
-      observations.push({
-        id: observationId,
-        sourceFileId: markdownFileId,
-        sourceOrdinal: match.row.ordinal,
-        raw: {
-          narrative: match.row.narrative,
-          balance: BigDecimal.format(BigDecimal.normalize(match.row.balance)),
-        },
-        parsed: {
-          postedDate: match.row.postedDate,
-          amount: BigDecimal.format(BigDecimal.normalize(match.row.amount)),
-          balance: BigDecimal.format(BigDecimal.normalize(match.row.balance)),
-        },
+    const csvObservationId = yield* mintId(BankObservationId);
+    observations.push(
+      {
+        id: csvObservationId,
+        sourceFileId: csvFileId,
+        sourceOrdinal: candidate.csv.ordinal,
+        raw: candidate.csv.raw,
+        parsed: parsedCsv(candidate),
         parserVersion,
         transactionId,
         matchTier: tier,
-        decidedBy: "cascade",
-        rowBalance: match.row.balance,
-        postedDate: match.row.postedDate,
-      });
-
-      if (match.transactionId === null) {
-        balances.push({
-          id: yield* mintId(BalanceObservationId),
-          kind: "row",
-          value: match.row.balance,
-          asOfDate: match.row.postedDate,
-          observationId,
-          sourceFileId: null,
-        });
-      }
-    }
-
-    balances.push(
-      {
-        id: yield* mintId(BalanceObservationId),
-        kind: "opening",
-        value: statement.opening,
-        asOfDate: statement.period.start,
-        observationId: null,
-        sourceFileId: markdownFileId,
+        decidedBy,
+        rowBalance: candidate.csv.balance,
+        postedDate: candidate.csv.postedDate,
       },
       {
-        id: yield* mintId(BalanceObservationId),
-        kind: "closing",
-        value: statement.closing,
-        asOfDate: statement.period.end,
-        observationId: null,
-        sourceFileId: markdownFileId,
+        id: yield* mintId(BankObservationId),
+        sourceFileId: ofxFileId,
+        sourceOrdinal: candidate.ofx.ordinal,
+        raw: candidate.ofx.raw,
+        parsed: parsedOfx(candidate),
+        parserVersion,
+        transactionId,
+        matchTier: tier,
+        decidedBy,
+        rowBalance: null,
+        postedDate: candidate.csv.postedDate,
       },
     );
+
+    if (isNew && candidate.csv.balance !== null) {
+      balances.push({
+        id: yield* mintId(BalanceObservationId),
+        kind: "row",
+        value: candidate.csv.balance,
+        asOfDate: candidate.csv.postedDate,
+        observationId: csvObservationId,
+        sourceFileId: null,
+      });
+    }
+  }
+
+  if (bundle.ledger !== null) {
+    balances.push({
+      id: yield* mintId(BalanceObservationId),
+      kind: "ledger",
+      value: bundle.ledger.amount,
+      asOfDate: bundle.ledger.asOfDate,
+      observationId: null,
+      sourceFileId: ofxFileId,
+    });
+  }
+  if (bundle.available !== null) {
+    balances.push({
+      id: yield* mintId(BalanceObservationId),
+      kind: "available",
+      value: bundle.available.amount,
+      asOfDate: bundle.available.asOfDate,
+      observationId: null,
+      sourceFileId: ofxFileId,
+    });
   }
 
   const effects = {
@@ -1234,7 +871,7 @@ const buildGraph = Effect.fn("buildImportGraph")(function* (
   const importRow: ImportRow = {
     id: importId,
     accountId: account.id,
-    sourceProfile: decodeProfile(computation.profile),
+    sourceProfile: computation.profile,
     bundleDigest: computation.digest,
     windowStart: window.start,
     windowEnd: window.end,

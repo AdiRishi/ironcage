@@ -43,6 +43,7 @@ import {
 import { acknowledge, getFeed } from "./money/feed/service";
 import { sha256Hex } from "./money/import/bytes";
 import { confirmBankImport, previewBankImport, type ImportDeps } from "./money/import/service";
+import { archiveBankStatement } from "./money/statements/service";
 import { decideTransferMatch, getTransferMatches } from "./money/transfers/service";
 import {
   getWholeWealth,
@@ -73,8 +74,6 @@ const withMoney = <A, E>(use: (deps: ImportDeps) => Effect.Effect<A, E, Postgres
     use({
       identityKey: env.MONEY_IDENTITY_KEY,
       artifacts: { put: (key, bytes) => env.BLOBS.put(key, bytes) },
-      extractStatement: (pdf) =>
-        env.STATEMENT_EXTRACTION.getByName("statement-extractor").extract(pdf),
     }).pipe(
       Effect.provide(Postgres.layerForRequest(env.DB.connectionString)),
       persistenceToBoundary,
@@ -181,6 +180,8 @@ const appSurface = HttpRouter.toWebHandler(
       ping: () => ping("AppApi"),
       getSystemStatus: () => withMoney(() => getSystemStatus()),
       haltAll: (payload) => idempotently(payload, haltAll),
+      archiveBankStatement: (payload) =>
+        withMoney((deps) => archiveBankStatement(payload, deps.artifacts)),
       previewBankImport: ({ source }) => withMoney((deps) => previewBankImport(source, deps)),
       confirmBankImport: (payload) =>
         withMoney((deps) => confirmBankImport(payload, deps)).pipe(

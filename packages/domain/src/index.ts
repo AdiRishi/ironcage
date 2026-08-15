@@ -9,6 +9,7 @@ export * from "./money/block";
 export * from "./money/category";
 export * from "./money/ids";
 export * from "./money/import";
+export * from "./money/statement";
 export * from "./money/transfer";
 export * from "./outbox/effect";
 export * from "./portfolio/sleeve";

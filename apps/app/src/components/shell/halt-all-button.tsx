@@ -78,7 +78,11 @@ export function HaltAllButton() {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Keep running</AlertDialogCancel>
-          <AlertDialogAction variant="destructive" disabled={pending} onClick={() => void halt()}>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={pending}
+            onClick={(event) => void halt(event)}
+          >
             {pending ? "Halting…" : "Halt all"}
           </AlertDialogAction>
         </AlertDialogFooter>

@@ -12,7 +12,10 @@ export interface ComputeObjectBinding extends Workers.Rpc.DurableObjectBranded {
 export interface StatementExtractorBinding extends ComputeObjectBinding {
   extract(pdf: Uint8Array): Promise<{
     readonly markdown: string;
-    readonly extractor: { readonly package: string; readonly version: string };
+    readonly extractor: {
+      readonly package: "@firecrawl/anydoc";
+      readonly version: "0.1.7";
+    };
   }>;
 }
 
@@ -52,8 +55,12 @@ export const computeBindings = (platform: PlatformBindings, environment: string)
   BACKTEST: Cloudflare.DurableObject<ComputeObjectBinding>("BacktestRunner", {
     className: "BacktestRunner",
   }),
-  STATEMENT_EXTRACTION: Cloudflare.DurableObject<StatementExtractorBinding>("StatementExtractor", {
+  STATEMENT_EXTRACTION: Cloudflare.Container<StatementExtractorBinding>("StatementExtractor", {
     className: "StatementExtractor",
+    context: "..",
+    dockerfile: "containers/statement-extractor/Dockerfile",
+    instanceType: "lite",
+    maxInstances: 1,
   }),
   BLOBS: platform.blobs,
   ENVIRONMENT: environment,
