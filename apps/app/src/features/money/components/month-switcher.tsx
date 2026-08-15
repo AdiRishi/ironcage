@@ -39,8 +39,9 @@ export function MonthSwitcher({
       </Button>
       <Select
         value={selected}
-        onValueChange={(month) => {
-          if (typeof month === "string") onSelect(month);
+        onValueChange={(value) => {
+          const month = months.find((candidate) => candidate.month === value);
+          if (month !== undefined) onSelect(month.month);
         }}
       >
         <SelectTrigger

@@ -1,12 +1,17 @@
 import type { ImportBlockCode } from "@ironcage/domain";
 
+interface BlockGuidance {
+  readonly title: string;
+  readonly hint: string;
+}
+
 /**
  * Operator-facing copy for each way a bundle can refuse to affect the record.
  * A block is a verdict on the evidence, not a system fault, so every entry
  * says what the evidence failed to prove and what export fixes it. The
  * server's own `detail` renders alongside for the specifics.
  */
-export const blockGuidance: Record<ImportBlockCode, { title: string; hint: string }> = {
+export const blockGuidance = {
   CsvGrammar: {
     title: "The CSV didn't parse as a NetBank export",
     hint: "Re-export it from NetBank and upload it unopened — editors change line endings and quoting.",
@@ -67,4 +72,4 @@ export const blockGuidance: Record<ImportBlockCode, { title: string; hint: strin
     title: "No text could be extracted from this PDF",
     hint: "The statement may be scanned or damaged. Nothing was written.",
   },
-};
+} satisfies Record<ImportBlockCode, BlockGuidance>;

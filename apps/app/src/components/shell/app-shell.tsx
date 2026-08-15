@@ -11,6 +11,10 @@ import { SurfaceTabs } from "@/components/shell/surface-tabs";
  *  shadcn source, so `sidebar.tsx` stays a clean upstream file. */
 const SIDEBAR_WIDTH = "13rem";
 
+// SAFETY: React supports CSS custom properties, but CSSProperties intentionally
+// omits their open-ended names from its static property list.
+const sidebarStyle = { "--sidebar-width": SIDEBAR_WIDTH } as React.CSSProperties;
+
 /**
  * The one layout every surface renders inside, per `docs/technical/11-app.md`
  * §5. Mode, halt-all, the critical count, the override banner, and the
@@ -21,7 +25,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { tabs } = activeSection(pathname);
 
   return (
-    <SidebarProvider style={{ "--sidebar-width": SIDEBAR_WIDTH } as React.CSSProperties}>
+    <SidebarProvider style={sidebarStyle}>
       <AppSidebar />
       <SidebarInset>
         <OverrideBanner />

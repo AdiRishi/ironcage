@@ -40,14 +40,14 @@ import { describeError, formatAud, formatDay, formatSpan } from "@/features/mone
 import type { ConfirmImportDraft, ImportSourceDraft } from "@/features/money/import-upload";
 
 /** How each dedupe tier reads when the operator asks "why is this a duplicate?" */
-const tierLabel: Record<MatchTier, string> = {
+const tierLabel = {
   bundle: "this exact bundle is already confirmed",
   identifier: "matched by its bank identifier",
   row_balance: "matched by date, amount, and running balance",
   content: "matched by date, amount, and narrative",
   statement: "aligned to existing history by statement evidence",
   new: "no stored evidence matches this row",
-};
+} satisfies Record<MatchTier, string>;
 
 const profileLabel = {
   "cba-netbank-paired-v1": "CSV + OFX pair",

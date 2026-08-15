@@ -25,7 +25,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@ironcage/ui/components
 import { cn } from "@ironcage/ui/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CircleAlertIcon, InboxIcon, SparklesIcon, UserIcon, ZapIcon } from "lucide-react";
-import { useState, type SetStateAction } from "react";
+import { useState } from "react";
 
 import { keys } from "@/data/keys";
 import { describeError, formatAud, formatDay } from "@/features/money/format";
@@ -33,13 +33,17 @@ import { decodeCategorizeOutcome, encodeCategorizePayload } from "@/features/mon
 import { categorizeTransactions } from "@/server/money";
 
 type Staged = { readonly categoryId: CategoryId; readonly rule: boolean };
+type StagedChanges = Record<string, Staged>;
+
+interface FilingMark {
+  readonly icon: React.ReactNode;
+  readonly label: string;
+  readonly className: string;
+}
 
 /** Who filed the row, at a glance — the AI's mark carries its rationale. */
 function FiledBy({ entry }: { readonly entry: LedgerEntry }) {
-  const marks: Record<
-    SplitProvenance,
-    { icon: React.ReactNode; label: string; className: string } | null
-  > = {
+  const marks = {
     system: null,
     ai: {
       icon: <SparklesIcon className="size-3" />,
@@ -56,7 +60,7 @@ function FiledBy({ entry }: { readonly entry: LedgerEntry }) {
       label: "Filed by you",
       className: "text-ink-faint",
     },
-  };
+  } satisfies Record<SplitProvenance, FilingMark | null>;
   const mark = marks[entry.filedBy];
   if (mark === null) return <span className="w-3" />;
   return (
@@ -150,17 +154,15 @@ export function Ledger({
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<{
     readonly scope: string;
-    readonly changes: Record<string, Staged>;
+    readonly changes: StagedChanges;
   }>({ scope, changes: {} });
   const staged = draft.scope === scope ? draft.changes : {};
-  const setStaged = (update: SetStateAction<Record<string, Staged>>) =>
+  const updateStaged = (update: (changes: StagedChanges) => StagedChanges) =>
     setDraft((current) => {
       const changes = current.scope === scope ? current.changes : {};
-      return {
-        scope,
-        changes: typeof update === "function" ? update(changes) : update,
-      };
+      return { scope, changes: update(changes) };
     });
+  const clearStaged = () => setDraft({ scope, changes: {} });
 
   const assignable = categories.filter((category) => !category.system && !category.archived);
   const stagedCount = Object.keys(staged).length;
@@ -187,7 +189,7 @@ export function Ledger({
     },
     onSuccess: async (outcome) => {
       if (outcome.outcome === "ok") {
-        setStaged({});
+        clearStaged();
         await queryClient.invalidateQueries({ queryKey: keys.moneyAll() });
       }
     },
@@ -274,7 +276,7 @@ export function Ledger({
                     value={value}
                     placeholder="Needs a hand…"
                     onChange={(categoryId) =>
-                      setStaged((prior) =>
+                      updateStaged((prior) =>
                         categoryId === current
                           ? Object.fromEntries(
                               Object.entries(prior).filter(([id]) => id !== entry.transactionId),
@@ -304,7 +306,7 @@ export function Ledger({
                         disabled={stagedEntry === undefined}
                         checked={stagedEntry?.rule ?? false}
                         onCheckedChange={(checked) =>
-                          setStaged((prior) => {
+                          updateStaged((prior) => {
                             const existing = prior[entry.transactionId];
                             return existing === undefined
                               ? prior
@@ -345,12 +347,7 @@ export function Ledger({
           {stagedCount} {stagedCount === 1 ? "change" : "changes"} staged
         </span>
         <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setStaged({})}
-            disabled={apply.isPending}
-          >
+          <Button variant="ghost" size="sm" onClick={clearStaged} disabled={apply.isPending}>
             Discard
           </Button>
           <Button size="sm" disabled={apply.isPending} onClick={() => apply.mutate()}>

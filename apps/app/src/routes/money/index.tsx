@@ -10,6 +10,7 @@ import {
 import { Skeleton } from "@ironcage/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { Schema } from "effect";
 import { BanknoteIcon } from "lucide-react";
 
 import { SuggestionsCard } from "@/features/money/components/anomalies-and-suggestions";
@@ -20,9 +21,11 @@ import { SavingsRateTrend } from "@/features/money/components/savings-rate-trend
 import { SpendTrend } from "@/features/money/components/spend-trend";
 import { analysisQuery, coverageQuery } from "@/features/money/queries";
 
+const MoneySearch = Schema.Struct({ month: Schema.optionalKey(Schema.String) });
+const decodeMoneySearch = Schema.decodeUnknownSync(MoneySearch);
+
 export const Route = createFileRoute("/money/")({
-  validateSearch: (search): { month?: string } =>
-    typeof search.month === "string" ? { month: search.month } : {},
+  validateSearch: decodeMoneySearch,
   loaderDeps: () => ({}),
   loader: ({ context }) =>
     Promise.all([

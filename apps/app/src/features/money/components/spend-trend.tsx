@@ -51,6 +51,13 @@ export function SpendTrend({
             const height = Math.max(Math.round(magnitude * CHART_HEIGHT), 3);
             const active = month.month === selected;
             const refunds = BigDecimal.isNegative(month.netSpend);
+            const style = month.complete
+              ? { height }
+              : {
+                  height,
+                  backgroundImage:
+                    "repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in oklab, var(--warning) 55%, transparent) 3px 5px)",
+                };
 
             return (
               <Tooltip key={month.month}>
@@ -66,15 +73,7 @@ export function SpendTrend({
                   }
                 >
                   <span
-                    style={{
-                      height,
-                      ...(month.complete
-                        ? {}
-                        : {
-                            backgroundImage:
-                              "repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in oklab, var(--warning) 55%, transparent) 3px 5px)",
-                          }),
-                    }}
+                    style={style}
                     className={cn(
                       "w-full rounded-t-[4px] transition-colors",
                       month.complete &&

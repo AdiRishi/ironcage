@@ -3,6 +3,7 @@ import { Skeleton } from "@ironcage/ui/components/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@ironcage/ui/components/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Schema } from "effect";
 
 import { CategoriesDialog } from "@/features/money/components/categories-dialog";
 import { EvidenceLine } from "@/features/money/components/evidence-line";
@@ -20,9 +21,15 @@ import {
   transfersQuery,
 } from "@/features/money/queries";
 
-type View = "attention" | "ai" | "month";
+const TransactionSearch = Schema.Struct({
+  view: Schema.optionalKey(Schema.Literals(["attention", "ai", "month"])),
+  month: Schema.optionalKey(Schema.String),
+  category: Schema.optionalKey(Schema.String),
+});
+type Search = typeof TransactionSearch.Type;
+type View = NonNullable<Search["view"]>;
 
-type Search = { view?: View; month?: string; category?: string };
+const decodeTransactionSearch = Schema.decodeUnknownSync(TransactionSearch);
 
 const scopeOf = (search: Search): LedgerScope =>
   search.view === "month" && search.month !== undefined
@@ -30,13 +37,7 @@ const scopeOf = (search: Search): LedgerScope =>
     : { kind: "attention" };
 
 export const Route = createFileRoute("/money/transactions")({
-  validateSearch: (search): Search => ({
-    ...(search.view === "attention" || search.view === "ai" || search.view === "month"
-      ? { view: search.view }
-      : {}),
-    ...(typeof search.month === "string" ? { month: search.month } : {}),
-    ...(typeof search.category === "string" ? { category: search.category } : {}),
-  }),
+  validateSearch: decodeTransactionSearch,
   loaderDeps: ({ search }) => ({ scope: scopeOf(search) }),
   loader: ({ context, deps }) =>
     Promise.all([
@@ -58,6 +59,7 @@ function MoneyTransactions() {
   const navigate = Route.useNavigate();
   const search = Route.useSearch();
   const view: View = search.view ?? "attention";
+  const selectedMonth = search.month;
   const scope = scopeOf(search);
 
   const ledger = useQuery(ledgerQuery(scope));
@@ -116,27 +118,27 @@ function MoneyTransactions() {
             <TabsTrigger value="month">By month</TabsTrigger>
           </TabsList>
         </Tabs>
-        {view === "month" && search.month !== undefined && months.length > 0 ? (
+        {view === "month" && selectedMonth !== undefined && months.length > 0 ? (
           <div className="flex items-center gap-2">
             <span className="font-display text-base font-semibold tracking-tight">
-              {formatMonth(search.month)}
+              {formatMonth(selectedMonth)}
             </span>
             <MonthSwitcher
               months={months}
-              selected={search.month}
-              onSelect={(month) =>
-                go({
-                  view: "month",
-                  month,
-                  ...(search.category ? { category: search.category } : {}),
-                })
-              }
+              selected={selectedMonth}
+              onSelect={(month) => {
+                if (search.category === undefined) {
+                  go({ view: "month", month });
+                } else {
+                  go({ view: "month", month, category: search.category });
+                }
+              }}
             />
             {categoryName === undefined ? null : (
               <button
                 type="button"
                 className="font-mono text-xs text-muted-foreground underline-offset-4 hover:underline"
-                onClick={() => go({ view: "month", month: search.month! })}
+                onClick={() => go({ view: "month", month: selectedMonth })}
               >
                 {categoryName} only · clear
               </button>
