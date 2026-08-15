@@ -6,32 +6,34 @@ import * as Effect from "effect/Effect";
 import { bucketLifecycleRules } from "./cloudflare-config.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
 import { QueueSettings } from "./providers/index.ts";
+import { cloudflareResourceNames } from "./resource-names.ts";
 
 export const platformControls = Effect.fn("Ironcage.PlatformControls")(function* (
   config: DeploymentConfig,
 ) {
+  const names = cloudflareResourceNames(config.stage);
   const blobs = yield* Cloudflare.R2.Bucket("Blobs", {
-    name: "ironcage-private",
+    name: names.buckets.blobs,
     lifecycleRules: [...bucketLifecycleRules],
   }).pipe(adopt(config._tag === "Production"), retain());
   const agentArtifacts = yield* Cloudflare.R2.Bucket("AgentArtifacts", {
-    name: "ironcage-agent-artifacts",
+    name: names.buckets.agentArtifacts,
     lifecycleRules: [...bucketLifecycleRules],
   }).pipe(retain());
   const backups = yield* Cloudflare.R2.Bucket("Backups", {
-    name: "ironcage-backups",
+    name: names.buckets.backups,
     lifecycleRules: [...bucketLifecycleRules],
   }).pipe(retain());
 
   const decisionRecordDeadLetters = yield* Cloudflare.Queues.Queue("DecisionRecordDeadLetters", {
-    name: "ironcage-decision-records-dlq",
+    name: names.queues.decisionRecordDeadLetters,
   }).pipe(retain());
   const decisionRecords = yield* Cloudflare.Queues.Queue("DecisionRecords", {
-    name: "ironcage-decision-records",
+    name: names.queues.decisionRecords,
   }).pipe(retain());
 
   const aiGateway = yield* Cloudflare.AI.Gateway("AiGateway", {
-    id: config._tag === "Production" ? "ironcage" : "ironcage-dev",
+    id: names.aiGateway,
     authentication: true,
     cacheTtl: null,
     collectLogs: true,
@@ -51,7 +53,7 @@ export const platformControls = Effect.fn("Ironcage.PlatformControls")(function*
   }).pipe(retain());
 
   const flags = yield* Cloudflare.Flagship.App("Flags", {
-    name: config._tag === "Production" ? "ironcage" : "ironcage-dev",
+    name: names.flags,
   }).pipe(retain());
   yield* Cloudflare.Flagship.Flag("LiveTrading", {
     appId: flags.appId,

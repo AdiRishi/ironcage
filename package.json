@@ -7,6 +7,7 @@
     "check": "pnpm compile && oxlint --disable-nested-config && oxfmt --check",
     "compile": "turbo compile",
     "deploy": "pnpm --filter @ironcage/infra deploy",
+    "deploy:dev": "pnpm --filter @ironcage/infra deploy:dev",
     "dev": "turbo dev --ui=stream --filter @ironcage/infra",
     "docs:build": "blume build",
     "docs:dev": "blume dev",

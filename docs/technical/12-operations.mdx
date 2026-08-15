@@ -89,6 +89,12 @@ pnpm dev
 
 Alchemy evaluates the development stage, starts all four Workers, and resolves service entrypoints, external Durable Objects, Workflows, Queues, R2, Hyperdrive, Flagship, and AI Gateway from the same dependency graph production uses. Worker, R2, and Queue state stays under `.alchemy/`; the development AI Gateway and Flagship app are separate remote resources.
 
+The deployed Hyperdrive integration lane uses the same development stage with a
+`-dev` suffix on every remote Cloudflare resource. Development and production
+share the PlanetScale database deliberately, but development reaches only its
+`dev` branch through development runtime roles. No development deployment owns
+a production Worker, Hyperdrive configuration, bucket, queue, gateway, or flag.
+
 The database story has three lanes. Ordinary local development uses the Alchemy-managed Hyperdrive development origin to connect directly to the PlanetScale `dev` branch; that is convenient but explicitly bypasses deployed Hyperdrive pooling and caching. CI uses Postgres 18.4 in Testcontainers, with one container per database test file and a drop-schema → apply-SQL cycle before every test, so pipelines are hermetic, parallel-safe, and exercise a cold schema. A deployed dev Worker runs the same integration suite through real dev Hyperdrive configurations before any database-sensitive change can merge. All three lanes use the same SQL files and public contract tests.
 
 The backtest container needs a local Docker daemon. Work that does not touch backtests may skip it.

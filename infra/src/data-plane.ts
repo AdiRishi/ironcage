@@ -7,11 +7,13 @@ import { retain } from "alchemy/RemovalPolicy";
 import * as Effect from "effect/Effect";
 
 import type { DeploymentConfig } from "./deployment-config.ts";
+import { cloudflareResourceNames } from "./resource-names.ts";
 
 const migrationsDir = fileURLToPath(new URL("../../migrations", import.meta.url));
 const runtimeRoles = ["pg_read_all_data", "pg_write_all_data"] as const;
 
 export const dataPlane = Effect.fn("Ironcage.DataPlane")(function* (config: DeploymentConfig) {
+  const names = cloudflareResourceNames(config.stage);
   const database =
     config._tag === "Production"
       ? yield* Planetscale.PostgresDatabase("Database", {
@@ -56,14 +58,14 @@ export const dataPlane = Effect.fn("Ironcage.DataPlane")(function* (config: Depl
   });
 
   const uncachedDatabase = yield* Cloudflare.Hyperdrive.Connection("UncachedDatabase", {
-    name: "ironcage-without-cache",
+    name: names.hyperdrive.uncached,
     origin: uncachedRole.origin,
     ...(config._tag === "Development" && { dev: uncachedRole.pooledOrigin }),
     caching: { disabled: true },
     originConnectionLimit: 8,
   }).pipe(adopt(config._tag === "Production"));
   const cachedDatabase = yield* Cloudflare.Hyperdrive.Connection("CachedDatabase", {
-    name: "ironcage-with-cache",
+    name: names.hyperdrive.cached,
     origin: cachedRole.origin,
     ...(config._tag === "Development" && { dev: cachedRole.pooledOrigin }),
     caching: { maxAge: 60, staleWhileRevalidate: 15 },

@@ -12,15 +12,22 @@ Copy `.env.example` to `.env` in this directory, or authenticate with
 process environment.
 
 ```sh
-pnpm dev     # Alchemy dev stage: all four Workers and their bindings
-pnpm plan    # production plan
-pnpm deploy  # production reconciliation, including SQL migrations
+pnpm dev        # local Alchemy stage: all four Workers and their bindings
+pnpm deploy:dev # isolated remote integration deployment against the dev database branch
+pnpm plan       # production plan
+pnpm deploy     # production reconciliation, including SQL migrations
 ```
 
 `pnpm dev` keeps Worker, R2, and Queue state local under `.alchemy/`. It uses
 the real PlanetScale `dev` branch through Alchemy-managed runtime
 roles, and it uses separate remote development AI Gateway and Flagship
 resources. It never receives production venue credentials.
+
+Every remotely deployed development Cloudflare resource uses a `-dev` suffix.
+The production and development Alchemy stages therefore cannot update or remove
+one another's Workers, Hyperdrive configurations, buckets, queues, gateways, or
+flags. The PlanetScale database is shared deliberately; development uses only
+its `dev` branch and development runtime roles.
 
 There is deliberately no production destroy script. Permanent stores and
 safety control-plane resources use Alchemy retention policies as another guard

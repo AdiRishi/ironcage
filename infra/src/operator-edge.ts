@@ -4,13 +4,15 @@ import * as Effect from "effect/Effect";
 
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
-import { appBindings, workerNames } from "./worker-bindings.ts";
+import { cloudflareResourceNames } from "./resource-names.ts";
+import { appBindings } from "./worker-bindings.ts";
 import type { Workers } from "./workers.ts";
 
 export const operatorEdge = Effect.fn("Ironcage.OperatorEdge")(function* (
   config: DeploymentConfig,
   workers: Workers,
 ) {
+  const names = cloudflareResourceNames(config.stage);
   const access =
     config._tag === "Production"
       ? yield* Effect.gen(function* () {
@@ -33,7 +35,7 @@ export const operatorEdge = Effect.fn("Ironcage.OperatorEdge")(function* (
       : undefined;
 
   const app = yield* Cloudflare.Website.Vite("AppWorker", {
-    name: workerNames.app,
+    name: names.workers.app,
     rootDir: "../apps/app",
     compatibility: workerCompatibility,
     workersDev: false,
