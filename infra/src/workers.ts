@@ -51,7 +51,6 @@ export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
     vite: {
       main: "worker.mjs",
       rootDir: "../apps/agents",
-      viteEnvironments: { entry: "ironcage_agents" },
     },
     compatibility: workerCompatibility,
     workersDev: false,
