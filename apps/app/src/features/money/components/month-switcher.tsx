@@ -43,8 +43,12 @@ export function MonthSwitcher({
           if (typeof month === "string") onSelect(month);
         }}
       >
-        <SelectTrigger size="sm" className="min-w-40 font-mono text-xs" aria-label="Month">
-          <SelectValue>{formatMonth(selected)}</SelectValue>
+        <SelectTrigger
+          size="sm"
+          className="h-7 border-transparent bg-transparent px-1.5 font-mono text-[11px] text-muted-foreground shadow-none hover:text-foreground dark:bg-transparent"
+          aria-label="Choose a month"
+        >
+          <SelectValue>{months.length} months</SelectValue>
         </SelectTrigger>
         <SelectContent>
           {[...months].reverse().map((month) => (

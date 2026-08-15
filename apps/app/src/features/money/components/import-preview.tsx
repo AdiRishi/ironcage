@@ -153,7 +153,7 @@ export function ImportPreviewPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-lg tracking-tight">
+        <CardTitle className="font-display text-base tracking-tight">
           Preview — {accountLabel}
         </CardTitle>
         <CardDescription className="font-mono text-xs">

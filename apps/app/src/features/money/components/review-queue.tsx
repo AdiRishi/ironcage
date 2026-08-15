@@ -9,7 +9,6 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from "@ironcage/ui/components/card";
 import { Checkbox } from "@ironcage/ui/components/checkbox";
 import {
@@ -40,6 +39,7 @@ import {
   encodeCategorizePayload,
   mintRequestId,
 } from "@/features/money/codec";
+import { Eyebrow } from "@/features/money/components/eyebrow";
 import { describeError, formatAud, formatDay } from "@/features/money/format";
 import { categorizeTransactions } from "@/server/money";
 
@@ -176,9 +176,7 @@ export function ReviewQueue({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-lg tracking-tight">
-          {ordered.length} to categorize
-        </CardTitle>
+        <Eyebrow>{ordered.length} to categorize</Eyebrow>
         <CardDescription>
           Every AI suggestion waits for your decision — nothing applies itself. The bank's own
           narrative never changes, whatever you file a row under.

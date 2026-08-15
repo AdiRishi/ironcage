@@ -26,6 +26,11 @@ export function AppTopbar() {
       <h1 className="font-display text-[13px] font-semibold tracking-[0.18em] text-foreground">
         {current.label.toUpperCase()}
       </h1>
+      {current.tagline === undefined ? null : (
+        <span className="hidden font-mono text-xs tracking-wide text-ink-faint uppercase sm:inline">
+          {current.tagline}
+        </span>
+      )}
       <div className="ml-auto flex items-center gap-2">
         <Badge variant="outline" className="font-mono tracking-widest text-ink-faint">
           MODE UNKNOWN

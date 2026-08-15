@@ -2,6 +2,7 @@ import { Tabs, TabsList, TabsTrigger } from "@ironcage/ui/components/tabs";
 import { Link, useRouterState } from "@tanstack/react-router";
 
 import type { SurfaceTab } from "@/components/shell/nav";
+import { useTabCounts } from "@/components/shell/tab-counts";
 
 /**
  * A surface's sub-navigation, driven by the router rather than by local state.
@@ -11,8 +12,14 @@ import type { SurfaceTab } from "@/components/shell/nav";
  * selection the same way. Giving `Tabs` its own state would create a second
  * source of truth that disagrees with the URL on the first back-navigation.
  */
+function TabCount({ value }: { readonly value: number | undefined }) {
+  if (value === undefined || value === 0) return null;
+  return <span className="ml-1.5 font-mono text-[11px] text-ink-faint">· {value}</span>;
+}
+
 export function SurfaceTabs({ tabs }: { tabs: readonly SurfaceTab[] }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const counts = useTabCounts(tabs);
 
   if (tabs.length === 0) return null;
 
@@ -31,6 +38,7 @@ export function SurfaceTabs({ tabs }: { tabs: readonly SurfaceTab[] }) {
             render={<Link to={tab.to} />}
           >
             {tab.label}
+            <TabCount value={tab.count === undefined ? undefined : counts[tab.count]} />
           </TabsTrigger>
         ))}
       </TabsList>

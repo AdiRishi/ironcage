@@ -1,12 +1,6 @@
 import type { ImportHistoryEntry } from "@ironcage/contracts/schema";
 import { Badge } from "@ironcage/ui/components/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ironcage/ui/components/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@ironcage/ui/components/card";
 import {
   Table,
   TableBody,
@@ -18,6 +12,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@ironcage/ui/components/tooltip";
 import { DateTime } from "effect";
 
+import { Eyebrow } from "@/features/money/components/eyebrow";
 import { formatAgo, formatSpan } from "@/features/money/format";
 
 export function ImportHistory({ entries }: { readonly entries: readonly ImportHistoryEntry[] }) {
@@ -28,7 +23,7 @@ export function ImportHistory({ entries }: { readonly entries: readonly ImportHi
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-lg tracking-tight">Confirmed imports</CardTitle>
+        <Eyebrow>Confirmed imports</Eyebrow>
         <CardDescription>
           Every source file stays attached to the record and can be re-uploaded safely — an
           identical bundle writes nothing new.

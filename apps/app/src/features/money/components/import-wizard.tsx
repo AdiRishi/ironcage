@@ -207,7 +207,7 @@ export function ImportWizard() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-display text-lg tracking-tight">
+          <CardTitle className="flex items-center gap-2 font-display text-base tracking-tight">
             <CircleCheckIcon className="size-5 text-live" />
             Import confirmed
           </CardTitle>
@@ -255,7 +255,7 @@ export function ImportWizard() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-display text-lg tracking-tight">
+          <CardTitle className="flex items-center gap-2 font-display text-base tracking-tight">
             <CircleAlertIcon className="size-5 text-destructive" />
             {guidance.title}
           </CardTitle>
@@ -320,7 +320,7 @@ export function ImportWizard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-lg tracking-tight">Bring in bank files</CardTitle>
+        <CardTitle className="font-display text-base tracking-tight">Bring in bank files</CardTitle>
         <CardDescription>
           Nothing is stored until you confirm what the preview shows. Re-uploading the same files is
           always safe — the record counts each bank transaction once.

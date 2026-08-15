@@ -1,14 +1,9 @@
 import type { BankCoverage, CoverageSpan } from "@ironcage/contracts/schema";
 import { type CalendarDate, daysBetween } from "@ironcage/domain";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ironcage/ui/components/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@ironcage/ui/components/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@ironcage/ui/components/tooltip";
 
+import { Eyebrow } from "@/features/money/components/eyebrow";
 import { formatSpan } from "@/features/money/format";
 
 /**
@@ -88,7 +83,7 @@ export function CoveragePanel({ coverage }: { readonly coverage: BankCoverage })
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-lg tracking-tight">Coverage</CardTitle>
+        <Eyebrow>Coverage</Eyebrow>
         <CardDescription>
           A month needs every day covered in all four accounts before analysis will compare it.
         </CardDescription>

@@ -1,15 +1,10 @@
 import type { MonthAnalysis } from "@ironcage/contracts/schema";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ironcage/ui/components/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@ironcage/ui/components/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@ironcage/ui/components/tooltip";
 import { cn } from "@ironcage/ui/lib/utils";
 import { BigDecimal } from "effect";
 
+import { Eyebrow } from "@/features/money/components/eyebrow";
 import { formatAud, formatMonth } from "@/features/money/format";
 
 const CHART_HEIGHT = 112;
@@ -39,7 +34,7 @@ export function SpendTrend({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-lg tracking-tight">Net spend by month</CardTitle>
+        <Eyebrow>Net spend by month</Eyebrow>
         <CardDescription>
           {shown.some((month) => !month.complete)
             ? "Hatched months have a coverage gap and show a running figure only."

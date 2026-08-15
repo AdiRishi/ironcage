@@ -2,19 +2,14 @@ import type { RuleSummary } from "@ironcage/contracts/schema";
 import type { RulePredicate } from "@ironcage/domain";
 import { Badge } from "@ironcage/ui/components/badge";
 import { Button } from "@ironcage/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ironcage/ui/components/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@ironcage/ui/components/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@ironcage/ui/components/tooltip";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { XIcon } from "lucide-react";
 
 import { keys } from "@/data/keys";
 import { decodeRuleOutcome, encodeEditRulePayload, mintRequestId } from "@/features/money/codec";
+import { Eyebrow } from "@/features/money/components/eyebrow";
 import { formatAud } from "@/features/money/format";
 import { editCategorizationRule } from "@/server/money";
 
@@ -64,7 +59,7 @@ export function RulesCard({ rules }: { readonly rules: readonly RuleSummary[] })
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-lg tracking-tight">Rules</CardTitle>
+        <Eyebrow>Rules</Eyebrow>
         <CardDescription>
           Created when you tick "always" on a correction. A rule files future rows only; closing it
           moves nothing that's already filed.

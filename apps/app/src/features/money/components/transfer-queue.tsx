@@ -5,13 +5,7 @@ import type {
 } from "@ironcage/contracts/schema";
 import { Alert, AlertDescription, AlertTitle } from "@ironcage/ui/components/alert";
 import { Button } from "@ironcage/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ironcage/ui/components/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@ironcage/ui/components/card";
 import { Separator } from "@ironcage/ui/components/separator";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BigDecimal } from "effect";
@@ -23,6 +17,7 @@ import {
   encodeDecideTransferPayload,
   mintRequestId,
 } from "@/features/money/codec";
+import { Eyebrow } from "@/features/money/components/eyebrow";
 import { describeError, formatAud, formatDay } from "@/features/money/format";
 import { decideTransferMatch } from "@/server/money";
 
@@ -81,9 +76,7 @@ export function TransferQueue({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-lg tracking-tight">
-          Transfers between your accounts
-        </CardTitle>
+        <Eyebrow>Transfers between your accounts</Eyebrow>
         <CardDescription>
           A matched pair is one movement of your own money — neither leg counts as spending or
           income.

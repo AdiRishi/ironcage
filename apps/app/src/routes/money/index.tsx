@@ -12,10 +12,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { BanknoteIcon } from "lucide-react";
 
+import { SuggestionsCard } from "@/features/money/components/anomalies-and-suggestions";
 import { CategoryBreakdown } from "@/features/money/components/category-breakdown";
 import { EvidenceLine } from "@/features/money/components/evidence-line";
-import { MonthSummary } from "@/features/money/components/month-summary";
-import { MonthSwitcher } from "@/features/money/components/month-switcher";
+import { MonthHeader } from "@/features/money/components/month-header";
+import { SavingsRateTrend } from "@/features/money/components/savings-rate-trend";
 import { SpendTrend } from "@/features/money/components/spend-trend";
 import { analysisQuery, coverageQuery } from "@/features/money/queries";
 
@@ -38,17 +39,17 @@ function MoneySpending() {
 
   if (analysis.isPending) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5">
         <Skeleton className="h-4 w-80" />
-        <Skeleton className="h-44 w-full rounded-xl" />
-        <Skeleton className="h-56 w-full rounded-xl" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-72 w-full rounded-xl" />
       </div>
     );
   }
 
   if (analysis.isError) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5">
         <EvidenceLine />
         <p className="text-sm text-destructive">Analysis unavailable — {String(analysis.error)}</p>
       </div>
@@ -59,7 +60,7 @@ function MoneySpending() {
 
   if (months.length === 0) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5">
         <EvidenceLine />
         <Empty>
           <EmptyHeader>
@@ -90,14 +91,22 @@ function MoneySpending() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <EvidenceLine />
-        <MonthSwitcher months={months} selected={selected.month} onSelect={select} />
+    <div className="flex flex-col gap-5">
+      <EvidenceLine />
+      <MonthHeader months={months} month={selected} onSelect={select} />
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_340px]">
+        <div className="flex flex-col gap-4">
+          <CategoryBreakdown month={selected} />
+          <SpendTrend months={months} selected={selected.month} onSelect={select} />
+        </div>
+        <div className="flex flex-col gap-4">
+          <SavingsRateTrend months={months} />
+          <SuggestionsCard
+            suggestions={analysis.data.suggestions}
+            unavailable={analysis.data.suggestionsUnavailable}
+          />
+        </div>
       </div>
-      <MonthSummary month={selected} />
-      <SpendTrend months={months} selected={selected.month} onSelect={select} />
-      <CategoryBreakdown month={selected} />
     </div>
   );
 }

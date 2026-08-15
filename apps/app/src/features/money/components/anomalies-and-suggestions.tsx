@@ -1,15 +1,9 @@
 import type { SavingsSuggestion, SpendingAnomaly } from "@ironcage/contracts/schema";
 import { Alert, AlertDescription, AlertTitle } from "@ironcage/ui/components/alert";
-import { Badge } from "@ironcage/ui/components/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ironcage/ui/components/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@ironcage/ui/components/card";
 import { InfoIcon } from "lucide-react";
 
+import { Eyebrow } from "@/features/money/components/eyebrow";
 import { formatAud, formatDay, formatMonth } from "@/features/money/format";
 
 const anomalyLabel = {
@@ -24,7 +18,7 @@ export function AnomaliesCard({ anomalies }: { readonly anomalies: readonly Spen
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-lg tracking-tight">Out of pattern</CardTitle>
+        <Eyebrow>Out of pattern</Eyebrow>
         <CardDescription>
           Unusually large transactions, first-time high-value payees, and category spikes.
         </CardDescription>
@@ -36,23 +30,21 @@ export function AnomaliesCard({ anomalies }: { readonly anomalies: readonly Spen
           ordered.map((anomaly) => (
             <div
               key={`${anomaly.rule}:${anomaly.subject}:${anomaly.month}`}
-              className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md px-2 py-2 hover:bg-row-hover"
+              className="flex flex-col gap-1 rounded-md px-2 py-2 hover:bg-row-hover"
             >
-              <Badge
-                variant="outline"
-                className="border-warning/60 font-mono text-[10px] text-warning"
-              >
-                {anomalyLabel[anomaly.rule]}
-              </Badge>
-              <span className="font-mono text-xs text-muted-foreground">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="min-w-0 text-sm text-foreground">{anomaly.detail}</span>
+                {anomaly.amount === null ? null : (
+                  <span className="shrink-0 font-mono text-sm tabular-nums">
+                    {formatAud(anomaly.amount, { sign: "none" })}
+                  </span>
+                )}
+              </div>
+              <span className="font-mono text-[11px] text-muted-foreground">
+                <span className="text-warning">{anomalyLabel[anomaly.rule].toUpperCase()}</span>
+                <span className="mx-1.5 text-ink-faint">·</span>
                 {formatMonth(anomaly.month)}
               </span>
-              <span className="min-w-0 flex-1 text-sm">{anomaly.detail}</span>
-              {anomaly.amount === null ? null : (
-                <span className="font-mono text-sm tabular-nums">
-                  {formatAud(anomaly.amount, { sign: "none" })}
-                </span>
-              )}
             </div>
           ))
         )}
@@ -71,7 +63,7 @@ export function SuggestionsCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-lg tracking-tight">Worth reconsidering</CardTitle>
+        <Eyebrow>Worth reconsidering</Eyebrow>
         <CardDescription>
           Recommendations only — Money reads your accounts and never moves a dollar.
         </CardDescription>

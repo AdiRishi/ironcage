@@ -11,6 +11,8 @@ export type AppPath = NonNullable<LinkProps["to"]>;
 export type SurfaceTab = {
   readonly label: string;
   readonly to: AppPath;
+  /** A live count the tab surfaces beside its label, when the section has one. */
+  readonly count?: "moneyReview";
 };
 
 export type NavSection = {
@@ -20,6 +22,8 @@ export type NavSection = {
   readonly to: AppPath;
   /** Path prefix that marks this section active. */
   readonly match: string;
+  /** The section's one-line stance, printed beside its name in the top bar. */
+  readonly tagline?: string;
   readonly tabs: readonly SurfaceTab[];
 };
 
@@ -76,10 +80,11 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     label: "Money",
     to: "/money",
     match: "/money",
+    tagline: "Reads everything · trades nothing",
     tabs: [
       { label: "Spending", to: "/money" },
       { label: "Import", to: "/money/import" },
-      { label: "Review", to: "/money/review" },
+      { label: "Review", to: "/money/review", count: "moneyReview" },
       { label: "Recurring", to: "/money/recurring" },
     ],
   },

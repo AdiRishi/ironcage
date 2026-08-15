@@ -1,12 +1,6 @@
 import type { RecurringCharge } from "@ironcage/contracts/schema";
 import { Badge } from "@ironcage/ui/components/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ironcage/ui/components/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@ironcage/ui/components/card";
 import {
   Table,
   TableBody,
@@ -18,6 +12,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@ironcage/ui/components/tooltip";
 import { BigDecimal } from "effect";
 
+import { Eyebrow } from "@/features/money/components/eyebrow";
 import { cadenceLabel, formatAud, formatDay } from "@/features/money/format";
 
 export function RecurringCharges({
@@ -32,7 +27,7 @@ export function RecurringCharges({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-lg tracking-tight">Recurring charges</CardTitle>
+        <Eyebrow>Recurring charges</Eyebrow>
         <CardDescription>
           Steady payees on a steady cadence — subscriptions and regular bills, with what they cost
           you a year.
@@ -52,7 +47,7 @@ export function RecurringCharges({
                 <TableHead>Cadence</TableHead>
                 <TableHead className="text-right">Typical</TableHead>
                 <TableHead className="text-right">A year</TableHead>
-                <TableHead>Last seen</TableHead>
+                <TableHead>History</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -91,8 +86,10 @@ export function RecurringCharges({
                   <TableCell className="text-right font-mono text-sm tabular-nums">
                     {formatAud(charge.annualizedAmount, { sign: "none" })}
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {formatDay(charge.lastSeen)}
+                  <TableCell className="font-mono text-xs whitespace-nowrap text-muted-foreground">
+                    {charge.priceChange === null
+                      ? `${charge.occurrences} steady · last ${formatDay(charge.lastSeen)}`
+                      : `was ${formatAud(charge.priceChange.from, { sign: "none" })} · ${formatDay(charge.priceChange.on)}`}
                   </TableCell>
                 </TableRow>
               ))}

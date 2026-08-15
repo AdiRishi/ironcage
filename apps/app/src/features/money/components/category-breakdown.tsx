@@ -1,16 +1,11 @@
 import type { MonthAnalysis, MonthCategoryLine } from "@ironcage/contracts/schema";
 import { uncategorizedCategoryId } from "@ironcage/domain";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ironcage/ui/components/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@ironcage/ui/components/card";
 import { cn } from "@ironcage/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { BigDecimal } from "effect";
 
+import { Eyebrow } from "@/features/money/components/eyebrow";
 import { formatAud } from "@/features/money/format";
 
 const byAmountDescending = (a: MonthCategoryLine, b: MonthCategoryLine) =>
@@ -76,7 +71,7 @@ export function CategoryBreakdown({ month }: { readonly month: MonthAnalysis }) 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-lg tracking-tight">By category</CardTitle>
+        <Eyebrow>By category</Eyebrow>
         <CardDescription>
           Net of refunds. Transfers between your own accounts are excluded.
         </CardDescription>
