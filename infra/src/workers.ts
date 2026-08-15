@@ -41,7 +41,10 @@ export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
 
   const agents = yield* Cloudflare.Worker("AgentsWorker", {
     name: names.workers.agents,
-    vite: { rootDir: "../apps/agents" },
+    vite: {
+      rootDir: "../apps/agents",
+      viteEnvironments: { entry: "ironcage_agents" },
+    },
     compatibility: workerCompatibility,
     workersDev: false,
     observability: workerObservability,

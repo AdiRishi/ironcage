@@ -58,7 +58,7 @@ export const computeBindings = (platform: PlatformBindings, environment: string)
   STATEMENT_EXTRACTION: Cloudflare.Container<StatementExtractorBinding>("StatementExtractor", {
     className: "StatementExtractor",
     context: "..",
-    dockerfile: "containers/statement-extractor/Dockerfile",
+    dockerfile: "../containers/statement-extractor/Dockerfile",
     instanceType: "lite",
     maxInstances: 1,
   }),
