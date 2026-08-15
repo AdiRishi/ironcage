@@ -33,7 +33,7 @@ const deps: ImportDeps = {
   identityKey: "real-validation-key",
   extractStatement: async () => ({
     markdown: new TextDecoder().decode(await bytes("statement-extracted.md")),
-    extractor: { package: "@firecrawl/anydoc", version: "0.1.7" },
+    extractor: { package: "@firecrawl/anydoc", version: "0.1.9" },
   }),
 };
 

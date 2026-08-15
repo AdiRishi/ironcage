@@ -193,7 +193,7 @@ CommBank states inside the observed statement that statement transaction dates c
 
 ### AnyDoc boundary
 
-[AnyDoc](https://github.com/firecrawl/anydoc) 0.1.7 is selected for PDF-to-Markdown extraction. A local evaluation succeeded on the real text-based statement and both observed CSV shapes. Its PDF output retained the statement tables, but a single visual transaction could span several Markdown table rows.
+[AnyDoc](https://github.com/firecrawl/anydoc) 0.1.9 is selected for PDF-to-Markdown extraction. A local evaluation succeeded on the real text-based statement and both observed CSV shapes. Its PDF output retained the statement tables, but a single visual transaction could span several Markdown table rows.
 
 AnyDoc is an extractor, not the financial parser. The pinned native package runs in an isolated compute container with network access disabled and no database credentials. Core sends the PDF bytes directly to that container and validates the returned Markdown with the deterministic offset-statement parser.
 
@@ -593,7 +593,7 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 | Required accounts                  | spending offset, savings offset, Mastercard, home loan                                 | operator              | decided  |
 | Recent-history source              | exact CSV + OFX bundle for one account and window                                      | importer              | decided  |
 | Statement source                   | parse one offset-statement PDF under `cba-offset-statement-v1`                         | importer              | decided  |
-| PDF extractor                      | AnyDoc 0.1.7 in an isolated, network-disabled compute image                            | compute image         | decided  |
+| PDF extractor                      | AnyDoc 0.1.9 in an isolated, network-disabled compute image                            | compute image         | decided  |
 | CSV and OFX parser                 | direct RFC 4180 CSV and OFX SGML parsers                                               | importer              | decided  |
 | CSV line endings                   | CRLF only; a bare line feed blocks the file                                            | importer              | decided  |
 | CSV character decoding             | Windows-1252                                                                           | importer              | decided  |
@@ -659,7 +659,7 @@ Tax reads canonical transactions, linked source narratives, categories, and cove
 - [x] Implement direct CSV and OFX SGML decoders with exact source-cell preservation.
 - [x] Implement account identity HMAC storage and require identity match before row processing.
 - [x] Implement exact CSV/OFX multiset pairing, 600-row rejection, balance chains, and ledger reconciliation.
-- [x] Package native AnyDoc 0.1.7 in the isolated, network-disabled compute image.
+- [x] Package native AnyDoc 0.1.9 in the isolated, network-disabled compute image.
 - [x] Record the exact extractor package and version with statement source metadata.
 - [x] Implement the offset statement parser and prove its balance equations and structured-overlap behavior.
 - [x] Keep uploaded files and extracted text transient; persist only digests, source metadata, and row-level observations.

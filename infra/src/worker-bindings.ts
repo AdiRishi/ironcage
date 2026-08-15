@@ -14,7 +14,7 @@ export interface StatementExtractorBinding extends ComputeObjectBinding {
     readonly markdown: string;
     readonly extractor: {
       readonly package: "@firecrawl/anydoc";
-      readonly version: "0.1.7";
+      readonly version: "0.1.9";
     };
   }>;
 }

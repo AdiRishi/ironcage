@@ -29,6 +29,6 @@ const minimalPdf = (): Uint8Array => {
 test("extracts text with the pinned native AnyDoc build", async () => {
   const result = await extractStatement(minimalPdf());
 
-  expect(result.extractor).toEqual({ package: "@firecrawl/anydoc", version: "0.1.7" });
+  expect(result.extractor).toEqual({ package: "@firecrawl/anydoc", version: "0.1.9" });
   expect(result.markdown).toContain("EXTRACTOR FIXTURE LINE");
 });

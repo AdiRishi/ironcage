@@ -10,7 +10,7 @@ const StatementExtraction = Schema.Struct({
   markdown: Schema.String,
   extractor: Schema.Struct({
     package: Schema.Literal("@firecrawl/anydoc"),
-    version: Schema.Literal("0.1.7"),
+    version: Schema.Literal("0.1.9"),
   }),
 });
 

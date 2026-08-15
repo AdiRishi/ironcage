@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@firecrawl/anydoc": "0.1.7"
+    "@firecrawl/anydoc": "0.1.9"
   },
-  "packageManager": "pnpm@11.20.0"
+  "packageManager": "pnpm@11.21.0"
 }

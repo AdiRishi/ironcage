@@ -27,7 +27,7 @@ const deps: ImportDeps = {
   identityKey: "statement-key",
   extractStatement: async () => ({
     markdown: await statementMarkdown,
-    extractor: { package: "@firecrawl/anydoc", version: "0.1.7" },
+    extractor: { package: "@firecrawl/anydoc", version: "0.1.9" },
   }),
 };
 
