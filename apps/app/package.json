@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@ironcage/contracts": "workspace:*",
+    "@ironcage/domain": "workspace:*",
     "@ironcage/ui": "workspace:*",
     "@tailwindcss/vite": "catalog:",
     "@tanstack/react-devtools": "catalog:",

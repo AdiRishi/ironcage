@@ -6,7 +6,7 @@ import { env } from "cloudflare:workers";
 import { Effect, Schema } from "effect";
 
 /** Effect stops at this boundary; the browser sees whatever a server function returns. */
-const callCore = <A, E>(use: (client: AppClient) => Effect.Effect<A, E>): Promise<A> =>
+export const callCore = <A, E>(use: (client: AppClient) => Effect.Effect<A, E>): Promise<A> =>
   Effect.runPromise(
     Effect.gen(function* () {
       const client = yield* clientOverBinding(AppRpcs, {
