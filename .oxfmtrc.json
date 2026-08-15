@@ -6,12 +6,21 @@
     "stylesheet": "./packages/ui/src/styles/globals.css"
   },
   "ignorePatterns": [
-    ".repos/**",
-    "**/*.gen.ts",
-    "**/worker-configuration.d.ts",
-    "pnpm-lock.yaml",
+    ".agent/**",
     ".agents/**",
     ".claude/**",
-    "tooling/oxlint/anti-slop/**"
+    ".codex/**",
+    ".continue/**",
+    ".cursor/**",
+    ".gemini/**",
+    ".opencode/**",
+    ".pi/**",
+    ".repos/**",
+    ".roo/**",
+    ".windsurf/**",
+    "tooling/oxlint/anti-slop/**",
+    "**/*.gen.ts",
+    "**/worker-configuration.d.ts",
+    "pnpm-lock.yaml"
   ]
 }
