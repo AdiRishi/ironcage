@@ -141,6 +141,16 @@ export const decodeCategoryOutcome = Schema.decodeUnknownSync(Outcome(CategorySu
 export const decodeRuleOutcome = Schema.decodeUnknownSync(Outcome(RuleSummary));
 
 /**
+ * One encoder per mutation payload: components work in domain values —
+ * branded ids, `BigDecimal` amounts — and encode exactly once at the wire.
+ */
+export const encodeCategorizePayload = Schema.encodeSync(CategorizePayload);
+export const encodeDecideTransferPayload = Schema.encodeSync(DecideTransferPayload);
+export const encodeCreateCategoryPayload = Schema.encodeSync(CreateCategoryPayload);
+export const encodeEditCategoryPayload = Schema.encodeSync(EditCategoryPayload);
+export const encodeEditRulePayload = Schema.encodeSync(EditRulePayload);
+
+/**
  * Minted in the browser at the moment of intent, so a retry of the same
  * intent replays as itself instead of acting twice.
  */

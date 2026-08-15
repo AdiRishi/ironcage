@@ -1,4 +1,4 @@
-import type { CoverageSpan } from "@ironcage/contracts/schema";
+import type { BoundaryError, CoverageSpan } from "@ironcage/contracts/schema";
 import type { CalendarDate } from "@ironcage/domain";
 import { BigDecimal, DateTime } from "effect";
 
@@ -72,6 +72,19 @@ export const formatAgo = (instant: DateTime.Utc, now: number = Date.now()): stri
 
 /** A savings rate like "0.6400" → "64%". Display only; never fed back. */
 export const formatRate = (rate: string): string => `${Math.round(Number.parseFloat(rate) * 100)}%`;
+
+/** A boundary error in the interface's voice: what happened, never a stack. */
+export const describeError = (error: BoundaryError | Error): string => {
+  if (!("_tag" in error)) return error.message;
+  switch (error._tag) {
+    case "NotFound":
+      return `${error.entity} ${error.id} was not found.`;
+    case "Internal":
+      return error.detail;
+    default:
+      return error.detail === "" ? error.reason : error.detail;
+  }
+};
 
 const CADENCES: ReadonlyArray<readonly [center: number, tolerance: number, label: string]> = [
   [7, 2, "Weekly"],

@@ -38,7 +38,7 @@ import { CircleAlertIcon, CircleCheckIcon, InfoIcon, RefreshCwIcon } from "lucid
 import { useState } from "react";
 
 import { type ConfirmPayload, type PreviewPayload, mintRequestId } from "@/features/money/codec";
-import { formatAud, formatDay, formatSpan } from "@/features/money/format";
+import { describeError, formatAud, formatDay, formatSpan } from "@/features/money/format";
 
 export type SourceDraft = (typeof PreviewPayload)["Encoded"]["source"];
 export type ConfirmDraft = (typeof ConfirmPayload)["Encoded"];
@@ -57,18 +57,6 @@ const profileLabel = {
   "cba-netbank-paired-v1": "CSV + OFX pair",
   "cba-offset-statement-v1": "Offset statement",
 } as const;
-
-const describeError = (error: BoundaryError | Error): string => {
-  if (!("_tag" in error)) return error.message;
-  switch (error._tag) {
-    case "NotFound":
-      return `${error.entity} ${error.id} was not found.`;
-    case "Internal":
-      return error.detail;
-    default:
-      return error.detail === "" ? error.reason : error.detail;
-  }
-};
 
 function VerdictBadge({ candidate }: { readonly candidate: CandidateEffect }) {
   const badge =
