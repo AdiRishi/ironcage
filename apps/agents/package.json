@@ -4,23 +4,29 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit -p tsconfig.check.json",
+    "build": "vite build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.check.json && tsc --noEmit -p tests"
   },
   "dependencies": {
+    "@flue/runtime": "catalog:",
     "@ironcage/contracts": "workspace:*",
     "@ironcage/domain": "workspace:*",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "valibot": "catalog:"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "catalog:",
     "@cloudflare/vitest-pool-workers": "catalog:",
     "@cloudflare/workers-types": "catalog:",
     "@effect/vitest": "catalog:",
+    "@flue/cli": "catalog:",
+    "@flue/vite": "catalog:",
     "@ironcage/infra": "workspace:*",
     "@ironcage/tsconfig": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
+    "vite": "catalog:",
     "vitest": "catalog:"
   }
 }

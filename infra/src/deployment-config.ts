@@ -44,7 +44,6 @@ const coreSecrets = Effect.gen(function* () {
 });
 
 interface SharedConfig {
-  readonly aiGatewayToken: Option.Option<Redacted.Redacted<string>>;
   readonly gatewayLogLimit: number;
   readonly gatewayWeeklySpendLimitDollars: number;
 }
@@ -70,7 +69,6 @@ export const deploymentConfig = Effect.fn("Ironcage.DeploymentConfig")(function*
   const stack = yield* Alchemy.Stack;
   const stage = yield* decodeStage(stack.stage);
   const shared = yield* Effect.all({
-    aiGatewayToken: optionalSecret("AI_GATEWAY_TOKEN"),
     gatewayLogLimit: Config.number("AI_GATEWAY_LOG_LIMIT").pipe(Config.withDefault(10_000)),
     gatewayWeeklySpendLimitDollars: Config.number("AI_GATEWAY_WEEKLY_SPEND_DOLLARS").pipe(
       Config.withDefault(50),

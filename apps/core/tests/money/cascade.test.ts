@@ -2,18 +2,18 @@ import { BankTransactionId, uuidV7From } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 import { describe, expect, test } from "vitest";
 
-import type { BankImportBlocked } from "../../src/money/block";
-import { validatePairedBundle, type PairedBundle } from "../../src/money/bundle";
+import type { BankImportBlocked } from "../../src/money/import/block";
+import { validatePairedBundle, type PairedBundle } from "../../src/money/import/bundle";
+import { parseBankCsv } from "../../src/money/import/csv";
 import {
   matchCandidates,
   type StoredEvidence,
   type StoredIdentifier,
   type StoredTransaction,
-} from "../../src/money/cascade";
-import { parseBankCsv } from "../../src/money/csv";
-import { narrativeFingerprint } from "../../src/money/normalize";
-import { parseBankOfx } from "../../src/money/ofx";
-import { pairedRules } from "../../src/money/profiles";
+} from "../../src/money/import/matching";
+import { narrativeFingerprint } from "../../src/money/import/normalize";
+import { parseBankOfx } from "../../src/money/import/ofx";
+import { pairedRules } from "../../src/money/import/profiles";
 import homeLoanCsv from "../fixtures/money/commbank/home-loan/home-loan-a.csv?bytes";
 import homeLoanOfx from "../fixtures/money/commbank/home-loan/home-loan-a.ofx?bytes";
 import mastercardCsv from "../fixtures/money/commbank/mastercard/mastercard-a.csv?bytes";

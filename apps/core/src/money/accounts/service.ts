@@ -9,19 +9,13 @@ import {
 import { BankAccountId, type CalendarDate, type RequestId, type Sha256 } from "@ironcage/domain";
 import { Effect } from "effect";
 
-import { mintId } from "../ids";
-import { runIdempotentMutation } from "../persistence/app-requests";
-import { persistenceToBoundary } from "../persistence/error";
-import { Postgres, type SqlExecutor } from "../persistence/postgres";
-import { completeMonths, coverageGaps, mergeSpans, monthsBetween } from "./coverage";
-import {
-  insertAccount,
-  latestConfirmedAt,
-  listAccounts,
-  listImportHistory,
-  loadCoverageSpans,
-  type AccountRow,
-} from "./store";
+import { mintId } from "../../ids";
+import { runIdempotentMutation } from "../../persistence/app-requests";
+import { persistenceToBoundary } from "../../persistence/error";
+import { Postgres, type SqlExecutor } from "../../persistence/postgres";
+import { completeMonths, coverageGaps, mergeSpans, monthsBetween } from "../import/coverage";
+import { latestConfirmedAt, listImportHistory, loadCoverageSpans } from "../import/repository";
+import { insertAccount, listAccounts, type AccountRow } from "./repository";
 
 const summarize = (account: AccountRow): BankAccountSummary => ({
   id: account.id,

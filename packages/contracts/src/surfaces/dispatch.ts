@@ -18,6 +18,8 @@ export const dispatchCategorizationRpc = RpcModule.make("dispatchCategorization"
     configVersion: Schema.Int,
     bundleDigest: Sha256,
     batchIndex: Schema.Int,
+    inputDigest: Sha256,
+    model: Schema.String,
     batch: Schema.Array(CategorizationBatchItem),
     categories: Schema.Array(CategorizationCategory),
   },

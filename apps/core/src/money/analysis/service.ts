@@ -20,9 +20,9 @@ import {
 } from "@ironcage/domain";
 import { BigDecimal, Effect, Option, Schema } from "effect";
 
-import { persistenceToBoundary } from "../persistence/error";
-import { decodeRows, Postgres, type SqlExecutor } from "../persistence/postgres";
-import { loadCoverageSummary } from "./queries";
+import { persistenceToBoundary } from "../../persistence/error";
+import { decodeRows, Postgres, type SqlExecutor } from "../../persistence/postgres";
+import { loadCoverageSummary } from "../accounts/service";
 
 /**
  * The proposed analysis configuration from the Money chapter. Every value is

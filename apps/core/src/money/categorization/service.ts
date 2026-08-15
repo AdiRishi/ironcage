@@ -27,10 +27,10 @@ import {
 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 
-import { mintId, mintRawUuidV7 } from "../ids";
-import { runIdempotentMutation } from "../persistence/app-requests";
-import { persistenceToBoundary } from "../persistence/error";
-import { decodeRows, Postgres, type SqlExecutor } from "../persistence/postgres";
+import { mintId, mintRawUuidV7 } from "../../ids";
+import { runIdempotentMutation } from "../../persistence/app-requests";
+import { persistenceToBoundary } from "../../persistence/error";
+import { decodeRows, Postgres, type SqlExecutor } from "../../persistence/postgres";
 
 const CategoryRow = CategorySummary;
 

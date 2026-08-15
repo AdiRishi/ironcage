@@ -1,9 +1,9 @@
 import { BigDecimal, Effect } from "effect";
 import { describe, expect, test } from "vitest";
 
-import type { BankImportBlocked } from "../../src/money/block";
-import { parseBankCsv, type CsvBalancePolicy } from "../../src/money/csv";
-import { parseBankOfx, type OfxVariant } from "../../src/money/ofx";
+import type { BankImportBlocked } from "../../src/money/import/block";
+import { parseBankCsv, type CsvBalancePolicy } from "../../src/money/import/csv";
+import { parseBankOfx, type OfxVariant } from "../../src/money/import/ofx";
 import homeLoanCsv from "../fixtures/money/commbank/home-loan/home-loan-a.csv?bytes";
 import homeLoanOfx from "../fixtures/money/commbank/home-loan/home-loan-a.ofx?bytes";
 import mastercardCsv from "../fixtures/money/commbank/mastercard/mastercard-a.csv?bytes";

@@ -4,7 +4,7 @@ declare global {
   namespace Cloudflare {
     interface Env extends AgentsEnv {}
     interface GlobalProps {
-      mainModule: typeof import("./index");
+      mainModule: typeof import("./cloudflare");
     }
   }
 

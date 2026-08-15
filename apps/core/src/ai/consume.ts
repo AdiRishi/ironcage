@@ -1,15 +1,21 @@
+import { CapabilityRunMessage } from "@ironcage/contracts/schema";
 import {
-  CapabilityRunMessage,
-  categorizationCapability,
+  CategorizationBatchItem,
+  CategorizationCategory,
   CategorizationOutput,
-} from "@ironcage/contracts/schema";
-import { FeedEventId, uncategorizedCategoryId } from "@ironcage/domain";
+  FeedEventId,
+  RunId,
+  Sha256,
+  categorizationCapability,
+  deriveRunId,
+  uncategorizedCategoryId,
+} from "@ironcage/domain";
 import { DateTime, Effect, Schema } from "effect";
 
 import { mintId, mintRawUuidV7 } from "../ids";
-import { sha256Hex } from "../money/bytes";
-import { insertFeedEvent } from "../money/store";
-import { Postgres, type SqlExecutor } from "../persistence/postgres";
+import { insertFeedEvent } from "../money/feed/repository";
+import { sha256Hex } from "../money/import/bytes";
+import { decodeRows, Postgres, type SqlExecutor } from "../persistence/postgres";
 
 export type ConsumeOutcome =
   | { readonly kind: "accepted"; readonly filed: number }
@@ -20,6 +26,88 @@ export type ConsumeOutcome =
 
 const decodeMessage = Schema.decodeUnknownEffect(CapabilityRunMessage);
 const decodeOutput = Schema.decodeUnknownEffect(CategorizationOutput);
+
+const ExpectedBatchRow = Schema.Struct({
+  runId: RunId,
+  bundleDigest: Sha256,
+  batchIndex: Schema.Int,
+  configVersion: Schema.Int,
+  inputDigest: Sha256,
+  model: Schema.String,
+  batch: Schema.Array(CategorizationBatchItem),
+  categories: Schema.Array(CategorizationCategory),
+});
+
+type ExpectedBatch = typeof ExpectedBatchRow.Type;
+
+const loadExpectedBatch = (sql: SqlExecutor, runId: RunId) =>
+  Effect.gen(function* () {
+    const rows = yield* sql.query(
+      "load expected categorization batch",
+      `SELECT b.run_id AS "runId", b.bundle_digest AS "bundleDigest",
+              b.batch_index AS "batchIndex", b.config_version AS "configVersion",
+              b.input_digest AS "inputDigest", c.model, b.batch, b.categories
+         FROM categorization_batches b
+         JOIN capability_configs c
+           ON c.capability = $2 AND c.version = b.config_version
+        WHERE b.run_id = $1`,
+      [runId, categorizationCapability.name],
+    );
+    const batches = yield* decodeRows(
+      "decode expected categorization batch",
+      ExpectedBatchRow,
+      rows,
+    );
+    return batches[0] ?? null;
+  });
+
+const invalidAnchor = (
+  message: typeof CapabilityRunMessage.Type,
+  expected: ExpectedBatch | null,
+): string | null => {
+  if (expected === null) return "the run ID names no recorded categorization batch";
+  if (message.sleeveId !== null) return "money categorization cannot be scoped to a sleeve";
+  if (message.configVersion !== expected.configVersion) return "the configuration version changed";
+  if (message.decisionRecord.model !== expected.model)
+    return "the model differs from the run config";
+  if (message.trigger._tag !== "batch") return "categorization requires a batch trigger";
+  if (
+    message.trigger.bundleDigest !== expected.bundleDigest ||
+    message.trigger.batchIndex !== expected.batchIndex ||
+    message.trigger.inputDigest !== expected.inputDigest
+  ) {
+    return "the trigger differs from the recorded batch";
+  }
+  if (
+    deriveRunId(categorizationCapability.name, expected.configVersion, expected.inputDigest) !==
+    message.runId
+  ) {
+    return "the run ID does not derive from the recorded input";
+  }
+  return null;
+};
+
+const invalidOutput = (output: CategorizationOutput, expected: ExpectedBatch): string | null => {
+  if (output.suggestions.length !== expected.batch.length) {
+    return "the answer does not cover the complete batch";
+  }
+  const expectedTransactions = new Set(expected.batch.map((item) => item.transactionId));
+  const offeredCategories = new Set(expected.categories.map((category) => category.id));
+  const answered = new Set<string>();
+  for (const suggestion of output.suggestions) {
+    if (!expectedTransactions.has(suggestion.transactionId)) {
+      return `transaction ${suggestion.transactionId} is not in the recorded batch`;
+    }
+    if (answered.has(suggestion.transactionId)) {
+      return `transaction ${suggestion.transactionId} appears more than once`;
+    }
+    if (!offeredCategories.has(suggestion.categoryId)) {
+      return `category ${suggestion.categoryId} was not offered to the run`;
+    }
+    answered.add(suggestion.transactionId);
+  }
+  return null;
+};
 
 /**
  * The decision-records consumer: insert-first deduplication on the run ID,
@@ -73,28 +161,19 @@ export const consumeCapabilityRun = (
           return { kind: "collision" } as const;
         }
 
-        // The batch anchor must name work that exists.
-        const anchorValid =
-          message.trigger._tag === "batch"
-            ? (yield* sql.query(
-                "check batch anchor",
-                "SELECT 1 FROM bank_imports WHERE bundle_digest = $1",
-                [message.trigger.bundleDigest],
-              )).length > 0
-            : false;
+        const expected = yield* loadExpectedBatch(sql, message.runId);
+        const anchorFailure = invalidAnchor(message, expected);
 
         let output: CategorizationOutput | null = null;
         let failure: unknown = null;
 
-        if (!anchorValid) {
+        if (expected === null || anchorFailure !== null) {
           failure = {
             reason: "InvalidAnchor",
-            detail: "the batch anchor names no recorded import",
+            detail: anchorFailure,
           };
         } else if (message.result._tag === "Failed") {
           failure = message.result.failure;
-        } else if (message.capability !== categorizationCapability.name) {
-          failure = { reason: "UnknownCapability", detail: message.capability };
         } else {
           const validated = yield* Effect.result(decodeOutput(message.result.output));
           if (validated._tag === "Failure") {
@@ -103,7 +182,9 @@ export const consumeCapabilityRun = (
               detail: "output failed authoritative validation",
             };
           } else {
-            output = validated.success;
+            const outputFailure = invalidOutput(validated.success, expected);
+            if (outputFailure === null) output = validated.success;
+            else failure = { reason: "InvalidOutput", detail: outputFailure };
           }
         }
 
@@ -254,51 +335,3 @@ export const consumeDeadLetter = (
       }),
     );
   }).pipe(Effect.asVoid);
-
-/** One batch per confirmed import chunk; dispatch failures are missed runs. */
-export const loadCategorizationBatches = (
-  sql: SqlExecutor,
-  bundleDigest: string,
-): Effect.Effect<
-  ReadonlyArray<{
-    readonly batch: ReadonlyArray<{
-      readonly transactionId: string;
-      readonly payee: string;
-      readonly narrative: string;
-      readonly amount: string;
-      readonly accountLabel: string;
-    }>;
-  }>,
-  unknown
-> =>
-  Effect.gen(function* () {
-    const rows = yield* sql.query(
-      "load uncategorized transactions for dispatch",
-      `SELECT t.id AS "transactionId", t.derived_payee AS payee, t.display_narrative AS narrative,
-              t.amount::text AS amount, a.product_label AS "accountLabel"
-         FROM bank_transactions t
-         JOIN bank_accounts a ON a.id = t.account_id
-         JOIN bank_imports i ON i.id = t.created_by_import
-        WHERE i.bundle_digest = $1
-          AND EXISTS (SELECT 1 FROM transaction_splits s
-                       WHERE s.transaction_id = t.id
-                         AND s.revision = (SELECT max(revision) FROM transaction_splits latest
-                                            WHERE latest.transaction_id = t.id)
-                         AND s.category_id = $2)
-        ORDER BY t.posted_date, t.id`,
-      [bundleDigest, uncategorizedCategoryId],
-    );
-
-    const items = rows.map((row) => ({
-      transactionId: String(row["transactionId"]),
-      payee: String(row["payee"]),
-      narrative: String(row["narrative"]),
-      amount: String(row["amount"]),
-      accountLabel: String(row["accountLabel"]),
-    }));
-    const batches: { batch: typeof items }[] = [];
-    for (let index = 0; index < items.length; index += categorizationCapability.batchSize) {
-      batches.push({ batch: items.slice(index, index + categorizationCapability.batchSize) });
-    }
-    return batches;
-  });

@@ -1,5 +1,6 @@
-import type { CalendarDate } from "@ironcage/domain";
-import { BigDecimal, Effect } from "effect";
+import { CalendarDate } from "@ironcage/domain";
+import { parse } from "csv-parse/sync";
+import { BigDecimal, Effect, Schema } from "effect";
 
 import { BankImportBlocked, blocked } from "./block";
 import { decodeWindows1252 } from "./bytes";
@@ -25,76 +26,35 @@ export type CsvBalancePolicy = "required" | "forbidden";
 
 const fail = (row: number, detail: string) => blocked("CsvGrammar", `row ${row + 1}: ${detail}`);
 
-/**
- * Strict RFC 4180 record reader. Records separate on CRLF only — a bare line
- * feed or carriage return anywhere blocks the file, including inside quotes,
- * because no observed export contains a multi-line cell and pairing against
- * OFX `MEMO` could not survive one.
- */
 const readRecords = Effect.fn("readCsvRecords")(function* (text: string) {
-  const records: string[][] = [];
-  let cells: string[] = [];
-  let cell = "";
-  let quoted = false;
-  let closed = false;
-
-  for (let index = 0; index < text.length; index += 1) {
-    const character = text[index]!;
-
-    if (quoted) {
-      if (character === '"') {
-        if (text[index + 1] === '"') {
-          cell += '"';
-          index += 1;
-        } else {
-          quoted = false;
-          closed = true;
-        }
-      } else if (character === "\r" || character === "\n") {
-        return yield* fail(records.length, "line break inside a quoted cell");
-      } else {
-        cell += character;
-      }
-      continue;
-    }
-
-    switch (character) {
-      case '"':
-        if (cell.length > 0 || closed) {
-          return yield* fail(records.length, "quote inside an unquoted cell");
-        }
-        quoted = true;
-        continue;
-      case ",":
-        cells.push(cell);
-        cell = "";
-        closed = false;
-        continue;
-      case "\r":
-        if (text[index + 1] !== "\n") {
-          return yield* fail(records.length, "carriage return without a line feed");
-        }
-        cells.push(cell);
-        records.push(cells);
-        cells = [];
-        cell = "";
-        closed = false;
-        index += 1;
-        continue;
-      case "\n":
-        return yield* fail(records.length, "bare line feed; the profile requires CRLF");
-      default:
-        if (closed) return yield* fail(records.length, "text after a closing quote");
-        cell += character;
-        continue;
+  if (text.length > 0 && !text.endsWith("\r\n")) {
+    return yield* fail(0, "final record is missing its CRLF terminator");
+  }
+  const records = yield* Effect.try({
+    try: () =>
+      parse(text, {
+        bom: false,
+        columns: false,
+        delimiter: ",",
+        encoding: "utf8",
+        escape: '"',
+        quote: '"',
+        recordDelimiter: "\r\n",
+        relaxColumnCount: false,
+        relaxQuotes: false,
+        skipEmptyLines: false,
+      }) as string[][],
+    catch: (cause) =>
+      new BankImportBlocked({
+        code: "CsvGrammar",
+        detail: cause instanceof Error ? cause.message : "the CSV is not valid RFC 4180",
+      }),
+  });
+  for (const [row, cells] of records.entries()) {
+    if (cells.some((cell) => cell.includes("\r") || cell.includes("\n"))) {
+      return yield* fail(row, "line break inside a quoted cell");
     }
   }
-
-  if (quoted) return yield* fail(records.length, "unterminated quoted cell");
-  if (cell.length > 0 || cells.length > 0) {
-    return yield* fail(records.length, "final record is missing its CRLF terminator");
-  }
-
   return records;
 });
 
@@ -106,11 +66,11 @@ const parseRowDate = (raw: string, row: number) =>
     if (match === null) return yield* fail(row, `"${raw}" is not a DD/MM/YYYY date`);
     const [, day, month, year] = match;
     const iso = `${year}-${month}-${day}`;
-    const utc = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
-    if (utc.toISOString().slice(0, 10) !== iso) {
+    const decoded = yield* Effect.result(Schema.decodeUnknownEffect(CalendarDate)(iso));
+    if (decoded._tag === "Failure") {
       return yield* fail(row, `"${raw}" is not a real calendar date`);
     }
-    return iso as CalendarDate;
+    return decoded.success;
   });
 
 const amountPattern = /^[+-]?\d+\.\d{2}$/;

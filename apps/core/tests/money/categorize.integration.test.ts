@@ -7,13 +7,17 @@ import { Aud, CategoryId, RequestId, Sha256 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 
 import { mintId } from "../../src/ids";
+import { configureBankAccount } from "../../src/money/accounts/service";
 import {
   categorizeTransactions,
   getCategorizationRules,
   listTransactions,
-} from "../../src/money/categorize";
-import { confirmBankImport, previewBankImport, type ImportDeps } from "../../src/money/import";
-import { configureBankAccount } from "../../src/money/queries";
+} from "../../src/money/categorization/service";
+import {
+  confirmBankImport,
+  previewBankImport,
+  type ImportDeps,
+} from "../../src/money/import/service";
 import { Postgres } from "../../src/persistence/postgres";
 import { usePostgresTestDatabase } from "../persistence/postgres-test-database";
 

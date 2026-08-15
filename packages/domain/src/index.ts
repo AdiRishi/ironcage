@@ -1,4 +1,5 @@
 export * from "./ai/decision-record";
+export * from "./ai/capability";
 export * from "./ai/run";
 export * from "./cage/reservation";
 export * from "./feed/event";

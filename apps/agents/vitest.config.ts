@@ -18,7 +18,7 @@ const refusesEverything = `
 export default defineConfig({
   plugins: [
     cloudflareTest({
-      main: "./src/index.ts",
+      main: "./src/cloudflare.ts",
       miniflare: {
         name: "ironcage-agents",
         compatibilityDate: "2026-08-01",

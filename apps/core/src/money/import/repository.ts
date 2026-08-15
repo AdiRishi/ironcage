@@ -1,6 +1,5 @@
 import {
   BankAccountId,
-  BankAccountType,
   BankImportId,
   BankObservationId,
   BankSourceFileId,
@@ -8,9 +7,7 @@ import {
   CalendarDate,
   CategorizationRuleId,
   CategoryId,
-  FeedEventId,
   MatchTier,
-  RulePredicate,
   Sha256,
   SourceFileRole,
   SourceProfile,
@@ -18,102 +15,13 @@ import {
 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 
-import { decodeRows, type PersistenceError, type SqlExecutor } from "../persistence";
-import type { StoredEvidence, StoredIdentifier, StoredTransaction } from "./cascade";
+import { decodeRows, type PersistenceError, type SqlExecutor } from "../../persistence";
+import type { AccountRow } from "../accounts/repository";
+import { insertFeedEvent, type FeedEventInsert } from "../feed/repository";
 import type { CoveredSpan } from "./coverage";
-import type { EffectiveRule } from "./rules";
+import type { StoredEvidence, StoredIdentifier, StoredTransaction } from "./matching";
 
 const Decimal = Schema.BigDecimalFromString;
-
-export const AccountRow = Schema.Struct({
-  id: BankAccountId,
-  bank: Schema.String,
-  productLabel: Schema.String,
-  accountType: BankAccountType,
-  maskedSuffix: Schema.NullOr(Schema.String),
-  identityHmac: Schema.NullOr(Schema.String),
-  currency: Schema.String,
-  required: Schema.Boolean,
-  openedOn: Schema.NullOr(CalendarDate),
-  closedOn: Schema.NullOr(CalendarDate),
-});
-export type AccountRow = typeof AccountRow.Type;
-
-const accountColumns = `id, bank, product_label AS "productLabel", account_type AS "accountType",
-  masked_suffix AS "maskedSuffix", identity_hmac AS "identityHmac", currency, required,
-  opened_on AS "openedOn", closed_on AS "closedOn"`;
-
-export const getAccount = (sql: SqlExecutor, id: BankAccountId) =>
-  Effect.gen(function* () {
-    const rows = yield* sql.query(
-      "read bank account",
-      `SELECT ${accountColumns} FROM bank_accounts WHERE id = $1`,
-      [id],
-    );
-    const accounts = yield* decodeRows("decode bank account", AccountRow, rows);
-    return accounts[0] ?? null;
-  });
-
-export const listAccounts = (sql: SqlExecutor) =>
-  Effect.gen(function* () {
-    const rows = yield* sql.query(
-      "list bank accounts",
-      `SELECT ${accountColumns} FROM bank_accounts ORDER BY created_at`,
-    );
-    return yield* decodeRows("decode bank accounts", AccountRow, rows);
-  });
-
-export const findAccountByIdentity = (sql: SqlExecutor, bank: string, identityHmac: string) =>
-  Effect.gen(function* () {
-    const rows = yield* sql.query(
-      "find bank account by identity",
-      `SELECT ${accountColumns} FROM bank_accounts WHERE bank = $1 AND identity_hmac = $2`,
-      [bank, identityHmac],
-    );
-    const accounts = yield* decodeRows("decode bank account", AccountRow, rows);
-    return accounts[0] ?? null;
-  });
-
-export const insertAccount = (
-  sql: SqlExecutor,
-  account: AccountRow,
-): Effect.Effect<void, PersistenceError> =>
-  sql
-    .query(
-      "insert bank account",
-      `INSERT INTO bank_accounts
-         (id, bank, product_label, account_type, masked_suffix, identity_hmac, currency,
-          required, opened_on, closed_on, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())`,
-      [
-        account.id,
-        account.bank,
-        account.productLabel,
-        account.accountType,
-        account.maskedSuffix,
-        account.identityHmac,
-        account.currency,
-        account.required,
-        account.openedOn,
-        account.closedOn,
-      ],
-    )
-    .pipe(Effect.asVoid);
-
-export const bindAccountIdentity = (
-  sql: SqlExecutor,
-  accountId: BankAccountId,
-  identityHmac: string,
-  maskedSuffix: string,
-): Effect.Effect<void, PersistenceError> =>
-  sql
-    .query(
-      "bind bank account identity",
-      `UPDATE bank_accounts SET identity_hmac = $2, masked_suffix = $3
-        WHERE id = $1 AND identity_hmac IS NULL`,
-      [accountId, identityHmac, maskedSuffix],
-    )
-    .pipe(Effect.asVoid);
 
 const ImportRowSchema = Schema.Struct({
   id: BankImportId,
@@ -256,61 +164,6 @@ export const loadCoverageSpans = (
     return yield* decodeRows("decode coverage segments", SpanRow, rows);
   });
 
-const RuleRow = Schema.Struct({
-  id: CategorizationRuleId,
-  predicate: RulePredicate,
-  categoryId: CategoryId,
-  categoryName: Schema.String,
-});
-
-export const loadEffectiveRules = (
-  sql: SqlExecutor,
-): Effect.Effect<readonly EffectiveRule[], PersistenceError> =>
-  Effect.gen(function* () {
-    const rows = yield* sql.query(
-      "load effective rules",
-      `SELECT r.id, r.predicate, r.category_id AS "categoryId", c.name AS "categoryName"
-         FROM categorization_rules r
-         JOIN categories c ON c.id = r.category_id
-        WHERE r.effective_from <= now() AND (r.effective_to IS NULL OR r.effective_to > now())
-        ORDER BY r.effective_from, r.id`,
-    );
-    return yield* decodeRows("decode effective rules", RuleRow, rows);
-  });
-
-export interface FeedEventInsert {
-  readonly id: FeedEventId;
-  readonly origin: string;
-  readonly category: string;
-  readonly eventType: string;
-  readonly severity: "info" | "notice" | "warning" | "critical";
-  readonly summary: string;
-  readonly payload: unknown;
-  readonly links: unknown;
-}
-
-export const insertFeedEvent = (
-  sql: SqlExecutor,
-  event: FeedEventInsert,
-): Effect.Effect<void, PersistenceError> =>
-  sql
-    .query(
-      "insert feed event",
-      `INSERT INTO feed_events (id, occurred_at, origin, category, event_type, severity, summary, payload, links)
-       VALUES ($1, now(), $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb)`,
-      [
-        event.id,
-        event.origin,
-        event.category,
-        event.eventType,
-        event.severity,
-        event.summary,
-        JSON.stringify(event.payload),
-        event.links === null ? null : JSON.stringify(event.links),
-      ],
-    )
-    .pipe(Effect.asVoid);
-
 const money = (value: BigDecimal.BigDecimal | null) =>
   value === null ? null : BigDecimal.format(BigDecimal.normalize(value));
 
@@ -420,133 +273,187 @@ export const insertConfirmedImport = (
       ],
     );
 
-    for (const file of graph.files) {
+    if (graph.files.length > 0) {
       yield* sql.query(
-        "insert bank source file",
+        "insert bank source files",
         `INSERT INTO bank_source_files
            (id, import_id, role, media_type, byte_digest, byte_size, r2_key, display_name, extractor)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)`,
+         SELECT x.id::uuid, $1, x.role, x.media_type, x.byte_digest, x.byte_size,
+                x.r2_key, x.display_name, x.extractor
+           FROM jsonb_to_recordset($2::jsonb) AS x(
+             id text, role text, media_type text, byte_digest text, byte_size integer,
+             r2_key text, display_name text, extractor jsonb
+           )`,
         [
-          file.id,
           importRow.id,
-          file.role,
-          file.mediaType,
-          file.byteDigest,
-          file.byteSize,
-          file.r2Key,
-          file.displayName,
-          file.extractor === null ? null : JSON.stringify(file.extractor),
+          JSON.stringify(
+            graph.files.map((file) => ({
+              id: file.id,
+              role: file.role,
+              media_type: file.mediaType,
+              byte_digest: file.byteDigest,
+              byte_size: file.byteSize,
+              r2_key: file.r2Key,
+              display_name: file.displayName,
+              extractor: file.extractor,
+            })),
+          ),
         ],
       );
     }
 
-    for (const transaction of graph.transactions) {
+    if (graph.transactions.length > 0) {
       yield* sql.query(
-        "insert bank transaction",
+        "insert bank transactions",
         `INSERT INTO bank_transactions
            (id, account_id, posted_date, amount, currency, display_narrative, derived_payee,
             narrative_fingerprint, row_balance, normalizer_version, created_by_import, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())`,
+         SELECT x.id::uuid, $1, x.posted_date::date, x.amount::numeric, $2,
+                x.display_narrative, x.derived_payee, x.fingerprint, x.row_balance::numeric,
+                x.normalizer_version, $3, now()
+           FROM jsonb_to_recordset($4::jsonb) AS x(
+             id text, posted_date text, amount text, display_narrative text,
+             derived_payee text, fingerprint text, row_balance text, normalizer_version integer
+           )`,
         [
-          transaction.id,
           account.id,
-          transaction.postedDate,
-          money(transaction.amount),
           account.currency,
-          transaction.displayNarrative,
-          transaction.derivedPayee,
-          transaction.fingerprint,
-          money(transaction.rowBalance),
-          transaction.normalizerVersion,
           importRow.id,
+          JSON.stringify(
+            graph.transactions.map((transaction) => ({
+              id: transaction.id,
+              posted_date: transaction.postedDate,
+              amount: money(transaction.amount),
+              display_narrative: transaction.displayNarrative,
+              derived_payee: transaction.derivedPayee,
+              fingerprint: transaction.fingerprint,
+              row_balance: money(transaction.rowBalance),
+              normalizer_version: transaction.normalizerVersion,
+            })),
+          ),
         ],
       );
     }
 
-    for (const observation of graph.observations) {
+    if (graph.observations.length > 0) {
+      const observations = JSON.stringify(
+        graph.observations.map((observation) => ({
+          id: observation.id,
+          source_file_id: observation.sourceFileId,
+          source_ordinal: observation.sourceOrdinal,
+          raw: observation.raw,
+          parsed: observation.parsed,
+          parser_version: observation.parserVersion,
+          transaction_id: observation.transactionId,
+          match_tier: observation.matchTier,
+          decided_by: observation.decidedBy,
+        })),
+      );
       yield* sql.query(
-        "insert bank observation",
+        "insert bank observations",
         `INSERT INTO bank_observations
            (id, source_file_id, source_ordinal, raw, parsed, parser_version, parse_status)
-         VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6, 'parsed')`,
-        [
-          observation.id,
-          observation.sourceFileId,
-          observation.sourceOrdinal,
-          JSON.stringify(observation.raw),
-          JSON.stringify(observation.parsed),
-          observation.parserVersion,
-        ],
+         SELECT x.id::uuid, x.source_file_id::uuid, x.source_ordinal, x.raw, x.parsed,
+                x.parser_version, 'parsed'
+           FROM jsonb_to_recordset($1::jsonb) AS x(
+             id text, source_file_id text, source_ordinal integer, raw jsonb, parsed jsonb,
+             parser_version integer
+           )`,
+        [observations],
       );
       yield* sql.query(
-        "insert bank observation link",
+        "insert bank observation links",
         `INSERT INTO bank_observation_links
            (id, observation_id, transaction_id, import_id, match_tier, decided_by, created_at)
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, now())`,
+         SELECT gen_random_uuid(), x.id::uuid, x.transaction_id::uuid, $1,
+                x.match_tier, x.decided_by, now()
+           FROM jsonb_to_recordset($2::jsonb) AS x(
+             id text, transaction_id text, match_tier text, decided_by text
+           )`,
+        [importRow.id, observations],
+      );
+    }
+
+    if (graph.identifiers.length > 0) {
+      yield* sql.query(
+        "insert bank source identifiers",
+        `INSERT INTO bank_source_identifiers (account_id, source_profile, fitid, transaction_id)
+         SELECT $1, $2, x.fitid, x.transaction_id::uuid
+           FROM jsonb_to_recordset($3::jsonb) AS x(fitid text, transaction_id text)`,
         [
-          observation.id,
-          observation.transactionId,
-          importRow.id,
-          observation.matchTier,
-          observation.decidedBy,
+          account.id,
+          importRow.sourceProfile,
+          JSON.stringify(
+            graph.identifiers.map((identifier) => ({
+              fitid: identifier.fitid,
+              transaction_id: identifier.transactionId,
+            })),
+          ),
         ],
       );
     }
 
-    for (const identifier of graph.identifiers) {
+    if (graph.balances.length > 0) {
       yield* sql.query(
-        "insert bank source identifier",
-        `INSERT INTO bank_source_identifiers (account_id, source_profile, fitid, transaction_id)
-         VALUES ($1, $2, $3, $4)`,
-        [account.id, importRow.sourceProfile, identifier.fitid, identifier.transactionId],
-      );
-    }
-
-    for (const balance of graph.balances) {
-      yield* sql.query(
-        "insert bank balance observation",
+        "insert bank balance observations",
         `INSERT INTO bank_balance_observations
            (id, account_id, kind, value, as_of_date, as_of_time, observation_id, source_file_id)
-         VALUES ($1, $2, $3, $4, $5, NULL, $6, $7)`,
+         SELECT x.id::uuid, $1, x.kind, x.value::numeric, x.as_of_date::date, NULL,
+                x.observation_id::uuid, x.source_file_id::uuid
+           FROM jsonb_to_recordset($2::jsonb) AS x(
+             id text, kind text, value text, as_of_date text,
+             observation_id text, source_file_id text
+           )`,
         [
-          balance.id,
           account.id,
-          balance.kind,
-          money(balance.value),
-          balance.asOfDate,
-          balance.observationId,
-          balance.sourceFileId,
+          JSON.stringify(
+            graph.balances.map((balance) => ({
+              id: balance.id,
+              kind: balance.kind,
+              value: money(balance.value),
+              as_of_date: balance.asOfDate,
+              observation_id: balance.observationId,
+              source_file_id: balance.sourceFileId,
+            })),
+          ),
         ],
       );
     }
 
-    for (const split of graph.splits) {
+    if (graph.splits.length > 0) {
       yield* sql.query(
-        "insert transaction split",
+        "insert transaction splits",
         `INSERT INTO transaction_splits (id, transaction_id, revision, category_id, amount, provenance, rule_id, created_at)
-         VALUES ($1, $2, 1, $3, $4, $5, $6, now())`,
+         SELECT x.id::uuid, x.transaction_id::uuid, 1, x.category_id::uuid,
+                x.amount::numeric, x.provenance, x.rule_id::uuid, now()
+           FROM jsonb_to_recordset($1::jsonb) AS x(
+             id text, transaction_id text, category_id text, amount text,
+             provenance text, rule_id text
+           )`,
         [
-          split.id,
-          split.transactionId,
-          split.categoryId,
-          money(split.amount),
-          split.provenance,
-          split.ruleId,
+          JSON.stringify(
+            graph.splits.map((split) => ({
+              id: split.id,
+              transaction_id: split.transactionId,
+              category_id: split.categoryId,
+              amount: money(split.amount),
+              provenance: split.provenance,
+              rule_id: split.ruleId,
+            })),
+          ),
         ],
       );
     }
 
-    for (const ambiguity of graph.ambiguities) {
+    if (graph.ambiguities.length > 0) {
       yield* sql.query(
-        "insert ambiguity resolution",
+        "insert ambiguity resolutions",
         `INSERT INTO bank_ambiguity_resolutions (id, import_id, subject, resolution, resolved_at)
-         VALUES ($1, $2, $3::jsonb, $4::jsonb, now())`,
-        [
-          ambiguity.id,
-          importRow.id,
-          JSON.stringify(ambiguity.subject),
-          JSON.stringify(ambiguity.resolution),
-        ],
+         SELECT x.id::uuid, $1, x.subject, x.resolution, now()
+           FROM jsonb_to_recordset($2::jsonb) AS x(
+             id text, subject jsonb, resolution jsonb
+           )`,
+        [importRow.id, JSON.stringify(graph.ambiguities)],
       );
     }
 

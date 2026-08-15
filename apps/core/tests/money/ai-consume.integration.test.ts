@@ -3,14 +3,22 @@ import { resolve } from "node:path";
 
 import { expect, it } from "@effect/vitest";
 import type { BankImportSource } from "@ironcage/contracts/schema";
-import { CategoryId, deriveRunId, RequestId, Sha256 } from "@ironcage/domain";
+import { CategoryId, RequestId, Sha256 } from "@ironcage/domain";
 import { Effect, Schema } from "effect";
 
 import { consumeCapabilityRun, consumeDeadLetter } from "../../src/ai/consume";
 import { mintId } from "../../src/ids";
-import { categorizeTransactions, listTransactions } from "../../src/money/categorize";
-import { confirmBankImport, previewBankImport, type ImportDeps } from "../../src/money/import";
-import { configureBankAccount } from "../../src/money/queries";
+import { configureBankAccount } from "../../src/money/accounts/service";
+import {
+  listPendingCategorizationDispatches,
+  type CategorizationDispatch,
+} from "../../src/money/categorization/dispatch";
+import { categorizeTransactions, listTransactions } from "../../src/money/categorization/service";
+import {
+  confirmBankImport,
+  previewBankImport,
+  type ImportDeps,
+} from "../../src/money/import/service";
 import { Postgres } from "../../src/persistence/postgres";
 import { usePostgresTestDatabase } from "../persistence/postgres-test-database";
 
@@ -64,15 +72,29 @@ const importFixture = (accountId: BankImportSource["accountId"]) =>
       ),
     );
     if (confirmed.kind !== "confirmed") throw new Error("expected a confirmed import");
-    return preview.preview.bundleDigest;
+    const pending = yield* withDatabase(
+      Effect.gen(function* () {
+        const postgres = yield* Postgres;
+        return yield* postgres.readTransaction((sql) =>
+          listPendingCategorizationDispatches(sql, 10),
+        );
+      }),
+    );
+    if (pending[0] === undefined) throw new Error("expected a categorization dispatch");
+    return pending[0];
   });
 
-const runMessage = (runId: string, bundleDigest: Sha256, transactionIds: readonly string[]) => ({
-  runId,
+const runMessage = (dispatch: CategorizationDispatch, transactionIds: readonly string[]) => ({
+  runId: dispatch.runId,
   capability: "money.categorization",
   sleeveId: null,
-  configVersion: 1,
-  trigger: { _tag: "batch", bundleDigest, batchIndex: 0 },
+  configVersion: dispatch.configVersion,
+  trigger: {
+    _tag: "batch",
+    bundleDigest: dispatch.bundleDigest,
+    batchIndex: dispatch.batchIndex,
+    inputDigest: dispatch.inputDigest,
+  },
   producedAt: new Date().toISOString(),
   result: {
     _tag: "Output",
@@ -89,7 +111,7 @@ const runMessage = (runId: string, bundleDigest: Sha256, transactionIds: readonl
     inputsSummary: { batchSize: 25 },
     decided: { suggestions: transactionIds.length },
     rationale: "test run",
-    model: "test-model",
+    model: dispatch.model,
     gatewayLogIds: [],
     otelTraceId: "0af7651916cd43dd8448eb211c80319c",
     otelParentSpanIds: [],
@@ -121,39 +143,35 @@ it.effect("a run's answer is applied exactly once per run identity", () =>
         closedOn: null,
       }),
     );
-    const bundleDigest = yield* importFixture(account.id);
+    const dispatch = yield* importFixture(account.id);
 
-    const queue = yield* withDatabase(listTransactions({ kind: "attention" }));
-    const subjects = queue.slice(0, 2).map((entry) => entry.transactionId);
-    const runId = yield* Effect.promise(() =>
-      deriveRunId("money.categorization", 1, `${bundleDigest}|0`),
-    );
-    const message = runMessage(runId, bundleDigest, subjects);
+    const subjects = dispatch.batch.map((entry) => entry.transactionId);
+    const message = runMessage(dispatch, subjects);
 
     const outcome = yield* withDatabase(consumeCapabilityRun(message));
-    expect(outcome).toEqual({ kind: "accepted", filed: 2 });
+    expect(outcome).toEqual({ kind: "accepted", filed: subjects.length });
     expect(yield* count("capability_outputs")).toBe(1);
     expect(yield* count("decision_records")).toBe(1);
-    expect(yield* count("transaction_splits WHERE provenance = 'ai'")).toBe(2);
+    expect(yield* count("transaction_splits WHERE provenance = 'ai'")).toBe(subjects.length);
     expect(yield* count("feed_events WHERE event_type = 'ai_categorized'")).toBe(1);
 
     // The two rows are filed and open to change; the rest still need a hand,
     // and those sort first.
     const suggested = yield* withDatabase(listTransactions({ kind: "attention" }));
     const filed = suggested.filter((entry) => entry.filedBy === "ai");
-    expect(filed).toHaveLength(2);
+    expect(filed).toHaveLength(subjects.length);
     expect(filed[0]!.splits[0]!.categoryName).toBe("groceries");
     expect(filed[0]!.rationale).toBe("looks like groceries");
-    expect(suggested.findIndex((entry) => entry.filedBy === "ai")).toBe(suggested.length - 2);
+    expect(suggested.findIndex((entry) => entry.filedBy === "ai")).toBe(0);
 
     // At-least-once delivery: the same body is dropped as a duplicate.
     expect(yield* withDatabase(consumeCapabilityRun(message))).toEqual({ kind: "duplicate" });
-    expect(yield* count("categorization_assignments")).toBe(2);
-    expect(yield* count("transaction_splits WHERE provenance = 'ai'")).toBe(2);
+    expect(yield* count("categorization_assignments")).toBe(subjects.length);
+    expect(yield* count("transaction_splits WHERE provenance = 'ai'")).toBe(subjects.length);
 
     // The same run ID with different content is an invariant violation.
     const collision = yield* withDatabase(
-      consumeCapabilityRun(runMessage(runId, bundleDigest, [subjects[0]!])),
+      consumeCapabilityRun(runMessage(dispatch, [subjects[0]!])),
     );
     expect(collision).toEqual({ kind: "collision" });
     expect(
@@ -179,7 +197,9 @@ it.effect("a run's answer is applied exactly once per run identity", () =>
       }),
     );
     expect(yield* count("categorization_assignments WHERE status = 'kept'")).toBe(1);
-    expect(yield* count("categorization_assignments WHERE status = 'applied'")).toBe(1);
+    expect(yield* count("categorization_assignments WHERE status = 'applied'")).toBe(
+      subjects.length - 1,
+    );
     expect(
       (yield* withDatabase(listTransactions({ kind: "attention" }))).some(
         (entry) => entry.transactionId === subject.transactionId,
@@ -201,13 +221,13 @@ it.effect("a failed run and a dead letter leave warnings and file nothing", () =
         closedOn: null,
       }),
     );
-    const bundleDigest = yield* importFixture(account.id);
-    const runId = yield* Effect.promise(() =>
-      deriveRunId("money.categorization", 1, `${bundleDigest}|0`),
-    );
+    const dispatch = yield* importFixture(account.id);
 
     const failed = {
-      ...runMessage(runId, bundleDigest, []),
+      ...runMessage(
+        dispatch,
+        dispatch.batch.map((entry) => entry.transactionId),
+      ),
       result: {
         _tag: "Failed",
         failure: { reason: "MalformedAnswer", detail: "prose instead of JSON" },

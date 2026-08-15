@@ -1,8 +1,8 @@
 import { BigDecimal, Effect } from "effect";
 import { describe, expect, test } from "vitest";
 
-import type { BankImportBlocked } from "../../src/money/block";
-import { parseOffsetStatement } from "../../src/money/statement";
+import type { BankImportBlocked } from "../../src/money/import/block";
+import { parseOffsetStatement } from "../../src/money/import/statement";
 import statementBytes from "../fixtures/money/commbank/statement/offset-statement-a.md?bytes";
 
 const markdown = () => new TextDecoder().decode(statementBytes);

@@ -7,7 +7,7 @@ import { narrativeFingerprint } from "./normalize";
 import type { PairedAccountRules } from "./profiles";
 
 /**
- * The stored evidence the cascade compares against: every canonical
+ * The stored evidence the matching cascade compares against: every canonical
  * transaction for the account on the candidate dates, plus the verified
  * identifier index for tier 1. Loaded once per import from a consistent
  * snapshot; the cascade itself is pure.

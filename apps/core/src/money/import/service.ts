@@ -29,17 +29,27 @@ import {
 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 
-import { mintId, mintRawUuidV7 } from "../ids";
-import { runIdempotentMutation } from "../persistence/app-requests";
-import { PersistenceError, persistenceToBoundary } from "../persistence/error";
-import { Postgres, type SqlExecutor } from "../persistence/postgres";
+import { mintId, mintRawUuidV7 } from "../../ids";
+import { runIdempotentMutation } from "../../persistence/app-requests";
+import { PersistenceError, persistenceToBoundary } from "../../persistence/error";
+import { Postgres, type SqlExecutor } from "../../persistence/postgres";
+import {
+  bindAccountIdentity,
+  findAccountByIdentity,
+  getAccount,
+  type AccountRow,
+} from "../accounts/repository";
+import { enqueueCategorizationBatches } from "../categorization/dispatch";
+import { loadEffectiveRules } from "../categorization/repository";
+import { firstMatchingRule, type EffectiveRule } from "../categorization/rules";
+import { emitCoverageEvents, emitDerivedEvents } from "../feed/service";
+import { detectOwnedTransfers } from "../transfers/service";
 import { BankImportBlocked, blocked } from "./block";
 import { bundleDigest, validatePairedBundle, type PairedBundle } from "./bundle";
 import { sha256Hex } from "./bytes";
-import { matchCandidates, type MatchOutcome, type StoredTransaction } from "./cascade";
 import { coverageGaps, mergeSpans, type CoveredSpan } from "./coverage";
 import { parseBankCsv } from "./csv";
-import { emitCoverageEvents, emitDerivedEvents } from "./feed";
+import { matchCandidates, type MatchOutcome, type StoredTransaction } from "./matching";
 import {
   derivePayee,
   displayNarrative,
@@ -48,23 +58,16 @@ import {
 } from "./normalize";
 import { parseBankOfx } from "./ofx";
 import { accountIdentityInput, hmacSha256Hex, pairedProfileName, pairedRules } from "./profiles";
-import { firstMatchingRule, type EffectiveRule } from "./rules";
-import { parseOffsetStatement, type ParsedStatement, type StatementRow } from "./statement";
 import {
-  bindAccountIdentity,
-  findAccountByIdentity,
   findImportByDigest,
-  getAccount,
   insertConfirmedImport,
   loadBalanceEvidenceRange,
   loadCoverageSpans,
-  loadEffectiveRules,
   loadEvidence,
-  type AccountRow,
   type ConfirmedImportGraph,
   type ImportRow,
-} from "./store";
-import { detectOwnedTransfers } from "./transfers";
+} from "./repository";
+import { parseOffsetStatement, type ParsedStatement, type StatementRow } from "./statement";
 
 /** The v1 import parser version stored on every observation. */
 const parserVersion = 1;
@@ -817,12 +820,6 @@ const confirmPayloadHash = (input: ConfirmBankImportInput): Promise<string> =>
     ),
   );
 
-/**
- * Digest-verified confirm. Recomputes the import under the account's advisory
- * lock, refuses moved bytes or a stale preview, writes source artifacts to R2
- * first, then commits the whole import graph and its feed event in the one
- * open Postgres transaction.
- */
 export const confirmBankImport = (
   input: ConfirmBankImportInput,
   deps: ImportDeps,
@@ -833,6 +830,50 @@ export const confirmBankImport = (
 > =>
   Effect.gen(function* () {
     const payloadHash = decodeSha(yield* Effect.promise(() => confirmPayloadHash(input)));
+    let statementExtraction: Promise<StatementExtraction> | undefined;
+    const preparedDeps: ImportDeps = {
+      ...deps,
+      extractStatement: (pdf) => {
+        statementExtraction ??= deps.extractStatement(pdf);
+        return statementExtraction;
+      },
+    };
+    const postgres = yield* Postgres;
+    const preflight = yield* postgres.readTransaction((sql) =>
+      Effect.gen(function* () {
+        const account = yield* getAccountOrFail(sql, input.source.accountId);
+        return yield* computeImport(sql, input.source, preparedDeps, account).pipe(
+          Effect.catchIf(
+            (error): error is BankImportBlocked => error instanceof BankImportBlocked,
+            (error) => Effect.succeed(error),
+          ),
+        );
+      }),
+    );
+
+    if (
+      !(preflight instanceof BankImportBlocked) &&
+      preflight.digest !== input.expectedBundleDigest
+    ) {
+      return yield* Effect.fail(
+        new Conflict({
+          reason: "ImportBytesChanged",
+          detail: "the uploaded bytes differ from the previewed bundle",
+        }),
+      );
+    }
+
+    if (!(preflight instanceof BankImportBlocked) && preflight.replay === null) {
+      yield* Effect.forEach(
+        preflight.files,
+        (file) =>
+          Effect.tryPromise({
+            try: () => deps.artifacts.put(artifactKey(preflight.digest, file), file.bytes),
+            catch: (cause) => new PersistenceError({ operation: "write source artifact", cause }),
+          }),
+        { concurrency: "unbounded", discard: true },
+      );
+    }
 
     return yield* runIdempotentMutation(
       {
@@ -852,7 +893,7 @@ export const confirmBankImport = (
           );
 
           const account = yield* getAccountOrFail(sql, input.source.accountId);
-          const computation = yield* computeImport(sql, input.source, deps, account).pipe(
+          const computation = yield* computeImport(sql, input.source, preparedDeps, account).pipe(
             Effect.catchIf(
               (error): error is BankImportBlocked => error instanceof BankImportBlocked,
               (error) => Effect.succeed(error),
@@ -891,17 +932,8 @@ export const confirmBankImport = (
 
           const graph = yield* buildGraph(computation, input.resolutions);
 
-          // R2 first: a failure here leaves Postgres untouched, and a failed
-          // transaction afterwards leaves only unreferenced immutable objects
-          // whose digest keys a retry reuses.
-          for (const file of computation.files) {
-            yield* Effect.tryPromise({
-              try: () => deps.artifacts.put(artifactKey(computation.digest, file), file.bytes),
-              catch: (cause) => new PersistenceError({ operation: "write source artifact", cause }),
-            });
-          }
-
           yield* insertConfirmedImport(sql, computation.account, graph);
+          yield* enqueueCategorizationBatches(sql, graph);
           yield* detectOwnedTransfers(
             sql,
             graph.transactions.map((transaction) => transaction.id),
@@ -934,7 +966,7 @@ export const confirmBankImport = (
           } as const;
         }),
     );
-  });
+  }).pipe(persistenceToBoundary);
 
 export const artifactKey = (digest: Sha256, file: { role: string; digest: Sha256 }): string =>
   `exports/commbank/${digest}/${file.role}-${file.digest}`;

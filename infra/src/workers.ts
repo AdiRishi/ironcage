@@ -1,6 +1,5 @@
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Effect from "effect/Effect";
-import * as Option from "effect/Option";
 
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
 import type { DataPlane } from "./data-plane.ts";
@@ -19,6 +18,7 @@ export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
     compatibility: workerCompatibility,
     workersDev: false,
     observability: workerObservability,
+    crons: ["*/5 * * * *"],
     env: computeBindings(platform, config.environment),
   });
 
@@ -38,16 +38,11 @@ export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
 
   const agents = yield* Cloudflare.Worker("AgentsWorker", {
     name: workerNames.agents,
-    main: "../apps/agents/src/index.ts",
+    vite: { rootDir: "../apps/agents" },
     compatibility: workerCompatibility,
     workersDev: false,
     observability: workerObservability,
-    env: agentsBindings(
-      core,
-      platform,
-      config.environment,
-      Option.getOrUndefined(config.aiGatewayToken),
-    ),
+    env: agentsBindings(core, platform, config.environment),
   });
 
   yield* core.bind("AgentsDispatch", {

@@ -46,6 +46,10 @@
     "test:integration": {
       "dependsOn": ["^compile"],
       "cache": false
+    },
+    "@ironcage/core#test:integration": {
+      "dependsOn": ["^compile", "@ironcage/agents#build"],
+      "cache": false
     }
   }
 }

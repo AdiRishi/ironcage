@@ -7,8 +7,12 @@ import { RequestId, Sha256 } from "@ironcage/domain";
 import { Effect, Schema } from "effect";
 
 import { mintId } from "../../src/ids";
-import { confirmBankImport, previewBankImport, type ImportDeps } from "../../src/money/import";
-import { configureBankAccount, getBankCoverage } from "../../src/money/queries";
+import { configureBankAccount, getBankCoverage } from "../../src/money/accounts/service";
+import {
+  confirmBankImport,
+  previewBankImport,
+  type ImportDeps,
+} from "../../src/money/import/service";
 import { Postgres } from "../../src/persistence/postgres";
 import { usePostgresTestDatabase } from "../persistence/postgres-test-database";
 

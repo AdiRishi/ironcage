@@ -1,5 +1,4 @@
 import { DispatchRpcs, clientOverBinding, timeouts } from "@ironcage/contracts/client";
-import { CategorizationBatchItem, categorizationCapability } from "@ironcage/contracts/schema";
 import {
   AgentReadRpcs,
   AppRpcs,
@@ -7,15 +6,25 @@ import {
   rpcHttpRoute,
   systemPingHandler,
 } from "@ironcage/contracts/server";
-import { deriveRunId, Sha256 } from "@ironcage/domain";
+import { Sha256 } from "@ironcage/domain";
 import type { ActorBinding } from "@ironcage/infra/worker-bindings";
 import { DurableObject, WorkerEntrypoint } from "cloudflare:workers";
-import { Effect, Schema } from "effect";
+import { Cause, Effect, Schema } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 
-import { consumeCapabilityRun, consumeDeadLetter, loadCategorizationBatches } from "./ai/consume";
-import { getMoneyAnalysis } from "./money/analysis";
-import { sha256Hex } from "./money/bytes";
+import { consumeCapabilityRun, consumeDeadLetter } from "./ai/consume";
+import {
+  getBankAccounts,
+  getBankCoverage,
+  getImportHistory,
+  configureBankAccount,
+} from "./money/accounts/service";
+import { getMoneyAnalysis } from "./money/analysis/service";
+import {
+  listPendingCategorizationDispatches,
+  markCategorizationDispatched,
+  recordCategorizationDispatchFailure,
+} from "./money/categorization/dispatch";
 import {
   categorizeTransactions,
   createCategory,
@@ -24,17 +33,11 @@ import {
   getCategorizationRules,
   listTransactions,
   listCategories,
-  listCategoryRows,
-} from "./money/categorize";
-import { acknowledge, getFeed } from "./money/feed";
-import { confirmBankImport, previewBankImport, type ImportDeps } from "./money/import";
-import {
-  configureBankAccount,
-  getBankAccounts,
-  getBankCoverage,
-  getImportHistory,
-} from "./money/queries";
-import { decideTransferMatch, getTransferMatches } from "./money/transfers";
+} from "./money/categorization/service";
+import { acknowledge, getFeed } from "./money/feed/service";
+import { sha256Hex } from "./money/import/bytes";
+import { confirmBankImport, previewBankImport, type ImportDeps } from "./money/import/service";
+import { decideTransferMatch, getTransferMatches } from "./money/transfers/service";
 import { persistenceToBoundary } from "./persistence/error";
 import { Postgres } from "./persistence/postgres";
 
@@ -70,53 +73,40 @@ const payloadHash = (value: unknown) =>
     Effect.map(decodeSha),
   );
 
-const decodeBatchItem = Schema.decodeUnknownSync(CategorizationBatchItem);
+const drainCategorizationDispatches = (env: Env) =>
+  Effect.gen(function* () {
+    const postgres = yield* Postgres;
+    const pending = yield* postgres.readTransaction((sql) =>
+      listPendingCategorizationDispatches(sql, 50),
+    );
+    if (pending.length === 0) return 0;
 
-/**
- * Dispatches the confirmed import's uncategorized rows to the categorization
- * capability, one deterministically-identified run per batch. A duplicate
- * dispatch re-derives the same run IDs, so the consumer's dedupe boundary
- * absorbs any repeat.
- */
-const dispatchCategorizationRuns = (bundleDigest: Sha256) =>
-  Effect.flatMap(workerRequest.service, ({ env }) =>
-    Effect.gen(function* () {
-      const postgres = yield* Postgres;
-      const batches = yield* postgres.readTransaction((sql) =>
-        loadCategorizationBatches(sql, bundleDigest),
+    const dispatch = yield* clientOverBinding(DispatchRpcs, {
+      binding: env.AGENTS,
+      surface: "agents",
+      timeout: timeouts.coreToAgents,
+    });
+
+    let dispatched = 0;
+    for (const item of pending) {
+      const sent = yield* dispatch.dispatchCategorization(item).pipe(
+        Effect.matchCauseEffect({
+          onFailure: (cause) =>
+            postgres
+              .transaction((sql) =>
+                recordCategorizationDispatchFailure(sql, item.runId, Cause.pretty(cause)),
+              )
+              .pipe(Effect.as(false)),
+          onSuccess: () =>
+            postgres
+              .transaction((sql) => markCategorizationDispatched(sql, item.runId))
+              .pipe(Effect.as(true)),
+        }),
       );
-      if (batches.length === 0) return;
-
-      const categories = yield* postgres.readTransaction((sql) => listCategoryRows(sql));
-      const offered = categories
-        .filter((category) => !category.system && !category.archived)
-        .map((category) => ({ id: category.id, name: category.name, kind: category.kind }));
-
-      const dispatch = yield* clientOverBinding(DispatchRpcs, {
-        binding: env.AGENTS,
-        surface: "agents",
-        timeout: timeouts.coreToAgents,
-      });
-
-      for (const [batchIndex, { batch }] of batches.entries()) {
-        const runId = yield* Effect.promise(() =>
-          deriveRunId(
-            categorizationCapability.name,
-            categorizationCapability.configVersion,
-            `${bundleDigest}|${batchIndex}`,
-          ),
-        );
-        yield* dispatch.dispatchCategorization({
-          runId,
-          configVersion: categorizationCapability.configVersion,
-          bundleDigest,
-          batchIndex,
-          batch: batch.map((item) => decodeBatchItem(item)),
-          categories: offered,
-        });
-      }
-    }).pipe(Effect.provide(Postgres.layerForRequest(env.DB.connectionString)), Effect.scoped),
-  );
+      if (sent) dispatched += 1;
+    }
+    return dispatched;
+  }).pipe(Effect.provide(Postgres.layerForRequest(env.DB.connectionString)), Effect.scoped);
 
 /**
  * Wraps a mutation handler with the app request-id idempotency contract: the
@@ -143,8 +133,9 @@ const appSurface = HttpRouter.toWebHandler(
         withMoney((deps) => confirmBankImport(payload, deps)).pipe(
           Effect.tap((result) =>
             result.kind === "confirmed"
-              ? dispatchCategorizationRuns(payload.expectedBundleDigest).pipe(
-                  // A failed dispatch is a missed run, not a failed import.
+              ? Effect.flatMap(workerRequest.service, ({ env }) =>
+                  drainCategorizationDispatches(env),
+                ).pipe(
                   Effect.catchCause((cause) =>
                     Effect.logWarning("categorization dispatch failed", cause),
                   ),
@@ -234,6 +225,10 @@ export default class extends WorkerEntrypoint<Env> {
     return Response.json(report, { status: report._tag === "Success" ? 200 : 503 });
   }
 
+  override async scheduled(): Promise<void> {
+    await Effect.runPromise(drainCategorizationDispatches(this.env));
+  }
+
   /**
    * The decision-records consumer (batch size one) and its dead-letter
    * sibling. An undecodable or unpersistable delivery retries toward the DLQ;
@@ -244,13 +239,11 @@ export default class extends WorkerEntrypoint<Env> {
 
     for (const message of batch.messages) {
       if (batch.queue.endsWith("-dlq")) {
-        await Effect.runPromise(
-          consumeDeadLetter(message.id, message.body).pipe(
-            Effect.provide(layer),
-            Effect.catchCause(() => Effect.void),
-          ),
+        const outcome = await Effect.runPromise(
+          Effect.result(consumeDeadLetter(message.id, message.body).pipe(Effect.provide(layer))),
         );
-        message.ack();
+        if (outcome._tag === "Failure") message.retry();
+        else message.ack();
         continue;
       }
 

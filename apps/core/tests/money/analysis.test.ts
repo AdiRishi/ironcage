@@ -15,7 +15,7 @@ import {
   computeRecurring,
   computeSuggestions,
   type SplitLine,
-} from "../../src/money/analysis";
+} from "../../src/money/analysis/service";
 
 const accountId = Schema.decodeUnknownSync(BankAccountId)(uuidV7From(1, new Uint8Array(16)));
 const transactionId = Schema.decodeUnknownSync(BankTransactionId);

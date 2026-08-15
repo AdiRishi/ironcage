@@ -45,7 +45,7 @@ Local never holds live venue keys. Core asserts that `ENVIRONMENT=local` accepts
 | `ironcage-core`    | `DECISION_RECORDS` consumer                      | local queue                               | production queue                                                   |
 | `ironcage-core`    | `EMAIL_KEY`                                      | unset; the one interruption logs only     | unavailable until the sending-provider launch gate closes          |
 | `ironcage-agents`  | `CORE` service binding                           | local dev registry, read-only surface     | `ironcage-core`, read-only surface                                 |
-| `ironcage-agents`  | `AI_GATEWAY_TOKEN`                               | dev gateway, $50/week sliding cap         | production gateway, $50/week sliding cap                           |
+| `ironcage-agents`  | `AI` / `AI_GATEWAY_ID`                           | dev gateway, $50/week sliding cap         | production gateway, $50/week sliding cap                           |
 | `ironcage-agents`  | `DECISION_RECORDS` producer                      | local queue                               | production queue                                                   |
 | `ironcage-compute` | backtest container + narrow R2 bindings          | local Docker + dev buckets                | immediate image rollout + production artifact buckets              |
 | `ironcage-compute` | `EXPECTED_IMAGE_DIGEST` (config)                 | local image digest                        | immutable digest configured on the deployed binding                |
@@ -103,7 +103,6 @@ Secrets enter the Alchemy Effect configuration as redacted values and are emitte
 | `KRAKEN_EXPORT_KEY` / `_SECRET` | `ironcage-core`                  | quarterly (proposed) | read-only, used only by the tax-export workflow, own nonce sequence                    |
 | `ALPACA_KEY` / `_SECRET`        | `ironcage-core`                  | quarterly (proposed) | broad trading credential; production transfer-surface gate must be current             |
 | `EMAIL_KEY`                     | `ironcage-core`                  | on compromise only   | unavailable until a provider contract and duplicate-safe delivery fixture are selected |
-| `AI_GATEWAY_TOKEN`              | `ironcage-agents`                | quarterly (proposed) | authenticates requests; spend limits are separate gateway configuration                |
 | `DUMP_DSN`                      | trusted backup container profile | quarterly (proposed) | dedicated read-only Postgres role; never enters the untrusted backtest environment     |
 | `HEALTH_SIGNING_KEY`            | `ironcage-core`                  | on compromise only   | signs the health route's response                                                      |
 | `MONEY_IDENTITY_KEY`            | `ironcage-core`                  | on compromise only   | at least 32 bytes; rotation requires a deliberate bank-identity re-key job             |

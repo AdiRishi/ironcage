@@ -2,14 +2,20 @@ import { FeedEventView, NotFound } from "@ironcage/contracts/schema";
 import { FeedEventId, monthOf, type RequestId, type Sha256 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 
-import { mintId } from "../ids";
-import { runIdempotentMutation } from "../persistence/app-requests";
-import { persistenceToBoundary, type PersistenceError } from "../persistence/error";
-import { decodeRows, Postgres, type SqlExecutor } from "../persistence/postgres";
-import { computeAnomalies, computeMonths, computeRecurring, loadSplitLines } from "./analysis";
-import type { CoveredSpan } from "./coverage";
-import { loadCoverageSummary } from "./queries";
-import { insertFeedEvent, type AccountRow } from "./store";
+import { mintId } from "../../ids";
+import { runIdempotentMutation } from "../../persistence/app-requests";
+import { persistenceToBoundary, type PersistenceError } from "../../persistence/error";
+import { decodeRows, Postgres, type SqlExecutor } from "../../persistence/postgres";
+import type { AccountRow } from "../accounts/repository";
+import { loadCoverageSummary } from "../accounts/service";
+import {
+  computeAnomalies,
+  computeMonths,
+  computeRecurring,
+  loadSplitLines,
+} from "../analysis/service";
+import type { CoveredSpan } from "../import/coverage";
+import { insertFeedEvent } from "./repository";
 
 const FeedEventRow = Schema.Struct({
   id: FeedEventId,

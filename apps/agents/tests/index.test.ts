@@ -9,7 +9,7 @@ import { exports } from "cloudflare:workers";
 import { Effect } from "effect";
 import type { Rpc, RpcGroup } from "effect/unstable/rpc";
 
-import "../src/index";
+import "../src/cloudflare";
 
 const clientFor = <Rpcs extends Rpc.Any>(
   entrypoint: { fetch: (request: Request) => Promise<Response> },

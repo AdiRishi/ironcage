@@ -7,7 +7,7 @@ import {
   mergeSpans,
   monthCompleteForAccount,
   monthsBetween,
-} from "../../src/money/coverage";
+} from "../../src/money/import/coverage";
 
 const span = (start: string, end: string) => ({
   start: start as CalendarDate,

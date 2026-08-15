@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 
-import { derivePayee, displayNarrative, narrativeFingerprint } from "../../src/money/normalize";
+import {
+  derivePayee,
+  displayNarrative,
+  narrativeFingerprint,
+} from "../../src/money/import/normalize";
 
 describe("narrative normalization", () => {
   test("fingerprint folds case and whitespace but keeps digits and punctuation", () => {

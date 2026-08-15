@@ -12,6 +12,7 @@
   "dependencies": {
     "@ironcage/contracts": "workspace:*",
     "@ironcage/domain": "workspace:*",
+    "csv-parse": "catalog:",
     "effect": "catalog:",
     "pg": "catalog:"
   },

@@ -42,7 +42,7 @@ const server = createTestHarness({
     {
       config: {
         name: "ironcage-agents",
-        main: "apps/agents/src/index.ts",
+        main: "apps/agents/dist/ironcage_agents/index.js",
         compatibility_date: "2026-08-01",
         compatibility_flags: ["nodejs_compat"],
         services: [
