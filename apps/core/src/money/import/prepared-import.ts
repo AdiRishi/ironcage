@@ -2,13 +2,13 @@ import type { CandidateEffect } from "@ironcage/contracts/schema";
 import type { BankTransactionId, Sha256, SourceProfile } from "@ironcage/domain";
 import type { BigDecimal } from "effect";
 
-import type { AccountRow } from "../accounts/repository";
+import type { AccountRow } from "../accounts/records";
 import type { EffectiveRule } from "../categorization/rules";
 import type { PairedBundle } from "./bundle";
 import type { ParsedStatement, StatementRow } from "./commbank-offset-statement";
 import type { CoveredSpan } from "./coverage";
 import type { MatchOutcome } from "./matching";
-import type { ImportRow } from "./repository";
+import type { ImportRow } from "./store";
 
 export const statementProfileName = "cba-offset-statement-v1" as const;
 

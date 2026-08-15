@@ -13,7 +13,7 @@ import { DurableObject } from "cloudflare:workers";
 import { DateTime, Effect, Schema } from "effect";
 
 import { Postgres } from "../../persistence/postgres";
-import { replayFeed } from "./service";
+import { replayFeed } from "./events";
 
 const replayLimit = 500;
 const leaseMilliseconds = 15 * 60 * 1_000;

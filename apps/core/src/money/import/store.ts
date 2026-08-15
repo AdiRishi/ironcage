@@ -21,8 +21,8 @@ import {
 import { BigDecimal, Effect, Schema } from "effect";
 
 import type { PersistenceError, SqlExecutor } from "../../persistence";
-import type { AccountRow } from "../accounts/repository";
-import { insertFeedEvent, type FeedEventInsert } from "../feed/repository";
+import type { AccountRow } from "../accounts/records";
+import { insertFeedEvent, type FeedEventInsert } from "../feed/outbox";
 import type { CoveredSpan } from "./coverage";
 import type { StoredEvidence, StoredIdentifier, StoredTransaction } from "./matching";
 

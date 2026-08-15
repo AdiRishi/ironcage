@@ -8,17 +8,13 @@ import { Effect, Schema } from "effect";
 
 import { consumeCapabilityRun, consumeDeadLetter } from "../../src/ai/consume";
 import { mintId } from "../../src/ids";
-import { configureBankAccount } from "../../src/money/accounts/service";
+import { configureBankAccount } from "../../src/money/accounts";
+import { categorizeTransactions, listTransactions } from "../../src/money/categorization";
 import {
   listPendingCategorizationDispatches,
   type CategorizationDispatch,
 } from "../../src/money/categorization/dispatch";
-import { categorizeTransactions, listTransactions } from "../../src/money/categorization/service";
-import {
-  confirmBankImport,
-  previewBankImport,
-  type ImportDeps,
-} from "../../src/money/import/service";
+import { confirmBankImport, previewBankImport, type ImportDeps } from "../../src/money/import";
 import { Postgres } from "../../src/persistence/postgres";
 import { usePostgresTestDatabase } from "../persistence/postgres-test-database";
 

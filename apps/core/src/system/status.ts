@@ -3,7 +3,7 @@ import { FeedEventId, SystemMode, type RequestId, type Sha256 } from "@ironcage/
 import { Effect, Schema } from "effect";
 
 import { mintId } from "../ids";
-import { insertFeedEvent } from "../money/feed/repository";
+import { insertFeedEvent } from "../money/feed/outbox";
 import { runIdempotentMutation } from "../persistence/app-requests";
 import { persistenceToBoundary } from "../persistence/error";
 import { Postgres, type SqlExecutor } from "../persistence/postgres";

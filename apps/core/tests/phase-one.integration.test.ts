@@ -3,20 +3,16 @@ import { Aud, CalendarDate, RequestId, Sha256 } from "@ironcage/domain";
 import { BigDecimal, Effect, Schema } from "effect";
 
 import { mintId } from "../src/ids";
-import { analyzeMoney } from "../src/money/analysis/service";
-import {
-  getWholeWealth,
-  listExternalAccounts,
-  recordExternalBalance,
-} from "../src/money/wealth/service";
+import { analyzeMoney } from "../src/money/analysis";
+import { getWholeWealth, listExternalAccounts, recordExternalBalance } from "../src/money/wealth";
 import { Postgres, type SqlExecutor } from "../src/persistence/postgres";
 import {
   getReport,
   generateMonthlySpendingReports,
   listReports,
   markReportOpened,
-} from "../src/reports/service";
-import { haltAll, getSystemStatus } from "../src/system/service";
+} from "../src/reports";
+import { haltAll, getSystemStatus } from "../src/system";
 import { usePostgresTestDatabase } from "./persistence/postgres-test-database";
 
 const database = usePostgresTestDatabase();

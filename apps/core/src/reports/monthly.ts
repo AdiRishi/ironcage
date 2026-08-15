@@ -9,7 +9,7 @@ import { CalendarDate, FeedEventId, ReportId, type RequestId, type Sha256 } from
 import { Effect, Schema } from "effect";
 
 import { mintId } from "../ids";
-import { insertFeedEvent } from "../money/feed/repository";
+import { insertFeedEvent } from "../money/feed/outbox";
 import { runIdempotentMutation } from "../persistence/app-requests";
 import { decodeStored, persistenceToBoundary } from "../persistence/error";
 import { Postgres, type SqlExecutor } from "../persistence/postgres";

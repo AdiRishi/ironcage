@@ -6,9 +6,9 @@ import { mintId } from "../../ids";
 import { runIdempotentMutation } from "../../persistence/app-requests";
 import { persistenceToBoundary, type PersistenceError } from "../../persistence/error";
 import { Postgres, type SqlExecutor } from "../../persistence/postgres";
-import type { AccountRow } from "../accounts/repository";
+import type { AccountRow } from "../accounts/records";
 import type { CoveredSpan } from "../import/coverage";
-import { insertFeedEvent } from "./repository";
+import { insertFeedEvent } from "./outbox";
 
 export const FeedEventRow = Schema.Struct({
   id: FeedEventId,

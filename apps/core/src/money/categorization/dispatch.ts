@@ -15,7 +15,7 @@ import { BigDecimal, Effect, Schema } from "effect";
 
 import type { PersistenceError, SqlExecutor } from "../../persistence";
 import { sha256Hex } from "../import/bytes";
-import type { ConfirmedImportGraph } from "../import/repository";
+import type { ConfirmedImportGraph } from "../import/store";
 
 export type CategorizationDispatch = CategorizationDispatchPayload;
 

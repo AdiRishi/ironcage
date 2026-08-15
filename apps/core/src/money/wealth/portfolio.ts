@@ -21,7 +21,7 @@ import { mintId } from "../../ids";
 import { runIdempotentMutation } from "../../persistence/app-requests";
 import { persistenceToBoundary } from "../../persistence/error";
 import { Postgres, type SqlExecutor } from "../../persistence/postgres";
-import { insertFeedEvent } from "../feed/repository";
+import { insertFeedEvent } from "../feed/outbox";
 
 const BalancePositionRow = Schema.Struct({
   id: Schema.Union([BankAccountId, ExternalAccountId]),

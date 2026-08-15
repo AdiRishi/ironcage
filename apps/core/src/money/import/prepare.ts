@@ -16,8 +16,8 @@ import { BigDecimal, Effect, Schema } from "effect";
 
 import type { PersistenceError } from "../../persistence/error";
 import type { SqlExecutor } from "../../persistence/postgres";
-import { findAccountByIdentity, getAccount, type AccountRow } from "../accounts/repository";
-import { loadEffectiveRules } from "../categorization/repository";
+import { findAccountByIdentity, getAccount, type AccountRow } from "../accounts/records";
+import { loadEffectiveRules } from "../categorization/effective-rules";
 import { firstMatchingRule, type EffectiveRule } from "../categorization/rules";
 import { BankImportBlocked, blocked } from "./block";
 import { bundleDigest, validatePairedBundle } from "./bundle";
@@ -43,7 +43,7 @@ import {
   loadCoverageSpans,
   loadEvidence,
   type ImportRow,
-} from "./repository";
+} from "./store";
 
 const statementDateDriftDays = 3;
 const decodeAud = Schema.decodeUnknownSync(Aud);

@@ -3,7 +3,7 @@ import { FeedEventId } from "@ironcage/domain";
 import { Effect, Schema } from "effect";
 
 import type { SqlExecutor } from "../../persistence/postgres";
-import { feedColumns } from "./service";
+import { feedColumns } from "./events";
 
 const PendingFeedDispatch = Schema.Struct({
   eventId: FeedEventId,

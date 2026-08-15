@@ -4,13 +4,9 @@ import { RequestId, Sha256 } from "@ironcage/domain";
 import { Effect, Schema } from "effect";
 
 import { mintId } from "../../src/ids";
-import { configureBankAccount } from "../../src/money/accounts/service";
-import {
-  confirmBankImport,
-  previewBankImport,
-  type ImportDeps,
-} from "../../src/money/import/service";
-import { decideTransferMatch, getTransferMatches } from "../../src/money/transfers/service";
+import { configureBankAccount } from "../../src/money/accounts";
+import { confirmBankImport, previewBankImport, type ImportDeps } from "../../src/money/import";
+import { decideTransferMatch, getTransferMatches } from "../../src/money/transfers";
 import { Postgres } from "../../src/persistence/postgres";
 import { usePostgresTestDatabase } from "../persistence/postgres-test-database";
 import { makeDepositPair } from "./synthetic-pair";

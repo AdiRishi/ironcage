@@ -21,7 +21,7 @@ import type { MatchOutcome } from "./matching";
 import { narrativeFingerprint, normalizerVersion } from "./normalize";
 import type { PendingImport } from "./prepared-import";
 import { pairedRules } from "./profiles";
-import type { ConfirmedImportGraph, ImportRow } from "./repository";
+import type { ConfirmedImportGraph, ImportRow } from "./store";
 
 const parserVersion = 1;
 

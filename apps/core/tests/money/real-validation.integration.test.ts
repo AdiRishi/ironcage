@@ -8,15 +8,11 @@ import { RequestId, Sha256, type BankAccountType } from "@ironcage/domain";
 import { Effect, Schema } from "effect";
 
 import { mintId } from "../../src/ids";
-import { configureBankAccount, getBankCoverage } from "../../src/money/accounts/service";
-import { getMoneyAnalysis } from "../../src/money/analysis/service";
-import { listTransactions } from "../../src/money/categorization/service";
-import {
-  confirmBankImport,
-  previewBankImport,
-  type ImportDeps,
-} from "../../src/money/import/service";
-import { getTransferMatches } from "../../src/money/transfers/service";
+import { configureBankAccount, getBankCoverage } from "../../src/money/accounts";
+import { getMoneyAnalysis } from "../../src/money/analysis";
+import { listTransactions } from "../../src/money/categorization";
+import { confirmBankImport, previewBankImport, type ImportDeps } from "../../src/money/import";
+import { getTransferMatches } from "../../src/money/transfers";
 import { Postgres } from "../../src/persistence/postgres";
 import { usePostgresTestDatabase } from "../persistence/postgres-test-database";
 

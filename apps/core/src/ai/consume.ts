@@ -13,7 +13,7 @@ import {
 import { DateTime, Effect, Schema } from "effect";
 
 import { mintId, mintUuidV7 } from "../ids";
-import { insertFeedEvent } from "../money/feed/repository";
+import { insertFeedEvent } from "../money/feed/outbox";
 import { sha256Hex } from "../money/import/bytes";
 import { Postgres, type SqlExecutor } from "../persistence/postgres";
 

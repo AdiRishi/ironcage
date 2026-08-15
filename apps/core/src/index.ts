@@ -18,13 +18,8 @@ import {
   getBankCoverage,
   getImportHistory,
   configureBankAccount,
-} from "./money/accounts/service";
-import { getMoneyAnalysis } from "./money/analysis/service";
-import {
-  listPendingCategorizationDispatches,
-  markCategorizationDispatched,
-  recordCategorizationDispatchFailure,
-} from "./money/categorization/dispatch";
+} from "./money/accounts";
+import { getMoneyAnalysis } from "./money/analysis";
 import {
   categorizeTransactions,
   createCategory,
@@ -33,26 +28,27 @@ import {
   getCategorizationRules,
   listTransactions,
   listCategories,
-} from "./money/categorization/service";
+} from "./money/categorization";
+import {
+  listPendingCategorizationDispatches,
+  markCategorizationDispatched,
+  recordCategorizationDispatchFailure,
+} from "./money/categorization/dispatch";
+import { acknowledge, getFeed } from "./money/feed";
 import {
   encodeFeedEvent,
   listPendingFeedDispatches,
   markFeedDispatched,
   recordFeedDispatchFailure,
 } from "./money/feed/dispatch";
-import { acknowledge, getFeed } from "./money/feed/service";
+import { confirmBankImport, previewBankImport, type ImportDeps } from "./money/import";
 import { sha256Hex } from "./money/import/bytes";
-import { confirmBankImport, previewBankImport, type ImportDeps } from "./money/import/service";
-import { decideTransferMatch, getTransferMatches } from "./money/transfers/service";
-import {
-  getWholeWealth,
-  listExternalAccounts,
-  recordExternalBalance,
-} from "./money/wealth/service";
+import { decideTransferMatch, getTransferMatches } from "./money/transfers";
+import { getWholeWealth, listExternalAccounts, recordExternalBalance } from "./money/wealth";
 import { persistenceToBoundary } from "./persistence/error";
 import { Postgres } from "./persistence/postgres";
-import { getReport, listReports, markReportOpened } from "./reports/service";
-import { getSystemStatus, haltAll } from "./system/service";
+import { getReport, listReports, markReportOpened } from "./reports";
+import { getSystemStatus, haltAll } from "./system";
 
 const worker = "ironcage-core";
 const workerRequest = makeWorkerRequestContext<Env, ExecutionContext>(
