@@ -1,4 +1,5 @@
 import * as Cloudflare from "alchemy/Cloudflare";
+import * as Output from "alchemy/Output";
 import * as Effect from "effect/Effect";
 
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
@@ -61,17 +62,23 @@ export const workerGraph = Effect.fn("Ironcage.WorkerGraph")(function* (
   yield* bindWorkerEntrypoints(agents, agentsEntrypoints(core));
   yield* bindWorkerEntrypoints(core, coreEntrypoints(agents));
 
+  // Cloudflare accepts a queue consumer only after the Worker upload exposes
+  // its queue handler. The deployment hash keeps that ordering explicit.
+  const coreWorkerNameAfterUpload = Output.all(core.workerName, core.hash).pipe(
+    Output.map(([workerName]) => workerName),
+  );
+
   // Core consumes capability runs one message at a time; exhausted deliveries
   // route to the dead-letter queue, whose consumer records the loss.
   yield* Cloudflare.Queues.Consumer("DecisionRecordConsumer", {
     queueId: platform.decisionRecords.queueId,
-    scriptName: core.workerName,
+    scriptName: coreWorkerNameAfterUpload,
     deadLetterQueue: platform.decisionRecordDeadLetters.queueName,
     settings: { batchSize: 1, maxRetries: 9 },
   });
   yield* Cloudflare.Queues.Consumer("DecisionRecordDeadLetterConsumer", {
     queueId: platform.decisionRecordDeadLetters.queueId,
-    scriptName: core.workerName,
+    scriptName: coreWorkerNameAfterUpload,
     settings: { batchSize: 1 },
   });
 
