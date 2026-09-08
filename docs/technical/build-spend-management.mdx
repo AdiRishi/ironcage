@@ -1,0 +1,54 @@
+---
+title: Build spend management
+description: Implement the complete product from this repository's specification.
+---
+
+Use this guide when asked to build Ironcage. The repository contains the project requirements and design. You do not need the discovery conversation or the author's working notes.
+
+## Establish the full scope
+
+Read the [vision](/vision), every feature page linked from [Product](/product), and the [acceptance scenarios](/product/acceptance). Then read the [technical design](/technical) and its references.
+
+Create a work plan that accounts for every specified behavior. Link each part to its product contract, implementation owner, and verification evidence. Include settings, review, recovery, and background refresh alongside the main financial views.
+
+Use acceptance scenarios as concrete examples of the contract. The feature pages also contain requirements. Completion means the whole spend-management scope works together.
+
+## Apply the design to the repository
+
+Inspect the existing code and dependency versions before editing. Keep its strong typing, Effect service composition, Alchemy infrastructure ownership, and Worker RPC conventions. Replace sample application behavior with the financial application described in [Architecture](/technical/architecture).
+
+Treat documented module paths as the intended organization. Adapt internal files when existing shared logic provides a better home. Preserve the documented service responsibilities and financial rules. Record any necessary design change in the affected page.
+
+## Resolve engineering choices
+
+Use the selected frameworks and the project-specific policies in these docs. Consult official documentation and matching package source for third-party API usage, supported limits, and integration details.
+
+Choose remaining libraries, model IDs, schemas, indexes, detector thresholds, and operating defaults during implementation. Use the corpus checks and evaluations in [Verification](/technical/verification) to justify those choices. Pin dependencies and record effective configuration so results can be reproduced.
+
+Verify the integration points that can affect the design early: authenticated conversation transport through the web Worker, source extraction, atomic financial publication, and recovery after a lost response. Keep the resulting checks with their owning modules.
+
+Use concrete review items for missing financial facts. For example, an unknown account relationship remains unresolved until evidence or Adi's answer establishes it. Continue implementing the surrounding behavior without inventing personal context.
+
+If an external credential, deployment identity, or private source is unavailable, implement and verify the available paths with representative fixtures. Record the exact external check that remains. Distinguish that limitation from a completed live integration.
+
+## Connect every product flow
+
+Build in dependency order, with connected behavior at each step:
+
+1. Implement the [financial model](/technical/financial-model) and [ingestion pipeline](/technical/ingestion). Establish canonical history, source evidence, review, corrections, and retry behavior.
+2. Connect the [workspace](/product/workspace) and [transactions](/product/transactions) through the shared financial API. Verify that a correction updates every affected view coherently.
+3. Implement [trends](/product/trends), [commitments and forecasts](/product/commitments-and-forecasts), and saved analyses using the shared [calculation services](/technical/analytics).
+4. Connect the [analyst and memory](/product/analyst-and-memory) to those services through the [agent runtime](/technical/ai-analyst). Include clarification, reconnection, cancellation, and reproducible computational investigations.
+5. Complete [insights and follow-through](/product/insights-and-follow-through), settings, exports, and source removal. Verify refresh and invalidation after new records, corrections, and context changes.
+
+Apply the [frontend requirements](/technical/frontend) and [operating policy](/technical/operations) throughout this work. The sequence resolves dependencies. All steps belong to the requested product.
+
+## Establish completion
+
+Run the checks defined in [Verification](/technical/verification). Map each product requirement to working behavior and evidence. Record model evaluation results, forecast comparisons, and any remaining external checks with enough context to repeat them.
+
+Account for every supplied file during private-corpus validation. Distinguish accepted records, matched observations, and specific unresolved evidence. Fix parser or reconciliation defects rather than treating a general review state as successful ingestion.
+
+Exercise the connected experience on desktop and mobile. Verify imports through evidence-backed answers, corrections through refreshed results, and interruptions through truthful recovery states. Verify access and restoration using the operating policy.
+
+Replace obsolete sample routes and behavior as their product replacements land. Update documentation that no longer matches the implemented design. Finish with a completion report that identifies the verified scope, evidence locations, and any work still outstanding.

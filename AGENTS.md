@@ -1,9 +1,9 @@
 # Working in this repository
 
-Before implementing spend management, read `docs/product/index.mdx` for scope and
-`docs/technical/index.mdx` for the design. Follow their links to the affected
-feature. Product pages define intended behavior. Technical pages define the
-target architecture. Planned paths are not yet implemented.
+Before implementing spend management, read `docs/technical/build-spend-management.mdx`.
+It defines the reading path, decision ownership, and completion requirements.
+Use the linked product and technical pages as the project specification. No prior
+conversation or external working notes are required.
 
 Before changing test layout or setup, read `docs/technical/verification.mdx`.
 

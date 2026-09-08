@@ -84,6 +84,8 @@ Each workspace keeps tests in `tests/`, mirroring the paths under `src/`, with a
 
 ## Completion evidence
 
-The complete spend-management implementation is accepted when its product scenarios pass, the supplied corpus reconciles or exposes specific unresolved records, and analyst results trace to verified calculations.
+The complete spend-management implementation is accepted when every product page's required behavior is implemented, its acceptance scenarios pass, and analyst results trace to verified calculations. Each requirement has a verification result or an explicit outstanding check.
+
+Private-corpus validation accounts for every supplied source. Unresolved records identify specific missing or conflicting evidence. A parser failure or a blanket review state is an implementation defect, not proof that the source was handled.
 
 The evidence includes recovery and access checks, mobile and keyboard flows, model evaluation results, and forecast backtests. Performance checks use the actual corpus and realistic growth, with measured query latency and bounded model usage.

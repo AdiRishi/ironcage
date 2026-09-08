@@ -19,8 +19,9 @@ The upload path supports the full supplied corpus. Operational byte and page lim
 
 <Tabs>
   <Tab title="CSV">
-    The CommBank parser handles the observed headerless date, signed amount, description, and
-    balance columns. It preserves empty card balances, quoted fields, byte-order marks, and line
+    The CommBank parser reads four headerless columns in order: posting date in DD/MM/YYYY format,
+    signed decimal amount, description, and balance. These exports contain no stable bank
+    transaction ID. It preserves empty card balances, quoted fields, byte-order marks, and line
     locations. Parsing is deterministic and does not call a model.
   </Tab>
   <Tab title="PDF text">

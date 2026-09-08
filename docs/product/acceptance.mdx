@@ -49,4 +49,18 @@ These scenarios define the product contract. They use fictional values and apply
 | Track reduced delivery spending                    | The follow-up reports the chosen measure and any explicitly tracked substitution costs.                     |
 | Open a financial chart on mobile or by keyboard    | The result and its evidence remain accessible without hover or color alone.                                 |
 
-The [verification design](/technical/verification) maps these outcomes to automated checks and model evaluations.
+## Saved work and personal controls
+
+| Scenario                                              | Required outcome                                                                                                            |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Save a comparison, then import another period         | The saved definition remains intact. A new result uses the new data, and the earlier result stays inspectable.              |
+| Correct or remove remembered context                  | Future retrieval uses the current context. Historical answers identify affected assumptions.                                |
+| Change a recurring payment amount                     | Future schedules use the effective change date. Earlier periods retain the prior amount.                                    |
+| Undo a transaction correction                         | A new correction restores the previous interpretation without removing the source or change history.                        |
+| Run an investigation requiring a calculation artifact | The result retains its input snapshot, calculation, versions, and evidence so it can be repeated.                           |
+| Remove one of two sources supporting a purchase       | The purchase remains once, with the surviving source available.                                                             |
+| Remove the final source for a record                  | The preview identifies dependent records and analyses. The selected retention or removal choice is applied explicitly.      |
+| Export account data                                   | The export includes the records, context, and evidence relationships needed for the documented recovery and migration path. |
+| Reach the configured AI usage ceiling                 | AI work stops with its state preserved. Financial records and ordinary views remain accessible.                             |
+
+These scenarios supplement the feature pages. They do not replace requirements described in those pages. The [verification design](/technical/verification) maps the contract to automated checks and model evaluations.

@@ -5,6 +5,7 @@ export default defineMeta({
   icon: "network",
   pages: [
     "index",
+    "build-spend-management",
     "architecture",
     "financial-model",
     "ingestion",
