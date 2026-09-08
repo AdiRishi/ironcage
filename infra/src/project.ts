@@ -1,3 +1,3 @@
 export const project = {
-  stackName: "ApplicationPlatformStarter",
+  stackName: "Ironcage",
 } as const;
