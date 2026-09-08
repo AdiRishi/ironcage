@@ -1,0 +1,29 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "ui": "stream",
+  "globalDependencies": [".node-version", "pnpm-lock.yaml", "pnpm-workspace.yaml"],
+  "globalPassThroughEnv": ["ALCHEMY_*", "CLOUDFLARE_*"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"]
+    },
+    "@repo/web#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "@repo/infra#deploy": {
+      "cache": false
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"]
+    },
+    "test": {},
+    "@repo/infra#test": {
+      "cache": false
+    }
+  }
+}

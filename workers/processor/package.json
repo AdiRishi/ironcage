@@ -1,0 +1,28 @@
+{
+  "name": "@repo/processor",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tests"
+  },
+  "dependencies": {
+    "@effect/platform-browser": "catalog:",
+    "@effect/sql-d1": "catalog:",
+    "@repo/contracts": "workspace:*",
+    "alchemy": "catalog:",
+    "csv-parse": "catalog:",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "catalog:",
+    "@effect/vitest": "catalog:",
+    "@repo/infra": "workspace:*",
+    "@repo/tsconfig": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

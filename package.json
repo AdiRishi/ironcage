@@ -1,0 +1,41 @@
+{
+  "name": "application-platform-starter",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "turbo build",
+    "check": "oxlint --disable-nested-config && oxfmt --check",
+    "dev": "turbo dev --ui=stream --filter @repo/infra",
+    "dev:destroy": "pnpm --filter @repo/infra dev:destroy",
+    "docs:build": "blume build",
+    "docs:dev": "blume dev",
+    "docs:doctor": "blume doctor",
+    "fix": "oxlint --disable-nested-config --fix && oxfmt",
+    "plan": "pnpm --filter @repo/infra plan",
+    "prepare": "effect-tsgo patch --typescript --oxlint",
+    "prod": "turbo deploy --ui=stream --filter @repo/infra",
+    "prod:destroy": "pnpm --filter @repo/infra prod:destroy",
+    "rename": "node scripts/src/rename-project.ts",
+    "sync:repos": "node scripts/src/sync-reference-repos.ts",
+    "test": "turbo test",
+    "test:unit": "turbo test --filter=!@repo/infra",
+    "test:infra-live": "pnpm --filter @repo/infra test:live",
+    "typecheck": "turbo typecheck"
+  },
+  "devDependencies": {
+    "@effect/tsgo": "catalog:",
+    "@oxlint/plugins": "catalog:",
+    "@types/node": "catalog:",
+    "blume": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:",
+    "yaml": "catalog:"
+  },
+  "engines": {
+    "node": "^24"
+  },
+  "packageManager": "pnpm@12.3.4"
+}
