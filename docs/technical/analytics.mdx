@@ -1,0 +1,86 @@
+---
+title: Analytics and forecasts
+description: Reproducible comparisons, recurring-cost detection, useful insights, and forecasts evaluated against history.
+---
+
+Analytics takes a financial query and a stable dataset revision. It returns numerical results and evidence before an LLM writes an explanation. The [metric reference](/technical/financial-model#metric-definitions) defines which money belongs in each calculation.
+
+## Comparisons
+
+D1 performs indexed filtering and aggregation. Shared finance functions calculate comparisons, allocation adjustments, and statistical summaries. Live charts, agent tools, and scheduled jobs use these same functions.
+
+Period definitions include date basis, timezone, account scope, filters, and comparison strategy. Partial-month comparisons align elapsed calendar dates. Daily averages are a separate named calculation. Missing periods do not contribute zero-valued observations.
+
+Totals group by disjoint cost allocations. Multi-tag filters deduplicate allocation IDs. Merchant aliases resolve before grouping, while service distinctions such as rides and delivery remain intact.
+
+Absolute differences are computed before percentages. A zero baseline produces an unavailable percentage and an absolute new amount. Decreases remain negative contributions in an explanation of a net increase.
+
+## Frequency and average payment
+
+For one consistent purchase population, total spending equals purchase count times average purchase cost. Refunds adjust the linked purchase cost. They do not add another purchase to the count.
+
+Let count and average cost in the two periods be n0, p0 and n1, p1. The symmetric decomposition divides their interaction evenly:
+
+$$
+\Delta S = (n_1-n_0)\frac{p_0+p_1}{2} + (p_1-p_0)\frac{n_0+n_1}{2}
+$$
+
+The first term is the frequency contribution. The second is the average-cost contribution. They sum to the exact change before display rounding.
+
+Displayed contributions use a deterministic remainder allocation so their rounded values also sum to the displayed total change. The evidence retains the unrounded calculation.
+
+For 10 purchases averaging $20 and 12 averaging $25, spending rises from $200 to $300. Frequency contributes $45 and average cost contributes $55. This does not establish that unit prices rose.
+
+When either period has no purchases, its average is undefined. The result describes new or ceased activity instead of applying the formula with a fabricated average.
+
+## Ordinary costs and events
+
+The ordinary-cost calculation combines a variable-cost baseline with confirmed recurring obligations. Quarterly and annual amounts are allocated over their covered periods. The adjustment never changes source cash dates.
+
+Event exclusions use explicit membership, such as a trip or a one-off home purchase. The result records the included and excluded allocations. Repeated exceptional spending remains visible in actual totals and can generate a separate finding.
+
+Known changes, including mortgage commencement, define meaningful comparison segments. Credit-card migration does not define a spending regime change by itself. Changes in account coverage take precedence over statistical explanations.
+
+## Recurring-cost detection
+
+Candidate series group by merchant, service, currency, and financial role. Calendar-aware interval matching considers weekly, fortnightly, monthly, quarterly, and annual schedules. Month-end and weekend posting shifts do not require fixed day counts.
+
+The detector evaluates interval consistency, amount variation, observation count, and missing expected occurrences. Fixed subscriptions and variable bills use different amount tolerances. An inferred schedule retains its evidence and can be replaced by a confirmed schedule.
+
+Effective dates preserve historical prices. A changed subscription amount creates a new schedule segment. A missed occurrence is a candidate issue, not automatic cancellation.
+
+## Change detection and insight ranking
+
+Initial detectors compare recent periods with robust historical medians and quantiles. Sustained changes can use a penalized change-point method after comparison with simple rolling baselines. Minimum sample rules and thresholds live in versioned detector configuration.
+
+Each candidate records its query, observed change, baseline, sample size, and evidence. Coverage failures suppress unsupported conclusions. Persistence requirements and meaningful absolute amounts reduce chance findings from scanning many categories.
+
+Related candidates share a finding identity based on metric, subject, and change interval. Ranking considers amount affected, persistence, novelty, and user feedback. Reprocessing the same revision does not create another inbox item.
+
+The analyst can investigate a candidate and write its explanation. It cannot turn a statistical association into an established cause. Dismissals and supplied context affect ranking without altering raw history.
+
+## Forecast construction
+
+A forecast combines schedules for known income and commitments with estimates of variable costs. It keeps costs and cash settlement separate, especially for credit cards and loan repayments.
+
+The starting position uses reconciled account anchors. Missing time between the last anchor and today is simulated and labelled estimated. Card purchase estimates increase card liability. The payment schedule determines when deposit cash is reduced. The same purchase is not subtracted twice from cash.
+
+Variable-cost candidates begin with recent-window baselines and exponential smoothing. More complex methods are adopted only when they improve held-out results at relevant horizons. [Exponential smoothing](https://otexts.com/fpp3/ses.html) provides a transparent recent-weighted baseline.
+
+Prediction ranges use forecast errors or simulations calibrated on history. Simulations preserve relevant dependence, such as weekly spending patterns and substitution between food categories. Adding independent category percentiles is not a valid combined prediction interval.
+
+Known commitments are included once. Variable-cost training excludes the same scheduled obligations to prevent double counting. One-off future expenses are explicit scenario inputs.
+
+## Scenarios and evaluation
+
+A scenario contains named overrides to a baseline definition. It never changes transactions or confirmed commitments. A saved comparison retains both definitions and the input revision.
+
+Forecast evaluation uses rolling historical cutoffs. Each run trains on records available before its cutoff and predicts later periods. Import availability and later corrections are respected when recreating what was known at the time. [Rolling-origin evaluation](https://otexts.com/fpp3/tscv.html)
+
+Evaluation measures absolute error, bias, and interval coverage at the product's forecast horizons. It compares models against simple baselines and separates periods around known structural changes. Two years of history provides limited evidence for annual seasonality.
+
+## Result publication
+
+An analysis result stores its definition, input revision, metric and model versions, values, adjustments, coverage, and evidence manifest. Large results live in R2 with metadata in D1.
+
+A correction schedules refreshes for affected subjects and periods. The application atomically selects the newest compatible completed result for live views. Historical results remain immutable, with a link to the newer result when one exists.

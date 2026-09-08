@@ -1,0 +1,64 @@
+---
+title: Operations
+description: Private access, durable financial data, bounded model usage, and actionable failure records.
+---
+
+This page defines the target operating policy for private financial records, model calls, and persistent investigations.
+
+## Access boundary
+
+Cloudflare Access protects the public application with an explicit allowlist for Adi's identity. The web Worker validates the Access token's signature, issuer, audience, and expiry. The same policy covers downloads, API handlers, and conversation upgrades. [Access token validation](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/)
+
+The authenticated owner is assigned by the server, not by an LLM or request body. Internal Workers have no public route and receive owner-scoped calls through service bindings. Data records carry ownership even though the product has one user.
+
+Local development uses an explicit local identity only in the local stage. Staging and production cannot activate that path through a client-supplied header. Browser mutations validate origin and authenticated session context.
+
+## Sources, backups, and retention
+
+Original files, extraction versions, corrections, and saved analysis evidence are retained until explicit removal. Reprocessing does not replace the source. Ordinary infrastructure changes preserve financial data.
+
+Production destruction requires an explicit destructive operation, with backup verification. Ordinary deployment preserves D1 data, R2 objects, and Durable Object identities. Schema changes preserve canonical IDs and source links.
+
+D1 recovery capabilities are supplemented by scheduled logical exports to a separate R2 backup location. A backup manifest identifies schema version, source-object inventory, and creation time. R2 artifacts are immutable where possible. Restore checks verify balances, source links, and saved-analysis references in an isolated stage.
+
+Conversation storage needs its own backup/export path because a D1 backup does not include Durable Object SQLite. The supported conversation export or application export records canonical messages and attachments without modifying framework-owned tables directly.
+
+Temporary upload objects and intermediate extraction artifacts have bounded cleanup policies. Cleanup distinguishes unreferenced temporary objects from accepted source evidence. It does not remove the last source for an accepted transaction.
+
+## Removing data
+
+Removal is an explicit operation with an impact preview. Removing a source does not remove a canonical transaction supported by another source. Removing the last evidence for a transaction marks dependent results affected and requires a deliberate choice about the financial record.
+
+Deleting remembered context prevents future retrieval. Backup retention is disclosed separately, so deletion is not misrepresented as immediate removal from every historical backup. A full account-data export supports recovery and migration.
+
+## Model access and privacy
+
+All model calls use the configured Cloudflare AI Gateway path. Gateway routing does not imply that inference occurs only within Cloudflare. The selected provider and its retention settings are recorded in model configuration.
+
+The app sends only the records and context required for the current task. Account numbers and unrelated personal identifiers are excluded where they are not needed. Private records do not enter the documentation repository, test fixtures, or public deployment assets.
+
+Prompt and completion bodies are excluded from routine Gateway and application logs. Diagnostic capture is an explicit, bounded mode with a retention policy. Provider-side retention is a separate configuration responsibility.
+
+## Usage and recovery controls
+
+Model policies define allowed providers, fallback capabilities, per-run limits, and a monthly usage ceiling. The application records observed cost where supplied and a labelled estimate otherwise. Reservations account for concurrent in-flight calls.
+
+When a ceiling is reached, ordinary transaction views remain available. Affected AI work stops with its progress preserved and can resume under an explicit updated policy. A fallback does not bypass the ceiling.
+
+Import and analysis jobs use stable IDs, deadlines, and finite attempt budgets. Retry exhaustion creates a failed job with an actionable cause. A model request failure does not roll back already reconciled bank history.
+
+## Observability
+
+Structured events carry import ID, source ID, job ID, conversation ID, command ID, dataset revision, operation, attempt, duration, and safe failure code where relevant. Routine events omit descriptions, amounts, and raw document text.
+
+Operational views identify queued jobs with no progress, repeated extraction failures, unreconciled sources, stale analyses, failed publications, and model usage. Financial completeness is derived from source coverage, not from the absence of logged errors.
+
+An incident can be traced from an inbox failure to its job and source evidence through authenticated application views. Logs provide the path to investigate without becoming another copy of the bank history.
+
+## Deployment checks
+
+Alchemy plans and deploys the complete financial resource graph. Development, staging, production, and isolated test stages use separate storage and runtime identities. A deployment preserves stable resource identities and applies explicit schema migrations.
+
+The production plan is reviewed before application. A schema change that cannot preserve old readers uses a coordinated deployment and a verified backup. Model and detector versions are promoted independently of financial data migrations.
+
+Before private-data deployment, access checks include direct API attempts, source downloads, conversation reconnects, and stage isolation. Recovery checks include an interrupted commit and restoration from the chosen backup mechanism.

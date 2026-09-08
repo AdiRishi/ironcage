@@ -1,0 +1,114 @@
+---
+title: Ingestion and reconciliation
+description: Preserve source evidence, identify transactions once, and publish a consistent financial history.
+---
+
+The import pipeline handles every supplied CSV and PDF. File identity, transaction identity, and financial relationships are separate decisions. A repeated file is not the same problem as a transfer recorded in two accounts.
+
+## Source handling
+
+The server verifies file type from content and streams the bytes to a temporary R2 object while computing SHA-256. A completed upload becomes an immutable source object. A unique owner-and-hash constraint identifies an existing source even when its filename changes.
+
+An upload attempt has its own status and can reference an existing source. The source stores the original filename, content type, size, hash, object key, and accepted time. Filenames are labels, not proof of account identity or coverage.
+
+The upload endpoint returns a receipt after source registration. A lost response can be retried with the same command identity. A source whose registration failed is reconciled against pending upload records before temporary-object cleanup.
+
+The upload path supports the full supplied corpus. Operational byte and page limits are explicit, displayed before upload, and tested against the corpus. Larger files are streamed and processed in bounded chunks.
+
+## Extraction
+
+<Tabs>
+  <Tab title="CSV">
+    The CommBank parser handles the observed headerless date, signed amount, description, and
+    balance columns. It preserves empty card balances, quoted fields, byte-order marks, and line
+    locations. Parsing is deterministic and does not call a model.
+  </Tab>
+  <Tab title="PDF text">
+    A document adapter extracts page text and positions with a Worker-compatible PDF parser. It
+    separates transaction tables from totals, rewards, notices, and repeated page headers. Debit and
+    credit signs follow the statement layout.
+  </Tab>
+  <Tab title="Scanned or ambiguous PDF">
+    A document-processing Container renders only the pages that need visual extraction. A configured
+    vision model proposes structured rows. Page locations, extracted text, and validation results
+    remain attached to each proposal.
+  </Tab>
+</Tabs>
+
+Parser and extraction versions are recorded per observation. An improved parser can reprocess original files without replacing user corrections. The PDF adapter's exact library and rendering build are pinned after a corpus extraction check. They share the same output contract.
+
+An observation contains raw fields, normalized candidate fields, page or row locator, extraction version, and validation findings. A schema-valid model output is still a proposal until amount, date, and reconciliation checks pass.
+
+## Establish accounts and intervals
+
+Statement identifiers and previously confirmed account mappings establish account identity. Masked suffixes can narrow candidates but are not globally unique. A CSV with no account identifier uses its batch mapping and prior evidence. An unresolved mapping creates a concrete review item.
+
+Coverage stores separate facts: the requested export interval, observed transaction dates, statement interval, and reconciled interval. A sparse transaction list alone does not prove missing days. A matching opening balance, closing balance, and set of postings can establish a period with no activity.
+
+## Match observations to transactions
+
+The matcher first restricts candidates to the same account. It then uses amount, currency, posting date, available balance, identifiers, description tokens, and source order.
+
+Exact matching uses occurrence counts, not a set of date, merchant, and amount. Two identical rows in one source can represent two real purchases. Their multiplicity survives an overlapping export.
+
+Cross-format matching uses a scored candidate graph. One source observation can support one canonical posting. Matching is one-to-one within an overlapping source sequence, with explicit allowances for source date conventions. Competing plausible matches remain unresolved rather than being forced by row order.
+
+The score is a rule score, not a calibrated probability. Thresholds are selected against checked duplicate and non-duplicate examples. Accepted matches retain the evidence that justified them.
+
+<Accordion>
+  <AccordionItem title="Exact repeated upload">
+    The content hash returns the existing source receipt. Completed extraction and enrichment are
+    reused.
+  </AccordionItem>
+  <AccordionItem title="Overlapping exports">
+    Matching observations attach to existing postings. Unmatched occurrences become candidates for
+    new postings, subject to reconciliation.
+  </AccordionItem>
+  <AccordionItem title="Conflicting source values">
+    Different amounts, balances, or identities create a conflict. Neither observation silently
+    overwrites the other. Source evidence and statement reconciliation determine resolution.
+  </AccordionItem>
+</Accordion>
+
+## Reconcile before publication
+
+For a statement interval, opening balance plus signed movements must equal closing balance under the account's sign convention. Statement-specific debit, credit, fee, and interest totals provide additional independent checks.
+
+Missing card balance cells remain missing. A statement supplies anchors when available. Inter-account transfer matching is a later interpretation step and does not delete either bank posting.
+
+An extraction segment with unresolved financial values or duplicate identity is staged outside confirmed totals. Category-only uncertainty does not block publication of an otherwise established expense. Import results disclose accepted and unresolved segments separately.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Uploaded
+    Uploaded --> Extracting
+    Extracting --> Reconciling
+    Reconciling --> Review: conflicting evidence
+    Review --> Reconciling: correction or new evidence
+    Reconciling --> Publishing: established records
+    Publishing --> Completed
+    Extracting --> Failed
+    Reconciling --> Failed
+    Publishing --> Failed
+    Failed --> Extracting: resume unfinished work
+```
+
+The state diagram describes a processing segment. A batch contains independently progressing files and segments. A completed file can still have unresolved category proposals.
+
+## Publish atomically
+
+A Workflow stages extraction and matching against a captured dataset revision. The API commits bounded groups of validated postings, observation links, review items, and dispatch records in D1 transactions.
+
+Every group has a stable commit ID. If a commit returns no response, the caller retrieves the recorded outcome before retrying. If another import changed candidate matches, publication rejects the stale expectation and matching repeats against current records.
+
+Unique source-observation constraints and revision checks make simultaneous overlapping imports converge to the same history. Batch summaries derive from committed results, not from attempted insert counts.
+
+## Enrich and refresh
+
+Known merchant rules and explicit corrections run before model classification. Only novel or unresolved interpretations require model calls. Accepted amount/date evidence remains separate from semantic proposals.
+
+After publication, jobs update recurring-cost detection, affected period summaries, saved analyses, forecasts, and insights. Jobs include their input revision and calculation version. A late job cannot replace newer results.
+
+The API's durable dispatch table is the source of pending work. Queue delivery and Workflow steps can repeat. Dead-letter handling records an actionable failure without changing a completed import back to failed.
+
+The [verification plan](/technical/verification) includes shuffled file order, concurrent overlap, repeated callbacks, and interruption immediately after a database commit.

@@ -1,0 +1,47 @@
+---
+title: Technical
+description: The implementation design for the spend-management product.
+---
+
+The design extends the existing Alchemy and Effect application platform. Financial records and calculations belong to application services. The AI analyst uses those services through typed tools, and the web app uses the same services for its views.
+
+:::note
+These pages define the target implementation. Module locations, schemas, routes, and runtime behavior describe the design to build, not a claim of shipped functionality.
+:::
+
+<CardGroup cols={2}>
+  <Card title="Architecture" href="/technical/architecture" icon="network">
+    Runtime ownership, the Cloudflare resource graph, and planned module locations.
+  </Card>
+  <Card title="Financial records and metrics" href="/technical/financial-model" icon="database">
+    Evidence, transaction identity, corrections, and precise monetary definitions.
+  </Card>
+  <Card title="Ingestion and reconciliation" href="/technical/ingestion" icon="files">
+    File processing, overlap matching, retries, and atomic publication.
+  </Card>
+  <Card title="Analytics and forecasts" href="/technical/analytics" icon="chart-no-axes-combined">
+    Comparisons, recurring costs, detection methods, and forecast evaluation.
+  </Card>
+  <Card title="AI analyst" href="/technical/ai-analyst" icon="messages-square">
+    Model calls, financial tools, memory, durable conversations, and recovery.
+  </Card>
+  <Card title="Frontend" href="/technical/frontend" icon="panels-top-left">
+    TanStack Start, shared query state, shadcn charts, and mobile behavior.
+  </Card>
+  <Card title="Operations" href="/technical/operations" icon="shield-check">
+    Private access, data retention, model usage, and failure diagnosis.
+  </Card>
+  <Card title="Verification" href="/technical/verification" icon="flask-conical">
+    Financial invariants, model evaluations, runtime recovery, and browser coverage.
+  </Card>
+</CardGroup>
+
+## Design status
+
+Cloudflare, the existing starter, TanStack Start, shadcn components, Cloudflare Agents SDK, AIChatAgent, Vercel AI SDK, Workflows, and AI Gateway are selected.
+
+The data structures and policies in these pages are implementation decisions derived from the [product contract](/product). Their correctness is established through the [acceptance scenarios](/product/acceptance), not by the presence of a framework feature.
+
+Model IDs and operating limits are configuration selected through evaluation. They are not guessed version pins in these docs. The package catalog and lockfile remain the source of installed dependency versions.
+
+The technical foundation supplies strong types, Effect services, Alchemy infrastructure, and Cloudflare Worker RPC. These pages describe the financial application built on that foundation.

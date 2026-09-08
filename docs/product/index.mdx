@@ -1,0 +1,63 @@
+---
+title: Product
+description: The complete spend-management experience and the behavior that defines it.
+---
+
+Ironcage is a private, responsive web app for Adi. It brings supplied financial records into one history, explains spending over time, and supports questions about future commitments and savings.
+
+The scope includes every capability below. The sections organize the specification. They do not define a reduced release or a sequence of optional features.
+
+<CardGroup cols={2}>
+  <Card title="Workspace" href="/product/workspace" icon="panels-top-left">
+    Connected charts, transactions, and conversations on large and small screens.
+  </Card>
+  <Card title="Imports" href="/product/imports" icon="files">
+    All supplied CSVs and statements, repeat uploads, overlaps, and recovery.
+  </Card>
+  <Card title="Transactions" href="/product/transactions" icon="receipt-text">
+    Purchases, transfers, refunds, debt payments, and personal corrections.
+  </Card>
+  <Card title="Trends" href="/product/trends" icon="chart-no-axes-combined">
+    Changes in spending, their contributors, and the cost of an ordinary month.
+  </Card>
+  <Card
+    title="Commitments and forecasts"
+    href="/product/commitments-and-forecasts"
+    icon="calendar-days"
+  >
+    Expected bills, savings views, scenarios, and forecast uncertainty.
+  </Card>
+  <Card title="Analyst and memory" href="/product/analyst-and-memory" icon="messages-square">
+    Questions, evidence, clarification, and context that survives a conversation.
+  </Card>
+  <Card
+    title="Insights and follow-through"
+    href="/product/insights-and-follow-through"
+    icon="lightbulb"
+  >
+    Useful discoveries and the results of changes Adi chooses to make.
+  </Card>
+  <Card title="Acceptance scenarios" href="/product/acceptance" icon="list-checks">
+    Observable outcomes that establish whether the product meets this specification.
+  </Card>
+</CardGroup>
+
+## Product-wide behavior
+
+The same financial question has the same numerical answer in a chart, a saved analysis, and an analyst response. Each answer identifies the period and records it uses.
+
+Imports can be repeated safely. Corrections survive later uploads. A failure leaves an explanation and a way to continue, without damaging previously accepted history.
+
+Adi can inspect the transactions behind a number, correct an interpretation, and see the affected views update. The app asks concrete questions when evidence is insufficient. It does not require an accounting questionnaire before import.
+
+## Current financial context
+
+The supplied history includes spending and savings accounts, a credit card, and a mortgage. Mortgage payments and strata levies affect ongoing commitments. Credit-card adoption is a known change in payment method.
+
+Account labels describe where money sits. They do not determine the purpose of every transaction. An expense paid from a savings account remains an expense.
+
+## Scope boundary
+
+Recurring manual file import is the input path. The app ingests all supplied records, including older statements, and makes actual coverage visible.
+
+This specification does not include executing payments, placing trades, or managing crypto positions. Those belong to later product definitions. Transfers toward an investment remain identifiable money movements in the spending history.

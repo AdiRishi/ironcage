@@ -1,0 +1,63 @@
+---
+title: Workspace
+description: A responsive financial workspace where charts, records, and the analyst share context.
+---
+
+The app opens with an overview of the selected period. It shows spending, income, changes in cash, upcoming commitments, and the most relevant new findings. The latest import date and coverage status remain visible beside the summary.
+
+## Navigation
+
+The main destinations have distinct purposes.
+
+| Destination  | Experience                                                           |
+| ------------ | -------------------------------------------------------------------- |
+| Overview     | Understand the selected period and choose a question to investigate. |
+| Transactions | Search, filter, inspect, and correct individual records.             |
+| Trends       | Compare periods, categories, merchants, and personal purposes.       |
+| Commitments  | Review recurring payments and upcoming costs.                        |
+| Forecasts    | Explore expected balances, savings, and alternative assumptions.     |
+| Insights     | Review findings and follow chosen changes.                           |
+| Analyst      | Continue conversations and saved investigations.                     |
+| Imports      | Upload files, inspect coverage, and resolve import issues.           |
+
+Personal context, preferences, and usage controls are available in settings. A review queue collects unresolved transactions and questions that need Adi's input.
+
+## From a chart to an explanation
+
+Selecting a chart segment opens the matching records with its period and filters intact. **Ask about this** passes that selection to the analyst. The conversation shows the selection so the scope is explicit.
+
+An answer can include a comparison, a chart, and links to supporting transactions. Selecting that evidence returns to the corresponding view. Back navigation restores the prior filters and scroll position.
+
+Date ranges, accounts, categories, merchants, and comparison choices are reflected in the page URL. A bookmarked view restores the same question against current data. A saved historical answer retains the records and assumptions used when it was produced.
+
+## Screen sizes
+
+<Tabs>
+  <Tab title="Wide screens">
+    Charts and transaction details can sit beside an analyst panel. Opening the analyst preserves
+    the current view rather than replacing it.
+  </Tab>
+  <Tab title="Mobile">
+    The same actions remain available through stacked views, full-screen details, and a separate
+    conversation view. Filters use a compact sheet. Charts provide a readable table alternative and
+    explicit tap targets.
+  </Tab>
+</Tabs>
+
+Information never depends on hover alone. Keyboard users can reach filters, chart summaries, record details, and correction controls. Color is accompanied by labels or symbols. Reduced-motion preferences apply to transitions.
+
+## Empty, loading, and incomplete states
+
+Before the first import, the overview explains how to add files. It does not show invented financial values.
+
+During an update, the last completed view remains available with an **Updating** label. A view built from incomplete coverage identifies the missing account or period. Missing information is not displayed as zero spending.
+
+When a request fails, the view retains the selected filters and any unsaved input. Retrying a request does not create another correction, import, or saved investigation.
+
+## Corrections from any view
+
+A transaction detail exposes the original description, the current interpretation, and the source record. A correction applies to that transaction by default. Applying a rule more broadly shows the matching records before the change is committed.
+
+After a correction, affected totals update together. Older analyst answers show that their data has changed and offer a refreshed answer. The app keeps the earlier answer available as historical context.
+
+The visual components follow the existing application design system. Charts and interaction controls use shadcn components, with layouts adapted to the financial task.

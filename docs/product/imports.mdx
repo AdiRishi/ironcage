@@ -1,0 +1,76 @@
+---
+title: Imports
+description: Add the full financial history, repeat an upload safely, and resolve only the records that need attention.
+---
+
+Imports accept batches of CommBank CSV exports and PDF statements. A batch can mix accounts, formats, periods, and files uploaded before. Older records are included rather than discarded because they fall outside the recent export window.
+
+## Import flow
+
+<Steps>
+  <Step title="Choose files">
+    Adi selects files or drops them into Imports. Each file shows its name, size, and upload
+    progress. Renaming a previously uploaded file does not make it new financial data.
+  </Step>
+  <Step title="Read the records">
+    The app identifies the account, extracts transactions, and determines the period supported by
+    the contents. Processing continues if Adi leaves the page.
+  </Step>
+  <Step title="Resolve overlaps">
+    Existing transactions gain any new supporting evidence. Only genuinely new transactions extend
+    the history. Uncertain matches are held for review.
+  </Step>
+  <Step title="Review the result">
+    The result distinguishes new transactions, matched records, repeated files, and unresolved
+    records. The overview updates from the accepted history.
+  </Step>
+</Steps>
+
+An unreadable file does not prevent unrelated files from completing. A file that cannot be reconciled has a visible issue and retains its source for inspection.
+
+## Repeated data
+
+<Accordion>
+  <AccordionItem title="The same file is uploaded twice" defaultOpen>
+    The second upload points to the existing import. It adds no transactions and does not repeat
+    completed model processing. A failed attempt can resume against the existing source.
+  </AccordionItem>
+  <AccordionItem title="Two exports contain the same week">
+    Transactions already present are matched. Transactions outside the overlap are added. Both
+    exports remain available as evidence.
+  </AccordionItem>
+  <AccordionItem title="A PDF and a CSV contain the same purchase">
+    The purchase appears once, with both source records attached. Formatting differences in the
+    merchant name do not automatically create another purchase.
+  </AccordionItem>
+  <AccordionItem title="Two real purchases have the same amount and merchant">
+    Both remain in the history. Matching amounts and dates alone are insufficient to discard a
+    transaction.
+  </AccordionItem>
+</Accordion>
+
+## Coverage and confidence
+
+Coverage is shown by account and period. A filename can describe the requested export range without containing records for that whole range. The app checks contents and statement totals before describing a period as reconciled.
+
+The import result distinguishes a confirmed interval with no activity from an interval for which records are unavailable. It also identifies when the latest records stop. Forecasts and comparisons use those distinctions.
+
+Recognized bank amounts and dates can be accepted even when a purchase category remains unknown. An **Unclassified** expense still contributes to spending. A record with an uncertain amount or uncertain duplicate identity remains outside confirmed totals, with its impact disclosed.
+
+## Questions that need an answer
+
+A review item presents the actual record, the proposed interpretation, and the reason for uncertainty. For example, the app can ask whether a particular destination account belongs to Adi. It remembers the answer with its relevant scope.
+
+Adi can confirm, correct, or leave an item unresolved. The app keeps unresolved work visible without repeating the same question in every conversation.
+
+## Failure and recovery
+
+Import progress distinguishes upload, extraction, reconciliation, interpretation, and completion. Retrying resumes unfinished work. Refreshing the browser restores progress.
+
+A timeout after the server accepts a file does not require another upload. A processing failure preserves the last accepted history. Correcting a parser or adding a missing statement can reprocess the source without overwriting Adi's corrections.
+
+Sources remain accessible from their transactions. The app does not silently remove old data when a shorter or incomplete export arrives.
+
+Adi can export his records and inspect the impact before removing a source. A transaction supported by another source remains in the history. Removing the last source identifies affected records and analyses before the change is applied.
+
+Implementation details are in [Ingestion and reconciliation](/technical/ingestion).

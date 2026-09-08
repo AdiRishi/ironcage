@@ -18,4 +18,4 @@ variables to choose their mode; the live configuration supplies `live: true`
 through Vitest's `provide` option.
 
 Before changing infrastructure test layout or setup, read the
-[repository test ADR](../docs/adr/0001-mirror-tests-in-a-tests-directory.mdx).
+[verification design](../docs/technical/verification.mdx).

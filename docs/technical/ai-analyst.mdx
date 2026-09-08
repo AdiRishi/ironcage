@@ -1,0 +1,114 @@
+---
+title: AI analyst
+description: A persistent conversation runtime that uses financial tools and retains evidence for every analysis.
+---
+
+The selected stack is Cloudflare Agents SDK, AIChatAgent, and Vercel AI SDK. AI Gateway handles configured model access. Cloudflare Workflows owns explicit import and background-analysis jobs.
+
+AIChatAgent supplies persisted messages and resumable streams. Its React client is `useAgentChat` from `@cloudflare/ai-chat/react`. Vercel AI SDK supplies model calls, typed tools, and structured output. The app uses one canonical conversation protocol rather than combining several chat stores. [Cloudflare chat agents](https://developers.cloudflare.com/agents/communication-channels/chat/chat-agents/)
+
+## Why this combination
+
+The analyst needs typed numerical results, persistent conversations, clarification, and background work. Cloudflare's integrated chat lifecycle reduces the amount of runtime coordination the application must own, while Alchemy remains responsible for deployment.
+
+TanStack AI was the closest alternative. Its typed interaction and persistence capabilities fit the product, but its ordinary chat path requires more application-owned storage and producer supervision. Flue offers a more complete agent framework, with additional build and protocol conventions. Eve requires more hosting and workflow integration for this Cloudflare application.
+
+This decision does not make a model more accurate. The financial tools and evaluation corpus establish answer quality. Higher-level frameworks are not installed alongside the selected runtime as speculative alternatives.
+
+## Agent responsibilities
+
+The agent selects tools, assembles relevant context, follows an investigation, and explains results. It can request a structured clarification and apply an explicit user instruction through a validated command.
+
+The API calculates financial values and commits changes. The model does not receive a write-enabled database connection, choose an authenticated owner, or replace metric definitions with generated arithmetic.
+
+The analyst's planned tools have bounded responsibilities.
+
+| Tool                   | Result or effect                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------------ |
+| `getCoverage`          | Available and reconciled account intervals, current revision, and unresolved issues. |
+| `findTransactions`     | Paginated records matching a typed filter, with evidence references.                 |
+| `compareSpending`      | Calculated difference and contributors for a stable query definition.                |
+| `getCommitments`       | Confirmed and inferred recurring schedules with their sources.                       |
+| `forecastCash`         | Forecast definition, values, ranges, assumptions, and input revision.                |
+| `runScenario`          | A comparison using explicit scenario overrides.                                      |
+| `requestClarification` | A persisted question tied to a review item or interpretation.                        |
+| `applyCorrection`      | A version-checked, idempotent financial command with visible scope.                  |
+| `saveInvestigation`    | A saved query and evidence-bearing result, not only transcript text.                 |
+| `getPersonalContext`   | Relevant dated facts, preferences, and confirmed rules.                              |
+
+These names define the planned tool contract. Input and output types derive from the shared boundary schemas. JSON Schema adapters are produced from those schemas rather than manually maintained copies. Tool execution crosses from the SDK's Promise interface into existing Effect services at one boundary.
+
+## Question execution
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant Agent as AIChatAgent
+    participant API as Financial API
+    participant Model as Model through Gateway
+    Browser->>Agent: Question with submission ID
+    Agent-->>Browser: Accepted receipt
+    Agent->>API: Scope, coverage, and data snapshot
+    API-->>Agent: Revision and evidence scope
+    Agent->>Model: Question, context, and tool definitions
+    Model-->>Agent: Financial tool request
+    Agent->>API: Typed query at captured revision
+    API-->>Agent: Computed result and evidence
+    Agent->>Model: Tool result
+    Model-->>Agent: Explanation and structured result
+    Agent-->>Browser: Persisted answer with evidence links
+```
+
+Each tool response identifies the data revision and query scope. When an investigation needs a new revision, it restarts the affected calculation explicitly. It does not combine values from different snapshots without saying so.
+
+The model can return an insight summary or narrative, but official numbers and chart datasets come from tool results. Client components accept typed result data. Model output does not become arbitrary executable UI code.
+
+## Structured extraction and model policy
+
+Batch enrichment uses schema-constrained SDK calls with explicit control flow. Known aliases and accepted rules bypass model calls. A smaller extraction model and a stronger analyst model can have different evaluation and usage policies.
+
+The model registry records provider, model ID, capability requirements, prompt version, output schema version, and retry policy. Required capabilities include the relevant document inputs, tools, and structured output. Fallbacks must satisfy the same contract.
+
+Exact model IDs are selected from current provider catalogs and tested against the checked corpus. Model changes rerun relevant evaluations before promotion. SDK schema validation checks structure. It does not prove transaction amounts or interpretations are correct.
+
+## Durable state and recovery
+
+Each conversation has a stable, owner-bound identity. Repeated submission IDs return the existing receipt. New submissions queue in accepted order by default. Browser disconnection detaches the client. An explicit stop records durable cancellation intent.
+
+AIChatAgent persists conversation and stream state. Application run metadata records the financial snapshot, job references, status, cancellation intent, and usage. Transcript text is not the sole record of whether a financial command committed.
+
+A server tool can finish a database write before its result reaches the conversation. Recovery looks up the command's recorded outcome before repeating it. A provider interruption can require another model call. Buffered text replay does not resume arbitrary JavaScript execution.
+
+Long numerical or document work runs as a Workflow job. The agent stores the job reference and waits or reports progress. It does not keep a web request open as the only owner of that work.
+
+Run limits cover model steps, elapsed time, tokens, and spend. Enforcement uses recorded usage and reservations for in-flight calls. A stopped or exhausted run preserves completed evidence and has an explicit terminal state. Provider retries and Workflow retries share one attempt budget.
+
+## Clarification and corrections
+
+A clarification contains a question ID, subject version, allowed response shape, and source evidence. Its record survives conversation compaction and browser reload.
+
+An answer is consumed atomically with the corresponding correction where a correction is required. A stale subject version causes reevaluation against current data. Repeated answers return the original outcome.
+
+Explicit user instructions can authorize scoped corrections. Model-generated changes remain proposals unless an existing accepted rule covers them. A broad rule change includes a preview of affected records and preserves transaction-specific exceptions.
+
+## Personal context
+
+Confirmed account roles, mortgage context, category rules, preferences, and tracked intentions live in application storage. Each fact records its source, effective interval, scope, and version.
+
+Context retrieval begins with facts relevant to the selected accounts, dates, and question. Conversation summaries are lower-priority context. Contradictions with confirmed facts create review work rather than overwrite those facts.
+
+Removing a fact excludes it from future context retrieval. Historical answers retain their original evidence basis and can be marked affected. Embeddings can assist retrieval later, but they do not replace structured account or date filters.
+
+## Computational investigations
+
+When ordinary tools cannot express a useful analysis, a job can create a controlled computational workspace with a frozen dataset. Native Python libraries run in a Cloudflare Container when required.
+
+The workspace receives read-only inputs, bounded execution resources, and no production write credentials. Its outputs include the calculation, package versions, data revision, and result artifacts. The API validates returned result structures before displaying them as an analysis.
+
+A useful calculation can become a saved reproducible analysis. Repeated domain behavior moves into the shared finance package once its rule is established. Independent investigations can use child runs with separate context and explicit budgets. A separate agent is not required for each category.
+
+## Evidence handling
+
+Bank descriptions, document text, web results, and saved notes are untrusted content. They cannot redefine tool permissions or authorize writes. External merchant research is explicit and excludes unnecessary account details.
+
+Logs capture run IDs, tool names, timing, usage, and safe failure codes. Raw financial text and model prompts are excluded from routine telemetry. The [operations policy](/technical/operations) defines storage and provider boundaries.

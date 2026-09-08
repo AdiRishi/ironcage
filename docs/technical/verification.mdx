@@ -1,0 +1,89 @@
+---
+title: Verification
+description: Prove financial correctness, useful model behavior, and recovery across the complete product.
+---
+
+Verification follows the [product acceptance scenarios](/product/acceptance). A schema-valid model response, successful build, or rendered chart is insufficient evidence that a financial answer is correct.
+
+## Financial invariants
+
+Tests exercise public finance operations with independently known expected outcomes. Fixtures use synthetic records that preserve the structural cases found in the supplied exports.
+
+| Invariant                                              | Regression caught                                                      |
+| ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| Same-file import is idempotent                         | Repeated uploads inflate transactions or repeat completed enrichment.  |
+| Import order does not change accepted history          | Overlapping files produce different totals depending on arrival order. |
+| Identical real purchases retain multiplicity           | A naive duplicate key removes genuine spending.                        |
+| CSV and PDF observations converge                      | Cross-format aliases produce duplicate purchases.                      |
+| Allocation sums equal the source amount                | Splits create or lose money.                                           |
+| Own transfers and card settlements do not create costs | Money movement is counted as additional spending.                      |
+| Partial refunds and reimbursements apply once          | Repeated links or retries reduce a purchase twice.                     |
+| Balance anchors reconcile with movements               | Missing postings are silently treated as complete history.             |
+| Corrections survive reprocessing                       | New extraction or merchant rules overwrite user decisions.             |
+| Analysis revisions remain coherent                     | One answer mixes values before and after a correction.                 |
+| Frequency and average contributions sum to the change  | A numerical explanation does not reconcile to its headline.            |
+
+Date fixtures include month boundaries, leap days, daylight-saving changes, value dates, and missing purchase dates. Currency fixtures include decimal parsing, negative amounts, fee corrections, and aggregation near the supported range.
+
+## Extraction and interpretation evaluation
+
+A checked corpus includes headerless CSVs, empty card balances, multiline PDF descriptions, repeated headings, rewards rows, foreign currency, refunds, and conflicting sources.
+
+Public fixtures are synthetic. Private statement evaluations use local or access-controlled sources and store only aggregate results in ordinary CI artifacts.
+
+Extraction evaluation measures row completeness, date and amount accuracy, sign accuracy, and statement reconciliation. Categorization evaluation measures accuracy by role and category, ambiguity detection, and the financial amount affected by errors.
+
+The model is compared with deterministic rules and prior accepted mappings. Evaluation separately measures unresolved cases rather than rewarding unsupported guesses. A model upgrade must preserve accepted corrections and improve or maintain the relevant checked outcomes.
+
+## Analyst evaluation
+
+An investigation corpus contains questions with independently verified calculations and supporting records. Checks verify that the answer uses the correct date range, reports complete contributors, and identifies missing coverage.
+
+Scenarios include a mortgage-era comparison, a switch from debit to credit, a trip with advance bookings, an annual bill, a partial reimbursement, and a changed subscription.
+
+Tool results are checked directly. Narrative checks verify agreement with those results and distinction between fact and inference. Model judges can assess clarity, but they cannot be the sole authority for numerical accuracy.
+
+Clarification tests verify concrete questions, retained pending state, subject-version checks, one-time application, and subsequent recall. Context tests verify that model summaries cannot overwrite confirmed facts.
+
+## Forecast evaluation
+
+Rolling-origin backtests evaluate forecasts using only information available at each cutoff. Metrics cover absolute error, bias, and interval coverage at several useful horizons.
+
+Every candidate is compared with a simple baseline. Scheduled obligations and variable spending are checked for double counting. A data gap before today must remain visibly estimated.
+
+Scenario tests verify that overrides change only the intended assumptions, preserve historical data, and include explicitly modelled substitution effects.
+
+## Runtime and browser coverage
+
+<Tabs>
+  <Tab title="Runtime recovery">
+    Tests interrupt work after a source upload, after a financial commit, and before a tool result
+    is recorded. Duplicate queue delivery, stale job completion, lost responses, and cancellation
+    exercise the public command and recovery interfaces.
+  </Tab>
+  <Tab title="Conversation continuity">
+    Tests close and reconnect the client, submit two questions concurrently, resume a clarification
+    after restart, and verify that interrupted work has a truthful terminal or waiting state.
+  </Tab>
+  <Tab title="Responsive experience">
+    Browser tests cover chart-to-record navigation, correction previews, analyst evidence, keyboard
+    access, mobile layouts, and unavailable-data states. They assert visible outcomes rather than
+    private component structure.
+  </Tab>
+</Tabs>
+
+Internal collaborators run in process or in the actual local Cloudflare runtime. Controlled adapters replace external model/provider calls for deterministic recovery tests. A separate bounded live suite verifies the chosen provider's tool and structured-output behavior.
+
+## Repository test ownership
+
+Effect modules use `@effect/vitest`. React components use Vitest Browser Mode. Local Cloudflare integrations use `alchemy/Test/Vitest`, and complete browser flows use Playwright.
+
+Each workspace keeps tests in `tests/`, mirroring the paths under `src/`, with a separate test TypeScript project. Module and component files use `.test.ts` or `.test.tsx`. Infrastructure suites live in `infra/tests/` with `.integration.test.ts`. Deployed browser suites use `.browser.test.ts`.
+
+`pnpm check`, `pnpm typecheck`, and `pnpm test` are the root validation commands. `pnpm test:infra-live` creates real Cloudflare resources and is reserved for deployed behavior. Financial suites accompany their implementations. These specifications do not claim that those future suites already exist or pass.
+
+## Completion evidence
+
+The complete spend-management implementation is accepted when its product scenarios pass, the supplied corpus reconciles or exposes specific unresolved records, and analyst results trace to verified calculations.
+
+The evidence includes recovery and access checks, mobile and keyboard flows, model evaluation results, and forecast backtests. Performance checks use the actual corpus and realistic growth, with measured query latency and bounded model usage.

@@ -1,26 +1,8 @@
 # Ironcage
 
-A TypeScript monorepo for Cloudflare applications with multiple web apps, Workers, and shared resources. Alchemy owns the infrastructure graph and bindings; Effect services implement application behavior.
+Ironcage is Adi's personal finance platform. Its current product scope is complete spend management: a connected financial history, detailed trends, forecasts, and an analyst that retains useful context.
 
-The included CSV profiler connects a TanStack Start web app, an API Worker, and a background processor through D1, R2, Queues, and a Durable Object.
-
-## Start a project
-
-Use Node.js 24 and Corepack:
-
-```sh
-npx degit AdiRishi/application-platform-starter acme-platform
-cd acme-platform
-corepack enable
-pnpm install
-pnpm rename acme-platform
-pnpm install
-pnpm dev
-```
-
-Run `rename` once on a fresh copy. Open the URL printed by Alchemy and upload `fixtures/transactions.csv` to exercise the platform.
-
-The sample is anonymous and shared: every visitor can list and download uploaded files. Replace it before handling private data.
+The documentation defines the product and target implementation. Investment, stock-trading, and crypto capabilities have a place in the broader vision, but their detailed specifications come later.
 
 ## Read the docs
 
@@ -32,11 +14,10 @@ pnpm docs:dev
 
 Open the local URL printed by Blume. The docs server runs independently of the application and needs no Cloudflare credentials.
 
-- [Get started](docs/getting-started.mdx)
-- [Architecture and Worker RPC](docs/architecture.mdx)
-- [Run tests](docs/testing.mdx)
-- [Deploy the application](docs/deployment.mdx)
-- [Architecture decisions](docs/adr/index.mdx)
+- [Vision](docs/vision.mdx)
+- [Product behavior and user flows](docs/product/index.mdx)
+- [Technical design](docs/technical/index.mdx)
+- [Acceptance scenarios](docs/product/acceptance.mdx)
 
 Edit pages in `docs/`. Run `pnpm docs:doctor` to check content and `pnpm docs:build` to generate the static site in `dist/`.
 

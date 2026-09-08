@@ -1,28 +1,27 @@
 ---
-title: Application platform
-description: A guide to the repository, its Worker graph, and local development.
+title: Ironcage
+description: A personal finance platform for understanding where money goes and making informed decisions about it.
 sidebar:
   label: Overview
   icon: house
 ---
 
-This starter connects a web application, internal Workers, and shared Cloudflare resources through one typed Alchemy program. Effect services implement the application behavior; Alchemy owns deployment, bindings, and local runtimes.
+Ironcage is built for Adi. Its current scope is a complete spend-management experience: a coherent financial history, detailed trends, forecasts, and an analyst that remembers useful context.
 
-The included CSV profiler exercises the complete path from browser upload to background processing and source download. Replace that example with your own application once you understand the graph.
-
-<CardGroup cols={2}>
-  <Card title="Get started" href="/getting-started" icon="terminal">
-    Create a project, run the application, and browse these docs locally.
+<CardGroup cols={3}>
+  <Card title="Vision" href="/vision" icon="compass">
+    Why Ironcage exists and what better financial understanding makes possible.
   </Card>
-  <Card title="Architecture" href="/architecture" icon="network">
-    Find the code that owns each resource, binding, and Worker RPC method.
+  <Card title="Product" href="/product" icon="panels-top-left">
+    The user flows, visible behavior, and outcomes the spend-management app delivers.
   </Card>
-  <Card title="Testing" href="/testing" icon="flask-conical">
-    Run unit, browser, and infrastructure tests.
-  </Card>
-  <Card title="Deployment" href="/deployment" icon="cloud-upload">
-    Plan, deploy, and destroy an isolated Cloudflare stage.
+  <Card title="Technical" href="/technical" icon="network">
+    The architecture and implementation design that support those outcomes.
   </Card>
 </CardGroup>
 
-[Architecture decisions](/adr) record the repository's layout conventions and their rationale.
+## How to read these docs
+
+The product pages specify intended behavior. The technical pages describe the target implementation, rather than features already shipped. The [acceptance scenarios](/product/acceptance) define observable outcomes for the complete spend-management scope.
+
+All monetary examples in these pages are fictional. Bank statements, account identifiers, and transaction histories belong in private application storage, not in this documentation site.

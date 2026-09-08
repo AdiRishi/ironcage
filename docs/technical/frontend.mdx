@@ -1,0 +1,68 @@
+---
+title: Frontend
+description: TanStack Start routes, shared query definitions, shadcn components, and responsive financial interactions.
+---
+
+The frontend extends the existing TanStack Start application with React, TanStack Router, TanStack Query, Tailwind CSS, and shadcn components. Alchemy continues to supply the Worker bindings and Cloudflare integration.
+
+The [workspace contract](/product/workspace) defines the visible experience. This page defines how the frontend carries that state consistently.
+
+## Routes and feature ownership
+
+The following application routes are planned. These are app URLs, not links to pages in this documentation site.
+
+| App route                      | Feature directory under `apps/web/src/features/` |
+| ------------------------------ | ------------------------------------------------ |
+| `/`                            | `overview/`                                      |
+| `/transactions`                | `transactions/`                                  |
+| `/transactions/$transactionId` | `transactions/`                                  |
+| `/trends`                      | `trends/`                                        |
+| `/commitments`                 | `commitments/`                                   |
+| `/forecasts`                   | `forecasts/`                                     |
+| `/insights`                    | `insights/`                                      |
+| `/analyst/$conversationId`     | `analyst/`                                       |
+| `/imports`                     | `imports/`                                       |
+| `/review`                      | `review/`                                        |
+| `/settings`                    | `settings/`                                      |
+
+Route modules own URLs, loaders, and HTTP handlers. Feature modules own page composition, query options, server functions, and domain-specific components. Shared visual controls stay in `components/ui/`.
+
+## Query state
+
+Search parameters represent date ranges, comparison mode, accounts, category and merchant filters, and selected measures. A shared boundary schema validates those values before creating a financial query.
+
+Feature `queries.ts` modules own query keys and options. Route loaders and components use the same definitions. Query keys include the normalized query and applicable data revision, rather than a separately assembled component-specific filter object.
+
+Financial totals come from API results. The client formats money and dates but does not recompute official totals or forecast ranges. The server returns covered intervals and unresolved information with each result.
+
+## Corrections and refresh
+
+A mutation carries a command ID and expected subject version. The UI can show a pending state, but official financial values update after the server confirms the commit.
+
+The mutation response includes the new revision and affected query subjects. Query invalidation refreshes visible results and review counts. A stale edit preserves the user's input and displays the current record before another commit.
+
+An analyst answer created at an old revision is not silently rewritten. It shows that newer data exists and offers a refresh. Saved-analysis definitions and immutable historical results remain separate objects.
+
+## Charts and evidence
+
+shadcn chart components supply the visual building blocks. The current chart documentation describes integration with Recharts. The application supplies typed series, labels, units, and comparison semantics. [shadcn charts](https://ui.shadcn.com/docs/components/base/chart)
+
+Each chart has an accessible title, a textual summary, and a table view. Tooltips are supplementary. Selecting a segment creates the corresponding transaction query. It does not filter a different client-side subset.
+
+Confidence ranges, estimates, and actual values have distinct labels and styles. A forecast interval is not drawn as another observed series. Chart resizing preserves readable labels and selected evidence on narrow screens.
+
+## Conversation transport
+
+The analyst feature uses `useAgentChat` and typed SDK message parts. Server tool results render as explicit components for comparisons, transaction evidence, forecasts, and clarification.
+
+The public web Worker authenticates the request and proxies the conversation transport to the private analyst Worker. The implementation verifies that WebSocket upgrade and streaming responses survive the existing binding path.
+
+Ordinary reads use bounded RPC deadlines. Conversation streaming and long-running jobs use dedicated handlers and receipts. A job's lifetime is independent of the request that started it.
+
+## Responsive behavior and accessibility
+
+Wide layouts can show the analyst beside a financial view. Mobile layouts use separate routes or full-screen sheets while preserving the query in the URL. Browser back navigation restores the previous view.
+
+Controls use shadcn buttons, forms, dialogs, sheets, tables, and alerts. Keyboard focus returns to the initiating control after a detail or correction dialog closes. Loading regions announce progress without repeatedly interrupting screen-reader users.
+
+Tables use pagination or virtualization when measured record counts require it. Mobile summaries expose the same detail actions. Amounts, source evidence, and correction controls remain available without horizontal page overflow.

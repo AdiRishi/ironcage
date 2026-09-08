@@ -1,6 +1,11 @@
 # Working in this repository
 
-Read `docs/adr/` before changing repository layout, build wiring, or test setup.
+Before implementing spend management, read `docs/product/index.mdx` for scope and
+`docs/technical/index.mdx` for the design. Follow their links to the affected
+feature. Product pages define intended behavior. Technical pages define the
+target architecture. Planned paths are not yet implemented.
+
+Before changing test layout or setup, read `docs/technical/verification.mdx`.
 
 `docs/` is a Blume site. Run `pnpm docs:dev` to browse it locally and
 `pnpm docs:build` after changing pages or documentation configuration.

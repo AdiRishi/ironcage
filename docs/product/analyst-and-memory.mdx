@@ -1,0 +1,50 @@
+---
+title: Analyst and memory
+description: Investigate financial questions with evidence, preserve useful context, and continue across sessions.
+---
+
+The analyst accepts ordinary questions and questions attached to a chart or transaction selection. It can inspect records, compare periods, explain contributors, run scenarios, and save a useful investigation.
+
+## An answer has evidence
+
+A numerical answer includes its period, relevant filters, and links to the supporting analysis. The app distinguishes observed facts, calculations, and inferred explanations.
+
+For a question about higher spending, the analyst calculates the difference, identifies its contributors, and investigates relevant exceptions. It does not improvise totals from transaction descriptions.
+
+When the evidence cannot establish the answer, the analyst says what it can establish and asks a concrete follow-up if needed. Missing card history is a coverage issue. The analyst does not explain it as lower spending.
+
+## Clarification
+
+A clarification shows the record or decision it concerns. Adi can answer in the conversation or open the review item. The answer is retained, so returning later does not start the question again.
+
+An explicit instruction such as **Treat this payment as strata** can apply the correction and show the result. A model-generated suggestion remains a proposal until accepted or supported by an existing rule. Applying a correction broadly shows its scope first.
+
+If the underlying record changes before Adi answers, the app explains the change and checks the answer against the current record. It does not apply an old answer to a different problem.
+
+## Useful memory
+
+Memory includes confirmed account roles, life events, preferences, classification rules, goals, and explanations for unusual periods. Each item has an inspectable source and scope.
+
+For example, the known shift toward credit-card payments applies to account interpretation. It does not justify assuming a change in shopping habits. A mortgage start date can guide period comparisons without explaining unrelated spending.
+
+Adi can inspect, correct, or remove remembered context. A correction to a remembered fact affects future reasoning. Older answers remain historical records and show when their assumptions have changed.
+
+Conversation summaries help the analyst continue long discussions. They do not override confirmed facts or corrections.
+
+## Continuing work
+
+An investigation shows whether it is queued, running, waiting for an answer, complete, stopped, or failed. Progress describes completed work, such as a finished period comparison, rather than a decorative percentage.
+
+Closing the tab leaves accepted work running. Returning restores the conversation and available results. **Stop** requests cancellation of the investigation. A stopped investigation retains completed work and states what did not finish.
+
+A retry after an interrupted request does not submit the same question twice. A second question submitted during a running answer waits in order unless Adi explicitly stops the current work.
+
+## Saved investigations
+
+A saved investigation retains its question, analysis definition, filters, assumptions, results, and evidence. It can be refreshed after new data arrives.
+
+If a saved investigation needs a new interpretation, the app asks once and preserves the answer. A result from old data is labelled until refreshed. Adi can compare the previous and current result without losing the earlier explanation.
+
+Open-ended computational analysis can produce a script or other artifact when ordinary tools are insufficient. The result includes the data snapshot and calculation used, so a useful investigation can be repeated.
+
+Runtime and tool behavior are defined in [AI analyst](/technical/ai-analyst).

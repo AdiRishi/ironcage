@@ -1,0 +1,52 @@
+---
+title: Acceptance scenarios
+description: Observable outcomes for the complete spend-management experience.
+---
+
+These scenarios define the product contract. They use fictional values and apply to both desktop and mobile where an interaction is involved.
+
+## Import and financial history
+
+| Scenario                                                            | Required outcome                                                                        |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Upload the same bytes with a different filename                     | One source identity and no added transactions or repeated completed enrichment.         |
+| Upload overlapping exports in either order                          | The same final history, with each real purchase counted once.                           |
+| Upload a CSV and PDF containing one purchase                        | One purchase with both source records available.                                        |
+| Two real same-day purchases share merchant and amount               | Both purchases remain.                                                                  |
+| A statement contains a date or amount that cannot be read reliably  | The affected source is reviewable and is not silently accepted as reconciled.           |
+| One file fails in a multi-file batch                                | Other valid files complete and the failed file can resume.                              |
+| Import an old statement after correcting a category                 | The correction remains in effect.                                                       |
+| A filename promises two years but contains two weeks                | Coverage reflects the evidence in the file.                                             |
+| Buy $100 on a card and later repay $100                             | Spending is $100. Cash and card balances reflect the settlement.                        |
+| Move $2,000 between owned accounts                                  | Combined income and spending do not increase.                                           |
+| Pay $300 for dinner and receive $200 confirmed reimbursements       | Net personal cost is $100, with all movements available.                                |
+| Pay $3,900 against a loan with $2,800 interest and no other changes | The app distinguishes $3,900 cash outflow, $2,800 cost, and $1,100 principal reduction. |
+
+## Exploration and corrections
+
+| Scenario                                                      | Required outcome                                                                                 |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Open a chart contributor                                      | Matching transactions preserve the chart's period and filters.                                   |
+| Compare a partial month                                       | The default comparison uses matching elapsed dates and labels incomplete coverage.               |
+| Purchases migrate from debit to credit                        | Combined spending preserves continuity.                                                          |
+| Compare $200 delivery from 10 orders with $300 from 12 orders | Counts, average payments of $20 and $25, and the $100 total difference are shown consistently.   |
+| Save a trip spanning bookings and travel dates                | The trip total includes linked advance bookings without adding another copy to overall spending. |
+| Apply a transaction correction                                | Affected charts, metrics, and saved analyses update, and old answers show their changed basis.   |
+| Preview a merchant-wide rule                                  | Matching records and exceptions are visible before the rule is applied.                          |
+
+## Analyst, commitments, and follow-through
+
+| Scenario                                           | Required outcome                                                                                            |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Ask a numerical question                           | The answer agrees with the corresponding chart and links to its evidence.                                   |
+| Answer a clarification the next day                | The original question and relevant record return, and the answer is applied once.                           |
+| Close the browser during an accepted investigation | Returning restores its progress or result.                                                                  |
+| Stop an investigation                              | The app records cancellation and retains completed evidence without claiming the whole task finished.       |
+| Change a forecast assumption                       | Only the scenario changes. Historical records and baseline assumptions remain intact.                       |
+| Forecast from data that ends before today          | The gap is labelled estimated, including the starting cash position used.                                   |
+| A quarterly strata payment is due                  | The cash calendar shows the payment date. Ordinary costs allocate the obligation across its covered period. |
+| Dismiss an unchanged finding                       | The same finding does not repeatedly return as new.                                                         |
+| Track reduced delivery spending                    | The follow-up reports the chosen measure and any explicitly tracked substitution costs.                     |
+| Open a financial chart on mobile or by keyboard    | The result and its evidence remain accessible without hover or color alone.                                 |
+
+The [verification design](/technical/verification) maps these outcomes to automated checks and model evaluations.
