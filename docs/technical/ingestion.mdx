@@ -7,6 +7,16 @@ The import pipeline handles every supplied CSV, OFX, and PDF. File identity, tra
 
 [Import and job protocols](/technical/import-protocol) defines the extraction schemas, scoring thresholds, publication payloads, Workflow steps, and recovery states used by this flow.
 
+## Actual CommBank files
+
+:::note
+The actual CommBank files to import are in `fixtures/commbank/`, relative to the repository root. This local directory contains the supplied CSV exports, OFX exports, PDF statements, and their original README. The entire directory is Git-ignored, so it is absent from a fresh clone.
+:::
+
+These files are the source corpus for parser development, account mapping, duplicate reconciliation, and coverage validation. Implementation agents inspect the actual file structures and overlapping records when developing those behaviors. Source files remain unchanged, and private contents stay out of tracked fixtures and published outputs.
+
+`fixtures/README.md` describes the directory contents. The README inside `fixtures/commbank/` describes the previous application. Its import order, pairing requirements, and supported-profile claims are historical context. The current product and technical specifications define the behavior to build.
+
 ## Source handling
 
 The server verifies file type from content and streams the bytes to a temporary R2 object while computing SHA-256. A completed upload becomes an immutable source object. A unique owner-and-hash constraint identifies an existing source even when its filename changes.

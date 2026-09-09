@@ -10,7 +10,10 @@ Before changing financial schemas or service interfaces, read
 `docs/technical/rpc.mdx`. For processing, calculations, or AI behavior, read the
 corresponding protocol linked from `docs/technical/index.mdx`.
 
-Before using private bank exports or adding import fixtures, read `fixtures/README.md`.
+When implementing imports, reconciliation, or financial-data validation, inspect the
+actual CommBank source files in `fixtures/commbank/`. This directory is Git-ignored
+and local only. Read the "Actual CommBank files" section in
+`docs/technical/ingestion.mdx` for context.
 
 Before changing test layout or setup, read `docs/technical/verification.mdx`.
 

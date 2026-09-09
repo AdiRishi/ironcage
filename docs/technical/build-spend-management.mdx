@@ -17,6 +17,8 @@ Use acceptance scenarios as concrete examples of the contract. The feature pages
 
 Inspect the existing code and dependency versions before editing. Keep its strong typing, Effect service composition, Alchemy infrastructure ownership, and Worker RPC conventions. Replace sample application behavior with the financial application described in [Architecture](/technical/architecture).
 
+Inspect the [actual CommBank files](/technical/ingestion#actual-commbank-files) in `fixtures/commbank/` when developing import and financial-data behavior. Use their contents to verify assumptions about formats, account identifiers, overlaps, and coverage.
+
 Use [Monorepo and ownership](/technical/monorepo) for workspace responsibilities, package exports, infrastructure ownership, and import rules. Adapt private files when existing shared logic provides a better home. Preserve public contracts and service responsibilities, and record any necessary design change in the affected page.
 
 ## Resolve engineering choices
@@ -49,7 +51,7 @@ Apply the [frontend requirements](/technical/frontend) and [operating policy](/t
 
 Run the checks defined in [Verification](/technical/verification). Map each product requirement to working behavior and evidence. Record model evaluation results, forecast comparisons, and any remaining external checks with enough context to repeat them.
 
-For private-corpus validation, read `fixtures/README.md` and use the ignored `fixtures/commbank/` directory. Account for every supplied CSV, OFX, and PDF file. Distinguish accepted records, matched observations, and specific unresolved evidence. Fix parser or reconciliation defects rather than treating a general review state as successful ingestion.
+Account for every supplied CSV, OFX, and PDF file during private-corpus validation. Distinguish accepted records, matched observations, and specific unresolved evidence. Fix parser or reconciliation defects rather than treating a general review state as successful ingestion.
 
 Exercise the connected experience on desktop and mobile. Verify imports through evidence-backed answers, corrections through refreshed results, and interruptions through truthful recovery states. Verify access and restoration using the operating policy.
 
