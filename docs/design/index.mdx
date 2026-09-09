@@ -1,0 +1,58 @@
+---
+title: Design
+description: Screen references for the spend-management workspace, from the first import to financial investigations and recovery.
+---
+
+These 21 screen references show the proposed visual design for Ironcage. They cover the desktop workspace, mobile interactions, and the states that need a user decision.
+
+The images use fictional records. The [product documentation](/product) defines behavior, and the [frontend specification](/technical/frontend) defines implementation. Generated labels and chart geometry are visual references; financial values come from the application services.
+
+Select an image to enlarge it. Desktop and mobile variants appear together on the relevant page.
+
+<CardGroup cols={2}>
+  <Card title="Workspace" href="/design/workspace" icon="panels-top-left">
+    The period overview, mobile navigation, and first import.
+  </Card>
+  <Card title="Transactions" href="/design/transactions" icon="receipt-text">
+    Records, linked reimbursements, correction previews, and mobile filters.
+  </Card>
+  <Card title="Trends" href="/design/trends" icon="chart-no-axes-combined">
+    Spending comparisons, contributing purchases, and ordinary costs.
+  </Card>
+  <Card title="Planning and follow-through" href="/design/planning" icon="calendar-days">
+    Commitments, forecast scenarios, insights, and tracked intentions.
+  </Card>
+  <Card title="Analyst and memory" href="/design/analyst" icon="messages-square">
+    Evidence beside a conversation, saved analyses, and personal context.
+  </Card>
+  <Card title="Imports and review" href="/design/imports-and-review" icon="files">
+    File processing, account coverage, source inspection, and clarification.
+  </Card>
+  <Card title="Settings and data" href="/design/settings" icon="settings">
+    Account relationships, preferences, AI usage, exports, and source removal.
+  </Card>
+  <Card title="Recovery states" href="/design/states" icon="rotate-ccw">
+    Missing records, conflicting edits, stopped investigations, and usage limits.
+  </Card>
+</CardGroup>
+
+## Visual direction
+
+The strongest graphic explains a change in spending. The surrounding controls preserve the selected period, accounts, measure, and evidence. Related records and the analyst sit beside the main view on desktop and open as separate views on mobile.
+
+The proposed palette uses white working areas, a cool navigation background, and ink blue for actions and selection. Sea green and mulberry distinguish data series; labels and symbols carry their meaning alongside color.
+
+<Color variant="compact">
+  <Color.Item name="Paper" value="#FFFFFF" />
+  <Color.Item name="Glacier" value="#F2F5FA" />
+  <Color.Item name="Graphite" value="#202A3D" />
+  <Color.Item name="Ink blue" value="#334CC4" />
+  <Color.Item name="Sea green" value="#267D72" />
+  <Color.Item name="Mulberry" value="#955271" />
+</Color>
+
+Instrument Sans is the proposed type family. The images approximate it. Text is left aligned, monetary columns are right aligned, and financial values use tabular numerals. Control corners are tighter than the corners of larger panels.
+
+## Source files
+
+Original PNGs live in `docs/design/images/`, grouped by the same product areas as these pages. `docs/design/prompts.json` retains the built-in imagegen prompts, revision prompts, and current image paths.

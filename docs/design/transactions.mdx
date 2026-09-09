@@ -1,0 +1,57 @@
+---
+title: Transactions
+description: A financial ledger with source evidence, linked movements, correction previews, and mobile filters.
+---
+
+The record view distinguishes the bank amount from the transaction's contribution to personal costs. Linked reimbursements remain visible with their own posting dates.
+
+Product behavior: [Transactions](/product/transactions).
+
+## Record and evidence
+
+<Tabs inline param="view">
+  <Tab title="Desktop">
+    The selected transaction opens beside the ledger. Its interpretation, linked credits, original description, and supporting sources share one inspector.
+
+    <Frame caption="A $300 dinner contributes $100 to personal costs after $200 in confirmed reimbursements.">
+
+    ![Transaction ledger beside a Nomad dinner detail showing a 300 dollar payment, two reimbursements, a 100 dollar personal cost, and source files.](./images/transactions/transaction-detail.png)
+
+    </Frame>
+
+  </Tab>
+  <Tab title="Mobile detail">
+    A full-screen detail keeps the payment breakdown and edit actions readable. Back navigation returns to the previous transaction selection.
+
+    <Frame caption="Mobile transaction detail with linked credits and source access.">
+      <div style={{ maxWidth: "380px" }}>
+
+      ![Mobile Nomad transaction detail with the payment breakdown, editable classification, source record, and analyst action.](./images/transactions/transaction-detail-mobile.png)
+
+      </div>
+    </Frame>
+
+  </Tab>
+  <Tab title="Mobile filters">
+    A filter sheet contains the period, measure, accounts, category, review status, and amount range. The footer previews the matching records.
+
+    <Frame caption="Mobile filters with 12 matching delivery purchases and a $300 total.">
+      <div style={{ maxWidth: "380px" }}>
+
+      ![Mobile transaction filters with account checkboxes, a delivery category, review status, amount limits, and a Show transactions action.](./images/transactions/filters-mobile.png)
+
+      </div>
+    </Frame>
+
+  </Tab>
+</Tabs>
+
+## Rule preview
+
+The broad correction shows matching records, an existing exception, and the effect on financial measures before acceptance. The original bank amounts remain visible.
+
+<Frame caption="A classification rule changes three records and preserves an individual exception.">
+
+![Classification rule preview showing conditions, historical scope, three affected strata payments, a preserved exception, and the financial impact.](./images/transactions/rule-preview.png)
+
+</Frame>

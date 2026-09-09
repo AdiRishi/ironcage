@@ -7,7 +7,7 @@ export default defineConfig({
     .split("-")
     .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
     .join(" "),
-  description: "The vision, product experience, and technical design of Ironcage.",
+  description: "The vision, product experience, screen designs, and technical design of Ironcage.",
   github: {
     owner: "AdiRishi",
     repo: "ironcage",
@@ -20,6 +20,7 @@ export default defineConfig({
     tabs: [
       { label: "Vision", path: "/vision", icon: "compass" },
       { label: "Product", path: "/product", icon: "panels-top-left" },
+      { label: "Design", path: "/design", icon: "palette" },
       { label: "Technical", path: "/technical", icon: "network" },
     ],
     sidebar: { display: "group" },
