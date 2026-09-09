@@ -6,6 +6,8 @@ The documentation defines the product and target implementation. Investment, sto
 
 ## Read the docs
 
+Read the [published documentation](https://adirishi.github.io/ironcage/), or run it locally:
+
 The documentation is a [Blume](https://useblume.dev/) site. From the repository root:
 
 ```sh
@@ -20,6 +22,8 @@ Open the local URL printed by Blume. The docs server runs independently of the a
 - [Acceptance scenarios](docs/product/acceptance.mdx)
 
 Edit pages in `docs/`. Run `pnpm docs:doctor` to check content and `pnpm docs:build` to generate the static site in `dist/`.
+
+The Documentation workflow builds and validates pull requests that affect the docs. Pushes to `main` publish the site through GitHub Pages.
 
 ## Common commands
 

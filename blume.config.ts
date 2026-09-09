@@ -8,6 +8,14 @@ export default defineConfig({
     .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
     .join(" "),
   description: "The vision, product experience, and technical design of Ironcage.",
+  github: {
+    owner: "AdiRishi",
+    repo: "ironcage",
+  },
+  deployment: {
+    site: "https://adirishi.github.io",
+    base: "/ironcage",
+  },
   navigation: {
     tabs: [
       { label: "Vision", path: "/vision", icon: "compass" },
