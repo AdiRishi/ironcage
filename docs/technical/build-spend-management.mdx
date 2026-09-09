@@ -23,7 +23,9 @@ Treat documented module paths as the intended organization. Adapt internal files
 
 Use the selected frameworks and the project-specific policies in these docs. Consult official documentation and matching package source for third-party API usage, supported limits, and integration details.
 
-Choose remaining libraries, model IDs, schemas, indexes, detector thresholds, and operating defaults during implementation. Use the corpus checks and evaluations in [Verification](/technical/verification) to justify those choices. Pin dependencies and record effective configuration so results can be reproduced.
+Implement the [shared contracts](/technical/contracts), [database schema](/technical/database-schema), and [RPC specification](/technical/rpc) as written. Use the defined [processing protocols](/technical/import-protocol), [calculation rules](/technical/calculation-rules), and [AI contracts](/technical/ai-functionality). These decisions are part of the specification, not tasks delegated to implementation discovery.
+
+Choose compatible library versions and model IDs using the documented evaluation gates. Tune versioned thresholds only with recorded evidence, and update the affected specification before changing its contract. Internal function decomposition and framework API syntax remain implementation choices.
 
 Verify the integration points that can affect the design early: authenticated conversation transport through the web Worker, source extraction, and the Effect Postgres connection through Hyperdrive. Include atomic financial publication, stable snapshots, and recovery after a lost commit response. Keep the resulting checks with their owning modules.
 

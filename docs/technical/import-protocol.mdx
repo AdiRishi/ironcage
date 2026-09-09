@@ -1,0 +1,154 @@
+---
+title: Import and job protocols
+description: Extraction payloads, duplicate matching, Workflow steps, checkpoints, retries, and publication rules.
+---
+
+This reference specifies the processor's contracts. The [ingestion overview](/technical/ingestion) explains the flow, the [RPC catalog](/technical/rpc) defines service methods, and the [database schema](/technical/database-schema) defines persistence.
+
+## Extraction schemas
+
+`SourceLocator` is `{kind: "csv", row: number}` or `{kind: "pdf", page: number, ordinal: number, box: {x, y, width, height} | null}`. Rows and pages are one-based. PDF coordinates are normalized to the page rectangle from 0 to 1. Ordinal disambiguates records on a page.
+
+`RawObservation` contains `{dateText, amountText, descriptionText, balanceText: string | null, originalCurrencyText: string | null}`. These are literal source values. A raw row is never replaced by an LLM-normalized description.
+
+```ts
+type ParsedPosting = {
+  postingDate: Date | null;
+  purchaseDate: Date | null;
+  valueDate: Date | null;
+  amountMinor: Minor | null;
+  balanceMinor: Minor | null;
+  currency: Currency | null;
+  description: string;
+  accountCandidateIds: Id<"account">[];
+};
+
+type ObservationValidation = {
+  state: "valid" | "needsReview" | "rejectedNonTransaction";
+  issues: { field: string; code: string; evidence: string }[];
+};
+
+type ParsedObservation = {
+  ordinal: number;
+  locator: SourceLocator;
+  raw: RawObservation;
+  candidate: ParsedPosting;
+  validation: ObservationValidation;
+};
+```
+
+Validation issue codes are `invalid_date`, `unreadable_amount`, `unknown_currency`, `account_ambiguous`, `balance_mismatch`, `source_conflict`, and `non_transaction`. Missing required financial values remain null and produce review. The model does not fill them from a plausible neighboring row.
+
+## CSV normalization
+
+The CommBank CSV parser expects four headerless columns: DD/MM/YYYY posting date, signed decimal amount, description, and optional balance. It supports UTF-8 BOMs, quoted commas, escaped quotes, and multiline quoted fields. A row number refers to its starting physical line.
+
+Decimal parsing removes permitted thousands separators only after CSV decoding, validates the currency exponent, and constructs integer minor units without floating-point multiplication. Blank balances remain null. A description's value date is stored separately. An explicitly labelled purchase date can populate purchaseDate.
+
+Deposit amounts represent changes in assets. Card and loan adapters normalize statements to liability-negative balances and corresponding signed deltas. Sign rules are selected from the source layout and verified against statement totals, not inferred from a model's expense category. Reversals preserve their bank sign.
+
+## PDF extraction and checks
+
+Each document is classified by layout before row extraction. The layout record contains account candidates, statement range, currency, opening and closing balances where present, and debit/credit total anchors. Text extraction retains page positions and joins description continuation lines only within the same table row.
+
+Model-assisted page extraction uses the [document model contract](/technical/ai-functionality#document-extraction). Each returned row has a locator and literal strings. Deterministic date, decimal, sign, and total validation follows. Repeated headings, reward balances, summaries, and notices are rejected as non-transaction rows with a reason.
+
+A segment is a statement transaction table or a bounded CSV sequence. Opening balance plus normalized movements must equal closing balance exactly in minor units. If intermediate balances are present, every adjacent delta is also checked. A mismatch blocks the affected segment, not other files. Absence of balance anchors permits established rows to enter history with partial coverage, but never reconciled coverage.
+
+## Duplicate matching
+
+Matching only considers postings in the same account and booked currency. An amount conflict is not a fuzzy match. Accepted user matches and explicit distinct-posting decisions take precedence over scoring.
+
+For literal overlap, the key is account, posting date, signed amount, literal description, supplied balance, and occurrence rank within the source. Across overlapping files, the largest evidenced occurrence count is preserved. Source ordinals resolve multiplicity within a file but are not global transaction identifiers.
+
+For CSV/PDF differences, candidate edges require an equal signed amount and posting dates within three calendar days. A versioned rule score starts at zero:
+
+| Evidence                                                                    | Score |
+| --------------------------------------------------------------------------- | ----- |
+| Same posting date                                                           | 30    |
+| Posting date differs by one to three days                                   | 10    |
+| Exact normalized description                                                | 35    |
+| Otherwise description token Jaccard similarity at least 0.8                 | 20    |
+| Equal supplied balance                                                      | 25    |
+| Compatible predecessor and successor already matched in the source sequence | 10    |
+
+Normalization uppercases, collapses whitespace, and standardizes punctuation. It retains numerical references and service tokens. Different non-null balances eliminate an edge. The parser's proven date convention can justify a date offset but does not change the booked date.
+
+Automatic matching requires score at least 90, a margin of at least 20 over the next candidate for either endpoint, and a one-to-one assignment. A maximum-weight bipartite assignment handles a connected component. Equal optima or repeated indistinguishable purchases go to review. The score is not presented as a probability.
+
+These are `matching-v1` defaults. The checked synthetic duplicate corpus must have zero false merges before automatic matching is enabled. Threshold changes are versioned and rerun that corpus. A low match rate produces review, not a relaxed merge rule.
+
+No-candidate observations create new postings only when account, amount, date, and segment validation permit publication. Unresolved candidates remain staged. All observations receive one disposition: matched posting, new posting, review item, or rejected non-transaction.
+
+## Publication payload
+
+`PostingPublication` contains `{extractionId, accountId, newPostings: {observationIds, posting: ParsedPosting}[], matches: {observationId, postingId, expectedVersion, method, score: number | null}[], reviews: ReviewDraft[], rejectedObservationIds: Id<"observation">[]}`. ReviewDraft contains subject, issueKind, question, options, and evidence, as defined in the RPC reference. The group account must match the established source mapping.
+
+The API verifies that every referenced observation belongs to this extraction, every new posting has non-null required fields, and no observation is assigned twice. Groups contain at most 200 new or matched postings. Their step key is `publish:<extractionId>:<groupInputHash>`.
+
+The owner revision lock protects publication. The API rechecks existing observation links and required input revision before changing records. If the revision changed, the Workflow obtains a new snapshot and repeats matching. It does not merely substitute a fresh revision number into the old result.
+
+On commit, the API creates unresolved financial events for new postings, attaches sources, records dispositions, and queues interpretation. Established purchase roles can enter gross costs with an unclassified category. Unknown movement roles remain explicitly unresolved until interpreted.
+
+## Job kinds and inputs
+
+All job inputs contain `{schemaVersion: 1}` plus a kind-specific payload:
+
+| `JobKind`      | Payload                                                                                            | Dedupe key                                                         |
+| -------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `import`       | `{sourceId, accountId: Id<"account"> \| null, extractorVersion}`                                   | Source ID and extractor version                                    |
+| `interpret`    | `{eventIds, inputRevision, interpretationVersion}`                                                 | Sorted event IDs, revision, interpretation version                 |
+| `analysis`     | `{definition: AnalysisDefinition, basis: ReadBasis, savedAnalysisId: Id<"savedAnalysis"> \| null}` | Normalized definition hash, resolved revision, calculation version |
+| `refresh`      | `{revision, affectedAccountIds, affectedEventIds, affectedPeriod: Range \| null}`                  | Revision and affected-scope hash                                   |
+| `applyRule`    | `{ruleId, ruleVersion, previewId}`                                                                 | Rule ID, rule version, preview ID                                  |
+| `export`       | `{includeSources, includeConversations}`                                                           | Accepted command ID                                                |
+| `removeSource` | `{sourceId, previewId, unsupportedRecords}`                                                        | Accepted command ID                                                |
+| `computation`  | `{runId: Id<"run"> \| null, snapshotId, question, runtimeVersion}`                                 | Run ID and normalized input hash                                   |
+
+Job IDs are persisted before queue delivery. An analysis request resolves latest to a concrete revision before deduplication. A newer revision is a different job, not a mutation to the input of running work.
+
+## State and checkpoints
+
+```ts
+type JobState =
+  | { kind: "queued"; availableAt: Instant }
+  | { kind: "running"; step: string; completedUnits: number; totalUnits: number | null }
+  | { kind: "waitingForReview"; reviewIds: Id<"review">[]; resumeStep: string }
+  | { kind: "succeeded"; result: JobResult; completedAt: Instant }
+  | { kind: "failed"; error: Failure; resumeStep: string; failedAt: Instant }
+  | { kind: "cancelled"; lastCompletedStep: string | null; cancelledAt: Instant };
+```
+
+`Failure` is the safe tagged failure from Shared contracts. `JobResult` has these variants, with kind matching JobKind: `import {sourceId, acceptedPostingIds, matchedObservationIds, reviewIds, rejectedObservationIds}`, `interpret {appliedEventIds, reviewIds}`, `analysis {resultId}`, `refresh {savedAnalysisIds, insightIds}`, `applyRule {ruleId, appliedCount, conflictReviewIds}`, `export {artifactId}`, `removeSource {sourceId, affectedPostingIds, affectedResultIds}`, or `computation {artifactIds, resultId}`.
+
+Queued enters running. Running can advance steps, wait for review, succeed, fail, or cancel. Waiting enters running only after its blocking reviews are resolved or dismissed according to the segment policy. Failed can retry from its recorded resume step. An explicit retry can move a cancelled job back to queued with a new attempt. Succeeded never returns to running. Cancellation records intent immediately and transitions at the next safe checkpoint.
+
+Each import Workflow uses these stable steps:
+
+1. `inspect` records media type, layout, account candidates, and coverage anchors.
+2. `extract:<page-or-chunk>` stages validated observations.
+3. `match:<segment>:<revision>` determines observation dispositions.
+4. `publish:<group-hash>` commits bounded groups and records the receipt.
+5. `summarize` derives counts from dispositions and committed postings.
+
+Interpretation and refresh are separate durable jobs created by committed publication. Their failure does not reverse accepted bank history. Each external model call has a persisted call ID so Workflow retries and provider retries share the same budget.
+
+## Delivery, retries, and cancellation
+
+Queue messages are `{schemaVersion: 1, jobId, inputHash}`. Consumers load the authoritative job and reject an inputHash mismatch. The Workflow instance identity is the job ID. Duplicate delivery resolves the existing instance and state.
+
+The dispatcher claims at most 20 pending rows for 60 seconds using `FOR UPDATE SKIP LOCKED`, commits the leases, then sends messages. Acknowledgment records deliveredAt only when the lease token still matches. Failed sends retry after 1, 5, 30, 120, then 300 seconds. The minute scheduler recovers expired leases. After ten delivery failures, the job fails visibly and manual retry resets delivery with the same job ID.
+
+Transient database deadlocks and serialization failures retry the whole transaction up to three times with randomized delays capped at one second. Business conflicts trigger recomputation or user review, not a blind retry. Provider transport and rate-limit failures allow two retries within the call reservation. Invalid structured output allows one repair attempt. Exhausted work records a typed failure and a resume point.
+
+Interactive financial reads have a ten-second deadline. Write transactions use a two-second lock timeout and five-second transaction deadline. Import jobs have a 30-minute active-work budget. Completed step durations accumulate in activeElapsedMs. Waiting for review freezes the remaining budget, and resume resets deadline from that remainder. A computation job has the separate limits in the AI specification. These are initial application defaults and are tested against the supplied corpus.
+
+Cancellation stops new steps and calls. A financial commit already accepted is resolved through its receipt, not undone by killing the request. Completed evidence remains available. Retrying a cancelled investigation is a new run using the existing immutable evidence where compatible.
+
+## Refresh and removal
+
+A financial revision creates one refresh job for affected events, accounts, and dates. It refreshes saved definitions whose scopes intersect those subjects, reruns recurring detectors for affected merchant series, and recomputes dependent forecasts and insights. Changes to broad rules or context with no bounded date invalidate the owner's whole applicable scope.
+
+Publication checks the current revision under the owner lock. Historical results can be retained, but only a result compatible with the current revision becomes a live pointer. Derived publication does not advance the revision or enqueue itself again.
+
+Source removal first commits source status and the chosen financial-record disposition. Its job removes raw objects and marks evidence-dependent results affected. A restore or retry uses the stored removal command rather than rediscovering scope from a now-missing object. Export manifests contain schema version, dataset revision, canonical entities, corrections, references, and requested source/conversation artifacts. Hashes and counts verify the exported package before it becomes downloadable.

@@ -5,6 +5,8 @@ description: Preserve source evidence, identify transactions once, and publish a
 
 The import pipeline handles every supplied CSV and PDF. File identity, transaction identity, and financial relationships are separate decisions. A repeated file is not the same problem as a transfer recorded in two accounts.
 
+[Import and job protocols](/technical/import-protocol) defines the extraction schemas, scoring thresholds, publication payloads, Workflow steps, and recovery states used by this flow.
+
 ## Source handling
 
 The server verifies file type from content and streams the bytes to a temporary R2 object while computing SHA-256. A completed upload becomes an immutable source object. A unique owner-and-hash constraint identifies an existing source even when its filename changes.

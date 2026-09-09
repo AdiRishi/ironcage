@@ -1,0 +1,159 @@
+---
+title: Shared contracts
+description: Exact value types, query shapes, command receipts, and result envelopes used across the application.
+---
+
+This reference defines the application boundary schemas. The implementation owns them in `packages/contracts/src/finance/`, using Effect Schema with inferred TypeScript types. SQL adapters, Worker RPC, browser server functions, and AI JSON Schema adapters derive their contracts from these definitions.
+
+The shapes below describe encoded values. Decoded money uses `bigint`. Fields are required unless marked optional. Nullable fields use `null`, not a missing property. Object schemas reject unknown fields at external boundaries. All contracts carry `schemaVersion: 1` at their persisted or transported root.
+
+## Scalar types
+
+| Type       | Encoded representation and validation                                                                                                                                  |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Id<K>`    | UUID string, branded by entity kind `K`. Server-generated UUIDs identify persisted entities. Clients generate command and submission IDs.                              |
+| `Revision` | Canonical nonnegative decimal string. The initial dataset revision is `"0"`.                                                                                           |
+| `Version`  | Positive safe integer. A new mutable entity starts at 1.                                                                                                               |
+| `Minor`    | Canonical signed decimal string, no leading zeros or `-0`. A stored amount must fit signed 64-bit `BIGINT`. Aggregates can exceed that range and remain exact strings. |
+| `Decimal`  | Base-10 decimal string, no exponent notation. Used for rates and unrounded intermediate values.                                                                        |
+| `Currency` | Uppercase ISO currency code string. The registry supplies its exponent. AUD has exponent 2.                                                                            |
+| `Date`     | Valid Gregorian `YYYY-MM-DD` calendar date.                                                                                                                            |
+| `Instant`  | RFC 3339 UTC timestamp ending in `Z`.                                                                                                                                  |
+| `Range`    | `{start: Date, endExclusive: Date}` with start before end.                                                                                                             |
+| `Money`    | `{currency: Currency, minor: Minor}`.                                                                                                                                  |
+| `Hash`     | Lowercase SHA-256 hex string of length 64.                                                                                                                             |
+| `Text`     | UTF-8 text with length bounds set by the containing field.                                                                                                             |
+
+Money and date codecs are shared with the [Postgres schema](/technical/database-schema). IDs of different entity kinds are not interchangeable. Arbitrary model text never becomes an identifier without a successful lookup in the authorized scope.
+
+Actor is the actor union in CallerContext. AnalysisResultData is the data union in AnalysisResult.
+
+EventKind, AllocationRole, CommitmentStatus, InsightState, IntentionState, ReviewState, and ReviewIssueKind are the corresponding closed enum values in Database schema. SubjectRef is `{entityKind: string, id: UUID, version: Version}`, restricted to the registered entity schemas. Immutable observations use version 1.
+
+## Ownership and caller context
+
+Every internal financial RPC receives `CallerContext` separately from its input:
+
+```ts
+type CallerContext = {
+  ownerId: Id<"owner">;
+  requestId: Id<"request">;
+  actor:
+    | { kind: "user"; subject: string }
+    | { kind: "job"; jobId: Id<"job"> }
+    | { kind: "agent"; runId: Id<"run"> };
+};
+```
+
+The authenticated web Worker supplies user context. Processor and analyst adapters supply the owner recorded on their accepted job or run. Browser requests and model tool arguments contain no caller context. Service bindings are private, and each RPC checks ownership and the allowed actor kinds before loading records.
+
+## Read basis and pagination
+
+`ReadBasis` is `{kind: "latest"}` or `{kind: "snapshot", snapshotId: Id<"snapshot">}`. A response identifies the actual basis as `{revision: Revision, snapshotId: Id<"snapshot"> | null}`. A request cannot obtain an old database state by supplying a revision number.
+
+`PageRequest` contains `limit` from 1 to 200, default 50, and optional `cursor`. `Page<T>` contains `items: T[]`, `nextCursor: string | null`, `totalCount: number`, and `basis`. Counts refer to the entire authorized query, not the returned page.
+
+The cursor is an authenticated encoding of the normalized query hash, owner, basis, sort, and last key. Posting lists sort by `postingDate DESC, id DESC`. Other lists sort by `createdAt DESC, id DESC` unless their RPC specifies another order. A cursor for a changed live revision returns `StaleCursor`. Snapshot cursors remain usable while their snapshot is retained. Filters cannot change while reusing a cursor.
+
+## Financial queries
+
+```ts
+type FinancialQuery = {
+  schemaVersion: 1;
+  metric:
+    | "grossCosts"
+    | "netPersonalCosts"
+    | "income"
+    | "surplus"
+    | "cashBalanceChange"
+    | "principalRepaid"
+    | "ordinaryMonthlyCost";
+  period: Range;
+  dateBasis: "spending" | "posting";
+  timezone: string;
+  currency: Currency;
+  accountIds: Id<"account">[];
+  categoryIds: Id<"category">[];
+  merchantIds: Id<"merchant">[];
+  tagIds: Id<"tag">[];
+  personalEventIds: Id<"personalEvent">[];
+  excludePersonalEventIds: Id<"personalEvent">[];
+  groupBy: "none" | "category" | "merchant" | "account" | "tag" | "personalEvent";
+  interval: "day" | "week" | "month" | "quarter" | "year";
+  comparison:
+    | { kind: "none" }
+    | { kind: "previousPeriod"; alignment: "elapsed" | "full" }
+    | { kind: "previousYear"; alignment: "elapsed" | "full" }
+    | { kind: "custom"; period: Range };
+};
+```
+
+The server normalizes UI omissions to spending dates, Australia/Sydney, AUD, monthly buckets, no comparison, and empty filter arrays. Empty arrays mean no restriction. Values within one dimension match with OR, dimensions combine with AND, and explicit exclusions apply last. Category selection includes descendants. Account filters use the event's reporting account, defined in [Calculation rules](/technical/calculation-rules).
+
+Cash balance change always uses posting dates and deposit accounts. Principal repaid uses loan-payment events. Invalid metric/date/account combinations return `InvalidInput`. A query selects one booked currency. Other currencies remain visible as excluded scope in coverage, without inferred FX conversion.
+
+Tags and personal events can overlap. Their group breakdown includes `overlapping: true` and does not claim its rows add to the overall total. Category, merchant, and account breakdowns partition the selected allocations. All filters deduplicate allocation IDs before aggregation.
+
+`TransactionFilter` contains optional `period`, `amount: {min: Minor | null, max: Minor | null}`, `search` up to 200 characters, and arrays `accountIds`, `merchantIds`, `categoryIds`, `tagIds`, `personalEventIds`, `roles`, `reviewStates`. Amount compares signed bank postings in the supplied `currency`. Search is case-insensitive text matching against original descriptions and normalized merchant names. An empty filter returns all accepted postings, with pagination.
+
+## Evidence and results
+
+`EvidenceRef` is one of:
+
+```ts
+type EvidenceRef =
+  | { kind: "observation"; observationId: Id<"observation"> }
+  | { kind: "event"; eventId: Id<"event">; version: Version }
+  | { kind: "context"; contextId: Id<"context">; version: Version }
+  | { kind: "result"; resultId: Id<"result">; path: string }
+  | { kind: "artifact"; artifactId: Id<"artifact"> };
+```
+
+Result paths are JSON Pointers into a validated immutable result. The server checks that each path exists. Source observations resolve to authenticated row or page evidence. Evidence references never expose an R2 key or credential.
+
+`CoverageSummary` contains `status: "complete" | "partial" | "unknown"`, requested range, `accounts: {accountId, observedRanges, reconciledRanges, latestDate, missingRanges}[]`, `unresolved: {issueKind, count, knownAmount: Money | null}[]`, and `excludedCurrencies: Currency[]`. A missing known amount is not zero. Complete status requires reconciled requested coverage for every selected account and no unresolved money or identity affecting the metric.
+
+`AnalysisResult` contains `id`, `schemaVersion`, `definition`, `basis`, `calculationVersion`, `createdAt`, `coverage`, `evidenceManifestId`, and `data`. Data is a closed union:
+
+| Kind          | Required data                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `comparison`  | `current: Money \| null`, `previous: Money \| null`, `delta: Money \| null`, `relativeChange: Decimal \| null`, `currentSurplusRate: Decimal \| null`, `previousSurplusRate: Decimal \| null`, `series: {period: Range, value: Money \| null}[]`, `contributors: {key: string, label: string, current: Money, previous: Money, delta: Money, recordCount: number}[]`, `remainder: Money \| null`, `overlapping: boolean`, `frequency: FrequencyBreakdown \| null`. |
+| `forecast`    | `horizon: Range`, `startingBalances: {accountId, at: Date, amount: Money, estimated: boolean}[]`, `points: {date: Date, cashP10: Money \| null, cashP50: Money \| null, cashP90: Money \| null, debtP50: Money \| null}[]`, `intervalStatus: "calibrated" \| "uncalibrated" \| "unavailable"`, `assumptions: ForecastDefinition`, `modelVersion`, `seed`, `evaluation: ForecastEvaluation \| null`.                                                                |
+| `scenario`    | `baselineResultId`, `scenarioResultId`, `terminalCashDelta: Money`, `costDelta: Money`, `changedAssumptions: ScenarioOverride[]`.                                                                                                                                                                                                                                                                                                                                  |
+| `computation` | `artifactIds`, `summary`, `claims: Claim[]`, `runtimeVersion`, `inputHash`, `outputHash`.                                                                                                                                                                                                                                                                                                                                                                          |
+
+`FrequencyBreakdown` contains current and previous purchase counts, average costs as `Decimal | null`, frequency and average-cost contributions as `Money | null`, and `status: "comparable" | "newActivity" | "ceasedActivity" | "noActivity"`. The [calculation specification](/technical/calculation-rules) defines each result's computation. A result with incomplete coverage is still a typed result, not an exception.
+
+Null current values mean the metric cannot be established, such as cash balance change without anchors. Known partial cost sums retain values with partial coverage. Deltas require both period values. Surplus rates are populated only for the surplus metric and divide surplus by positive income. Other metrics return null rates.
+
+## Commands and receipts
+
+`Command<T>` is `{schemaVersion: 1, commandId: Id<"command">, input: T}`. Mutable-target inputs carry `expectedVersion`. Prepared bulk commands carry a preview ID and expected dataset revision. `CommandReceipt<T>` contains `schemaVersion: 1`, `commandId`, `committedAt`, `revision`, `data: T`, and `invalidations: {kind, ids, period: Range | null}[]`.
+
+Invalidation kinds are accounts, events, categories, merchants, commitments, context, coverage, and analyses, with IDs of the matching kind.
+
+Receipts store the canonical command payload hash and exact encoded response. Object keys are sorted, filter ID arrays are deduplicated and sorted, and monetary strings use their canonical encoding before hashing. The same ID and hash returns the original receipt. A different hash returns `CommandReuse`.
+
+`AcceptedJob` is `{jobId, kind: JobKind, status: "queued", acceptedAt}`. A command that starts a job returns `CommandReceipt<AcceptedJob>`. It reports acceptance separately from completion. A no-op receipt retains the current revision and an empty invalidation list.
+
+Postings, financial interpretations, active schedules, confirmed context, and visible coverage or financial-review changes advance the dataset revision. Import staging, proposed context, run progress, inbox state, settings, and saved definitions have their own versions and leave that revision unchanged. Saved-definition updates invalidate that definition's result directly. Source removal advances the revision because it changes evidence availability.
+
+## Failures
+
+Effect services expose tagged domain errors. Worker RPC serializes those errors through the repository's RPC adapter. HTTP adapters use the status below and `{schemaVersion: 1, error: {_tag, message, details}, requestId}`. A message is safe for display and excludes SQL, credentials, and raw financial records.
+
+| Tag                     | Details                                                       | HTTP | Caller behavior                                                  |
+| ----------------------- | ------------------------------------------------------------- | ---- | ---------------------------------------------------------------- |
+| `InvalidInput`          | `issues: {path, code, message}[]`                             | 400  | Correct fields.                                                  |
+| `Unauthenticated`       | No additional fields                                          | 401  | Sign in.                                                         |
+| `Forbidden`             | `operation`                                                   | 403  | Stop the unauthorized operation.                                 |
+| `NotFound`              | `entityKind, id`                                              | 404  | Show unavailable record. Cross-owner IDs also return this error. |
+| `VersionConflict`       | `entityKind, id, expectedVersion, currentVersion`             | 409  | Preserve edit and reload current entity.                         |
+| `RevisionConflict`      | `expectedRevision, currentRevision`                           | 409  | Recompute prepared work.                                         |
+| `CommandReuse`          | `commandId`                                                   | 409  | Use a new ID for a different intent.                             |
+| `StaleCursor`           | `currentRevision`                                             | 409  | Restart live pagination.                                         |
+| `InvalidTransition`     | `entityKind, id, currentState, operation`                     | 409  | Refresh status.                                                  |
+| `LimitExceeded`         | `limitName, allowed, retryAt: Instant \| null`                | 429  | Respect the configured limit.                                    |
+| `DependencyUnavailable` | `operation, retryable: boolean, retryAfterMs: number \| null` | 503  | Retry reads or the same command ID.                              |
+
+Domain validation such as excessive reimbursement returns `InvalidInput` with code `allocation_exceeds_eligible_amount`. `DependencyUnavailable` never means a command definitely rolled back. Receipt lookup resolves that uncertainty.

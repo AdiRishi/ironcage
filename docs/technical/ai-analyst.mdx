@@ -7,6 +7,8 @@ The selected stack is Cloudflare Agents SDK, AIChatAgent, and Vercel AI SDK. AI 
 
 AIChatAgent supplies persisted messages and resumable streams. Its React client is `useAgentChat` from `@cloudflare/ai-chat/react`. Vercel AI SDK supplies model calls, typed tools, and structured output. The app uses one canonical conversation protocol rather than combining several chat stores. [Cloudflare chat agents](https://developers.cloudflare.com/agents/communication-channels/chat/chat-agents/)
 
+[AI functionality](/technical/ai-functionality) specifies model inputs and outputs, tool arguments, mutation authority, run state, prompt requirements, budgets, and evaluation gates. This page explains runtime ownership and framework selection.
+
 ## Why this combination
 
 The analyst needs typed numerical results, persistent conversations, clarification, and background work. Cloudflare's integrated chat lifecycle reduces the amount of runtime coordination the application must own, while Alchemy remains responsible for deployment.
@@ -21,22 +23,7 @@ The agent selects tools, assembles relevant context, follows an investigation, a
 
 The API calculates financial values and commits changes. The model does not receive a write-enabled database connection, choose an authenticated owner, or replace metric definitions with generated arithmetic.
 
-The analyst's planned tools have bounded responsibilities.
-
-| Tool                   | Result or effect                                                                     |
-| ---------------------- | ------------------------------------------------------------------------------------ |
-| `getCoverage`          | Available and reconciled account intervals, current revision, and unresolved issues. |
-| `findTransactions`     | Paginated records matching a typed filter, with evidence references.                 |
-| `compareSpending`      | Calculated difference and contributors for a stable query definition.                |
-| `getCommitments`       | Confirmed and inferred recurring schedules with their sources.                       |
-| `forecastCash`         | Forecast definition, values, ranges, assumptions, and input revision.                |
-| `runScenario`          | A comparison using explicit scenario overrides.                                      |
-| `requestClarification` | A persisted question tied to a review item or interpretation.                        |
-| `applyCorrection`      | A version-checked, idempotent financial command with visible scope.                  |
-| `saveInvestigation`    | A saved query and evidence-bearing result, not only transcript text.                 |
-| `getPersonalContext`   | Relevant dated facts, preferences, and confirmed rules.                              |
-
-These names define the planned tool contract. Input and output types derive from the shared boundary schemas. JSON Schema adapters are produced from those schemas rather than manually maintained copies. Tool execution crosses from the SDK's Promise interface into existing Effect services at one boundary.
+The [tool catalog](/technical/ai-functionality#analyst-tools) defines every tool's arguments, result, and allowed effect. JSON Schema adapters derive from the shared boundary schemas. Tool execution crosses from the SDK's Promise interface into Effect services at one boundary.
 
 ## Question execution
 

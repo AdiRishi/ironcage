@@ -5,6 +5,8 @@ description: The identities, relationships, monetary rules, and revisions behind
 
 This page defines the target data contract. SQL migrations and boundary schemas implement the contract. The names below are planned domain records.
 
+The [database schema](/technical/database-schema) specifies exact tables, columns, constraints, and indexes. [Shared contracts](/technical/contracts) specifies their wire representations. [Calculation rules](/technical/calculation-rules) defines event construction and metric algorithms.
+
 ## Record identity
 
 | Record             | Meaning and identity                                                                                               |
@@ -34,22 +36,11 @@ erDiagram
 
 The diagram shows conceptual relationships. Link tables implement many-to-many evidence and event membership. Unresolved observations can exist before a transaction identity is established.
 
-## Stored fields and constraints
+## Record versions
 
-All owner-scoped records carry an opaque ID and creation time. Mutable interpretations also carry a version. Source locators and command IDs remain stable across retries.
+Mutable interpretations have a version. Source locators and command IDs remain stable across retries. An extraction rerun does not create a new bank transaction by itself. Matching establishes that relationship separately.
 
-| Record family            | Required stored fields                                                                                                    | Constraint                                                                                            |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Sources and observations | Owner, hash, object key, format, extractor version, locator, raw values, parsed values, validation state                  | Unique owner and content hash. Unique source, extractor version, and locator.                         |
-| Accounts and postings    | Account identity, account-role history, currency, posting date, optional evidenced dates, signed amount, optional balance | Posting identity is independent of merchant classification.                                           |
-| Events and allocations   | Event kind, linked posting IDs, financial role, amount, category, personal share, effective dates                         | Allocations conserve the event amount. A posting can be linked without being counted as another cost. |
-| Corrections and rules    | Target, expected version, scope, before and after values, source instruction, command ID                                  | One committed result per owner and command ID.                                                        |
-| Review items             | Subject and version, issue kind, evidence IDs, candidates, resolution, resolved command                                   | A resolution applies to the stated subject version.                                                   |
-| Commitments              | Subject, role, cadence, effective interval, amount or range, next date, confirmation source                               | Historical schedule segments remain available after changes.                                          |
-| Jobs and dispatch        | Job kind, input revision, configuration version, status, attempt state, receipt, result reference                         | A stable job key deduplicates delivery.                                                               |
-| Saved analyses           | Definition, snapshot reference, input revision, calculation versions, values, evidence manifest                           | Completed result content is immutable.                                                                |
-
-An extraction rerun reuses its persisted locators. A new extraction version does not imply a new bank transaction. Matching establishes that relationship separately.
+The [database schema](/technical/database-schema) owns the exact field, nullability, and constraint definitions for these records.
 
 ## Amounts and dates
 

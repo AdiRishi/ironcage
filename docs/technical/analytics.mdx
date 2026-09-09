@@ -5,6 +5,8 @@ description: Reproducible comparisons, recurring-cost detection, useful insights
 
 Analytics takes a financial query and a stable dataset revision. It returns numerical results and evidence before an LLM writes an explanation. The [metric reference](/technical/financial-model#metric-definitions) defines which money belongs in each calculation.
 
+[Calculation rules](/technical/calculation-rules) defines the concrete algorithms, schedule and scenario schemas, forecast sampling, and detector defaults. [Shared contracts](/technical/contracts) defines result payloads.
+
 ## Comparisons
 
 Postgres performs indexed filtering and exact aggregation through the financial API. Shared finance functions calculate comparisons, allocation adjustments, and statistical summaries. Live charts, agent tools, and scheduled jobs use these same functions.

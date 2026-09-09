@@ -5,6 +5,8 @@ description: Shared financial services, explicit background jobs, and a persiste
 
 Ironcage needs consistent answers across several entry points. A chart, an import-triggered insight, and a conversation can ask the same financial question. Their calculations therefore share one application layer and one set of financial definitions.
 
+The [RPC specification](/technical/rpc) defines service boundaries at method level. The [database schema](/technical/database-schema) and [shared contracts](/technical/contracts) define stored and transported values. [Import and job protocols](/technical/import-protocol) defines durable execution between runtimes.
+
 ## Runtime ownership
 
 The target runtime consists of a public web Worker, a private financial API, a background processor, and a private analyst Worker. The analyst Worker exports the AIChatAgent Durable Object class. Imports and background analysis run through Cloudflare Workflows in the processor.

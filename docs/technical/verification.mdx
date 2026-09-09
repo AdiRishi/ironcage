@@ -5,6 +5,8 @@ description: Prove financial correctness, useful model behavior, and recovery ac
 
 Verification follows the [product acceptance scenarios](/product/acceptance). A schema-valid model response, successful build, or rendered chart is insufficient evidence that a financial answer is correct.
 
+Contract tests encode and decode every [shared schema](/technical/contracts), exercise every [RPC method](/technical/rpc) through its public interface, and check the [database constraints](/technical/database-schema) against real Postgres. Processor fixtures cover every transition in [Import and job protocols](/technical/import-protocol). AI cases follow the [functionality specification](/technical/ai-functionality), and numerical expected values follow [Calculation rules](/technical/calculation-rules).
+
 ## Financial invariants
 
 Tests exercise public finance operations with independently known expected outcomes. Fixtures use synthetic records that preserve the structural cases found in the supplied exports.

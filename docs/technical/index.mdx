@@ -11,6 +11,33 @@ These pages define the target implementation. Module locations, schemas, routes,
 
 To implement the product, start with [Build spend management](/technical/build-spend-management). The guide connects these references to the work and its completion criteria.
 
+## Implementation specifications
+
+These references define application contracts. The architecture pages below explain how the parts fit together.
+
+<CardGroup cols={2}>
+  <Card title="Shared contracts" href="/technical/contracts" icon="braces">
+    Value types, queries, results, receipts, pagination, and errors.
+  </Card>
+  <Card title="Database schema" href="/technical/database-schema" icon="database">
+    Tables, columns, foreign keys, uniqueness, indexes, and event membership.
+  </Card>
+  <Card title="RPC specification" href="/technical/rpc" icon="network">
+    Method inputs, outputs, actor permissions, and HTTP boundaries.
+  </Card>
+  <Card title="Import and job protocols" href="/technical/import-protocol" icon="files">
+    Extraction schemas, matching scores, payloads, states, and retries.
+  </Card>
+  <Card title="Calculation rules" href="/technical/calculation-rules" icon="calculator">
+    Event construction, arithmetic, schedules, forecasts, and detector defaults.
+  </Card>
+  <Card title="AI functionality" href="/technical/ai-functionality" icon="messages-square">
+    Model schemas, tools, authority, checkpoints, memory, and evaluation gates.
+  </Card>
+</CardGroup>
+
+## Architecture and experience
+
 <CardGroup cols={2}>
   <Card title="Architecture" href="/technical/architecture" icon="network">
     Runtime ownership, the Cloudflare resource graph, and planned module locations.
@@ -44,6 +71,6 @@ Cloudflare Workers, PlanetScale Postgres, Hyperdrive, Alchemy, Effect, TanStack 
 
 The data structures and policies in these pages are implementation decisions derived from the [product contract](/product). Their correctness is established through the [acceptance scenarios](/product/acceptance), not by the presence of a framework feature.
 
-Model IDs and operating limits are configuration selected through evaluation. They are not guessed version pins in these docs. The package catalog and lockfile remain the source of installed dependency versions.
+The specifications define schema shapes, method contracts, algorithms, and initial operating limits. Threshold and policy changes require a version change and evaluation evidence. Model IDs are selected through the model-role evaluation gates. The package catalog and lockfile remain the source of installed dependency versions.
 
 The technical foundation supplies strong types, Effect services, Alchemy infrastructure, and Cloudflare Worker RPC. These pages describe the financial application built on that foundation.

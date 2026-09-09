@@ -5,6 +5,11 @@ It defines the reading path, decision ownership, and completion requirements.
 Use the linked product and technical pages as the project specification. No prior
 conversation or external working notes are required.
 
+Before changing financial schemas or service interfaces, read
+`docs/technical/contracts.mdx`, `docs/technical/database-schema.mdx`, and
+`docs/technical/rpc.mdx`. For processing, calculations, or AI behavior, read the
+corresponding protocol linked from `docs/technical/index.mdx`.
+
 Before changing test layout or setup, read `docs/technical/verification.mdx`.
 
 `docs/` is a Blume site. Run `pnpm docs:dev` to browse it locally and
