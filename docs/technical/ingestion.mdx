@@ -45,9 +45,9 @@ The upload path supports the full supplied corpus. Operational byte and page lim
     Transaction IDs are checked for reuse and conflicts before matching.
   </Tab>
   <Tab title="PDF text">
-    A document adapter extracts page text and positions with a Worker-compatible PDF parser. It
-    separates transaction tables from totals, rewards, notices, and repeated page headers. Debit and
-    credit signs follow the statement layout.
+    The processor uses unpdf's serverless PDF.js build to extract page text and positions. Its
+    CommBank layout adapter separates transaction tables from totals, rewards, notices, and repeated
+    page headers. Debit and credit signs follow the statement layout.
   </Tab>
   <Tab title="Scanned or ambiguous PDF">
     A document-processing Container renders only the pages that need visual extraction. A configured
@@ -56,9 +56,19 @@ The upload path supports the full supplied corpus. Operational byte and page lim
   </Tab>
 </Tabs>
 
-Parser and extraction versions are recorded per observation. An improved parser can reprocess original files without replacing user corrections. The PDF adapter's exact library and rendering build are pinned after a corpus extraction check. They share the same output contract.
+Parser and extraction versions are recorded per observation. An improved parser can reprocess original files without replacing user corrections. Text and visual extraction share the same output contract. The Container rendering build is pinned after a rendering check against the supplied corpus.
 
 An observation contains raw fields, normalized candidate fields, a format-specific source locator, extraction version, and validation findings. A schema-valid model output is still a proposal until amount, date, and reconciliation checks pass.
+
+### PDF library selection
+
+The processor owns the PDF text adapter and uses [unpdf](https://github.com/unjs/unpdf). The evaluated baseline is `unpdf@1.8.1`, whose bundled PDF.js engine reports `6.1.200`. The adapter reads positioned text items page by page through `getDocumentProxy` and PDF.js `getTextContent`, with text normalization disabled. The CommBank adapter owns row grouping, column interpretation, and source locators.
+
+The September 2026 comparison covered five supplied PDFs, 25 pages, and 303 manually verified transaction rows. With a layout decoder and a visually established repair of missing card decimal separators, unpdf matched every transaction date and signed amount and all 258 available running balances. Python native extraction did not improve these results, so the selected path does not add a Python extraction or OCR dependency.
+
+Native PDF text can omit decimal separators in card amounts and foreign-currency descriptions. Ambiguous monetary strings use the existing rendered-page document extraction flow. A deterministic repair requires a versioned source profile evaluated against the visible statement layout; matching a statement total alone does not authorize inserting decimal points. Raw extracted strings remain attached to the observation.
+
+The processor pins the library and bundled engine versions with its extractor version. Upgrades require the [extraction evaluation](/technical/verification#extraction-and-interpretation-evaluation). The comparison establishes the text-library choice. Implementation acceptance still requires full-corpus validation, hosted Worker resource checks, and Container rendering checks.
 
 ## Establish accounts and intervals
 
