@@ -129,7 +129,7 @@ Initial category slugs are `housing.mortgage-interest`, `housing.strata`, `housi
 | `byte_count` | `BIGINT`                                   |
 | `status`     | `enum(available, removalPending, removed)` |
 
-Mutable status only. Unique `(owner_id, sha256)`. Hash and original bytes are immutable.
+Mutable status and object_key on explicit restoration only. Unique `(owner_id, sha256)`. Every installed object has the same verified hash and bytes. Restoration uses a fresh object key, preserves source identity, and leaves withdrawn postings withdrawn. Removal is fenced by the source version and its recorded object key.
 
 ### import_batches
 
@@ -159,6 +159,7 @@ Mutable. Upload key unique per owner. A repeated file attaches to the existing s
 | `source_id`         | `FK(source_files)`                           |
 | `extractor_version` | `TEXT`                                       |
 | `input_hash`        | `CHAR(64)`                                   |
+| `inspection`        | `json(SourceInspection)?`                    |
 | `job_id`            | `FK(jobs)`                                   |
 | `status`            | `enum(staged, accepted, superseded, failed)` |
 
@@ -169,13 +170,14 @@ Mutable. Unique source, extractor version, and input hash.
 | Column          | Definition                    |
 | --------------- | ----------------------------- |
 | `extraction_id` | `FK(extraction_runs)`         |
+| `segment_key`   | `TEXT`                        |
 | `locator`       | `json(SourceLocator)`         |
 | `ordinal`       | `INTEGER`                     |
 | `raw`           | `json(RawObservation)`        |
 | `candidate`     | `json(ParsedPosting)`         |
 | `validation`    | `json(ObservationValidation)` |
 
-Immutable. Unique `(extraction_id, ordinal)`. Payload schemas are in [Import and job protocols](/technical/import-protocol).
+Immutable. Unique `(extraction_id, ordinal)`. Segment_key identifies a segment in the stored inspection. Payload schemas are in [Import and job protocols](/technical/import-protocol).
 
 ### posting_sources
 
@@ -208,6 +210,8 @@ Mutable. Unique observation_id. New/matched kinds require only posting_id, revie
 | --------------- | ----------------------------------------------- |
 | `account_id`    | `FK(accounts)`                                  |
 | `source_id`     | `FK(source_files)`                              |
+| `extraction_id` | `FK(extraction_runs)`                           |
+| `segment_key`   | `TEXT`                                          |
 | `start_date`    | `DATE`                                          |
 | `end_date`      | `DATE`                                          |
 | `kind`          | `enum(requested, observed, stated, reconciled)` |
@@ -218,37 +222,43 @@ Mutable. Unique observation_id. New/matched kinds require only posting_id, revie
 
 ### statement_summaries
 
-| Column              | Definition         |
-| ------------------- | ------------------ |
-| `source_id`         | `FK(source_files)` |
-| `account_id`        | `FK(accounts)`     |
-| `period_start`      | `DATE`             |
-| `period_end`        | `DATE`             |
-| `opening_minor`     | `BIGINT?`          |
-| `closing_minor`     | `BIGINT?`          |
-| `due_date`          | `DATE?`            |
-| `minimum_due_minor` | `BIGINT?`          |
-| `currency`          | `CHAR(3)`          |
+| Column              | Definition            |
+| ------------------- | --------------------- |
+| `source_id`         | `FK(source_files)`    |
+| `extraction_id`     | `FK(extraction_runs)` |
+| `segment_key`       | `TEXT`                |
+| `ledger_at`         | `TIMESTAMPTZ?`        |
+| `ledger_minor`      | `BIGINT?`             |
+| `account_id`        | `FK(accounts)`        |
+| `period_start`      | `DATE?`               |
+| `period_end`        | `DATE?`               |
+| `opening_minor`     | `BIGINT?`             |
+| `closing_minor`     | `BIGINT?`             |
+| `due_date`          | `DATE?`               |
+| `minimum_due_minor` | `BIGINT?`             |
+| `currency`          | `CHAR(3)`             |
 
-Mutable only through evidence resolution. Unique source and account. Statement period is half-open. Due-date fields remain null if absent.
+Mutable through validated extraction finalization or evidence resolution. Unique source, account, and segment key. Statement dates are both null or a half-open period. Ledger fields are both null or the supplied normalized balance and UTC instant. A ledger timestamp alone does not establish an end-of-day anchor. Finalization replaces superseded summaries and coverage while preserving prior extraction evidence. Missing due-date fields remain null.
 
 ## Financial records
 
 ### postings
 
-| Column          | Definition                  |
-| --------------- | --------------------------- |
-| `account_id`    | `FK(accounts)`              |
-| `posting_date`  | `DATE`                      |
-| `purchase_date` | `DATE?`                     |
-| `value_date`    | `DATE?`                     |
-| `amount_minor`  | `BIGINT`                    |
-| `balance_minor` | `BIGINT?`                   |
-| `currency`      | `CHAR(3)`                   |
-| `description`   | `TEXT`                      |
-| `status`        | `enum(accepted, withdrawn)` |
+| Column                          | Definition                  |
+| ------------------------------- | --------------------------- |
+| `account_id`                    | `FK(accounts)`              |
+| `posting_date`                  | `DATE`                      |
+| `purchase_date`                 | `DATE?`                     |
+| `value_date`                    | `DATE?`                     |
+| `amount_minor`                  | `BIGINT`                    |
+| `balance_minor`                 | `BIGINT?`                   |
+| `original_money`                | `json(Money)?`              |
+| `original_money_observation_id` | `FK(observations)?`         |
+| `currency`                      | `CHAR(3)`                   |
+| `description`                   | `TEXT`                      |
+| `status`                        | `enum(accepted, withdrawn)` |
 
-Mutable through evidence-resolution commands. `(owner_id, account_id, posting_date DESC, id DESC)` and `(owner_id, currency, amount_minor, posting_date)` indexes. Amount is the signed change in normalized account balance.
+Mutable through evidence-resolution commands. `(owner_id, account_id, posting_date DESC, id DESC)` and `(owner_id, currency, amount_minor, posting_date)` indexes. Amount is the signed change in normalized account balance. Original-money fields are both null or a supplied amount with its supporting observation. Original money never replaces the booked amount in financial totals.
 
 ### financial_events
 
@@ -260,10 +270,11 @@ Mutable through evidence-resolution commands. `(owner_id, account_id, posting_da
 | `magnitude_minor`       | `BIGINT`                                                                                                                     |
 | `currency`              | `CHAR(3)`                                                                                                                    |
 | `merchant_id`           | `FK(merchants)?`                                                                                                             |
+| `movement`              | `json(MovementLink)?`                                                                                                        |
 | `classification_source` | `enum(user, rule, source, model, unresolved)`                                                                                |
 | `status`                | `enum(active, superseded, withdrawn)`                                                                                        |
 
-Mutable. Magnitude is nonnegative. `(owner_id, event_date, kind)` index. Reporting account selects a single account for cost grouping.
+Mutable. Magnitude is nonnegative. `(owner_id, event_date, kind)` index. Reporting account selects a single account for cost grouping. Movement is required for transfer, cardSettlement, loanPayment, and borrowing, and null for other kinds. Its endpoint accounts and posting membership follow Calculation rules. Missing counterpart evidence is derived from those memberships.
 
 ### event_postings
 
@@ -274,6 +285,17 @@ Mutable. Magnitude is nonnegative. `(owner_id, event_date, kind)` index. Reporti
 | `role`       | `enum(primary, counterpart)` |
 
 Unique posting_id. Each active posting belongs to one active financial event. Relinking replaces memberships inside one command.
+
+### fee_associations
+
+| Column              | Definition                  |
+| ------------------- | --------------------------- |
+| `fee_event_id`      | `FK(financial_events)`      |
+| `purchase_event_id` | `FK(financial_events)`      |
+| `status`            | `enum(proposed, confirmed)` |
+| `evidence`          | `json(EvidenceRef[])`       |
+
+Mutable. Unique fee_event_id. The fee must be a financing-cost event and the target a purchase in the same currency. This evidence link does not change allocations, reporting accounts, or dates. Removing an association is an audited command.
 
 ### allocations
 
@@ -316,9 +338,9 @@ Positive amount. Unique pair. Credit role is refund or reimbursement. Totals can
 
 One transfer event can contain both bank postings. The event magnitude is the transferred amount, not the sum of both absolute posting amounts. Refunds are separate events joined to costs through cost_credits. They never overwrite the original purchase.
 
-A loan payment contains its deposit and loan postings with a transfer allocation. Each interest or fee posting belongs to its own financing-cost event. The loan-period calculation derives the net repayment effect without moving financing-cost dates. Exact construction rules and the mortgage example are in [Calculation rules](/technical/calculation-rules#financial-event-construction).
+A loan payment contains its available deposit and loan postings with a transfer allocation. Confirmed single-sided movements retain the missing-counterpart warning until evidence arrives. Each interest or fee posting belongs to its own financing-cost event. The loan-period calculation derives the net repayment effect without moving financing-cost dates. Exact construction rules and the mortgage example are in [Calculation rules](/technical/calculation-rules#financial-event-construction).
 
-Within one extraction, two observations cannot map to the same posting. Owner-locked publication enforces this multiplicity constraint and consistency between posting_sources and observation_dispositions. Matching one posting from different files is permitted.
+Within one extraction, two observations cannot map to the same posting, including repeated FITIDs. Identifier reuse across extractions does not bypass this rule. Owner-locked publication enforces this multiplicity constraint and consistency between posting_sources and observation_dispositions. Matching one posting from different files is permitted.
 
 Changing a posting's amount or date requires a source-resolution command with replacement evidence. Ordinary category corrections cannot edit bank-booked fields. An update preserves its previous encoded entity in the audit record and marks dependent results affected.
 
@@ -441,14 +463,15 @@ No id. Default reminder interval 30 days, 0 disables. UsagePolicy is defined in 
 
 ### commitments
 
-| Column        | Definition                              |
-| ------------- | --------------------------------------- |
-| `label`       | `TEXT`                                  |
-| `merchant_id` | `FK(merchants)?`                        |
-| `status`      | `enum(proposed, active, paused, ended)` |
-| `source`      | `enum(user, detector)`                  |
+| Column         | Definition                              |
+| -------------- | --------------------------------------- |
+| `label`        | `TEXT`                                  |
+| `merchant_id`  | `FK(merchants)?`                        |
+| `status`       | `enum(proposed, active, paused, ended)` |
+| `source`       | `enum(user, detector)`                  |
+| `detector_key` | `TEXT?`                                 |
 
-Mutable.
+Mutable. Unique non-null detector_key per owner. Repeated detection updates the same proposed commitment and never overwrites an accepted schedule.
 
 ### commitment_segments
 
@@ -466,18 +489,20 @@ Mutable only to close effective_end, with version and updated_at. Replacing crea
 
 ### commitment_occurrences
 
-| Column           | Definition                         |
-| ---------------- | ---------------------------------- |
-| `commitment_id`  | `FK(commitments)`                  |
-| `segment_id`     | `FK(commitment_segments)`          |
-| `nominal_date`   | `DATE`                             |
-| `scheduled_date` | `DATE`                             |
-| `service_start`  | `DATE?`                            |
-| `service_end`    | `DATE?`                            |
-| `event_id`       | `FK(financial_events)?`            |
-| `status`         | `enum(expected, matched, skipped)` |
+| Column               | Definition                         |
+| -------------------- | ---------------------------------- |
+| `commitment_id`      | `FK(commitments)`                  |
+| `segment_id`         | `FK(commitment_segments)`          |
+| `nominal_date`       | `DATE`                             |
+| `scheduled_date`     | `DATE`                             |
+| `service_start`      | `DATE?`                            |
+| `service_end`        | `DATE?`                            |
+| `event_id`           | `FK(financial_events)?`            |
+| `status`             | `enum(expected, matched, skipped)` |
+| `match_source`       | `enum(user, automatic)?`           |
+| `excluded_event_ids` | `UUID[]`                           |
 
-Mutable. Unique commitment and nominal date. One event cannot match two cost schedules. Service dates are both null or a valid half-open period. Segment membership uses nominal_date, before date adjustment.
+Mutable. Matched requires event_id and match_source; other states require both null. Excluded event IDs are owner-scoped and prevent automatic rematching after an explicit unmatch. Unique commitment and nominal date. One event cannot match two occurrences. Service dates are both null or a valid half-open period. Segment membership uses nominal_date, before date adjustment.
 
 ### snapshots
 
@@ -494,14 +519,14 @@ Immutable. Unique owner, revision, context_generation, query hash, and manifest 
 
 ### saved_analyses
 
-| Column              | Definition                 |
-| ------------------- | -------------------------- |
-| `label`             | `TEXT`                     |
-| `question`          | `TEXT?`                    |
-| `definition`        | `json(AnalysisDefinition)` |
-| `refresh`           | `enum(onChange, manual)`   |
-| `current_result_id` | `FK(analysis_results)?`    |
-| `archived`          | `BOOLEAN`                  |
+| Column              | Definition                      |
+| ------------------- | ------------------------------- |
+| `label`             | `TEXT`                          |
+| `question`          | `TEXT?`                         |
+| `definition`        | `json(SavedAnalysisDefinition)` |
+| `refresh`           | `enum(onChange, manual)`        |
+| `current_result_id` | `FK(analysis_results)?`         |
+| `archived`          | `BOOLEAN`                       |
 
 Mutable definition. Updating the derived current-result pointer does not change definition version.
 
@@ -523,12 +548,12 @@ Mutable status only, with version and updated_at. Definition, calculation conten
 
 ### scenarios
 
-| Column      | Definition                 |
-| ----------- | -------------------------- |
-| `label`     | `TEXT`                     |
-| `baseline`  | `json(ForecastDefinition)` |
-| `overrides` | `json(ScenarioOverride[])` |
-| `archived`  | `BOOLEAN`                  |
+| Column      | Definition                      |
+| ----------- | ------------------------------- |
+| `label`     | `TEXT`                          |
+| `baseline`  | `json(SavedForecastDefinition)` |
+| `overrides` | `json(ScenarioOverride[])`      |
+| `archived`  | `BOOLEAN`                       |
 
 Mutable. Overrides never edit source records or baseline commitments.
 
@@ -568,7 +593,7 @@ Mutable. Definition contains baseline/current queries, start date, and optional 
 
 Mutable. Unique owner and dedupe key.
 
-`AnalysisDefinition`, `ForecastDefinition`, `ScheduleDefinition`, `SnapshotManifest`, and `ScenarioOverride` are specified in [Calculation rules](/technical/calculation-rules). Snapshot objects contain the full normalized definition and encoded versions of selected accounts and account periods, reference labels, postings, events, allocations, credits, schedules and occurrences, role rules, context, and coverage needed by the definition, plus source evidence IDs and contextGeneration. Their content hash covers the whole canonical serialized document.
+`AnalysisDefinition`, `SavedAnalysisDefinition`, `ForecastDefinition`, `SavedForecastDefinition`, `ScheduleDefinition`, `SnapshotManifest`, and `ScenarioOverride` are specified in [Calculation rules](/technical/calculation-rules). Snapshot objects contain the full normalized definition and encoded versions of selected accounts and account periods, reference labels, postings with original money, events and movement endpoints, fee associations, allocations, credits, schedules and occurrences, role rules, context, and measure-specific coverage needed by the resolved definition, plus source evidence IDs and contextGeneration. Their content hash covers the whole canonical serialized document.
 
 ## Jobs and AI execution
 
@@ -578,6 +603,7 @@ Mutable. Unique owner and dedupe key.
 | ---------------------- | ------------------- |
 | `kind`                 | `TEXT`              |
 | `dedupe_key`           | `TEXT`              |
+| `budget_job_id`        | `FK(jobs)?`         |
 | `input`                | `json(JobInput)`    |
 | `input_hash`           | `CHAR(64)`          |
 | `state`                | `json(JobState)`    |
@@ -587,7 +613,7 @@ Mutable. Unique owner and dedupe key.
 | `deadline`             | `TIMESTAMPTZ`       |
 | `cancel_requested_at`  | `TIMESTAMPTZ?`      |
 
-Mutable. Unique owner and dedupe key. Indexed state kind and created_at.
+Mutable. Unique owner and dedupe key. Indexed state kind and created_at. An import job is its own budget_job_id. Derived interpretation jobs inherit it. Standalone interpretation jobs use their own ID. Jobs that cannot call models have null budget_job_id. The API assigns this field; job inputs cannot choose a different budget owner.
 
 ### job_steps
 
@@ -714,6 +740,7 @@ No id column. PK owner_id/call_id. Mutable until completed or exhausted; unique 
 | `attempt_number`     | `INTEGER`                                      |
 | `model_role`         | `TEXT`                                         |
 | `model_id`           | `TEXT`                                         |
+| `model_config_id`    | `TEXT`                                         |
 | `pricing_version`    | `TEXT`                                         |
 | `run_id`             | `FK(ai_runs)?`                                 |
 | `job_id`             | `FK(jobs)?`                                    |
@@ -725,7 +752,7 @@ No id column. PK owner_id/call_id. Mutable until completed or exhausted; unique 
 | `output_tokens`      | `INTEGER?`                                     |
 | `state`              | `enum(reserved, settled, uncertain, released)` |
 
-No id column. PK owner_id/attempt_id. Mutable. Unique owner, call_id, attempt_number. Composite FK owner_id/call_id to model_calls. AttemptNumber is 1 through 3. Amounts use MicroUsd. Exactly one owning run or job. Nonnegative amounts. Reservation checks the whole call and execution budgets under an owner-specific usage lock.
+No id column. PK owner_id/attempt_id. Mutable. Unique owner, call_id, attempt_number. Composite FK owner_id/call_id to model_calls. AttemptNumber is 1 through 3. Amounts use MicroUsd. Exactly one owning run or job. Nonnegative amounts. Reservation checks the whole call, monthly budget, and execution budgets under an owner-specific usage lock. Import and interpretation charges aggregate through jobs.budget_job_id, including uncertain attempts. Model_config_id identifies an immutable evaluated configuration and its pricing version.
 
 `JobInput` and `JobState` are closed unions in [Import and job protocols](/technical/import-protocol). Submission, `RunState`, `RunCheckpoint`, and `AiStepOutput` are in [AI functionality](/technical/ai-functionality). JSON is used for versioned payloads whose shape varies by kind. Financial identity, money, dates, and queryable relationships remain relational columns.
 

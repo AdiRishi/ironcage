@@ -48,7 +48,7 @@ Migration tests cover an empty database and an upgrade with existing financial r
 
 ## Extraction and interpretation evaluation
 
-A checked corpus includes OFX 1.02 SGML, date-only OFX postings, reused FITIDs, bank and card envelopes, standalone OFX uploads, headerless CSVs, empty card balances, multiline PDF descriptions, repeated headings, rewards rows, foreign currency, refunds, and conflicting sources.
+A checked corpus includes OFX 1.02 SGML, date-only OFX postings, missing, empty, whitespace-only, and reused FITIDs, bank and card envelopes, standalone OFX uploads, headerless CSVs, empty card balances, multiline PDF descriptions, repeated headings, rewards rows, foreign currency, refunds, and conflicting sources.
 
 The local private corpus belongs in `fixtures/commbank/`. Read `fixtures/README.md` before using it. Private-corpus validation is an explicit local operation and ordinary tests run without those files.
 
@@ -135,6 +135,29 @@ These cases accompany the owning implementation. Their expected outcomes use fic
 | Compare scenarios without balance anchors                                 | Cash delta is unavailable while supported cost effects remain inspectable.                                                 |
 | Restart after Workflow state retention expires                            | Succeeded durable jobs stay complete; unfinished work resumes from application step receipts with a new fenced generation. |
 | Restore a daily backup with R2 and conversations                          | Manifests, hashes, versions, and reference counts reconcile before dispatch resumes.                                       |
+
+These cases cover import boundaries, saved periods, and maintenance:
+
+| Case                                                                                                       | Required outcome                                                                                                                        |
+| ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Import blank FITIDs on otherwise valid card and loan rows                                                  | Empty IDs supply no identity evidence; literal and scored paths still run.                                                              |
+| Import an offset-free ledger timestamp                                                                     | The instant uses OFX's GMT default; changing display timezone does not reinterpret it.                                                  |
+| Compare ordinary-cost groups across 13 complete weeks: five with A=$100, five with B=$100, three with both | With no other costs, the monthly estimate is $535.15. Rounded category contributions sum to that same amount.                           |
+| Calculate an older ordinary-cost period after importing newer history                                      | Its training weeks end at that period's cutoff and exclude later observations.                                                          |
+| Confirm and then unmatch a recurring bill                                                                  | Matched costs enter the forecast once. Explicit unmatching prevents automatic rematching of that event.                                 |
+| Refresh a rolling analysis on a later date                                                                 | Its window advances; a saved fixed range stays fixed; prior results retain their resolved dates.                                        |
+| Reconcile bank movements with an unresolved income role                                                    | The cash metric can be complete while income identifies the unresolved credit.                                                          |
+| Link a borrowing debit and deposit credit                                                                  | Borrowing increases available cash and debt without increasing income; both postings retain their bank dates.                           |
+| Confirm a transfer with only one posting, then import the counterpart                                      | Its role is known before pairing, no synthetic posting exists, and later pairing preserves the confirmed event ID.                      |
+| Import original-currency money and associate a separate fee                                                | Both currencies remain inspectable; booked money and the separate fee enter their metrics once.                                         |
+| Remove a source, finish removal, and reupload identical bytes                                              | The source ID and observations are reused, retained records regain evidence, and withdrawn records stay withdrawn until previewed undo. |
+| Replay a completed removal after restoration                                                               | Its receipt returns without deleting the new source object.                                                                             |
+| Split import interpretation into several jobs                                                              | Extraction and all derived attempts share the original per-source ceiling, including unsettled charges.                                 |
+| Fall back to a second model configuration                                                                  | Its role is unchanged, its exact pricing version is reserved, and the attempt consumes the same execution budget.                       |
+| Export a conversation while an accepted run completes                                                      | The frozen prefix references only captured submissions and completed answers; incomplete pairs are listed for reconciliation.           |
+| Run the same scheduled backup or calendar refresh twice                                                    | The dedupe key selects one job and verified artifact; a timer alone produces no new spending observation.                               |
+
+The exact-money and grouping examples are synthetic. These checks accompany the implementation of the owning public operations, not a separate test framework.
 
 ## Completion evidence
 

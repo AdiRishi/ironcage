@@ -46,7 +46,7 @@ The [database schema](/technical/database-schema) owns the exact field, nullabil
 
 Amounts use signed integer minor units with an explicit currency. Postgres stores booked amounts as `BIGINT`. Domain arithmetic uses `bigint`, and JSON contracts encode minor units as decimal strings. Boundary schemas validate the stored range and decode values without conversion through a JavaScript `number`.
 
-Parsing converts decimal strings directly to minor units. SQL aggregates and fractional calculations retain exact values through `NUMERIC`, decimal, or rational arithmetic. Rounding occurs only at a defined output boundary. A currency's exponent is explicit. Historical Australian-dollar totals use the bank's booked Australian-dollar amount, not a later exchange rate.
+Parsing converts decimal strings directly to minor units. SQL aggregates and fractional calculations retain exact values through `NUMERIC`, decimal, or rational arithmetic. Rounding occurs only at a defined output boundary. A currency's exponent is explicit. Historical Australian-dollar totals use the bank's booked Australian-dollar amount. Supplied original-currency money has its own supporting observation and never replaces booked money. Proposed or confirmed fee associations preserve each fee as a separate cost.
 
 Account balances use asset-positive and liability-negative signs. Credit-card exports that lack balances do not produce invented opening balances. A statement anchor can establish a balance, followed by reconciled postings.
 
@@ -66,7 +66,7 @@ Categories partition a cost allocation. Tags and events can overlap. A query tha
 
 ## Relationships and conservation
 
-Allocation amounts sum exactly to their event amount. A transfer connects source and destination postings without creating income or spending. Different posting dates are allowed when evidence identifies the same movement.
+Allocation amounts sum exactly to their event amount. A confirmed transfer records its owned endpoints and available postings without creating income or spending. A missing counterpart remains an evidence limitation, not an unknown role. Different posting dates are allowed when evidence identifies the same movement.
 
 A card purchase creates a cost and increases liability. Its settlement reduces cash and liability. A mortgage payment reduces cash. The loan record distinguishes principal movement from interest and fees. The full repayment is not added to interest again as a second expense.
 

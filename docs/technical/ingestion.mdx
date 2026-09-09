@@ -23,6 +23,8 @@ The server verifies file type from content and streams the bytes to a temporary 
 
 An upload attempt has its own status and can reference an existing source. The source stores the original filename, content type, size, hash, object key, and accepted time. Filenames are labels, not proof of account identity or coverage.
 
+A reupload of removed bytes restores source access under the same identity after verification. Withdrawn records stay withdrawn until the user accepts an undo of the withdrawal. An upload during removalPending can retry after removal completes. The [removal and restoration protocol](/technical/import-protocol#refresh-and-removal) defines version fencing.
+
 The upload endpoint returns a receipt after source registration. A lost response can be retried with the same command identity. A source whose registration failed is reconciled against pending upload records before temporary-object cleanup.
 
 The upload path supports the full supplied corpus. Operational byte and page limits are explicit, displayed before upload, and tested against the corpus. Larger files are streamed and processed in bounded chunks.
@@ -128,7 +130,7 @@ Extraction, model interpretation, and source-object writes finish outside the fi
 
 Deterministic financial-role establishment runs before semantic enrichment, following [Financial-role establishment](/technical/import-protocol#financial-role-establishment). Known merchant rules and explicit corrections run before model classification. Only novel or unresolved interpretations require model calls. Accepted amount and date evidence remains separate from semantic proposals.
 
-After publication, jobs update recurring-cost detection, affected period summaries, saved analyses, forecasts, and insights. Jobs include their input revision and calculation version. A late job cannot replace newer results.
+After posting publication, finalizeExtraction publishes supported statement anchors and source coverage. Jobs then update recurring-cost detection, occurrence matches, affected period summaries, saved analyses, forecasts, and insights. [Processor RPC](/technical/rpc#processor-only-rpc) defines their read and publication operations. Jobs include their input revision and calculation version. A late job cannot replace newer results.
 
 The API's durable dispatch table is the source of pending work. Direct Workflow dispatch and steps can repeat. Exhausted dispatch records an actionable job failure. Interpretation or refresh failure does not change a completed posting import back to failed.
 

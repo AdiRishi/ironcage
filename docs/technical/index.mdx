@@ -70,7 +70,7 @@ These references define application contracts. The architecture pages below expl
 
 ## Design status
 
-Cloudflare Workers, PlanetScale Postgres, Hyperdrive, Alchemy, Effect, TanStack Start, shadcn components, Cloudflare Agents SDK, AIChatAgent, Vercel AI SDK, Workflows, and AI Gateway are selected.
+Cloudflare Workers, PlanetScale Postgres, Hyperdrive, Alchemy, Effect, TanStack Start, shadcn components, Cloudflare Agents SDK, AIChatAgent, Vercel AI SDK, Workflows, Containers, Cloudflare Access, and AI Gateway are selected.
 
 The data structures and policies in these pages are implementation decisions derived from the [product contract](/product). Their correctness is established through the [acceptance scenarios](/product/acceptance), not by the presence of a framework feature.
 
@@ -78,6 +78,6 @@ The [product pages](/product) own required behavior. Shared contracts, schema, R
 
 Matching, role-marker, categorization, detector, and forecast policies are provisional until their stated evaluation gates pass. The initial version IDs name unshipped candidates, not evidence of successful evaluation. Failed gates require correcting the candidate, recording a new policy version and results, and updating its authoritative page before promotion. They do not permit weakening financial invariants or treating broad unresolved output as completed ingestion.
 
-The remaining implementation selections are model IDs, evaluated literal source-profile markers, the PDF extraction/rendering library build, and exact compatible dependency patch versions. Each selection records its owner, version, and the specified corpus or integration evidence. Deployment credentials and provider resource availability are external checks. An additional unresolved design decision is recorded on its owning reference page with the affected behavior and evidence needed to close it. The package catalog and lockfile remain the source of installed dependency versions.
+The remaining implementation selections are model IDs, evaluated literal source-profile markers, the PDF extraction/rendering library build, the maintenance image digest, and exact compatible dependency patch versions. Each selection records its owner, version, and the specified corpus or integration evidence. Deployment credentials and provider resource availability are external checks. An additional unresolved design decision is recorded on its owning reference page with the affected behavior and evidence needed to close it. The package catalog and lockfile remain the source of installed dependency versions.
 
 The technical foundation supplies strong types, Effect services, Alchemy infrastructure, and Cloudflare Worker RPC. These pages describe the financial application built on that foundation.

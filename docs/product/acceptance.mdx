@@ -94,6 +94,14 @@ These scenarios make the feature requirements observable. They use fictional val
 | Move a recurring bill to another payment account           | Earlier schedule segments keep their account and future occurrences use the accepted effective change.    |
 | Allocate an obligation to a service period                 | Ordinary costs follow the covered days while the cash calendar retains the payment date.                  |
 
+| Additional scenario                                                 | Required outcome                                                                                                                |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Reupload a removed source                                           | Evidence returns under the same source identity. Withdrawn records return only through an accepted undo with an impact preview. |
+| Open an automatically refreshed rolling view after its dates change | The view resolves its new range and marks the old result out of date. Fixed-range views retain their dates.                     |
+| Inspect ordinary-cost contributors                                  | Their rounded amounts add to the headline and identify estimates derived from payments or schedules.                            |
+| Confirm a transfer whose other account history is unavailable       | The transfer does not increase spending or income, and its missing counterpart remains visible.                                 |
+| Reach an import limit during derived interpretation work            | The whole source-processing budget applies and completed records remain available.                                              |
+
 [Contract regression cases](/technical/verification#contract-regression-cases) specifies the corresponding implementation checks.
 
 These scenarios supplement the feature pages. They do not replace requirements described in those pages. The [verification design](/technical/verification) maps the contract to automated checks and model evaluations.

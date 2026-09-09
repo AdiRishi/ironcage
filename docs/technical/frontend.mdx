@@ -30,15 +30,17 @@ The following application routes are planned. These are app URLs, not links to p
 
 The analyst index lists conversations through listConversations and provides a new-conversation action. That action creates a conversation UUID, navigates to its route, and persists the conversation when its first submission is accepted. Empty conversations have no stored history.
 
+The transaction route parameter is the canonical posting ID accepted by getTransaction. The product calls that record a transaction.
+
 Route modules own URLs, loaders, and HTTP handlers. Feature modules own page composition, query options, server functions, and domain-specific components. Shared visual controls stay in `components/ui/`.
 
 ## Query state
 
-Search parameters represent date ranges, comparison mode, accounts, category and merchant filters, and selected measures. A shared boundary schema validates those values before creating a financial query.
+Search parameters retain PeriodSelection, comparison mode and unit, accounts, category and merchant filters, and selected measures. Saved views retain the selector; calculation requests use its resolved dates. A shared boundary schema validates those values before creating a financial query.
 
 Feature `queries.ts` modules own query keys and options. Route loaders and components use the same definitions. Query keys include the normalized query and applicable data revision, rather than a separately assembled component-specific filter object.
 
-Financial totals come from API results. The client decodes exact monetary values from the shared decimal-string contract and formats money and dates. It does not recompute official totals or forecast ranges. Chart coordinates can use finite display numbers, while labels and tables retain the exact values. The server returns covered intervals and unresolved information with each result.
+Financial totals come from API results. The client decodes exact monetary values from the shared decimal-string contract and formats money and dates. It does not recompute official totals or forecast ranges. Chart coordinates can use finite display numbers, while labels and tables retain the exact values. The server returns source coverage and measure-specific completeness with each result. Overview cards use their own metric assessment.
 
 ## Corrections and refresh
 
@@ -52,7 +54,7 @@ An analyst answer created at an old revision is not silently rewritten. It shows
 
 shadcn chart components supply the visual building blocks. The current chart documentation describes integration with Recharts. The application supplies typed series, labels, units, and comparison semantics. [shadcn charts](https://ui.shadcn.com/docs/components/base/chart)
 
-Each chart has an accessible title, a textual summary, and a table view. Tooltips are supplementary. Selecting a segment creates a ResultSelection and calls listContributions against the result snapshot. The detail shows each contribution, its original bank amount, and supporting credits or counterpart postings. Daily-average selections retain their denominator and total contributions. Opening Transactions independently still uses TransactionFilter.
+Each chart has an accessible title, a textual summary, and a table view. Tooltips are supplementary. Selecting a segment creates a ResultSelection and calls listContributions against the result snapshot. The detail shows each contribution, its original bank amount, and supporting credits or counterpart postings. Ordinary-cost rows identify monthly-equivalent estimates and link to their source allocations or schedules. Daily-average selections retain their denominator and total contributions. Opening Transactions independently still uses TransactionFilter.
 
 Confidence ranges, estimates, and actual values have distinct labels and styles. A forecast interval is not drawn as another observed series. Chart resizing preserves readable labels and selected evidence on narrow screens.
 
@@ -60,7 +62,7 @@ Confidence ranges, estimates, and actual values have distinct labels and styles.
 
 The analyst feature uses `useAgentChat` and typed SDK message parts. Server tool results render as explicit components for comparisons, transaction evidence, forecasts, and clarification.
 
-The public web Worker authenticates the request and routes SDK HTTP and WebSocket traffic directly through the analyst-owned Durable Object namespace binding. It translates the app route to the SDK route with an owner-derived instance name. Integration checks verify authentication, namespace restriction, upgrades, streaming, and reconnects through this binding.
+The public web Worker authenticates the request and routes SDK HTTP and WebSocket traffic directly through the analyst-owned Durable Object namespace binding. It translates the app route to the SDK route with an owner-derived instance name. The web Worker supplies verified owner and subject metadata on the private hop, and the analyst binds it to the connection before accepting submissions. Integration checks verify identity replacement, namespace restriction, upgrades, streaming, and reconnects through this binding.
 
 Ordinary reads use bounded RPC deadlines. Conversation streaming and long-running jobs use dedicated handlers and receipts. A job's lifetime is independent of the request that started it.
 

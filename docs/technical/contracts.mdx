@@ -9,22 +9,23 @@ The shapes below describe encoded values. Decoded money uses `bigint`. Fields ar
 
 ## Scalar types
 
-| Type           | Encoded representation and validation                                                                                                                                                            |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `Id<K>`        | UUID string, branded by entity kind `K`. Server-generated UUIDs identify persisted entities. Clients generate command and submission IDs.                                                        |
-| `Revision`     | Canonical nonnegative decimal string. The initial dataset revision is `"0"`.                                                                                                                     |
-| `Version`      | Positive safe integer. A new mutable entity starts at 1.                                                                                                                                         |
-| `Minor`        | Canonical signed decimal string, no leading zeros or `-0`. A stored amount must fit signed 64-bit `BIGINT`. Aggregates can exceed that range and remain exact strings.                           |
-| `MicroUsd`     | Canonical nonnegative integer string of USD millionths, branded separately from Minor. Stored values fit signed BIGINT.                                                                          |
-| `DecimalMoney` | `{currency: Currency, minor: Decimal}` for fractional minor units, including daily averages. Output rounds half-even to at most 12 fractional digits; intermediate calculations remain rational. |
-| `Decimal`      | Base-10 decimal string, no exponent notation. Used for rates and unrounded intermediate values.                                                                                                  |
-| `Currency`     | Uppercase ISO currency code string. The registry supplies its exponent. AUD has exponent 2.                                                                                                      |
-| `CalendarDate` | Valid Gregorian `YYYY-MM-DD` calendar date.                                                                                                                                                      |
-| `Instant`      | RFC 3339 UTC timestamp ending in `Z`.                                                                                                                                                            |
-| `Range`        | `{start: CalendarDate, endExclusive: CalendarDate}` with start before end.                                                                                                                       |
-| `Money`        | `{currency: Currency, minor: Minor}`.                                                                                                                                                            |
-| `Hash`         | Lowercase SHA-256 hex string of length 64.                                                                                                                                                       |
-| `Text`         | UTF-8 text with length bounds set by the containing field.                                                                                                                                       |
+| Type                | Encoded representation and validation                                                                                                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Id<K>`             | UUID string, branded by entity kind `K`. Server-generated UUIDs identify persisted entities. Clients generate command and submission IDs.                                                        |
+| `Revision`          | Canonical nonnegative decimal string. The initial dataset revision is `"0"`.                                                                                                                     |
+| `ContextGeneration` | Same nonnegative decimal codec as Revision, with a separate brand. The initial generation is `"0"`.                                                                                              |
+| `Version`           | Positive safe integer. A new mutable entity starts at 1.                                                                                                                                         |
+| `Minor`             | Canonical signed decimal string, no leading zeros or `-0`. A stored amount must fit signed 64-bit `BIGINT`. Aggregates can exceed that range and remain exact strings.                           |
+| `MicroUsd`          | Canonical nonnegative integer string of USD millionths, branded separately from Minor. Stored values fit signed BIGINT.                                                                          |
+| `DecimalMoney`      | `{currency: Currency, minor: Decimal}` for fractional minor units, including daily averages. Output rounds half-even to at most 12 fractional digits; intermediate calculations remain rational. |
+| `Decimal`           | Base-10 decimal string, no exponent notation. Used for rates and unrounded intermediate values.                                                                                                  |
+| `Currency`          | Uppercase ISO currency code string. The registry supplies its exponent. AUD has exponent 2.                                                                                                      |
+| `CalendarDate`      | Valid Gregorian `YYYY-MM-DD` calendar date.                                                                                                                                                      |
+| `Instant`           | RFC 3339 UTC timestamp ending in `Z`.                                                                                                                                                            |
+| `Range`             | `{start: CalendarDate, endExclusive: CalendarDate}` with start before end.                                                                                                                       |
+| `Money`             | `{currency: Currency, minor: Minor}`.                                                                                                                                                            |
+| `Hash`              | Lowercase SHA-256 hex string of length 64.                                                                                                                                                       |
+| `Text`              | UTF-8 text with length bounds set by the containing field.                                                                                                                                       |
 
 Money and date codecs are shared with the [Postgres schema](/technical/database-schema). IDs of different entity kinds are not interchangeable. Arbitrary model text never becomes an identifier without a successful lookup in the authorized scope.
 
@@ -47,7 +48,7 @@ type CallerContext = {
 };
 ```
 
-The authenticated web Worker supplies user context. Processor and analyst adapters supply the owner recorded on their accepted job or run. Browser requests and model tool arguments contain no caller context. Service bindings are private, and each RPC checks ownership and the allowed actor kinds before loading records.
+The authenticated web Worker supplies user context. Before forwarding SDK HTTP or WebSocket requests, it replaces the private `X-Ironcage-Owner` and `X-Ironcage-Subject` headers with values derived from the verified Access identity. The analyst binds those values to the connection and checks that the owner matches its server-derived instance name. It uses that user context for acceptRun and cancelRun before switching to an accepted run's agent context. Browser message frames cannot replace connection identity. Processor and analyst execution adapters obtain the owner from their accepted job or run. Each RPC checks ownership and allowed actor kinds before loading records.
 
 ## Read basis and pagination
 
@@ -85,13 +86,19 @@ type FinancialQuery = {
   interval: "day" | "week" | "month" | "quarter" | "year";
   comparison:
     | { kind: "none" }
-    | { kind: "previousPeriod"; alignment: "elapsed" | "full" }
+    | {
+        kind: "previousPeriod";
+        unit: "dayCount" | "week" | "month" | "quarter" | "year";
+        alignment: "elapsed" | "full";
+      }
     | { kind: "previousYear"; alignment: "elapsed" | "full" }
     | { kind: "custom"; period: Range };
 };
 ```
 
 The server normalizes UI omissions to net personal costs, spending dates, Australia/Sydney, AUD, monthly buckets, total normalization, no comparison, and empty filter arrays. Empty arrays mean no restriction. Values within one dimension match with OR, dimensions combine with AND, and explicit exclusions apply last. Category selection includes descendants. Account filters use the event's reporting account, defined in [Calculation rules](/technical/calculation-rules).
+
+FinancialQuery always contains resolved calendar dates. SavedFinancialQuery and SavedAnalysisDefinition retain relative date choices as defined in [Saved date selections](/technical/calculation-rules#saved-date-selections). Comparison unit describes the selected period independently of interval, which controls chart buckets. Custom and rolling ranges default to dayCount; calendar selections retain their calendar unit.
 
 Cash balance change always uses posting dates and deposit accounts. Principal repaid uses the signed loan-period calculation in Calculation rules and always uses posting dates. Category, merchant, tag, and personal-event filters are invalid for cashBalanceChange and principalRepaid because those measures reconcile whole accounts. Invalid metric/date/account combinations return `InvalidInput`. A query selects one booked currency. Other currencies remain visible as excluded scope in coverage, without inferred FX conversion.
 
@@ -114,13 +121,17 @@ type EvidenceRef =
 
 Result paths are JSON Pointers into a validated immutable result. The server checks that each path exists. Source observations resolve to authenticated row or page evidence. Evidence references never expose an R2 key or credential.
 
-`CoverageSummary` contains `status: "complete" | "partial" | "unknown"`, requested range, `accounts: {accountId, observedRanges, reconciledRanges, latestDate, missingRanges}[]`, `unresolved: {issueKind, count, knownAmount: Money | null}[]`, and `excludedCurrencies: Currency[]`. A missing known amount is not zero. Complete status requires reconciled requested coverage for every selected account and no unresolved money or identity affecting the metric.
+`SourceCoverage` contains `{requested: Range, currency: Currency, accounts: {accountId, observedRanges, reconciledRanges, latestDate, missingRanges}[], excludedCurrencies: Currency[]}`. It describes source evidence independently of transaction roles.
+
+`CoverageSummary` contains `{source: SourceCoverage, status: "complete" | "partial" | "unknown", unresolved: {issueKind, count, knownAmount: Money | null}[], missingRequirements: string[]}`. The calculation assesses it for its resolved definition, including the metric, date basis, filters, and currency. Complete status requires reconciled coverage and the evidence that measure needs. Unknown roles affect cost and income completeness but do not invalidate established bank movements. Cash balance change additionally needs balance anchors. A missing known amount is not zero. Forecast assessments identify missing training, account shares, or anchors separately. The overview returns an assessment for each metric rather than sharing one financial-completeness flag.
 
 `AnalysisResult` contains `id`, `schemaVersion`, `definition`, `basis`, `calculationVersion`, `createdAt`, `coverage`, `evidenceManifestId`, and `data`. Data is a closed union:
 
 `ResultSelection` is `{resultId, selector: {kind: "current"} | {kind: "previous"} | {kind: "contributor", key: string, period: "current" | "previous"} | {kind: "bucket", index: number}}`. Selectors refer to a validated immutable result. Drill-down reads its saved calculation population, including spending dates, exclusions, splits, and later credits. It never reconstructs a posting filter from chart labels.
 
 `ContributionRow` is a closed union. The allocation variant contains `{kind: "allocation", allocationId, eventId, postingId, booked: Money, contribution: Money, effectiveDate: CalendarDate, linkedCreditIds, evidence: EvidenceRef[]}`. Contribution is the signed amount included in the selected total. Linked credits are subtracted once from the cost allocation; supporting credit and counterpart postings are evidence, not additional cost rows. For cash and loan metrics, the posting variant uses `{kind: "posting", postingId, booked: Money, contribution: Money, effectiveDate, evidence}` instead. Decimal normalization is applied after total contributions, with the denominator retained by the result.
+
+Ordinary costs use the estimate variant `{kind: "estimate", component: {kind: "allocation", allocationId} | {kind: "occurrence", commitmentId, nominalDate} | {kind: "schedule", segmentId}, method: "weeklyMean" | "serviceDays" | "cadenceEquivalent", contribution: Money, evidence: EvidenceRef[]}`. These are monthly-equivalent contributions, not additional bank postings. Evidence opens the original payment or schedule.
 
 ### Comparison result
 
@@ -136,10 +147,11 @@ Result paths are JSON Pointers into a validated immutable result. The server che
 - `remainder: Money | null`.
 - `overlapping: boolean`.
 - `frequency: FrequencyBreakdown | null`.
+- `ordinaryBasis: {current: OrdinaryCostBasis, previous: OrdinaryCostBasis | null} | null`, populated only for ordinaryMonthlyCost.
 - `loanBreakdowns: LoanBreakdown[]`, empty for other metrics.
 - `normalization: {kind: "total"} | {kind: "dailyAverage", unit: "perDay", currentDays: number, previousDays: number | null, current: DecimalMoney | null, previous: DecimalMoney | null, delta: DecimalMoney | null, remainder: DecimalMoney | null, contributors: {key, current: DecimalMoney | null, previous: DecimalMoney | null, delta: DecimalMoney | null}[], series: {period: Range, days: number, value: DecimalMoney | null}[]}`.
 
-The top-level money fields always retain period totals. With dailyAverage, charts and claims select normalization fields and show currency per day. RelativeChange follows the selected normalization. Daily averages are unavailable for incomplete coverage, with known totals still inspectable.
+The top-level money fields retain period totals, except ordinaryMonthlyCost, whose values and buckets are monthly-equivalent estimates. With dailyAverage, charts and claims select normalization fields and show currency per day. RelativeChange follows the selected normalization. Daily averages are unavailable for incomplete coverage, with known totals still inspectable.
 
 ### Forecast result
 
@@ -187,7 +199,7 @@ Receipts store the canonical command payload hash and exact encoded response. Ob
 
 `AcceptedJob` is `{jobId, kind: JobKind, status: "queued", acceptedAt}`. A command that starts a job returns `CommandReceipt<AcceptedJob>`. It reports acceptance separately from completion. A no-op receipt retains the current revision and an empty invalidation list.
 
-Postings, financial interpretations, active schedules, confirmed context, and visible coverage or financial-review changes advance the dataset revision. Import staging, proposed context, run progress, inbox state, settings, and saved definitions have their own versions and leave that revision unchanged. Saved-definition updates invalidate that definition's result directly. Source removal advances the revision because it changes evidence availability.
+Postings, financial interpretations, active schedules and occurrence matches, confirmed context, and visible coverage or financial-review changes advance the dataset revision. Import staging, proposed context and commitments, run progress, inbox state, settings, and saved definitions have their own versions and leave that revision unchanged. Saved-definition updates invalidate that definition's result directly. Source removal and restoration advance the revision because they change evidence availability. An unchanged occurrence match or derived result publication does not advance the revision.
 
 ## Failures
 

@@ -37,7 +37,7 @@ When either period has no purchases, its average is undefined. The result descri
 
 ## Ordinary costs and events
 
-The ordinary-cost calculation combines a variable-cost baseline with confirmed recurring obligations. Quarterly and annual amounts are allocated over their covered periods. The adjustment never changes source cash dates.
+The ordinary-cost calculation combines the arithmetic mean of covered weekly variable costs with confirmed recurring obligations. Each estimate uses one week set and rounded contribution population across all groups. Quarterly and annual amounts are allocated over their covered periods. The adjustment never changes source cash dates.
 
 Event exclusions use explicit membership, such as a trip or a one-off home purchase. The result records the included and excluded allocations. Repeated exceptional spending remains visible in actual totals and can generate a separate finding.
 
@@ -45,7 +45,7 @@ Known changes, including mortgage commencement, define meaningful comparison seg
 
 ## Recurring-cost detection
 
-Candidate series group by merchant, service, currency, and financial role. Calendar-aware interval matching considers weekly, fortnightly, monthly, quarterly, and annual schedules. Month-end and weekend posting shifts do not require fixed day counts.
+Candidate series and eligible cadences follow the [schedule detection rules](/technical/calculation-rules#schedule-contract-and-detection). Month-end and weekend posting shifts do not require fixed day counts.
 
 The detector evaluates interval consistency, amount variation, observation count, and missing expected occurrences. Fixed subscriptions and variable bills use different amount tolerances. An inferred schedule retains its evidence and can be replaced by a confirmed schedule.
 
@@ -69,7 +69,7 @@ The starting position uses reconciled account anchors. Missing time between the 
 
 Variable-cost candidates begin with joint resampling of recent fully covered weeks and a multiplicatively adjusted exponential-smoothing candidate. More complex methods are adopted only when they improve held-out results at relevant horizons. [Exponential smoothing](https://otexts.com/fpp3/ses.html) provides a transparent recent-weighted baseline.
 
-Prediction ranges use the joint historical resampling defined in [Calculation rules](/technical/calculation-rules#forecast-contract). Their calibration status is reported separately from the simulated range. Simulations preserve relevant dependence, such as weekly spending patterns and substitution between food categories. Adding independent category percentiles is not a valid combined prediction interval.
+Prediction ranges use the joint historical resampling defined in [Calculation rules](/technical/calculation-rules#forecast-contract). Their calibration status is reported separately from the simulated range. Joint samples preserve weekday patterns and category relationships within each sampled week. They do not preserve dependence between successive weeks or seasonal changes. Adding independent category percentiles is not a valid combined prediction interval.
 
 Known commitments are included once. Variable-cost training excludes the same scheduled obligations to prevent double counting. One-off future expenses are explicit scenario inputs.
 
@@ -83,6 +83,6 @@ Evaluation measures absolute error, bias, and interval coverage at the product's
 
 ## Result publication
 
-An analysis result stores its definition, input revision, metric and model versions, values, adjustments, coverage, and evidence manifest. Large results live in R2 with metadata in Postgres. Snapshot extraction ends before statistical computation starts.
+An analysis result stores its resolved definition, input revision, metric and model versions, values, adjustments, coverage, and evidence manifest. Large results live in R2 with metadata in Postgres. Snapshot extraction ends before statistical computation starts.
 
 A correction schedules refreshes for affected subjects and periods. A publication transaction checks the current revision under the owner lock before selecting a completed result for live views. A stale result can remain historical evidence but cannot replace the current result. Publishing derived results does not itself advance the financial revision or trigger another analysis cycle.

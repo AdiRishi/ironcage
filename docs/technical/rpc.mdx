@@ -3,7 +3,7 @@ title: RPC specification
 description: Financial API methods, request and response schemas, mutation rules, and browser transport boundaries.
 ---
 
-The financial API exports the methods below through the starter's native Worker RPC adapter. Each method takes `{context: CallerContext, input: Input}` and returns an Effect success value or a tagged failure. The adapter derives the callable client from the server implementation. There is no separately maintained HTTP JSON-RPC protocol.
+The financial API exports the methods below through the starter's native Worker RPC adapter, except the explicitly identified content streams. Each RPC takes `{context: CallerContext, input: Input}` and returns an Effect success value or a tagged failure. The adapter derives the callable client from the server implementation. Content streams use private service-binding HTTP handlers with the same ownership rules.
 
 `CallerContext`, `Command`, `CommandReceipt`, `Page`, `FinancialQuery`, and failures are defined in [Shared contracts](/technical/contracts). Browser server functions and AI tools omit context from their public arguments and supply it from trusted execution state.
 
@@ -11,7 +11,7 @@ The financial API exports the methods below through the starter's native Worker 
 
 `Dto<table>` means the corresponding row in [Database schema](/technical/database-schema), with snake_case columns encoded as camelCase. IDs, timestamps, dates, amounts, and JSON payloads use the shared codecs. The projection excludes `ownerId`, `objectKey`, `uploadKey`, `authSubject`, `identityHash`, `payloadHash`, `leaseToken`, and deployment credentials. Nullable SQL values remain null. Other listed columns, including id, version, and timestamps where present, are included.
 
-This rule defines a separate concrete schema for each exposed table. It is not permission to send arbitrary database rows. Tables not named in an output below are not exposed through a generic entity endpoint. `TransactionDetail` contains `posting: Dto<postings>`, `event: Dto<financial_events>`, `allocations: Dto<allocations>[]`, `counterparts: Dto<postings>[]`, `credits: Dto<cost_credits>[]`, `evidence: EvidenceRef[]`, `reviews: Dto<review_items>[]`, and `basis`.
+This rule defines a separate concrete schema for each exposed table. It is not permission to send arbitrary database rows. Tables not named in an output below are not exposed through a generic entity endpoint. `TransactionDetail` contains `posting: Dto<postings>`, `event: Dto<financial_events>`, `allocations: Dto<allocations>[]`, `counterparts: Dto<postings>[]`, `credits: Dto<cost_credits>[]`, `feeAssociations: Dto<fee_associations>[]`, `evidence: EvidenceRef[]`, `reviews: Dto<review_items>[]`, and `basis`.
 
 `JobView` is `{id, version, kind, state: JobState, attempt, executionGeneration, deadline, cancelRequestedAt, createdAt, updatedAt}`. `ImportBatchView` contains `{id, items: {id, sourceId, filename, uploadStatus, job: JobView | null}[], totals: {files, acceptedPostings, matchedObservations, unresolvedObservations, failedFiles}}`. Counts are derived from committed records and observation dispositions.
 
@@ -23,7 +23,7 @@ These methods allow user, agent, and job actors. IDs are checked against context
 
 Input: `{}`
 
-Success: `{revision: Revision, contextGeneration: Revision, updatedAt: Instant}`
+Success: `{revision: Revision, contextGeneration: ContextGeneration, updatedAt: Instant}`
 
 ### listAccounts
 
@@ -35,13 +35,19 @@ Success: `{accounts: Dto<accounts>[], periods: Dto<account_periods>[]}`
 
 Input: `{}`
 
-Success: `{categories: Dto<categories>[], merchants: Dto<merchants>[], tags: Dto<tags>[], personalEvents: Dto<personal_events>[]}`
+Success: `{categories: Dto<categories>[], merchants: Dto<merchants>[], merchantAliases: Dto<merchant_aliases>[], tags: Dto<tags>[], personalEvents: Dto<personal_events>[]}`
+
+### getSourceCoverage
+
+Input: `{accountIds: Id<"account">[], period: Range, currency: Currency, basis: ReadBasis}`
+
+Success: `{basis, source: SourceCoverage}`
 
 ### getCoverage
 
-Input: `{accountIds: Id<"account">[], period: Range, basis: ReadBasis}`
+Input: `{query: FinancialQuery, basis: ReadBasis}`
 
-Success: `{basis, coverage: CoverageSummary}`
+Success: `{basis, coverage: CoverageSummary}` for the query's metric, date basis, filters, and currency
 
 ### listTransactions
 
@@ -59,7 +65,7 @@ Success: `TransactionDetail`
 
 Input: `{period: Range, accountIds: Id<"account">[], currency: Currency}`
 
-Success: `{basis, coverage, metrics: {grossCosts, netPersonalCosts, income, surplus, cashBalanceChange, principalRepaid}, upcoming: ScheduleOccurrence[], insightIds: Id<"insight">[]}`. Each metric is `Money | null`. Null denotes unavailable evidence. Upcoming covers the next 30 calendar days.
+Success: `{basis, sourceCoverage: SourceCoverage, metrics: {grossCosts, netPersonalCosts, income, surplus, cashBalanceChange, principalRepaid}, upcoming: ScheduleOccurrence[], insightIds: Id<"insight">[]}`. Each metric is `{value: Money | null, coverage: CoverageSummary}`. The API captures all metrics in one read snapshot and assesses their evidence separately. Cash selects deposit accounts and principalRepaid selects loans within the requested account set. Null denotes unavailable evidence. Upcoming covers the next 30 calendar days.
 
 ### queryFinancials
 
@@ -95,7 +101,7 @@ Success: `{basis, commitments: Dto<commitments>[], segments: Dto<commitment_segm
 
 Input: `{accountIds, merchantIds, period: Range, includeProposed: boolean, basis: ReadBasis}`
 
-Success: `{basis, contextGeneration: Revision, items: Dto<personal_context>[]}`. Removed entries are excluded. Agent callers receive confirmed entries only.
+Success: `{basis, contextGeneration: ContextGeneration, items: Dto<personal_context>[]}`. Removed entries are excluded. Agent callers receive confirmed entries only.
 
 ### listSavedAnalyses
 
@@ -249,9 +255,17 @@ Output and invariants: `{correctionId}`
 
 ### linkMovements
 
-Input inside Command: `{kind: "transfer" | "cardSettlement" | "loanPayment", postingIds: Id<"posting">[], expectedEventVersions: {eventId, version}[]}`
+Input inside Command: `{kind: "transfer" | "cardSettlement" | "loanPayment" | "borrowing", movement: MovementLink, postingIds: Id<"posting">[], expectedEventVersions: {eventId, version}[]}`
 
-Output and invariants: `{event: Dto<financial_events>, correctionId}`. Replaces prior event memberships atomically and supersedes replaced events.
+Output and invariants: `{event: Dto<financial_events>, correctionId}`. Requires one or two postings consistent with MovementLink. A single posting requires explicit user confirmation of both owned endpoints. Attaching the missing counterpart preserves the existing confirmed event ID. Other merges replace memberships atomically and supersede replaced events.
+
+### setFeeAssociation
+
+Allowed actors: user; job actors may create or update proposed associations only
+
+Input inside Command: `{feeEventId, expectedFeeVersion, purchaseEventId: Id<"event"> | null, status: "proposed" | "confirmed", evidence: EvidenceRef[]}`
+
+Output and invariants: `{association: Dto<fee_associations> | null, correctionId}`. Null purchaseEventId removes an association and is user-only. The command validates event roles and currency, preserves amounts and dates, and cannot overwrite a user-confirmed association from a job. Job callers also supply executionGeneration.
 
 ### undoCorrection
 
@@ -305,7 +319,21 @@ type EventChange =
 
 `AllocationInput` is the allocation object in the allocations variant. Existing IDs preserve credit links. Removing or reducing an allocation with linked credits requires an explicit compatible relink in a separate prepared change. Bank amounts, source dates, and posting identity are not fields of `EventChange`.
 
-User-only `setOccurrenceOverride(Command<{commitmentId, expectedCommitmentVersion, nominalDate: CalendarDate, scheduledDate: CalendarDate, servicePeriod: Range | null, status: "expected" | "skipped"}>)` returns a commitment occurrence DTO. NominalDate identifies an occurrence generated by an effective schedule segment. The command changes its displayed payment date or service period without moving segment membership. Matched occurrences require source resolution before their match can be changed. Supplied service periods must be nonempty and their evidence or user-confirmed status is recorded in the correction.
+### setOccurrenceOverride
+
+Allowed actors: user
+
+Input inside Command: `{commitmentId, expectedCommitmentVersion, nominalDate: CalendarDate, scheduledDate: CalendarDate, servicePeriod: Range | null, status: "expected" | "skipped"}`
+
+Output and invariants: `Dto<commitment_occurrences>`. NominalDate identifies an occurrence in an effective segment. The command changes its date or service period without changing segment membership. A matched occurrence must be unmatched first. User-supplied service periods are recorded as confirmed in the correction.
+
+### setOccurrenceMatch
+
+Allowed actors: user
+
+Input inside Command: `{commitmentId, nominalDate, expectedCommitmentVersion, eventId: Id<"event"> | null, expectedEventVersion: Version | null}`
+
+Output and invariants: `Dto<commitment_occurrences>`. An explicit match validates account, currency, and role and records user authority for date or amount exceptions. Null eventId unmatches the current event and excludes it from automatic rematching. Match changes advance the revision and refresh affected estimates.
 
 ## Previews, rules, and review resolution
 
@@ -313,13 +341,61 @@ User-only `setOccurrenceOverride(Command<{commitmentId, expectedCommitmentVersio
 
 `ChangeImpact` contains `{recordCount, affectedEventIds, measures: {metric: FinancialQuery["metric"], period: Range, accountIds: Id<"account">[], currency: Currency, before: Money | null, after: Money | null, coverageBefore: CoverageSummary, coverageAfter: CoverageSummary}[], reviewCount, warnings: string[]}`. Preview measures always use total normalization. Costs, income, cash balance change, and the net loan repayment effect appear when affected. The stored preview includes the exact command input and full affected set even when the UI pages it.
 
-`PreviewInput` is a closed union: `{kind: "eventChange", change: PreparedEventChange}`, `{kind: "rule", rule: RulePreviewInput}`, `{kind: "roleRule", rule: RoleRuleInput}`, or `{kind: "sourceRemoval", sourceId, expectedVersion}`. RulePreviewInput is the previewRule input below. PreparedEventChange is a discriminated union of `{operation: "correctEvent" | "linkMovements" | "linkCostCredit" | "unlinkCostCredit", input}` with the exact input schema of the selected method.
+`PreviewInput` is a closed union of `{kind: "eventChange", change: PreparedEventChange}`, `{kind: "rule", rule: RulePreviewInput}`, `{kind: "roleRule", rule: RoleRuleInput}`, and `{kind: "sourceRemoval", sourceId, expectedVersion}`. RulePreviewInput is the previewRule input below.
 
-`previewEventChange({change: PreparedEventChange})` allows user actors and agent proposals. It returns `{previewId, revision, expiresAt, impact}` after executing the same validation and calculation as the eventual command, without a financial mutation. `acceptEventChange(Command<{previewId, expectedRevision}>)` allows user actors or a server-authorized agent and returns `{correctionId, affectedEventIds}`. Acceptance reloads the exact stored input, checks expiry, revision, target versions, and authorization, then commits once. A changed input needs a new preview.
+PreparedEventChange is a discriminated union with operation equal to correctEvent, linkMovements, linkCostCredit, unlinkCostCredit, or undoCorrection. Each variant contains input with the exact input schema of that operation. It cannot pair one operation name with another operation's payload.
 
-Direct correctEvent calls support single-event merchant changes, categories, tags, and evidenced purchase-date changes only. Allocation edits through this path must preserve IDs, roles, and amounts. Financial-role changes, splits, movement links, and credit links enter through acceptEventChange. The corresponding method schemas describe the shared internal operations; they are not alternate public routes around preview acceptance. Undo that affects roles, allocation amounts, or relationships also uses a PreparedEventChange variant `{operation: "undoCorrection", input: UndoCorrectionInput}`. UndoCorrectionInput is the undoCorrection input above.
+Direct correctEvent calls support single-event merchant changes, categories, tags, and evidenced purchase-date changes. Allocation edits through this path preserve IDs, roles, and amounts. Financial-role changes, splits, movement links, credit links, and undo affecting those fields enter through acceptEventChange. The method schemas above describe their shared internal operations, not alternate public routes around preview acceptance. Movement event kinds are constructed through linkMovements, not a role-only change.
 
-`RoleRulePredicate` is `{match: {kind: "description", normalizedExact: string} | {kind: "counterpartyReference", reference: string}, expectedSign: "debit" | "credit"}`. `RoleRuleInput` contains `{ruleId: Id<"roleRule"> | null, expectedVersion: Version | null, accountId, predicate: RoleRulePredicate, role: "purchase" | "income" | "financingCost", effectiveStart: CalendarDate, effectiveEnd: CalendarDate | null, applyHistory: boolean}`. User-only `previewRoleRule({rule: RoleRuleInput})` and `acceptRoleRule(Command<{previewId, expectedRevision}>)` use the same preview and version checks, returning a rule DTO and optional historical-application job. `listRoleRules({page: PageRequest})` returns a page of role rules. `setRoleRuleEnabled(Command<{ruleId, expectedVersion, enabled}>)` changes future application without undoing accepted history. Rules are scoped user confirmation, not model authority.
+`RoleRulePredicate` is `{match: {kind: "description", normalizedExact: string} | {kind: "counterpartyReference", reference: string}, expectedSign: "debit" | "credit"}`. `RoleRuleInput` contains `{ruleId: Id<"roleRule"> | null, expectedVersion: Version | null, accountId, predicate: RoleRulePredicate, role: "purchase" | "income" | "financingCost", effectiveStart: CalendarDate, effectiveEnd: CalendarDate | null, applyHistory: boolean}`.
+
+### previewEventChange
+
+Allowed actors: user, agent
+
+Input: `{change: PreparedEventChange}`
+
+Success: `{previewId, revision, expiresAt, impact: ChangeImpact}`. Executes the command's validation and calculation without a financial mutation.
+
+### acceptEventChange
+
+Allowed actors: user, server-authorized agent
+
+Input: `Command<{previewId, expectedRevision}>`
+
+Success: `CommandReceipt<{correctionId, affectedEventIds}>`. Reloads the stored input and checks expiry, revision, target versions, and authorization before committing once. A changed input needs a new preview.
+
+### previewRoleRule
+
+Allowed actors: user
+
+Input: `{rule: RoleRuleInput}`
+
+Success: `{previewId, revision, expiresAt, impact: ChangeImpact}`
+
+### acceptRoleRule
+
+Allowed actors: user
+
+Input: `Command<{previewId, expectedRevision}>`
+
+Success: `CommandReceipt<{rule: Dto<role_rules>, jobId: Id<"job"> | null}>`. Saves the scoped user confirmation and optionally dispatches historical application.
+
+### listRoleRules
+
+Allowed actors: user
+
+Input: `{page: PageRequest}`
+
+Success: `Page<Dto<role_rules>>`
+
+### setRoleRuleEnabled
+
+Allowed actors: user
+
+Input: `Command<{ruleId, expectedVersion, enabled}>`
+
+Success: `CommandReceipt<Dto<role_rules>>`. Changes future application without undoing accepted history.
 
 ### previewRule
 
@@ -351,9 +427,9 @@ Input: `Command<{reviewId, expectedVersion, resolution: ReviewResolution}>`
 
 Success: `CommandReceipt<{review: Dto<review_items>, correctionId: Id<"correction"> | null}>`
 
-`ReviewOption` contains `{id: string, label: string, resolution: ReviewResolution}`. Resolution variants are `chooseOption {optionId}`, `mapAccount {accountId}`, `matchPosting {postingId}`, `distinctPosting {}`, `useObservation {observationId}`, `classify {change: EventChange}`, `explain {text}`, and `dismiss {reason}`. chooseOption is resolved to a stored non-chooseOption value. The issue kind determines the allowed variants. Free-text explanations can resolve context questions but cannot establish unreadable amounts or duplicate identity without further evidence.
+`ReviewOption` contains `{id: string, label: string, resolution: ReviewResolution}`. Resolution variants are `chooseOption {optionId}`, `mapAccount {accountId}`, `matchPosting {postingId}`, `distinctPosting {}`, `useObservation {observationId}`, `classify {change: EventChange}`, `acceptChange {previewId, expectedRevision}`, `explain {text}`, and `dismiss {reason}`. chooseOption is resolved to a stored non-chooseOption value. The issue kind determines the allowed variants. Free-text explanations can resolve context questions but cannot establish unreadable amounts or duplicate identity without further evidence.
 
-Review resolution locks the review subject, checks its version, applies the selected financial command, and marks the review resolved in the same transaction. A classify resolution that changes roles or allocation amounts must carry an accepted event-change preview; the resolution variant for that path is `acceptChange {previewId, expectedRevision}`. It checks the preview and resolves the review atomically, without bypassing impact review. Dismiss leaves unresolved financial values outside confirmed totals. Agent callers can propose review options but cannot dismiss unresolved evidence automatically.
+Review resolution locks the review subject, checks its version, applies the selected financial command, and marks the review resolved in the same transaction. Classify permits only direct correctEvent changes. AcceptChange checks a stored event-change preview and resolves the review atomically for role, allocation-amount, or relationship changes. Dismiss leaves unresolved financial values outside confirmed totals. Agent callers can propose review options but cannot dismiss unresolved evidence automatically.
 
 ## Saved work and controls
 
@@ -365,7 +441,7 @@ Output: `AcceptedJob`. A latest request freezes records during execution. All ex
 
 ### saveAnalysis
 
-Input inside Command: `{savedAnalysisId: Id<"savedAnalysis"> | null, expectedVersion: Version | null, label, question: string | null, definition: AnalysisDefinition, refresh: "onChange" | "manual", archived: boolean}`
+Input inside Command: `{savedAnalysisId: Id<"savedAnalysis"> | null, expectedVersion: Version | null, label, question: string | null, definition: SavedAnalysisDefinition, refresh: "onChange" | "manual", archived: boolean}`
 
 Output: `Dto<saved_analyses>`
 
@@ -377,7 +453,7 @@ Output: `AcceptedJob`
 
 ### saveScenario
 
-Input inside Command: `{scenarioId: Id<"scenario"> | null, expectedVersion: Version | null, label, baseline: ForecastDefinition, overrides: ScenarioOverride[], archived: boolean}`
+Input inside Command: `{scenarioId: Id<"scenario"> | null, expectedVersion: Version | null, label, baseline: SavedForecastDefinition, overrides: ScenarioOverride[], archived: boolean}`
 
 Output: `Dto<scenarios>`
 
@@ -423,9 +499,23 @@ Input inside Command: `{includeSources: boolean, includeConversations: boolean}`
 
 Output: `AcceptedJob`
 
-All methods in this section return `CommandReceipt` around the output. Only user actors can change settings, remove data, cancel unrelated jobs, or export account data. Starting an analysis, saving an investigation, and refreshing it are also available to authorized agent runs.
+All methods in this section return `CommandReceipt` around the output. Only user actors can change settings, remove data, cancel unrelated jobs, or export account data. Starting an analysis, saving an investigation, and refreshing it are also available to authorized agent runs. An owning refresh job may call startAnalysis and refreshAnalysis with executionGeneration and stable command IDs for affected definitions. These child analysis jobs retain the accepted saved version and resolved snapshot on replay.
 
-`previewSourceRemoval({sourceId, expectedVersion})` returns a ten-minute `{previewId, revision, expiresAt, impact: ChangeImpact, unsupportedPostingIds}`. `removeSource(Command<{previewId, expectedRevision, unsupportedRecords: "retainWithWarning" | "withdraw"}>)` records the choice and returns `AcceptedJob`. Removal invalidates affected evidence and follows the backup policy. Raw source deletion never runs from a model tool.
+### previewSourceRemoval
+
+Allowed actors: user
+
+Input: `{sourceId, expectedVersion}`
+
+Success: `{previewId, revision, expiresAt, impact: ChangeImpact, unsupportedPostingIds}`. The preview lasts ten minutes.
+
+### removeSource
+
+Allowed actors: user
+
+Input: `Command<{previewId, expectedRevision, unsupportedRecords: "retainWithWarning" | "withdraw"}>`
+
+Success: `CommandReceipt<AcceptedJob>`. Records removalPending, the source version, and the chosen posting disposition before dispatch. Withdrawal records a correction that can later be undone through an impact preview if source evidence is available. Source deletion is not a model tool.
 
 ## Processor-only RPC
 
@@ -437,11 +527,41 @@ Input: `{jobId}`
 
 Success: `JobInput`
 
+### beginExtraction
+
+Input: `{jobId, stepKey}`
+
+Success: `{extractionId, replayed: boolean}`. Uses the accepted import job's source, extractor version, and input hash. Reuses an existing compatible extraction.
+
+### stageInspection
+
+Input: `{jobId, stepKey, extractionId, inspection: SourceInspection}`
+
+Success: `{extractionId, segmentKeys: string[]}`. Validates source ownership and locator bounds. A completed inspection is reused on replay; changed extraction output needs a new extractor version or input hash.
+
+### getExtraction
+
+Input: `{jobId, extractionId, segmentKey: string | null, page: PageRequest}`
+
+Success: `{inspection: SourceInspection | null, observations: Page<{observation: Dto<observations>, disposition: Dto<observation_dispositions> | null}>}`. The job must own this extraction. Inspection segments retain account-mapping reviews until evidence or a user answer establishes the account.
+
+### captureReconciliation
+
+Input: `{jobId, stepKey, extractionId, segmentKey, accountId, period: Range}`
+
+Success: `{artifactId, revision, contentHash}`. Stores ReconciliationInput at one read snapshot after checking the segment's established account mapping. ReadArtifact supplies the immutable input. Publication uses its actual revision and repeats matching on a revision conflict.
+
+### finalizeExtraction
+
+Input: `{jobId, stepKey, extractionId, expectedRevision}`
+
+Success: `{revision, sourceCoverage: SourceCoverage[], reviewIds}`. Checks all staged segment rows and dispositions, writes supported coverage and statement summaries, and sets extraction status. Segment failures produce specific reviews. Only changed financial coverage advances the revision. The same receipt is returned on replay.
+
 ### captureSnapshot
 
-Input: `{jobId, stepKey, definition: AnalysisDefinition, basis: ReadBasis}`
+Input: `{jobId, stepKey, definition: AnalysisDefinition | null}`
 
-Success: `{snapshotId, revision, manifest: SnapshotManifest}`. Captures requested rows and contextGeneration together, then persists the snapshot and step outcome. Retries reuse that successful outcome.
+Success: `{snapshotId, revision, definition: AnalysisDefinition, manifest: SnapshotManifest}`. Analysis jobs pass null: the API resolves their accepted definition and basis. Refresh and interpretation jobs supply a resolved definition within their accepted account and event scope. Extraction includes the supporting postings and interpretation records required by that work. The API captures rows and contextGeneration together, then persists the snapshot and step outcome. Retries reuse the same resolved dates and data.
 
 ### commitRoles
 
@@ -451,7 +571,7 @@ Success: `{revision, appliedEventIds, reviewIds}`. Revalidates source markers or
 
 ### stageObservations
 
-Input: `{jobId, stepKey, extractionId, observations: ParsedObservation[]}`
+Input: `{jobId, stepKey, extractionId, segmentKey, observations: ParsedObservation[]}`
 
 Success: `{stagedCount, observationIds}`
 
@@ -467,6 +587,26 @@ Input: `{jobId, stepKey, expectedRevision, decisions: InterpretationDecision[]}`
 
 Success: `{revision, appliedEventIds, reviewIds}`
 
+### commitOccurrenceMatches
+
+Input: `{jobId, stepKey, expectedRevision, matches: {commitmentId, nominalDate, expectedCommitmentVersion, eventId, expectedEventVersion}[]}`
+
+Success: `{revision, matchedOccurrenceIds, reviewIds}`. Rechecks the occurrence-matching policy against current records, including uniqueness and explicit exclusions. It preserves valid user matches and records ambiguous candidates for review. Groups contain at most 200 matches. Event and schedule mutations also invalidate incompatible existing matches in their financial transaction.
+
+### applyRuleGroup
+
+Input: `{jobId, stepKey, expectedRevision, events: {eventId, expectedVersion}[]}`
+
+Success: `{revision, appliedEventIds, reviewIds}`. Loads the rule and preview from the accepted applyRule job. At most 200 events must belong to that preview's affected set. The command preserves individual corrections and reports changed targets as conflicts.
+
+### publishRefresh
+
+Input: `{jobId, stepKey, expectedRevision, commitments: CommitmentProposal[], insights: InsightPublication[], intentions: {intentionId, expectedVersion, resultId}[]}`
+
+Success: `{commitmentIds, insightIds, intentionIds, publication: "current" | "historical"}`. A group contains at most 200 entries. New proposals and derived pointers do not advance the financial revision. Stale results remain historical and enqueue a current refresh. Accepted schedules and dismissed unchanged findings retain their user state.
+
+CommitmentProposal is `{detectorKey, label, merchantId, effectiveFrom, schedule: ScheduleDefinition, evidence: EvidenceRef[]}`. DetectorKey hashes the policy version, series identity, cadence, and first evidenced occurrence. The API upserts that proposed commitment and never overwrites an accepted schedule. InsightPublication is `{fingerprint, detector, resultId, impact: Money, rank: number}`. The API checks result ownership, revision, currency, detector thresholds, and rank before publication. Intention result publication checks the saved intention version and the resolved current period. Each result retains its resolved queries and evidence.
+
 ### publishAnalysis
 
 Input: `{jobId, stepKey, snapshotId, definitionHash, result: AnalysisResultData, evidence: EvidenceRef[]}`
@@ -480,6 +620,68 @@ Input: `{jobId, stepKey, expectedVersion, state: JobState}`
 Success: `JobView`
 
 Artifact transfer uses authenticated private HTTP streams. A worker does not receive production SQL credentials or arbitrary R2 access from these calls. The payload schemas and step identities are in [Import and job protocols](/technical/import-protocol).
+
+## Export and maintenance RPC
+
+These API methods allow only the owning export, backup, or source-removal job as stated. They use jobId, stepKey, and executionGeneration fencing like other processor mutations. The API owns source and backup storage operations.
+
+### readSource
+
+Allowed actors: user, owning job, or agent with source evidence in its snapshot
+
+Input: `{sourceId}` through streaming HTTP
+
+Success: the available source's content stream. Import jobs can read their accepted source. Export and backup jobs can read sources in their frozen export manifest. The handler derives the owner from trusted caller context and never accepts an object key.
+
+### prepareExport
+
+Allowed actors: owning export or portable-backup job
+
+Input: `{jobId, stepKey}`
+
+Success: `{artifactId, manifest: ExportManifest}`. Captures canonical entities and the manifest at one REPEATABLE READ snapshot. ExportManifest contains `{schemaVersion: 1, revision, contextGeneration: ContextGeneration, capturedAt, schemaMigrationVersion, rowCounts: {table, count}[], recordArtifactId, sourceIds, artifactIds, conversations: {conversationId, throughSequence, submissionIds, completedAnswerIds}[]}`. IDs identify records represented by the captured database state. Include flags come from the accepted job. Source objects are pinned until package verification finishes.
+
+### getExportScope
+
+Allowed actors: owning export or portable-backup job, including the trusted analyst export adapter acting for that job
+
+Input: `{jobId, conversationId}`
+
+Success: `{ownerId, throughSequence, submissionIds, completedAnswerIds}` from the prepared export. Rejects conversations and job kinds outside that manifest. This private response supplies routing identity to the analyst and is not a browser DTO.
+
+### completeExport
+
+Allowed actors: owning export or portable-backup job
+
+Input: `{jobId, stepKey, artifactId, conversationArtifactIds: Id<"artifact">[]}`
+
+Success: `{artifactId, completedAt}`. Verifies the package against the frozen manifest, including hashes, entity counts, and conversation reconciliation records. Portable backups additionally copy and verify referenced bytes in backup storage before publishing the retained manifest. User downloads expire after seven days; backups use Operations retention.
+
+### runDatabaseBackup
+
+Allowed actors: owning database-backup job
+
+Input: `{jobId, stepKey}`
+
+Success: `{artifactId, completedAt}`. The API runs the fixed pg_dump task in its maintenance Container with the dedicated backup connection, streams its output to backup storage, and verifies the artifact before recording completion. This operation has no generated-code input. Its runtime and retention are defined in Operations.
+
+### completeSourceRemoval
+
+Allowed actors: owning removeSource job
+
+Input: `{jobId, stepKey}`
+
+Success: `{sourceId, affectedPostingIds, affectedResultIds, withdrawalCorrectionId}`. Deletes only the object recorded for the accepted removal version and commits removed status after successful deletion. Missing bytes on replay are compatible with completion. A newer source version cannot become a deletion target.
+
+### exportConversation
+
+Owner: analyst Worker, exposed only through the processor's private export binding
+
+Allowed actors: owning export or portable-backup job
+
+Input: `{jobId, executionGeneration, stepKey, conversationId}`
+
+Success: `{artifactId, throughSequence, pendingRunIds}`. The analyst validates getExportScope through the API, routes to the owner-bound conversation, and exports the longest canonical message prefix represented by the accepted submissions and completed answers in that scope. Incomplete database/message pairs enter pendingRunIds rather than introducing references absent from the backup. Before streaming, the analyst freezes the prefix's last message ID in application-owned Durable Object state under jobId and stepKey. Retries retain that prefix even if later messages become available. Message export uses the SDK's supported message interface. The analyst registers and uploads the export artifact under the requesting job through the API; the processor receives no general conversation or writable storage capability. Replays return the recorded artifact.
 
 ## Analyst execution RPC
 
@@ -559,9 +761,9 @@ Success: `{replayed: boolean}`. Validates the role output and completed attempts
 
 ### reserveUsage
 
-Input: `{callId, attemptId, attemptNumber, runId: Id<"run"> | null, jobId: Id<"job"> | null, modelRole, maxInputTokens, maxOutputTokens}`
+Input: `{callId, attemptId, attemptNumber, runId: Id<"run"> | null, jobId: Id<"job"> | null, modelConfigId, maxInputTokens, maxOutputTokens}`
 
-Success: `{reservationId, reservedMicroUsd}`. Also available to the owning job. Exactly one execution owner is set.
+Success: `{reservationId, reservedMicroUsd, modelConfigId, pricingVersion}`. Available to the owning job or run. The API looks up the immutable model configuration, verifies that its role matches the logical call, and reserves against that configuration's rates and the execution's budget owner. Exactly one execution owner is set.
 
 ### settleUsage
 
@@ -569,16 +771,42 @@ Input: `{attemptId, outcome: {kind: "known", inputTokens, outputTokens, actualMi
 
 Success: `{state, chargedMicroUsd, heldMicroUsd}`. Idempotent per attempt, with uncertain-to-known reconciliation permitted. All monetary fields use MicroUsd; one attempt never replaces another attempt's reservation.
 
-`registerArtifact` is available to the owning job or agent. Input is `{stepKey, kind, mediaType, byteCount, contentHash}` and output is `{artifactId, uploadPath}`. RegisterArtifact creates an expiring artifact_uploads grant. The authenticated private upload verifies size and hash before creating the available artifacts row. `readArtifact({artifactId})` streams only an artifact referenced by the caller's run or job. Application-supplied bytes never provide their own bucket key.
+### registerArtifact
+
+Allowed actors: owning job or agent
+
+Input: `{stepKey, kind, mediaType, byteCount, contentHash}`
+
+Success: `{artifactId, uploadPath}`. Creates an expiring artifact_uploads grant. The private upload verifies size and hash before registering the available artifact. Clients never provide an R2 key.
+
+### readArtifact
+
+Allowed actors: user, owning job or agent
+
+Input: `{artifactId}`
+
+Success: authenticated content stream. Job and agent callers require an artifact referenced by their execution; user callers require ownership. The private HTTP adapter preserves this authorization.
+
+## Private content streams
+
+These paths exist only on the API service binding. A runtime adapter constructs the `X-Ironcage-Context` header from its trusted CallerContext, encoded as base64url JSON. It replaces any incoming header instead of forwarding browser input. The API decodes the header and applies the same actor and ownership checks as RPC. Job uploads also carry their current execution generation.
+
+| Path                                      | Method              | Authorization                                                                        |
+| ----------------------------------------- | ------------------- | ------------------------------------------------------------------------------------ |
+| `/internal/sources/:sourceId/content`     | GET, optional Range | readSource scope and available source status.                                        |
+| `/internal/artifacts/:artifactId/content` | GET                 | readArtifact scope.                                                                  |
+| `/internal/artifacts/:artifactId/content` | PUT raw bytes       | Unexpired artifact_uploads grant for the calling job or run, matching size and hash. |
+
+RegisterArtifact returns the private PUT path. Browser downloads use the authenticated public web routes below; the web adapter supplies user context on the private hop. No source or artifact route accepts a client-selected object key.
 
 ## Browser HTTP and conversation boundaries
 
-| Route                                | Method and body                                              | Result                                                                                                                                                                         |
-| ------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `/api/imports/:itemId/content`       | PUT raw bytes, declared Content-Type, `Idempotency-Key` UUID | 202 `{sourceId, jobId, repeatedSource}`. The server verifies bytes, hashes content, and registers the source.                                                                  |
-| `/api/sources/:sourceId/content`     | GET, optional Range header                                   | Authenticated source stream with correct media type and disposition.                                                                                                           |
-| `/api/artifacts/:artifactId/content` | GET                                                          | Authenticated artifact stream.                                                                                                                                                 |
-| `/api/analyst/:conversationId/*`     | SDK HTTP, streaming, and WebSocket protocol                  | Authenticated routing to the owner-bound AIChatAgent through its cross-script Durable Object namespace binding. SDK message frames are not replaced by a custom chat protocol. |
+| Route                                | Method and body                                              | Result                                                                                                                                                                                             |
+| ------------------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/imports/:itemId/content`       | PUT raw bytes, declared Content-Type, `Idempotency-Key` UUID | 202 `{sourceId, jobId: Id<"job"> \| null, repeatedSource, restoredSource, withdrawalCorrectionId: Id<"correction"> \| null}`. The server verifies bytes, hashes content, and registers the source. |
+| `/api/sources/:sourceId/content`     | GET, optional Range header                                   | Authenticated source stream with correct media type and disposition.                                                                                                                               |
+| `/api/artifacts/:artifactId/content` | GET                                                          | Authenticated artifact stream.                                                                                                                                                                     |
+| `/api/analyst/:conversationId/*`     | SDK HTTP, streaming, and WebSocket protocol                  | Authenticated routing to the owner-bound AIChatAgent through its cross-script Durable Object namespace binding. SDK message frames are not replaced by a custom chat protocol.                     |
 
 Financial screen reads and commands use typed TanStack Start server functions that call the RPC methods. The upload path expires after one hour before upload begins. Limits are 100 files per batch, 33,554,432 bytes per file, displayed as 32 MiB, and 500 PDF pages per file. Larger limits require configuration and resource validation, not silent truncation. The importer must accommodate every supplied file.
 

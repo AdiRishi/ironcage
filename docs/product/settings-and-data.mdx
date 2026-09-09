@@ -27,7 +27,7 @@ Conversation summaries are distinct from confirmed facts. The [analyst and memor
 
 ## AI usage and privacy
 
-Settings shows the configured AI usage limits and current usage, including unsettled reservations and uncertain charges. Estimated costs are labelled. The user can change the monthly ceiling and investigation or import limits. New calls follow the updated policy.
+Settings shows the configured AI usage limits and current usage, including unsettled reservations and uncertain charges. Estimated costs are labelled. The user can change the monthly ceiling and investigation or import limits. The import limit covers one source-processing job and its derived interpretation work; standalone interpretation jobs identify their own usage under that limit. New calls follow the updated policy.
 
 When a limit prevents further AI work, the app explains which limit applies and preserves completed work. The user can adjust the limit and explicitly retry unfinished work. Ordinary financial views and accepted records remain accessible. A retry does not repeat a committed correction.
 
@@ -49,5 +49,7 @@ When the source is the last support for a transaction, the user chooses one of t
 - Withdraw the transaction from current financial views and refresh affected totals.
 
 The app applies the selected outcome explicitly. It retains the operation's audit record and marks affected historical results. A retained result can display its stored calculation, but a deleted source is shown as unavailable. The app does not promise access to removed evidence.
+
+Reuploading a removed source restores its evidence after verification. Previously withdrawn transactions stay withdrawn until the user accepts an undo of the withdrawal, with its financial impact shown. Reuploading during an unfinished removal waits for that operation to finish.
 
 Deleting remembered context excludes it from future retrieval. Existing historical results and retained backups follow the disclosed retention policy. A source-removal or context-removal action does not claim to erase every copy immediately.

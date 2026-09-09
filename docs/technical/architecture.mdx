@@ -28,6 +28,8 @@ flowchart TD
     Analyst -->|financial tools| API
     Analyst --> Conversations[(Durable Object conversation state)]
     Analyst --> Gateway[Cloudflare AI Gateway]
+    Jobs -->|scoped conversation export| Analyst
+    API --> Maintenance[Fixed-command backup Container]
     Jobs --> Gateway
     Gateway --> Models[Configured model providers]
 ```
@@ -46,7 +48,7 @@ Each runtime owns its application behavior and infrastructure module. Financial 
 
 Alchemy composes service-owned runtime declarations, resources, bindings, and migrations into one application graph. Each service has its own infrastructure module. The root graph wires only the capabilities its callers need. Effect owns service composition, typed failures, and cancellation inside each runtime. Worker RPC derives its method contracts from the service declarations.
 
-Only the public web Worker accepts browser traffic. It authenticates SDK HTTP and WebSocket requests and routes directly through the analyst-owned Durable Object namespace. Alchemy declares a cross-script namespace reference in the web Worker; the analyst Worker owns the class and migrations and deploys first. Routing derives the instance name from the authenticated owner and conversation ID. The namespace capability is limited to the analyst and is never selected from arbitrary browser input. This removes the intermediate Worker HTTP hop while retaining ingress and reconnect tests. Other runtimes receive capability-specific bindings. The API holds financial write capabilities. The analyst receives financial query and command tools rather than direct storage access.
+Only the public web Worker accepts browser traffic. It authenticates SDK HTTP and WebSocket requests and routes directly through the analyst-owned Durable Object namespace. Alchemy declares a cross-script namespace reference in the web Worker; the analyst Worker owns the class and migrations and deploys first. Routing derives the instance name from the authenticated owner and conversation ID. The namespace capability is limited to the analyst and is never selected from arbitrary browser input. The web Worker replaces private identity headers with verified Access identity; the analyst binds that context to the connection before acceptRun, as defined in Shared contracts. This removes the intermediate Worker HTTP hop while retaining ingress and reconnect tests. Other runtimes receive capability-specific bindings. The API holds financial write capabilities. The analyst receives financial query and command tools rather than direct storage access.
 
 TanStack Start uses the Alchemy-managed Cloudflare integration. Service infrastructure lives under `infra/src/<service>/` and uses the shared stage configuration. A service can own additional storage when its lifecycle requires it. A local request cancellation does not establish that a remote financial command stopped. Command receipts determine the outcome.
 
@@ -76,7 +78,7 @@ The API captures the revision and required rows in a read-only `REPEATABLE READ`
 
 Longer investigations use an immutable extracted dataset, stored in R2 when it exceeds the bounded tool response. Tool pagination reads that saved dataset. It does not hold a database transaction open between browser requests or model turns. A revision number alone cannot reconstruct an earlier database state after commit.
 
-After publication, dependent live views refresh. Historical results remain available with their original basis. Publication checks the current revision and saved-definition version before updating a live result pointer. A result from an earlier revision stays historical. Refresh dispatch coalesces pending work by saved definition and captures the latest revision at execution. If an unrelated change occurs while computation runs, publication schedules a new refresh rather than presenting the old basis as current.
+After publication, dependent live views refresh. Historical results remain available with their original basis. Publication checks the current revision and saved-definition version before updating a live result pointer. A result from an earlier revision stays historical. Refresh dispatch coalesces pending work by saved definition and captures the latest revision at execution. If an unrelated change occurs while computation runs, publication schedules a new refresh rather than presenting the old basis as current. Relative saved definitions also resolve dates at capture and recheck them at publication. The API schedules time-driven refresh and backups using the [scheduled-work policy](/technical/operations#scheduled-work).
 
 ## Extension beyond spending
 
