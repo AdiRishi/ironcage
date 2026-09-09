@@ -13,6 +13,14 @@ The authenticated owner is assigned by the server, not by an LLM or request body
 
 Local development uses an explicit local identity only in the local stage. Staging and production cannot activate that path through a client-supplied header. Browser mutations validate origin and authenticated session context.
 
+## Runtime profile
+
+The selected deployment uses Workers Paid because computation and document rendering use Containers. Web and financial API Workers have a 30,000 ms CPU limit; processor Workflows have a 300,000 ms CPU limit per invocation. The financial request and transaction deadlines remain the shorter application limits in Import and job protocols. Wall time and CPU time are separate budgets. [Workers limits](https://developers.cloudflare.com/workers/platform/limits/), [Container availability](https://developers.cloudflare.com/containers/)
+
+Computation and PDF-rendering jobs use basic Container instances with 1 GiB memory. The runner permits one active job per instance and terminates its process tree on timeout or output overflow. Memory exhaustion is an explicit failed job. Generated-code instances have enableInternet false, no outbound handlers or allowed hosts, and no production credentials. Input bytes arrive through the controller before execution; output collection uses the controller after execution. Runtime checks exercise denied outbound requests, memory exhaustion, timeout, and output overflow. [Instance types](https://developers.cloudflare.com/containers/platform/limits/)
+
+Uploads accept at most 33,554,432 bytes per file, displayed as 32 MiB, 100 files per batch, and 500 pages per PDF. The app checks declared and streamed size, including aborted uploads. A hosted boundary test accepts the exact byte cap and rejects cap plus one without leaving an accepted source. Cloudflare account-plan upload limits are independent of the Workers plan. Larger limits require a reviewed profile and updated boundary tests.
+
 ## Database environments and credentials
 
 Alchemy declares the PlanetScale Postgres database, stage-specific branches and roles, and the API's Hyperdrive binding. Local development and ordinary CI use disposable PostgreSQL instances with the same major version and migrations as production. Hosted integration checks use an isolated PlanetScale branch.
@@ -21,7 +29,7 @@ Application roles have only the data permissions needed by the financial API. Mi
 
 Hyperdrive targets the primary and has query caching disabled. The runtime uses execution-scoped connection pools through `@effect/sql-pg`. Lock, statement, transaction, and pool-acquisition deadlines are explicit configuration. The application resolves ambiguous commit results through command receipts rather than assuming a network failure means rollback.
 
-Database region, cluster size, availability mode, backup retention, and connection limits are explicit deployment configuration. Availability mode distinguishes single-node from replicated clusters. Capacity is selected against measured imports and queries, with the recurring cost recorded. Worker placement accounts for the database region and measured round-trip latency.
+The initial database profile uses PostgreSQL 18, an AWS Sydney production branch, and a single-node PS-5 cluster. Patch versions follow the supported provider release and are pinned in the deployment record. This profile accepts temporary database unavailability; it does not promise high availability. Hyperdrive starts with max_size 5 and query caching disabled. Local and CI PostgreSQL use the same major version. Before the first private import, the deployment record includes current region availability, connection quota, measured latency, and a dated cost estimate for all resources. Capacity changes preserve the recovery policy below. [PlanetScale pricing](https://planetscale.com/docs/postgres/pricing), [supported versions](https://planetscale.com/docs/postgres/cluster-configuration/versions)
 
 New test and development branches start empty and receive the versioned migrations and synthetic fixtures. A branch restored from a production backup contains private financial data and retains production access restrictions. [PlanetScale branches](https://planetscale.com/docs/postgres/branching)
 
@@ -31,6 +39,10 @@ Original files, extraction versions, corrections, and saved analysis evidence ar
 
 Production destruction requires an explicit destructive operation, with backup verification. Ordinary deployment preserves the PlanetScale database and production branch, R2 objects, and Durable Object identities. Schema changes preserve canonical IDs and source links.
 
+The application adds a daily database backup at 02:00 UTC retained for 30 days. It keeps the provider's automatic backups as well. Daily portable exports at 03:00 UTC include Postgres records, conversation messages and attachments, and a manifest of required R2 objects. Daily exports are retained for 30 days; the first successful export of each UTC month is retained for 12 months. Referenced source and artifact bytes are copied into a separate backup bucket and retained until the last referring backup expires. The export manifest records its database snapshot revision, context generation, and a message-sequence watermark per conversation. Conversation exports include the canonical prefix represented by accepted runs in that database snapshot; incomplete run/message pairs are retained as pending reconciliation records. Referenced R2 objects are pinned against cleanup until their backup copies are verified. Hash verification precedes publication of the backup manifest. A removed live source can therefore remain in backups for up to 12 months, which Settings discloses.
+
+The recovery target for a complete database, evidence, and conversation restore is at most 24 hours of lost work and restoration within one working day. A missed or failed daily export creates an operational inbox failure. A quarterly isolated restore drill checks the target and records elapsed time. Provider-only point-in-time recovery can recover newer database state, but is not presented as a complete cross-store restore without matching evidence and conversation checkpoints.
+
 PlanetScale backups provide database recovery. Scheduled logical exports to a separate R2 backup location provide an additional portable copy. A backup manifest identifies schema version, financial revision, referenced source objects, and creation time. Database backups do not include the corresponding R2 files. The backup job verifies that each referenced object is retained. [PlanetScale backup and restore](https://planetscale.com/docs/postgres/backups)
 
 Logical exports run with PostgreSQL backup tooling in a controlled job through a dedicated connection. Backup and migration connections bypass the application's Hyperdrive pool. Their credentials are unavailable to generated analysis code.
@@ -39,7 +51,7 @@ Conversation storage has its own export path because a Postgres backup does not 
 
 A restore targets an isolated database branch and stage. Verification checks balances, corrections, source links, command receipts, saved-analysis references, and conversation exports. Dispatch remains paused until reconciliation identifies which jobs or external deliveries already completed. The restored stage does not automatically resend every pending outbox record.
 
-Temporary upload objects and intermediate extraction artifacts have bounded cleanup policies. Cleanup distinguishes unreferenced temporary objects from accepted source evidence. It does not remove the last source for an accepted transaction.
+Unregistered upload objects expire after 24 hours. Unreferenced intermediate rendering artifacts expire after seven days. Diagnostic model captures are disabled by default and expire after 24 hours when explicitly enabled. Completed user export downloads expire after seven days; their underlying retained records follow the ordinary policy. Cleanup distinguishes unreferenced temporary objects from accepted source evidence. It does not remove the last source for an accepted transaction.
 
 ## Removing data
 

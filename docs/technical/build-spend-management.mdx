@@ -25,11 +25,11 @@ Use [Monorepo and ownership](/technical/monorepo) for workspace responsibilities
 
 Use the selected frameworks and the project-specific policies in these docs. Consult official documentation and matching package source for third-party API usage, supported limits, and integration details.
 
-Implement the [shared contracts](/technical/contracts), [database schema](/technical/database-schema), and [RPC specification](/technical/rpc) as written. Use the defined [processing protocols](/technical/import-protocol), [calculation rules](/technical/calculation-rules), and [AI contracts](/technical/ai-functionality). These decisions are part of the specification, not tasks delegated to implementation discovery.
+Use the [decision ownership and status](/technical#design-status) policy. Implement the shared contracts, schema, RPC, and processing references together. If implementation evidence exposes a contradiction or missing contract, resolve it on the owning reference page before adding dependent behavior. Product behavior and financial invariants remain the acceptance boundary.
 
 Choose compatible library versions and model IDs using the documented evaluation gates. Tune versioned thresholds only with recorded evidence, and update the affected specification before changing its contract. Internal function decomposition and framework API syntax remain implementation choices.
 
-Verify the integration points that can affect the design early: authenticated conversation transport through the web Worker, source extraction, and the Effect Postgres connection through Hyperdrive. Include atomic financial publication, stable snapshots, and recovery after a lost commit response. Keep the resulting checks with their owning modules.
+Verify authenticated analyst namespace routing, direct outbox-to-Workflow dispatch, source extraction, and the Effect Postgres connection through Hyperdrive early. Include atomic financial publication, stable snapshots, and recovery after a lost commit response. Keep the resulting checks with their owning modules.
 
 Use concrete review items for missing financial facts. For example, an unknown account relationship remains unresolved until evidence or the user's answer establishes it. Continue implementing the surrounding behavior without inventing personal context.
 

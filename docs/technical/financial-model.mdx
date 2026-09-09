@@ -58,7 +58,7 @@ Posting date, supplied value date, and evidenced purchase date remain separate f
 
 Raw observations remain immutable. Reprocessing creates another extraction version and preserves the source location. An accepted transaction can have an unknown category without losing its amount from aggregate spending.
 
-Financial roles distinguish income, purchase cost, financing cost, internal transfer, debt principal, borrowing, refund, reimbursement, and unresolved movement. Categories describe the purpose of a cost. They are not a substitute for financial roles.
+Financial roles distinguish income, purchase cost, financing cost, internal transfer, borrowing, refund, reimbursement, non-personal amounts, and unresolved movement. Net principal reduction is derived over a loan period; it is not an allocation of a repayment to the date of an interest charge. Categories describe the purpose of a cost. They are not a substitute for financial roles.
 
 An explicit user correction takes precedence over an inferred classification. A transaction-specific override takes precedence over a matching general rule. Rules have scope, effective dates, and versions. Conflicting rules create a review item rather than depend on incidental execution order.
 
@@ -76,16 +76,16 @@ Splitting or relinking preserves the sum of recorded bank movements. Corrections
 
 ## Metric definitions
 
-| Metric                | Definition                                                                                                   |
-| --------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Gross costs           | Purchase, interest, and fee allocations before linked refunds and reimbursements.                            |
-| Net personal costs    | Gross costs minus the confirmed amounts refunded or reimbursed to the user.                                  |
-| Income                | Recognized earned or other income. Excludes borrowing, own transfers, refunds, and reimbursements.           |
-| Surplus after costs   | Income minus net personal costs on the selected spending date basis.                                         |
-| Surplus rate          | Surplus after costs divided by positive income. Unavailable when income is zero or negative.                 |
-| Cash balance change   | Closing minus opening balances across included deposit accounts, with both anchors established.              |
-| Principal repaid      | Confirmed loan-principal repayment, reported separately from new borrowing and other balance adjustments.    |
-| Ordinary monthly cost | Variable-cost baseline plus the monthly allocation of known recurring costs, with explicit event exclusions. |
+| Metric                                  | Definition                                                                                                                               |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Gross costs                             | Purchase, interest, and fee allocations before linked refunds and reimbursements.                                                        |
+| Net personal costs                      | Gross costs minus the confirmed amounts refunded or reimbursed to the user.                                                              |
+| Income                                  | Recognized earned or other income. Excludes borrowing, own transfers, refunds, and reimbursements.                                       |
+| Surplus after costs                     | Income minus net personal costs on the selected spending date basis.                                                                     |
+| Surplus rate                            | Surplus after costs divided by positive income. Unavailable when income is zero or negative.                                             |
+| Cash balance change                     | Closing minus opening balances across included deposit accounts, with both anchors established.                                          |
+| Net principal reduction from repayments | Repayments minus separately dated interest and fees in a fully covered loan period. New borrowing and other adjustments remain separate. |
+| Ordinary monthly cost                   | Variable-cost baseline plus the monthly allocation of known recurring costs, with explicit event exclusions.                             |
 
 Surplus is not a promise of available cash. Paying card balances, reducing loan principal, or moving funds to an investment can change available cash differently. Missing assets prevent a claim of complete net worth.
 
@@ -113,7 +113,7 @@ The transaction commits the financial change, audit entry, receipt, new revision
 
 Deadlocks and serialization failures retry the whole transaction within a finite budget. Business conflicts return to the caller for reevaluation. A lost commit response is resolved by looking up the command receipt on the primary before attempting another change.
 
-Document processing, model calls, R2 transfers, and queue sends occur outside financial write transactions. Statement, lock, and transaction deadlines bound resource use. Dispatch status changes have their own lease operations and do not advance the financial revision.
+Document processing, model calls, R2 transfers, and Workflow dispatch occur outside financial write transactions. Statement, lock, and transaction deadlines bound resource use. Dispatch status changes have their own lease operations and do not advance the financial revision.
 
 Read-only snapshot extraction uses `REPEATABLE READ` as defined in [Architecture](/technical/architecture#revisions-and-stable-answers). The write protocol above uses explicit serialization through the owner lock. It does not assume that PostgreSQL's default isolation protects arbitrary read-modify-write sequences. [PostgreSQL isolation](https://www.postgresql.org/docs/current/transaction-iso.html)
 

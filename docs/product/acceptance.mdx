@@ -79,4 +79,21 @@ These scenarios make the feature requirements observable. They use fictional val
 | Access a source or conversation without authentication                   | The app denies access to the content.                                                                                                                                          |
 | Reach the configured AI usage ceiling                                    | AI work stops with completed work preserved and the limiting policy identified. Financial records and ordinary views remain accessible.                                        |
 
+## Boundary cases
+
+| Scenario                                                   | Required outcome                                                                                          |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Import corroborated overlaps without transaction balances  | Each real posting appears once; missing balances alone do not send all overlaps to review.                |
+| Charge interest August 31 and repay September 2            | August retains its interest cost, September retains its repayment, and linking never moves the cost date. |
+| Request a daily average with missing records               | The average is unavailable; the known total and requested calendar-day denominator remain visible.        |
+| Forecast spending split between a deposit account and card | The accepted account shares determine charges, and card settlement changes cash once.                     |
+| Accept a correction preview after its records change       | The app preserves the edit, explains the conflict, and requires an updated preview.                       |
+| Retry a model request whose charge is uncertain            | Usage shows both possible charges until resolved; the retry cannot evade the ceiling.                     |
+| Remove context and continue the same conversation          | Historical text stays inspectable, but future prompts exclude the withdrawn context.                      |
+| Compare scenarios without reliable cash anchors            | Cash delta is unavailable; supported cost and explicit credit changes remain visible.                     |
+| Move a recurring bill to another payment account           | Earlier schedule segments keep their account and future occurrences use the accepted effective change.    |
+| Allocate an obligation to a service period                 | Ordinary costs follow the covered days while the cash calendar retains the payment date.                  |
+
+[Contract regression cases](/technical/verification#contract-regression-cases) specifies the corresponding implementation checks.
+
 These scenarios supplement the feature pages. They do not replace requirements described in those pages. The [verification design](/technical/verification) maps the contract to automated checks and model evaluations.

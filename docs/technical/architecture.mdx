@@ -15,14 +15,13 @@ The target runtime consists of a public web Worker, a private financial API, a b
 flowchart TD
     User[Browser] --> Web[TanStack Start web Worker]
     Web -->|private service binding| API[API Worker]
-    Web -->|authenticated stream proxy| Analyst[Analyst Worker and AIChatAgent]
+    Web -->|authenticated namespace routing| Analyst[Analyst-owned AIChatAgent]
     API --> Hyperdrive[Hyperdrive with query caching disabled]
     Hyperdrive --> DB[(PlanetScale Postgres)]
     API --> Sources[(R2 source files)]
     API --> Dispatcher[Dispatcher]
     DB -->|pending dispatch records| Dispatcher
-    Dispatcher --> Dispatch[Queues]
-    Dispatch --> Jobs[Processor Workflows]
+    Dispatcher -->|cross-script Workflow binding| Jobs[Processor Workflows]
     Jobs -->|request financial snapshot| API
     Jobs -->|scoped source and artifact streams| API
     Jobs -->|commit prepared results| API
@@ -47,7 +46,7 @@ Each runtime owns its application behavior and infrastructure module. Financial 
 
 Alchemy composes service-owned runtime declarations, resources, bindings, and migrations into one application graph. Each service has its own infrastructure module. The root graph wires only the capabilities its callers need. Effect owns service composition, typed failures, and cancellation inside each runtime. Worker RPC derives its method contracts from the service declarations.
 
-Only the public web Worker accepts browser traffic. Other runtimes receive capability-specific bindings. The API holds financial write capabilities. The analyst receives financial query and command tools rather than direct storage access.
+Only the public web Worker accepts browser traffic. It authenticates SDK HTTP and WebSocket requests and routes directly through the analyst-owned Durable Object namespace. Alchemy declares a cross-script namespace reference in the web Worker; the analyst Worker owns the class and migrations and deploys first. Routing derives the instance name from the authenticated owner and conversation ID. The namespace capability is limited to the analyst and is never selected from arbitrary browser input. This removes the intermediate Worker HTTP hop while retaining ingress and reconnect tests. Other runtimes receive capability-specific bindings. The API holds financial write capabilities. The analyst receives financial query and command tools rather than direct storage access.
 
 TanStack Start uses the Alchemy-managed Cloudflare integration. Service infrastructure lives under `infra/src/<service>/` and uses the shared stage configuration. A service can own additional storage when its lifecycle requires it. A local request cancellation does not establish that a remote financial command stopped. Command receipts determine the outcome.
 
@@ -63,21 +62,21 @@ Postgres lets financial commands read current records, validate a decision in Ef
 
 ## Durable work
 
-A financial command commits its data change and a dispatch record in one Postgres transaction. The API's dispatcher claims pending records with a bounded lease, then sends queue messages after committing the claim. A failed or ambiguous send leaves recoverable work. Duplicate delivery returns the existing job or committed result.
+A financial command commits its data change and a dispatch record in one Postgres transaction. The API dispatcher leases pending records and starts the processor Workflow through a cross-script binding after releasing the transaction. Failed or ambiguous dispatch remains recoverable from the outbox. Durable job state and step receipts protect against repeats after platform instance retention expires.
 
-Queues distribute work. Workflows own the ordered steps of an import or analysis job. Agent conversations own question-and-answer state. A job has one execution owner. The queue consumer does not independently repeat work that belongs to a Workflow.
+Workflows own ordered import and analysis execution. Agent conversations own question-and-answer state. The API outbox owns dispatch obligations. The [dispatch protocol](/technical/import-protocol#delivery-retries-and-cancellation) defines leases, execution generations, retries, and stale-execution checks. This workload needs no separate queue or dead-letter queue.
 
 Workflows persist progress and retry failed steps. The application still makes commit operations idempotent, because a step can complete an external effect before its result is recorded. [Cloudflare Workflow rules](https://developers.cloudflare.com/workflows/build/rules-of-workflows/)
 
 ## Revisions and stable answers
 
-Every accepted financial change advances a dataset revision. An analysis captures a revision and its query definition before computation. Its result records that revision, metric version, assumptions, and evidence.
+Every accepted financial change advances a dataset revision. An analysis requested against latest captures its actual revision when execution reaches snapshot extraction. Acceptance promises durable work, not the database state at submission time. A request against an existing snapshot retains that input. The job checkpoint records the frozen basis before computation. Its result records that revision, metric version, assumptions, and evidence.
 
 The API captures the revision and required rows in a read-only `REPEATABLE READ` transaction on the primary. Every query in that extraction sees the same database snapshot. The API completes the database read before model calls or numerical analysis begin.
 
 Longer investigations use an immutable extracted dataset, stored in R2 when it exceeds the bounded tool response. Tool pagination reads that saved dataset. It does not hold a database transaction open between browser requests or model turns. A revision number alone cannot reconstruct an earlier database state after commit.
 
-After publication, dependent live views refresh. Historical results remain available with their original basis. An older job cannot overwrite a newer result: publication checks the expected input revision and result identity.
+After publication, dependent live views refresh. Historical results remain available with their original basis. Publication checks the current revision and saved-definition version before updating a live result pointer. A result from an earlier revision stays historical. Refresh dispatch coalesces pending work by saved definition and captures the latest revision at execution. If an unrelated change occurs while computation runs, publication schedules a new refresh rather than presenting the old basis as current.
 
 ## Extension beyond spending
 

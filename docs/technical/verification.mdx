@@ -81,8 +81,9 @@ Scenario tests verify that overrides change only the intended assumptions, prese
 <Tabs>
   <Tab title="Runtime recovery">
     Tests interrupt work after a source upload, after a financial commit, and before a tool result
-    is recorded. Duplicate queue delivery, stale job completion, lost responses, and cancellation
-    exercise the public command and recovery interfaces.
+    is recorded. Duplicate Workflow dispatch, retained and expired instance histories, stale
+    execution generations, stale job completion, lost responses, and cancellation exercise the
+    public command and recovery interfaces.
   </Tab>
   <Tab title="Conversation continuity">
     Tests close and reconnect the client, submit two questions concurrently, resume a clarification
@@ -106,6 +107,34 @@ Effect modules use `@effect/vitest`. React components use Vitest Browser Mode. L
 Each workspace keeps tests in `tests/`, mirroring the paths under `src/`, with a separate test TypeScript project. Module and component files use `.test.ts` or `.test.tsx`. Infrastructure suites live in `infra/tests/` with `.integration.test.ts`. Deployed browser suites use `.browser.test.ts`.
 
 `pnpm check`, `pnpm typecheck`, and `pnpm test` are the root validation commands. Implemented database suites provision isolated local PostgreSQL instances in ordinary CI and need no production credentials. `pnpm test:infra-live` creates real hosted resources and is reserved for deployed behavior, including the isolated PlanetScale integration. Financial suites accompany their implementations. The technical index identifies these suites as target implementation requirements.
+
+## Contract regression cases
+
+These cases accompany the owning implementation. Their expected outcomes use fictional data and public operations.
+
+| Case                                                                      | Required outcome                                                                                                           |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Match a corroborated account-scoped FITID without balances                | One posting gains another observation. The same FITID on another account remains independent.                              |
+| Match scored no-balance observations with independently matched neighbors | Known resolvable overlaps meet the per-format success gate without false merges.                                           |
+| Import a profile-labelled purchase                                        | Role establishment creates an unclassified cost before category enrichment. Generic incoming transfers stay unresolved.    |
+| Charge interest August 31 and repay September 2                           | Interest remains in August. The repayment effect uses each period's own postings.                                          |
+| Record multiple repayments or costs exceeding repayment                   | Components reconcile; the signed repayment effect is not clamped or attributed to an arbitrary payment.                    |
+| Forecast seven zero weeks and six 100-dollar weeks                        | Direct-resampling paths contain those observed week amounts. Scaling the category to zero removes its variable purchases.  |
+| Forecast purchases on a card and a deposit account                        | Shares, purchases, credits, and settlements produce the expected account movements once.                                   |
+| Reach 20 overlapping evaluation cutoffs                                   | Count alone does not establish calibration. Held-out coverage and interval-score gates still apply.                        |
+| Accept latest analysis, then correct data before capture                  | The job records the revision captured at execution and reuses it on retry.                                                 |
+| Drill into a January purchase posted in February                          | The January spending selection includes its allocation and later credit evidence, with bank dates unchanged.               |
+| Request a daily average with missing source days                          | Average is unavailable; known totals and the full requested denominator remain visible.                                    |
+| Accept a stale role-change preview                                        | Revision or version conflict preserves records and requires a fresh preview.                                               |
+| Request a textual category change without a unique label match            | The intent pass yields spans and the server requests resolution; no guessed ID is authorized.                              |
+| Lose a possibly billable provider response, then retry                    | Two distinct reservations remain until their individual outcomes are known.                                                |
+| Remove a fact and continue the same conversation                          | Future prompts exclude old transcript and summary text; committed actions remain recorded.                                 |
+| Concurrently accept conversation submissions through Hyperdrive           | Transaction-scoped locking assigns unique monotonic sequences and repeated submissions return their run.                   |
+| Move a commitment to a new payment account                                | Earlier segments and occurrences keep the earlier account.                                                                 |
+| Assign a quarterly service period                                         | Ordinary cost follows covered days; cash follows payment date.                                                             |
+| Compare scenarios without balance anchors                                 | Cash delta is unavailable while supported cost effects remain inspectable.                                                 |
+| Restart after Workflow state retention expires                            | Succeeded durable jobs stay complete; unfinished work resumes from application step receipts with a new fenced generation. |
+| Restore a daily backup with R2 and conversations                          | Manifests, hashes, versions, and reference counts reconcile before dispatch resumes.                                       |
 
 ## Completion evidence
 

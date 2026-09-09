@@ -9,20 +9,22 @@ The shapes below describe encoded values. Decoded money uses `bigint`. Fields ar
 
 ## Scalar types
 
-| Type       | Encoded representation and validation                                                                                                                                  |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Id<K>`    | UUID string, branded by entity kind `K`. Server-generated UUIDs identify persisted entities. Clients generate command and submission IDs.                              |
-| `Revision` | Canonical nonnegative decimal string. The initial dataset revision is `"0"`.                                                                                           |
-| `Version`  | Positive safe integer. A new mutable entity starts at 1.                                                                                                               |
-| `Minor`    | Canonical signed decimal string, no leading zeros or `-0`. A stored amount must fit signed 64-bit `BIGINT`. Aggregates can exceed that range and remain exact strings. |
-| `Decimal`  | Base-10 decimal string, no exponent notation. Used for rates and unrounded intermediate values.                                                                        |
-| `Currency` | Uppercase ISO currency code string. The registry supplies its exponent. AUD has exponent 2.                                                                            |
-| `Date`     | Valid Gregorian `YYYY-MM-DD` calendar date.                                                                                                                            |
-| `Instant`  | RFC 3339 UTC timestamp ending in `Z`.                                                                                                                                  |
-| `Range`    | `{start: Date, endExclusive: Date}` with start before end.                                                                                                             |
-| `Money`    | `{currency: Currency, minor: Minor}`.                                                                                                                                  |
-| `Hash`     | Lowercase SHA-256 hex string of length 64.                                                                                                                             |
-| `Text`     | UTF-8 text with length bounds set by the containing field.                                                                                                             |
+| Type           | Encoded representation and validation                                                                                                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Id<K>`        | UUID string, branded by entity kind `K`. Server-generated UUIDs identify persisted entities. Clients generate command and submission IDs.                                                        |
+| `Revision`     | Canonical nonnegative decimal string. The initial dataset revision is `"0"`.                                                                                                                     |
+| `Version`      | Positive safe integer. A new mutable entity starts at 1.                                                                                                                                         |
+| `Minor`        | Canonical signed decimal string, no leading zeros or `-0`. A stored amount must fit signed 64-bit `BIGINT`. Aggregates can exceed that range and remain exact strings.                           |
+| `MicroUsd`     | Canonical nonnegative integer string of USD millionths, branded separately from Minor. Stored values fit signed BIGINT.                                                                          |
+| `DecimalMoney` | `{currency: Currency, minor: Decimal}` for fractional minor units, including daily averages. Output rounds half-even to at most 12 fractional digits; intermediate calculations remain rational. |
+| `Decimal`      | Base-10 decimal string, no exponent notation. Used for rates and unrounded intermediate values.                                                                                                  |
+| `Currency`     | Uppercase ISO currency code string. The registry supplies its exponent. AUD has exponent 2.                                                                                                      |
+| `CalendarDate` | Valid Gregorian `YYYY-MM-DD` calendar date.                                                                                                                                                      |
+| `Instant`      | RFC 3339 UTC timestamp ending in `Z`.                                                                                                                                                            |
+| `Range`        | `{start: CalendarDate, endExclusive: CalendarDate}` with start before end.                                                                                                                       |
+| `Money`        | `{currency: Currency, minor: Minor}`.                                                                                                                                                            |
+| `Hash`         | Lowercase SHA-256 hex string of length 64.                                                                                                                                                       |
+| `Text`         | UTF-8 text with length bounds set by the containing field.                                                                                                                                       |
 
 Money and date codecs are shared with the [Postgres schema](/technical/database-schema). IDs of different entity kinds are not interchangeable. Arbitrary model text never becomes an identifier without a successful lookup in the authorized scope.
 
@@ -49,7 +51,7 @@ The authenticated web Worker supplies user context. Processor and analyst adapte
 
 ## Read basis and pagination
 
-`ReadBasis` is `{kind: "latest"}` or `{kind: "snapshot", snapshotId: Id<"snapshot">}`. A response identifies the actual basis as `{revision: Revision, snapshotId: Id<"snapshot"> | null}`. A request cannot obtain an old database state by supplying a revision number.
+`ReadBasis` is `{kind: "latest"}` or `{kind: "snapshot", snapshotId: Id<"snapshot">}`. Snapshot payloads also retain their contextGeneration. A response identifies the actual basis as `{revision: Revision, snapshotId: Id<"snapshot"> | null}`. A request cannot obtain an old database state by supplying a revision number.
 
 `PageRequest` contains `limit` from 1 to 200, default 50, and optional `cursor`. `Page<T>` contains `items: T[]`, `nextCursor: string | null`, `totalCount: number`, and `basis`. Counts refer to the entire authorized query, not the returned page.
 
@@ -70,6 +72,7 @@ type FinancialQuery = {
     | "ordinaryMonthlyCost";
   period: Range;
   dateBasis: "spending" | "posting";
+  normalization: "total" | "dailyAverage";
   timezone: string;
   currency: Currency;
   accountIds: Id<"account">[];
@@ -88,13 +91,13 @@ type FinancialQuery = {
 };
 ```
 
-The server normalizes UI omissions to net personal costs, spending dates, Australia/Sydney, AUD, monthly buckets, no comparison, and empty filter arrays. Empty arrays mean no restriction. Values within one dimension match with OR, dimensions combine with AND, and explicit exclusions apply last. Category selection includes descendants. Account filters use the event's reporting account, defined in [Calculation rules](/technical/calculation-rules).
+The server normalizes UI omissions to net personal costs, spending dates, Australia/Sydney, AUD, monthly buckets, total normalization, no comparison, and empty filter arrays. Empty arrays mean no restriction. Values within one dimension match with OR, dimensions combine with AND, and explicit exclusions apply last. Category selection includes descendants. Account filters use the event's reporting account, defined in [Calculation rules](/technical/calculation-rules).
 
-Cash balance change always uses posting dates and deposit accounts. Principal repaid uses loan-payment events. Invalid metric/date/account combinations return `InvalidInput`. A query selects one booked currency. Other currencies remain visible as excluded scope in coverage, without inferred FX conversion.
+Cash balance change always uses posting dates and deposit accounts. Principal repaid uses the signed loan-period calculation in Calculation rules and always uses posting dates. Category, merchant, tag, and personal-event filters are invalid for cashBalanceChange and principalRepaid because those measures reconcile whole accounts. Invalid metric/date/account combinations return `InvalidInput`. A query selects one booked currency. Other currencies remain visible as excluded scope in coverage, without inferred FX conversion.
 
 Tags and personal events can overlap. Their group breakdown includes `overlapping: true` and does not claim its rows add to the overall total. Category, merchant, and account breakdowns partition the selected allocations. All filters deduplicate allocation IDs before aggregation.
 
-`TransactionFilter` contains `currency: Currency`, default AUD at the browser boundary, optional `period`, `amount: {min: Minor | null, max: Minor | null}`, `search` up to 200 characters, and arrays `accountIds`, `merchantIds`, `categoryIds`, `tagIds`, `personalEventIds`, `roles`, `reviewStates`. Amount compares signed bank postings in the supplied `currency`. Search is case-insensitive text matching against original descriptions and normalized merchant names. An empty filter returns all accepted postings, with pagination.
+`TransactionFilter` contains `currency: Currency`, default AUD at the browser boundary, optional `period`, `amount: {min: Minor | null, max: Minor | null}`, `search` up to 200 characters, and arrays `accountIds`, `merchantIds`, `categoryIds`, `tagIds`, `personalEventIds`, `eventKinds: EventKind[]`, `allocationRoles: AllocationRole[]`, `reviewStates`. EventKinds matches the posting's active event. AllocationRoles matches any allocation in that event. Values within each filter combine with OR, and filters combine with AND. Amount compares signed bank postings in the supplied `currency`. Search is case-insensitive text matching against original descriptions and normalized merchant names. An empty filter returns all accepted postings, with pagination.
 
 ## Evidence and results
 
@@ -115,6 +118,10 @@ Result paths are JSON Pointers into a validated immutable result. The server che
 
 `AnalysisResult` contains `id`, `schemaVersion`, `definition`, `basis`, `calculationVersion`, `createdAt`, `coverage`, `evidenceManifestId`, and `data`. Data is a closed union:
 
+`ResultSelection` is `{resultId, selector: {kind: "current"} | {kind: "previous"} | {kind: "contributor", key: string, period: "current" | "previous"} | {kind: "bucket", index: number}}`. Selectors refer to a validated immutable result. Drill-down reads its saved calculation population, including spending dates, exclusions, splits, and later credits. It never reconstructs a posting filter from chart labels.
+
+`ContributionRow` is a closed union. The allocation variant contains `{kind: "allocation", allocationId, eventId, postingId, booked: Money, contribution: Money, effectiveDate: CalendarDate, linkedCreditIds, evidence: EvidenceRef[]}`. Contribution is the signed amount included in the selected total. Linked credits are subtracted once from the cost allocation; supporting credit and counterpart postings are evidence, not additional cost rows. For cash and loan metrics, the posting variant uses `{kind: "posting", postingId, booked: Money, contribution: Money, effectiveDate, evidence}` instead. Decimal normalization is applied after total contributions, with the denominator retained by the result.
+
 ### Comparison result
 
 - `kind: "comparison"`.
@@ -129,13 +136,17 @@ Result paths are JSON Pointers into a validated immutable result. The server che
 - `remainder: Money | null`.
 - `overlapping: boolean`.
 - `frequency: FrequencyBreakdown | null`.
+- `loanBreakdowns: LoanBreakdown[]`, empty for other metrics.
+- `normalization: {kind: "total"} | {kind: "dailyAverage", unit: "perDay", currentDays: number, previousDays: number | null, current: DecimalMoney | null, previous: DecimalMoney | null, delta: DecimalMoney | null, remainder: DecimalMoney | null, contributors: {key, current: DecimalMoney | null, previous: DecimalMoney | null, delta: DecimalMoney | null}[], series: {period: Range, days: number, value: DecimalMoney | null}[]}`.
+
+The top-level money fields always retain period totals. With dailyAverage, charts and claims select normalization fields and show currency per day. RelativeChange follows the selected normalization. Daily averages are unavailable for incomplete coverage, with known totals still inspectable.
 
 ### Forecast result
 
 - `kind: "forecast"`.
 - `horizon: Range`.
-- `startingBalances: {accountId, at: Date, amount: Money, estimated: boolean}[]`.
-- `points: {date: Date, cashP10: Money | null, cashP50: Money | null, cashP90: Money | null, debtP50: Money | null}[]`.
+- `startingBalances: {accountId, at: CalendarDate, amount: Money, estimated: boolean}[]`.
+- `points: {date: CalendarDate, cashP10: Money | null, cashP50: Money | null, cashP90: Money | null, debtP50: Money | null}[]`.
 - `intervalStatus: "calibrated" | "uncalibrated" | "unavailable"`.
 - `assumptions: ForecastDefinition`.
 - `modelVersion`.
@@ -147,8 +158,9 @@ Result paths are JSON Pointers into a validated immutable result. The server che
 - `kind: "scenario"`.
 - `baselineResultId`.
 - `scenarioResultId`.
-- `terminalCashDelta: Money`.
-- `costDelta: Money`.
+- `terminalCashDelta: Money | null`, unavailable when either terminal cash balance is unavailable.
+- `costDelta: Money | null`, unavailable when changed cost assumptions cannot be evaluated. Identical unavailable components cancel in a paired comparison, so known commitment and one-off changes can still have a cost delta.
+- `creditDelta: Money | null`, the change in explicit assumed credits, separate from earned income and costDelta.
 - `changedAssumptions: ScenarioOverride[]`.
 
 ### Computation result

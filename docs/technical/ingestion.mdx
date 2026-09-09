@@ -68,7 +68,7 @@ Coverage stores separate facts: the requested export interval, observed transact
 
 The matcher first restricts candidates to the same account. OFX identifiers are corroborating evidence, never a globally unique deduplication key. Reused identifiers with conflicting values cannot establish a match. It then uses amount, currency, posting date, available balance, identifiers, description tokens, and source order.
 
-Exact matching uses occurrence counts, not a set of date, merchant, and amount. Two identical rows in one source can represent two real purchases. Their multiplicity survives an overlapping export.
+Matching follows the identifier, literal-occurrence, and scored paths in the protocol. Two identical rows in one source can represent two real purchases. Complete overlap groups preserve their multiplicity; ambiguous subsets remain reviewable.
 
 Cross-format matching uses a scored candidate graph. One source observation can support one canonical posting. Matching is one-to-one within an overlapping source sequence, with explicit allowances for source date conventions. Competing plausible matches remain unresolved rather than being forced by row order.
 
@@ -126,10 +126,10 @@ Extraction, model interpretation, and source-object writes finish outside the fi
 
 ## Enrich and refresh
 
-Known merchant rules and explicit corrections run before model classification. Only novel or unresolved interpretations require model calls. Accepted amount and date evidence remains separate from semantic proposals.
+Deterministic financial-role establishment runs before semantic enrichment, following [Financial-role establishment](/technical/import-protocol#financial-role-establishment). Known merchant rules and explicit corrections run before model classification. Only novel or unresolved interpretations require model calls. Accepted amount and date evidence remains separate from semantic proposals.
 
 After publication, jobs update recurring-cost detection, affected period summaries, saved analyses, forecasts, and insights. Jobs include their input revision and calculation version. A late job cannot replace newer results.
 
-The API's durable dispatch table is the source of pending work. Queue delivery and Workflow steps can repeat. Dead-letter handling records an actionable failure without changing a completed import back to failed.
+The API's durable dispatch table is the source of pending work. Direct Workflow dispatch and steps can repeat. Exhausted dispatch records an actionable job failure. Interpretation or refresh failure does not change a completed posting import back to failed.
 
 The [verification plan](/technical/verification) includes shuffled file order, concurrent overlap, repeated callbacks, and interruption immediately after a database commit.

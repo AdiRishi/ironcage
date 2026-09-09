@@ -15,49 +15,308 @@ Every foreign-key column has an index unless already covered by an index with th
 
 ## Owner and reference data
 
-| Table              | Columns                                                                                                                                | Constraints and indexes                                                                                                                      |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `owners`           | `id UUID PK`, `auth_subject TEXT UNIQUE`, `created_at TIMESTAMPTZ`                                                                     | No owner_id column. One authorized user.                                                                                                     |
-| `dataset_heads`    | `owner_id UUID PK`, `revision BIGINT DEFAULT 0`, `updated_at TIMESTAMPTZ`                                                              | No id or version. `revision >= 0`. Every financial command locks this row first.                                                             |
-| `accounts`         | `label TEXT`, `currency CHAR(3)`, `institution TEXT`, `identity_hash TEXT?`, `masked_reference TEXT?`, `status enum(active, archived)` | Mutable. Unique non-null `(owner_id, institution, identity_hash)`. Raw account identifiers stay in private source evidence.                  |
-| `account_periods`  | `account_id FK(accounts)`, `start_date DATE`, `end_date DATE?`, `role enum(deposit, creditCard, loan)`, `offset_loan_id FK(accounts)?` | Mutable. Effective intervals for an account cannot overlap. Ending date is exclusive. Owner-lock validation enforces interval overlap rules. |
-| `categories`       | `slug TEXT`, `label TEXT`, `parent_id FK(categories)?`, `archived BOOLEAN DEFAULT false`                                               | Mutable. Unique `(owner_id, slug)`. No cycles. Archived categories remain referenced by history.                                             |
-| `merchants`        | `label TEXT`, `service TEXT?`, `archived BOOLEAN DEFAULT false`                                                                        | Mutable. A service distinguishes rides from delivery.                                                                                        |
-| `merchant_aliases` | `normalized_text TEXT`, `merchant_id FK(merchants)`, `source enum(user, rule, model)`, `status enum(proposed, accepted)`               | Mutable. Unique accepted `(owner_id, normalized_text)` mapping.                                                                              |
-| `tags`             | `label TEXT`, `archived BOOLEAN DEFAULT false`                                                                                         | Mutable. Unique active label per owner.                                                                                                      |
-| `personal_events`  | `label TEXT`, `period_start DATE?`, `period_end DATE?`, `exclude_from_ordinary BOOLEAN`, `note TEXT?`                                  | Mutable. Trips and life events. Membership determines event costs, not the date range alone.                                                 |
+### owners
+
+| Column         | Definition    |
+| -------------- | ------------- |
+| `id`           | `UUID PK`     |
+| `auth_subject` | `TEXT UNIQUE` |
+| `created_at`   | `TIMESTAMPTZ` |
+
+No owner_id column. One authorized user.
+
+### dataset_heads
+
+| Column               | Definition         |
+| -------------------- | ------------------ |
+| `owner_id`           | `UUID PK`          |
+| `revision`           | `BIGINT DEFAULT 0` |
+| `context_generation` | `BIGINT DEFAULT 0` |
+| `updated_at`         | `TIMESTAMPTZ`      |
+
+No id or version. `revision >= 0`, `context_generation >= 0`. Every financial command locks this row first.
+
+### accounts
+
+| Column             | Definition               |
+| ------------------ | ------------------------ |
+| `label`            | `TEXT`                   |
+| `currency`         | `CHAR(3)`                |
+| `institution`      | `TEXT`                   |
+| `identity_hash`    | `TEXT?`                  |
+| `masked_reference` | `TEXT?`                  |
+| `status`           | `enum(active, archived)` |
+
+Mutable. Unique non-null `(owner_id, institution, identity_hash)`. Raw account identifiers stay in private source evidence.
+
+### account_periods
+
+| Column           | Definition                        |
+| ---------------- | --------------------------------- |
+| `account_id`     | `FK(accounts)`                    |
+| `start_date`     | `DATE`                            |
+| `end_date`       | `DATE?`                           |
+| `role`           | `enum(deposit, creditCard, loan)` |
+| `offset_loan_id` | `FK(accounts)?`                   |
+
+Mutable. Effective intervals for an account cannot overlap. Ending date is exclusive. Owner-lock validation enforces interval overlap rules.
+
+### categories
+
+| Column      | Definition              |
+| ----------- | ----------------------- |
+| `slug`      | `TEXT`                  |
+| `label`     | `TEXT`                  |
+| `parent_id` | `FK(categories)?`       |
+| `archived`  | `BOOLEAN DEFAULT false` |
+
+Mutable. Unique `(owner_id, slug)`. No cycles. Archived categories remain referenced by history.
+
+### merchants
+
+| Column     | Definition              |
+| ---------- | ----------------------- |
+| `label`    | `TEXT`                  |
+| `service`  | `TEXT?`                 |
+| `archived` | `BOOLEAN DEFAULT false` |
+
+Mutable. A service distinguishes rides from delivery.
+
+### merchant_aliases
+
+| Column            | Definition                 |
+| ----------------- | -------------------------- |
+| `normalized_text` | `TEXT`                     |
+| `merchant_id`     | `FK(merchants)`            |
+| `source`          | `enum(user, rule, model)`  |
+| `status`          | `enum(proposed, accepted)` |
+
+Mutable. Unique accepted `(owner_id, normalized_text)` mapping.
+
+### tags
+
+| Column     | Definition              |
+| ---------- | ----------------------- |
+| `label`    | `TEXT`                  |
+| `archived` | `BOOLEAN DEFAULT false` |
+
+Mutable. Unique active label per owner.
+
+### personal_events
+
+| Column                  | Definition |
+| ----------------------- | ---------- |
+| `label`                 | `TEXT`     |
+| `period_start`          | `DATE?`    |
+| `period_end`            | `DATE?`    |
+| `exclude_from_ordinary` | `BOOLEAN`  |
+| `note`                  | `TEXT?`    |
+
+Mutable. Trips and life events. Membership determines event costs, not the date range alone.
 
 Initial category slugs are `housing.mortgage-interest`, `housing.strata`, `housing.utilities`, `food.groceries`, `food.dining`, `food.delivery`, `transport.rides`, `transport.other`, `subscriptions`, `shopping`, `travel`, `health`, `insurance`, `fees`, `other`, and `unclassified`. Parent categories `housing`, `food`, and `transport` group their children. The initial taxonomy is editable reference data, not an enum baked into transactions.
 
 ## Sources and staging
 
-| Table                      | Columns                                                                                                                                                                                                              | Constraints and indexes                                                                                                                               |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `source_files`             | `sha256 CHAR(64)`, `object_key TEXT`, `filename TEXT`, `media_type TEXT`, `byte_count BIGINT`, `status enum(available, removalPending, removed)`                                                                     | Mutable status only. Unique `(owner_id, sha256)`. Hash and original bytes are immutable.                                                              |
-| `import_batches`           | `label TEXT?`                                                                                                                                                                                                        | Membership is in import_items. Batch progress is derived.                                                                                             |
-| `import_items`             | `batch_id FK(import_batches)`, `source_id FK(source_files)?`, `upload_key TEXT`, `account_id FK(accounts)?`, `status enum(awaitingUpload, registered, failed)`, `failure json(Failure)?`                             | Mutable. Upload key unique per owner. A repeated file attaches to the existing source.                                                                |
-| `extraction_runs`          | `source_id FK(source_files)`, `extractor_version TEXT`, `input_hash CHAR(64)`, `job_id FK(jobs)`, `status enum(staged, accepted, superseded, failed)`                                                                | Mutable. Unique source, extractor version, and input hash.                                                                                            |
-| `observations`             | `extraction_id FK(extraction_runs)`, `locator json(SourceLocator)`, `ordinal INTEGER`, `raw json(RawObservation)`, `candidate json(ParsedPosting)`, `validation json(ObservationValidation)`                         | Immutable. Unique `(extraction_id, ordinal)`. Payload schemas are in [Import and job protocols](/technical/import-protocol).                          |
-| `posting_sources`          | `posting_id FK(postings)`, `observation_id FK(observations)`, `match_method enum(exact, scored, user)`, `match_score INTEGER?`                                                                                       | Unique observation_id. An observation supports at most one posting.                                                                                   |
-| `observation_dispositions` | `observation_id FK(observations)`, `kind enum(newPosting, matchedPosting, review, rejected)`, `posting_id FK(postings)?`, `review_id FK(review_items)?`, `reason TEXT?`                                              | Mutable. Unique observation_id. New/matched kinds require only posting_id, review requires only review_id, rejected requires a reason and neither ID. |
-| `coverage_intervals`       | `account_id FK(accounts)`, `source_id FK(source_files)`, `start_date DATE`, `end_date DATE`, `kind enum(requested, observed, stated, reconciled)`, `opening_minor BIGINT?`, `closing_minor BIGINT?`                  | `(owner_id, account_id, start_date, end_date)` index. Interval is half-open. Balances are normalized to asset-positive/liability-negative signs.      |
-| `statement_summaries`      | `source_id FK(source_files)`, `account_id FK(accounts)`, `period_start DATE`, `period_end DATE`, `opening_minor BIGINT?`, `closing_minor BIGINT?`, `due_date DATE?`, `minimum_due_minor BIGINT?`, `currency CHAR(3)` | Mutable only through evidence resolution. Unique source and account. Statement period is half-open. Due-date fields remain null if absent.            |
+### source_files
+
+| Column       | Definition                                 |
+| ------------ | ------------------------------------------ |
+| `sha256`     | `CHAR(64)`                                 |
+| `object_key` | `TEXT`                                     |
+| `filename`   | `TEXT`                                     |
+| `media_type` | `TEXT`                                     |
+| `byte_count` | `BIGINT`                                   |
+| `status`     | `enum(available, removalPending, removed)` |
+
+Mutable status only. Unique `(owner_id, sha256)`. Hash and original bytes are immutable.
+
+### import_batches
+
+| Column  | Definition |
+| ------- | ---------- |
+| `label` | `TEXT?`    |
+
+Membership is in import_items. Batch progress is derived.
+
+### import_items
+
+| Column       | Definition                                 |
+| ------------ | ------------------------------------------ |
+| `batch_id`   | `FK(import_batches)`                       |
+| `source_id`  | `FK(source_files)?`                        |
+| `upload_key` | `TEXT`                                     |
+| `account_id` | `FK(accounts)?`                            |
+| `status`     | `enum(awaitingUpload, registered, failed)` |
+| `failure`    | `json(Failure)?`                           |
+
+Mutable. Upload key unique per owner. A repeated file attaches to the existing source.
+
+### extraction_runs
+
+| Column              | Definition                                   |
+| ------------------- | -------------------------------------------- |
+| `source_id`         | `FK(source_files)`                           |
+| `extractor_version` | `TEXT`                                       |
+| `input_hash`        | `CHAR(64)`                                   |
+| `job_id`            | `FK(jobs)`                                   |
+| `status`            | `enum(staged, accepted, superseded, failed)` |
+
+Mutable. Unique source, extractor version, and input hash.
+
+### observations
+
+| Column          | Definition                    |
+| --------------- | ----------------------------- |
+| `extraction_id` | `FK(extraction_runs)`         |
+| `locator`       | `json(SourceLocator)`         |
+| `ordinal`       | `INTEGER`                     |
+| `raw`           | `json(RawObservation)`        |
+| `candidate`     | `json(ParsedPosting)`         |
+| `validation`    | `json(ObservationValidation)` |
+
+Immutable. Unique `(extraction_id, ordinal)`. Payload schemas are in [Import and job protocols](/technical/import-protocol).
+
+### posting_sources
+
+| Column             | Definition                              |
+| ------------------ | --------------------------------------- |
+| `posting_id`       | `FK(postings)`                          |
+| `observation_id`   | `FK(observations)`                      |
+| `match_method`     | `enum(identifier, exact, scored, user)` |
+| `match_score`      | `INTEGER?`                              |
+| `matching_version` | `TEXT`                                  |
+| `evidence`         | `json(EvidenceRef[])`                   |
+
+Unique observation_id. An observation supports at most one posting.
+
+### observation_dispositions
+
+| Column           | Definition                                           |
+| ---------------- | ---------------------------------------------------- |
+| `observation_id` | `FK(observations)`                                   |
+| `kind`           | `enum(newPosting, matchedPosting, review, rejected)` |
+| `posting_id`     | `FK(postings)?`                                      |
+| `review_id`      | `FK(review_items)?`                                  |
+| `reason`         | `TEXT?`                                              |
+
+Mutable. Unique observation_id. New/matched kinds require only posting_id, review requires only review_id, rejected requires a reason and neither ID.
+
+### coverage_intervals
+
+| Column          | Definition                                      |
+| --------------- | ----------------------------------------------- |
+| `account_id`    | `FK(accounts)`                                  |
+| `source_id`     | `FK(source_files)`                              |
+| `start_date`    | `DATE`                                          |
+| `end_date`      | `DATE`                                          |
+| `kind`          | `enum(requested, observed, stated, reconciled)` |
+| `opening_minor` | `BIGINT?`                                       |
+| `closing_minor` | `BIGINT?`                                       |
+
+`(owner_id, account_id, start_date, end_date)` index. Interval is half-open. Balances are normalized to asset-positive/liability-negative signs.
+
+### statement_summaries
+
+| Column              | Definition         |
+| ------------------- | ------------------ |
+| `source_id`         | `FK(source_files)` |
+| `account_id`        | `FK(accounts)`     |
+| `period_start`      | `DATE`             |
+| `period_end`        | `DATE`             |
+| `opening_minor`     | `BIGINT?`          |
+| `closing_minor`     | `BIGINT?`          |
+| `due_date`          | `DATE?`            |
+| `minimum_due_minor` | `BIGINT?`          |
+| `currency`          | `CHAR(3)`          |
+
+Mutable only through evidence resolution. Unique source and account. Statement period is half-open. Due-date fields remain null if absent.
 
 ## Financial records
 
-| Table               | Columns                                                                                                                                                                                                                                                                                                                                                                          | Constraints and indexes                                                                                                                                                                                                       |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `postings`          | `account_id FK(accounts)`, `posting_date DATE`, `purchase_date DATE?`, `value_date DATE?`, `amount_minor BIGINT`, `balance_minor BIGINT?`, `currency CHAR(3)`, `description TEXT`, `status enum(accepted, withdrawn)`                                                                                                                                                            | Mutable through evidence-resolution commands. `(owner_id, account_id, posting_date DESC, id DESC)` and `(owner_id, currency, amount_minor, posting_date)` indexes. Amount is the signed change in normalized account balance. |
-| `financial_events`  | `kind enum(purchase, income, transfer, cardSettlement, loanPayment, borrowing, refund, reimbursement, financingCost, unresolved)`, `reporting_account_id FK(accounts)`, `event_date DATE`, `magnitude_minor BIGINT`, `currency CHAR(3)`, `merchant_id FK(merchants)?`, `classification_source enum(user, rule, model, unresolved)`, `status enum(active, superseded, withdrawn)` | Mutable. Magnitude is nonnegative. `(owner_id, event_date, kind)` index. Reporting account selects a single account for cost grouping.                                                                                        |
-| `event_postings`    | `event_id FK(financial_events)`, `posting_id FK(postings)`, `role enum(primary, counterpart, interest, fee)`                                                                                                                                                                                                                                                                     | Unique posting_id. Each active posting belongs to one active financial event. Relinking replaces memberships inside one command.                                                                                              |
-| `allocations`       | `event_id FK(financial_events)`, `role enum(cost, income, transfer, principal, borrowing, refund, reimbursement, nonPersonal, unresolved)`, `amount_minor BIGINT`, `category_id FK(categories)?`                                                                                                                                                                                 | Mutable. Nonnegative amount. Sum per event equals event magnitude. Cost allocations require a category, including unclassified.                                                                                               |
-| `allocation_tags`   | `allocation_id FK(allocations)`, `tag_id FK(tags)`                                                                                                                                                                                                                                                                                                                               | Unique pair. No version.                                                                                                                                                                                                      |
-| `allocation_events` | `allocation_id FK(allocations)`, `personal_event_id FK(personal_events)`                                                                                                                                                                                                                                                                                                         | Unique pair. No version.                                                                                                                                                                                                      |
-| `cost_credits`      | `credit_allocation_id FK(allocations)`, `cost_allocation_id FK(allocations)`, `amount_minor BIGINT`                                                                                                                                                                                                                                                                              | Positive amount. Unique pair. Credit role is refund or reimbursement. Totals cannot exceed either the credit allocation or remaining eligible cost. Same currency required.                                                   |
+### postings
+
+| Column          | Definition                  |
+| --------------- | --------------------------- |
+| `account_id`    | `FK(accounts)`              |
+| `posting_date`  | `DATE`                      |
+| `purchase_date` | `DATE?`                     |
+| `value_date`    | `DATE?`                     |
+| `amount_minor`  | `BIGINT`                    |
+| `balance_minor` | `BIGINT?`                   |
+| `currency`      | `CHAR(3)`                   |
+| `description`   | `TEXT`                      |
+| `status`        | `enum(accepted, withdrawn)` |
+
+Mutable through evidence-resolution commands. `(owner_id, account_id, posting_date DESC, id DESC)` and `(owner_id, currency, amount_minor, posting_date)` indexes. Amount is the signed change in normalized account balance.
+
+### financial_events
+
+| Column                  | Definition                                                                                                                   |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `kind`                  | `enum(purchase, income, transfer, cardSettlement, loanPayment, borrowing, refund, reimbursement, financingCost, unresolved)` |
+| `reporting_account_id`  | `FK(accounts)`                                                                                                               |
+| `event_date`            | `DATE`                                                                                                                       |
+| `magnitude_minor`       | `BIGINT`                                                                                                                     |
+| `currency`              | `CHAR(3)`                                                                                                                    |
+| `merchant_id`           | `FK(merchants)?`                                                                                                             |
+| `classification_source` | `enum(user, rule, source, model, unresolved)`                                                                                |
+| `status`                | `enum(active, superseded, withdrawn)`                                                                                        |
+
+Mutable. Magnitude is nonnegative. `(owner_id, event_date, kind)` index. Reporting account selects a single account for cost grouping.
+
+### event_postings
+
+| Column       | Definition                   |
+| ------------ | ---------------------------- |
+| `event_id`   | `FK(financial_events)`       |
+| `posting_id` | `FK(postings)`               |
+| `role`       | `enum(primary, counterpart)` |
+
+Unique posting_id. Each active posting belongs to one active financial event. Relinking replaces memberships inside one command.
+
+### allocations
+
+| Column         | Definition                                                                                |
+| -------------- | ----------------------------------------------------------------------------------------- |
+| `event_id`     | `FK(financial_events)`                                                                    |
+| `role`         | `enum(cost, income, transfer, borrowing, refund, reimbursement, nonPersonal, unresolved)` |
+| `amount_minor` | `BIGINT`                                                                                  |
+| `category_id`  | `FK(categories)?`                                                                         |
+
+Mutable. Nonnegative amount. Sum per event equals event magnitude. Cost allocations require a category, including unclassified.
+
+### allocation_tags
+
+| Column          | Definition        |
+| --------------- | ----------------- |
+| `allocation_id` | `FK(allocations)` |
+| `tag_id`        | `FK(tags)`        |
+
+Unique pair. No version.
+
+### allocation_events
+
+| Column              | Definition            |
+| ------------------- | --------------------- |
+| `allocation_id`     | `FK(allocations)`     |
+| `personal_event_id` | `FK(personal_events)` |
+
+Unique pair. No version.
+
+### cost_credits
+
+| Column                 | Definition        |
+| ---------------------- | ----------------- |
+| `credit_allocation_id` | `FK(allocations)` |
+| `cost_allocation_id`   | `FK(allocations)` |
+| `amount_minor`         | `BIGINT`          |
+
+Positive amount. Unique pair. Credit role is refund or reimbursement. Totals cannot exceed either the credit allocation or remaining eligible cost. Same currency required.
 
 One transfer event can contain both bank postings. The event magnitude is the transferred amount, not the sum of both absolute posting amounts. Refunds are separate events joined to costs through cost_credits. They never overwrite the original purchase.
 
-A loan payment with separately evidenced interest can contain payment, counterpart, and interest postings. Its allocations partition the payment into cost and principal. An interest posting already included there cannot create a second financing-cost event. Exact construction rules and the mortgage example are in [Calculation rules](/technical/calculation-rules#financial-event-construction).
+A loan payment contains its deposit and loan postings with a transfer allocation. Each interest or fee posting belongs to its own financing-cost event. The loan-period calculation derives the net repayment effect without moving financing-cost dates. Exact construction rules and the mortgage example are in [Calculation rules](/technical/calculation-rules#financial-event-construction).
 
 Within one extraction, two observations cannot map to the same posting. Owner-locked publication enforces this multiplicity constraint and consistency between posting_sources and observation_dispositions. Matching one posting from different files is permitted.
 
@@ -65,48 +324,408 @@ Changing a posting's amount or date requires a source-resolution command with re
 
 ## Corrections, review, and personal context
 
-| Table                  | Columns                                                                                                                                                                                                                                                                                                            | Constraints and indexes                                                                                                          |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `command_receipts`     | `command_id UUID`, `payload_hash CHAR(64)`, `operation TEXT`, `response json(CommandReceipt)`, `committed_at TIMESTAMPTZ`                                                                                                                                                                                          | No id or version. PK `(owner_id, command_id)`. Immutable.                                                                        |
-| `corrections`          | `command_id UUID`, `actor json(Actor)`, `target_kind TEXT`, `target_id UUID`, `before json(EntitySnapshot)`, `after json(EntitySnapshot)`, `undoes_id FK(corrections)?`, `revision BIGINT`                                                                                                                         | Immutable. FK to command_receipts. `EntitySnapshot` is a discriminated union of mutable entity DTOs.                             |
-| `classification_rules` | `name TEXT`, `predicate json(RulePredicate)`, `action json(ClassificationAction)`, `effective_start DATE?`, `effective_end DATE?`, `enabled BOOLEAN`                                                                                                                                                               | Mutable. Equal-priority conflicting rules create review instead of execution-order precedence.                                   |
-| `change_previews`      | `revision BIGINT`, `operation TEXT`, `input_hash CHAR(64)`, `affected_ids UUID[]`, `impact json(ChangeImpact)`, `expires_at TIMESTAMPTZ`                                                                                                                                                                           | Immutable. Ten-minute lifetime. A commit checks revision and input hash again.                                                   |
-| `review_items`         | `subject json(SubjectRef)`, `issue_kind enum(accountMapping, unreadableValue, duplicate, sourceConflict, role, category, relationship, contextConflict)`, `question TEXT`, `options json(ReviewOption[])`, `evidence json(EvidenceRef[])`, `status enum(open, resolved, dismissed)`, `resolution_command_id UUID?` | Mutable. Unique open `(owner_id, subject, issue_kind)`. SubjectRef includes entity kind, id, and version.                        |
-| `personal_context`     | `kind enum(fact, preference, goal, explanation)`, `text TEXT`, `account_ids UUID[]`, `merchant_ids UUID[]`, `effective_start DATE?`, `effective_end DATE?`, `evidence json(EvidenceRef[])`, `status enum(proposed, confirmed, removed)`                                                                            | Mutable. Scope arrays contain valid owner-scoped IDs. Confirmed entries are user-authored or user-accepted.                      |
-| `user_settings`        | `owner_id UUID PK`, `version INTEGER`, `timezone TEXT`, `currency CHAR(3)`, `policy json(UsagePolicy)`, `import_reminder_days INTEGER`, `updated_at TIMESTAMPTZ`                                                                                                                                                   | No id. Default reminder interval 30 days, 0 disables. UsagePolicy is defined in [AI functionality](/technical/ai-functionality). |
+### command_receipts
 
-`RulePredicate`, `ClassificationAction`, `ReviewOption`, and `ChangeImpact` are closed schemas in [RPC specification](/technical/rpc). Corrections record user intent and accepted automated changes, with the actor distinguishing them. Audit history is not a second mutable interpretation store.
+| Column         | Definition             |
+| -------------- | ---------------------- |
+| `command_id`   | `UUID`                 |
+| `payload_hash` | `CHAR(64)`             |
+| `operation`    | `TEXT`                 |
+| `response`     | `json(CommandReceipt)` |
+| `committed_at` | `TIMESTAMPTZ`          |
+
+No id or version. PK `(owner_id, command_id)`. Immutable.
+
+### corrections
+
+| Column        | Definition             |
+| ------------- | ---------------------- |
+| `command_id`  | `UUID`                 |
+| `actor`       | `json(Actor)`          |
+| `target_kind` | `TEXT`                 |
+| `target_id`   | `UUID`                 |
+| `before`      | `json(EntitySnapshot)` |
+| `after`       | `json(EntitySnapshot)` |
+| `undoes_id`   | `FK(corrections)?`     |
+| `revision`    | `BIGINT`               |
+
+Immutable. FK to command_receipts. `EntitySnapshot` is a discriminated union of mutable entity DTOs.
+
+### role_rules
+
+| Column            | Definition                              |
+| ----------------- | --------------------------------------- |
+| `account_id`      | `FK(accounts)`                          |
+| `predicate`       | `json(RoleRulePredicate)`               |
+| `role`            | `enum(purchase, income, financingCost)` |
+| `effective_start` | `DATE`                                  |
+| `effective_end`   | `DATE?`                                 |
+| `enabled`         | `BOOLEAN`                               |
+
+Mutable. User-accepted only. Conflicting rules create role review.
+
+### classification_rules
+
+| Column            | Definition                   |
+| ----------------- | ---------------------------- |
+| `name`            | `TEXT`                       |
+| `predicate`       | `json(RulePredicate)`        |
+| `action`          | `json(ClassificationAction)` |
+| `effective_start` | `DATE?`                      |
+| `effective_end`   | `DATE?`                      |
+| `enabled`         | `BOOLEAN`                    |
+
+Mutable. Equal-priority conflicting rules create review instead of execution-order precedence.
+
+### change_previews
+
+| Column         | Definition           |
+| -------------- | -------------------- |
+| `revision`     | `BIGINT`             |
+| `operation`    | `TEXT`               |
+| `input_hash`   | `CHAR(64)`           |
+| `input`        | `json(PreviewInput)` |
+| `affected_ids` | `UUID[]`             |
+| `impact`       | `json(ChangeImpact)` |
+| `expires_at`   | `TIMESTAMPTZ`        |
+
+Immutable. Ten-minute lifetime. A commit checks revision and input hash again.
+
+### review_items
+
+| Column                  | Definition                                                                                                        |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `subject`               | `json(SubjectRef)`                                                                                                |
+| `issue_kind`            | `enum(accountMapping, unreadableValue, duplicate, sourceConflict, role, category, relationship, contextConflict)` |
+| `question`              | `TEXT`                                                                                                            |
+| `options`               | `json(ReviewOption[])`                                                                                            |
+| `evidence`              | `json(EvidenceRef[])`                                                                                             |
+| `status`                | `enum(open, resolved, dismissed)`                                                                                 |
+| `resolution_command_id` | `UUID?`                                                                                                           |
+
+Mutable. Unique open `(owner_id, subject, issue_kind)`. SubjectRef includes entity kind, id, and version.
+
+### personal_context
+
+| Column               | Definition                                  |
+| -------------------- | ------------------------------------------- |
+| `kind`               | `enum(fact, preference, goal, explanation)` |
+| `text`               | `TEXT`                                      |
+| `account_ids`        | `UUID[]`                                    |
+| `merchant_ids`       | `UUID[]`                                    |
+| `effective_start`    | `DATE?`                                     |
+| `effective_end`      | `DATE?`                                     |
+| `evidence`           | `json(EvidenceRef[])`                       |
+| `status`             | `enum(proposed, confirmed, removed)`        |
+| `context_generation` | `BIGINT`                                    |
+
+Mutable. Scope arrays contain valid owner-scoped IDs. Confirmed entries are user-authored or user-accepted.
+
+### user_settings
+
+| Column                 | Definition          |
+| ---------------------- | ------------------- |
+| `owner_id`             | `UUID PK`           |
+| `version`              | `INTEGER`           |
+| `timezone`             | `TEXT`              |
+| `currency`             | `CHAR(3)`           |
+| `policy`               | `json(UsagePolicy)` |
+| `import_reminder_days` | `INTEGER`           |
+| `updated_at`           | `TIMESTAMPTZ`       |
+
+No id. Default reminder interval 30 days, 0 disables. UsagePolicy is defined in [AI functionality](/technical/ai-functionality).
+
+`RulePredicate`, `RoleRulePredicate`, `ClassificationAction`, `ReviewOption`, `PreviewInput`, and `ChangeImpact` are closed schemas in [RPC specification](/technical/rpc). Corrections record user intent and accepted automated changes, with the actor distinguishing them. Audit history is not a second mutable interpretation store.
 
 ## Schedules and analysis
 
-| Table                    | Columns                                                                                                                                                                                                                                                             | Constraints and indexes                                                                                                                                      |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `commitments`            | `label TEXT`, `merchant_id FK(merchants)?`, `account_id FK(accounts)`, `status enum(proposed, active, paused, ended)`, `source enum(user, detector)`                                                                                                                | Mutable.                                                                                                                                                     |
-| `commitment_segments`    | `commitment_id FK(commitments)`, `definition json(ScheduleDefinition)`, `effective_start DATE`, `effective_end DATE?`, `evidence json(EvidenceRef[])`                                                                                                               | Immutable after replacement closes prior interval. No overlapping effective intervals per commitment.                                                        |
-| `commitment_occurrences` | `commitment_id FK(commitments)`, `scheduled_date DATE`, `event_id FK(financial_events)?`, `status enum(expected, matched, skipped)`                                                                                                                                 | Mutable. Unique commitment and scheduled date. One event cannot match two cost schedules.                                                                    |
-| `snapshots`              | `revision BIGINT`, `query_hash CHAR(64)`, `object_key TEXT`, `content_hash CHAR(64)`, `manifest json(SnapshotManifest)`                                                                                                                                             | Immutable. Unique owner, revision, query hash, and manifest schema version. Object is registered only after upload succeeds.                                 |
-| `saved_analyses`         | `label TEXT`, `question TEXT?`, `definition json(AnalysisDefinition)`, `refresh enum(onChange, manual)`, `current_result_id FK(analysis_results)?`, `archived BOOLEAN`                                                                                              | Mutable definition. Updating the derived current-result pointer does not change definition version.                                                          |
-| `analysis_results`       | `snapshot_id FK(snapshots)`, `definition_hash CHAR(64)`, `calculation_version TEXT`, `data json(AnalysisResultData)?`, `artifact_id FK(artifacts)?`, `coverage json(CoverageSummary)`, `evidence json(EvidenceRef[])`, `status enum(current, historical, affected)` | Immutable result content. Exactly one of data or artifact_id. Unique snapshot, definition hash, calculation version. Status changes do not alter the result. |
-| `scenarios`              | `label TEXT`, `baseline json(ForecastDefinition)`, `overrides json(ScenarioOverride[])`, `archived BOOLEAN`                                                                                                                                                         | Mutable. Overrides never edit source records or baseline commitments.                                                                                        |
-| `insights`               | `fingerprint CHAR(64)`, `detector TEXT`, `result_id FK(analysis_results)`, `impact_minor BIGINT`, `rank INTEGER`, `state enum(new, seen, useful, dismissed, superseded)`                                                                                            | Mutable state and current result. Unique fingerprint. Material-change policy controls reopening.                                                             |
-| `intentions`             | `label TEXT`, `definition json(IntentionDefinition)`, `state enum(active, paused, completed)`, `last_result_id FK(analysis_results)?`                                                                                                                               | Mutable. Definition contains baseline/current queries, start date, and optional related-cost query.                                                          |
-| `inbox_items`            | `dedupe_key TEXT`, `kind enum(insight, jobComplete, jobFailed, review, reminder)`, `subject json(SubjectRef)`, `read_at TIMESTAMPTZ?`, `dismissed_at TIMESTAMPTZ?`                                                                                                  | Mutable. Unique owner and dedupe key.                                                                                                                        |
+### commitments
 
-`AnalysisDefinition`, `ForecastDefinition`, `ScheduleDefinition`, `SnapshotManifest`, and `ScenarioOverride` are specified in [Calculation rules](/technical/calculation-rules). Snapshot objects contain the encoded versions of selected accounts, postings, events, allocations, credits, schedules, context, and coverage needed by the definition, plus source evidence IDs. Their content hash covers the whole canonical serialized document.
+| Column        | Definition                              |
+| ------------- | --------------------------------------- |
+| `label`       | `TEXT`                                  |
+| `merchant_id` | `FK(merchants)?`                        |
+| `status`      | `enum(proposed, active, paused, ended)` |
+| `source`      | `enum(user, detector)`                  |
+
+Mutable.
+
+### commitment_segments
+
+| Column                    | Definition                 |
+| ------------------------- | -------------------------- |
+| `commitment_id`           | `FK(commitments)`          |
+| `definition`              | `json(ScheduleDefinition)` |
+| `account_id`              | `FK(accounts)`             |
+| `counterparty_account_id` | `FK(accounts)?`            |
+| `effective_start`         | `DATE`                     |
+| `effective_end`           | `DATE?`                    |
+| `evidence`                | `json(EvidenceRef[])`      |
+
+Mutable only to close effective_end, with version and updated_at. Replacing creates a new segment. No overlapping intervals. Account columns equal the definition account IDs and preserve historical payment accounts.
+
+### commitment_occurrences
+
+| Column           | Definition                         |
+| ---------------- | ---------------------------------- |
+| `commitment_id`  | `FK(commitments)`                  |
+| `segment_id`     | `FK(commitment_segments)`          |
+| `nominal_date`   | `DATE`                             |
+| `scheduled_date` | `DATE`                             |
+| `service_start`  | `DATE?`                            |
+| `service_end`    | `DATE?`                            |
+| `event_id`       | `FK(financial_events)?`            |
+| `status`         | `enum(expected, matched, skipped)` |
+
+Mutable. Unique commitment and nominal date. One event cannot match two cost schedules. Service dates are both null or a valid half-open period. Segment membership uses nominal_date, before date adjustment.
+
+### snapshots
+
+| Column               | Definition               |
+| -------------------- | ------------------------ |
+| `revision`           | `BIGINT`                 |
+| `context_generation` | `BIGINT`                 |
+| `query_hash`         | `CHAR(64)`               |
+| `object_key`         | `TEXT`                   |
+| `content_hash`       | `CHAR(64)`               |
+| `manifest`           | `json(SnapshotManifest)` |
+
+Immutable. Unique owner, revision, context_generation, query hash, and manifest schema version. Object is registered only after upload succeeds.
+
+### saved_analyses
+
+| Column              | Definition                 |
+| ------------------- | -------------------------- |
+| `label`             | `TEXT`                     |
+| `question`          | `TEXT?`                    |
+| `definition`        | `json(AnalysisDefinition)` |
+| `refresh`           | `enum(onChange, manual)`   |
+| `current_result_id` | `FK(analysis_results)?`    |
+| `archived`          | `BOOLEAN`                  |
+
+Mutable definition. Updating the derived current-result pointer does not change definition version.
+
+### analysis_results
+
+| Column                | Definition                            |
+| --------------------- | ------------------------------------- |
+| `snapshot_id`         | `FK(snapshots)`                       |
+| `definition_hash`     | `CHAR(64)`                            |
+| `definition`          | `json(AnalysisDefinition)`            |
+| `calculation_version` | `TEXT`                                |
+| `data`                | `json(AnalysisResultData)?`           |
+| `artifact_id`         | `FK(artifacts)?`                      |
+| `coverage`            | `json(CoverageSummary)`               |
+| `evidence`            | `json(EvidenceRef[])`                 |
+| `status`              | `enum(current, historical, affected)` |
+
+Mutable status only, with version and updated_at. Definition, calculation content, and evidence are immutable. Exactly one of data or artifact_id. Unique snapshot, definition hash, calculation version. Status changes do not alter the result.
+
+### scenarios
+
+| Column      | Definition                 |
+| ----------- | -------------------------- |
+| `label`     | `TEXT`                     |
+| `baseline`  | `json(ForecastDefinition)` |
+| `overrides` | `json(ScenarioOverride[])` |
+| `archived`  | `BOOLEAN`                  |
+
+Mutable. Overrides never edit source records or baseline commitments.
+
+### insights
+
+| Column         | Definition                                       |
+| -------------- | ------------------------------------------------ |
+| `fingerprint`  | `CHAR(64)`                                       |
+| `detector`     | `TEXT`                                           |
+| `result_id`    | `FK(analysis_results)`                           |
+| `impact_minor` | `BIGINT`                                         |
+| `rank`         | `INTEGER`                                        |
+| `state`        | `enum(new, seen, useful, dismissed, superseded)` |
+
+Mutable state and current result. Unique fingerprint. Material-change policy controls reopening.
+
+### intentions
+
+| Column           | Definition                        |
+| ---------------- | --------------------------------- |
+| `label`          | `TEXT`                            |
+| `definition`     | `json(IntentionDefinition)`       |
+| `state`          | `enum(active, paused, completed)` |
+| `last_result_id` | `FK(analysis_results)?`           |
+
+Mutable. Definition contains baseline/current queries, start date, and optional related-cost query.
+
+### inbox_items
+
+| Column         | Definition                                                |
+| -------------- | --------------------------------------------------------- |
+| `dedupe_key`   | `TEXT`                                                    |
+| `kind`         | `enum(insight, jobComplete, jobFailed, review, reminder)` |
+| `subject`      | `json(SubjectRef)`                                        |
+| `read_at`      | `TIMESTAMPTZ?`                                            |
+| `dismissed_at` | `TIMESTAMPTZ?`                                            |
+
+Mutable. Unique owner and dedupe key.
+
+`AnalysisDefinition`, `ForecastDefinition`, `ScheduleDefinition`, `SnapshotManifest`, and `ScenarioOverride` are specified in [Calculation rules](/technical/calculation-rules). Snapshot objects contain the full normalized definition and encoded versions of selected accounts and account periods, reference labels, postings, events, allocations, credits, schedules and occurrences, role rules, context, and coverage needed by the definition, plus source evidence IDs and contextGeneration. Their content hash covers the whole canonical serialized document.
 
 ## Jobs and AI execution
 
-| Table                   | Columns                                                                                                                                                                                                                                                                                                             | Constraints and indexes                                                                                                                                                     |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `jobs`                  | `kind TEXT`, `dedupe_key TEXT`, `input json(JobInput)`, `input_hash CHAR(64)`, `state json(JobState)`, `attempt INTEGER`, `active_elapsed_ms BIGINT DEFAULT 0`, `deadline TIMESTAMPTZ`, `cancel_requested_at TIMESTAMPTZ?`                                                                                          | Mutable. Unique owner and dedupe key. Indexed state kind and created_at.                                                                                                    |
-| `job_steps`             | `job_id FK(jobs)`, `step_key TEXT`, `input_hash CHAR(64)`, `output json(JobStepOutput)`                                                                                                                                                                                                                             | Immutable. Unique job and step key. `JobStepOutput` is the discriminated union of processor RPC success schemas. Financial-step output commits with the financial mutation. |
-| `dispatch_records`      | `job_id FK(jobs)`, `available_at TIMESTAMPTZ`, `lease_token UUID?`, `lease_until TIMESTAMPTZ?`, `delivered_at TIMESTAMPTZ?`, `attempt INTEGER`                                                                                                                                                                      | Unique job_id. Pending-availability index excludes delivered rows. Lease token fences stale dispatchers.                                                                    |
-| `artifact_uploads`      | `artifact_id UUID`, `run_id FK(ai_runs)?`, `job_id FK(jobs)?`, `kind TEXT`, `media_type TEXT`, `byte_count BIGINT`, `content_hash CHAR(64)`, `expires_at TIMESTAMPTZ`                                                                                                                                               | Immutable upload grant. Exactly one owner execution is set. Artifact ID is unique but is not yet a foreign key to an available artifact.                                    |
-| `artifacts`             | `kind enum(snapshot, evidence, calculation, chart, export, documentPage)`, `object_key TEXT`, `media_type TEXT`, `content_hash CHAR(64)`, `byte_count BIGINT`, `run_id UUID?`, `job_id FK(jobs)?`                                                                                                                   | Immutable. Registry accepts objects only after upload and hash verification.                                                                                                |
-| `ai_runs`               | `conversation_id UUID`, `conversation_sequence BIGINT`, `parent_run_id FK(ai_runs)?`, `submission_id UUID`, `input json(Submission)`, `input_hash CHAR(64)`, `snapshot_id FK(snapshots)?`, `state json(RunState)`, `policy_version TEXT`, `last_checkpoint json(RunCheckpoint)`, `cancel_requested_at TIMESTAMPTZ?` | Mutable through API commands. Unique owner/conversation/submission and owner/conversation/sequence. Canonical chat messages remain in AIChatAgent storage.                  |
-| `ai_steps`              | `run_id FK(ai_runs)`, `step_key TEXT`, `kind enum(model, tool, clarification, computation)`, `input_hash CHAR(64)`, `output json(AiStepOutput)?`, `state enum(started, completed, failed)`, `usage_call_id UUID?`                                                                                                   | Mutable until completed. Unique run and step key. Completed output is immutable and reused after interruption.                                                              |
-| `action_authorizations` | `run_id FK(ai_runs)`, `submission_id UUID`, `operation TEXT`, `target_ids UUID[]`, `payload_hash CHAR(64)`, `expires_at TIMESTAMPTZ`, `consumed_command_id UUID?`                                                                                                                                                   | Mutable consumption only. Unique run, submission, operation, and payload hash. Scope comes from the authenticated user action or validated direct intent.                   |
-| `usage_calls`           | `call_id UUID`, `run_id FK(ai_runs)?`, `job_id FK(jobs)?`, `month DATE`, `reserved_micro_usd BIGINT`, `actual_micro_usd BIGINT?`, `input_tokens INTEGER?`, `output_tokens INTEGER?`, `state enum(reserved, settled, uncertain, released)`                                                                           | Mutable. Unique owner and call_id. Nonnegative amounts. Monthly usage reservation takes an owner-specific usage lock.                                                       |
+### jobs
+
+| Column                 | Definition          |
+| ---------------------- | ------------------- |
+| `kind`                 | `TEXT`              |
+| `dedupe_key`           | `TEXT`              |
+| `input`                | `json(JobInput)`    |
+| `input_hash`           | `CHAR(64)`          |
+| `state`                | `json(JobState)`    |
+| `attempt`              | `INTEGER`           |
+| `execution_generation` | `INTEGER DEFAULT 1` |
+| `active_elapsed_ms`    | `BIGINT DEFAULT 0`  |
+| `deadline`             | `TIMESTAMPTZ`       |
+| `cancel_requested_at`  | `TIMESTAMPTZ?`      |
+
+Mutable. Unique owner and dedupe key. Indexed state kind and created_at.
+
+### job_steps
+
+| Column       | Definition            |
+| ------------ | --------------------- |
+| `job_id`     | `FK(jobs)`            |
+| `step_key`   | `TEXT`                |
+| `input_hash` | `CHAR(64)`            |
+| `output`     | `json(JobStepOutput)` |
+
+Immutable. Unique job and step key. `JobStepOutput` is the discriminated union of processor RPC success schemas. Financial-step output commits with the financial mutation.
+
+### dispatch_records
+
+| Column         | Definition     |
+| -------------- | -------------- |
+| `job_id`       | `FK(jobs)`     |
+| `available_at` | `TIMESTAMPTZ`  |
+| `lease_token`  | `UUID?`        |
+| `lease_until`  | `TIMESTAMPTZ?` |
+| `delivered_at` | `TIMESTAMPTZ?` |
+| `attempt`      | `INTEGER`      |
+
+Unique job_id. Pending-availability index excludes delivered rows. Lease token fences stale dispatchers.
+
+### artifact_uploads
+
+| Column         | Definition     |
+| -------------- | -------------- |
+| `artifact_id`  | `UUID`         |
+| `run_id`       | `FK(ai_runs)?` |
+| `job_id`       | `FK(jobs)?`    |
+| `kind`         | `TEXT`         |
+| `media_type`   | `TEXT`         |
+| `byte_count`   | `BIGINT`       |
+| `content_hash` | `CHAR(64)`     |
+| `expires_at`   | `TIMESTAMPTZ`  |
+
+Immutable upload grant. Exactly one owner execution is set. Artifact ID is unique but is not yet a foreign key to an available artifact.
+
+### artifacts
+
+| Column         | Definition                                                           |
+| -------------- | -------------------------------------------------------------------- |
+| `kind`         | `enum(snapshot, evidence, calculation, chart, export, documentPage)` |
+| `object_key`   | `TEXT`                                                               |
+| `media_type`   | `TEXT`                                                               |
+| `content_hash` | `CHAR(64)`                                                           |
+| `byte_count`   | `BIGINT`                                                             |
+| `run_id`       | `FK(ai_runs)?`                                                       |
+| `job_id`       | `FK(jobs)?`                                                          |
+
+Immutable. Registry accepts objects only after upload and hash verification.
+
+### ai_runs
+
+| Column                  | Definition            |
+| ----------------------- | --------------------- |
+| `conversation_id`       | `UUID`                |
+| `conversation_sequence` | `BIGINT`              |
+| `context_generation`    | `BIGINT`              |
+| `parent_run_id`         | `FK(ai_runs)?`        |
+| `submission_id`         | `UUID`                |
+| `input`                 | `json(Submission)`    |
+| `input_hash`            | `CHAR(64)`            |
+| `snapshot_id`           | `FK(snapshots)?`      |
+| `state`                 | `json(RunState)`      |
+| `policy_version`        | `TEXT`                |
+| `last_checkpoint`       | `json(RunCheckpoint)` |
+| `cancel_requested_at`   | `TIMESTAMPTZ?`        |
+
+Mutable through API commands. Unique owner/conversation/submission and owner/conversation/sequence. Canonical chat messages remain in AIChatAgent storage.
+
+### ai_steps
+
+| Column          | Definition                                      |
+| --------------- | ----------------------------------------------- |
+| `run_id`        | `FK(ai_runs)`                                   |
+| `step_key`      | `TEXT`                                          |
+| `kind`          | `enum(model, tool, clarification, computation)` |
+| `input_hash`    | `CHAR(64)`                                      |
+| `output`        | `json(AiStepOutput)?`                           |
+| `state`         | `enum(started, completed, failed)`              |
+| `model_call_id` | `UUID?`                                         |
+
+Mutable until completed. Unique run and step key. Model_call_id references model_calls by owner_id/call_id. Completed output is immutable and reused after interruption.
+
+### action_authorizations
+
+| Column                | Definition    |
+| --------------------- | ------------- |
+| `run_id`              | `FK(ai_runs)` |
+| `submission_id`       | `UUID`        |
+| `operation`           | `TEXT`        |
+| `target_ids`          | `UUID[]`      |
+| `payload_hash`        | `CHAR(64)`    |
+| `expires_at`          | `TIMESTAMPTZ` |
+| `consumed_command_id` | `UUID?`       |
+
+Mutable consumption only. Unique run, submission, operation, and payload hash. Scope comes from the authenticated user action or validated direct intent.
+
+### model_calls
+
+| Column               | Definition                                                 |
+| -------------------- | ---------------------------------------------------------- |
+| `call_id`            | `UUID`                                                     |
+| `run_id`             | `FK(ai_runs)?`                                             |
+| `job_id`             | `FK(jobs)?`                                                |
+| `step_key`           | `TEXT`                                                     |
+| `model_role`         | `enum(document, interpretation, intent, analyst, summary)` |
+| `input_hash`         | `CHAR(64)`                                                 |
+| `context_generation` | `BIGINT`                                                   |
+| `output`             | `json(RoleOutput)?`                                        |
+| `status`             | `enum(pending, completed, exhausted)`                      |
+
+No id column. PK owner_id/call_id. Mutable until completed or exhausted; unique owning execution and step_key. Exactly one execution owner. Completed output is immutable. Attempt count comes from usage_attempts.
+
+### usage_attempts
+
+| Column               | Definition                                     |
+| -------------------- | ---------------------------------------------- |
+| `call_id`            | `UUID`                                         |
+| `attempt_id`         | `UUID`                                         |
+| `attempt_number`     | `INTEGER`                                      |
+| `model_role`         | `TEXT`                                         |
+| `model_id`           | `TEXT`                                         |
+| `pricing_version`    | `TEXT`                                         |
+| `run_id`             | `FK(ai_runs)?`                                 |
+| `job_id`             | `FK(jobs)?`                                    |
+| `month`              | `DATE`                                         |
+| `context_generation` | `BIGINT`                                       |
+| `reserved_micro_usd` | `BIGINT`                                       |
+| `actual_micro_usd`   | `BIGINT?`                                      |
+| `input_tokens`       | `INTEGER?`                                     |
+| `output_tokens`      | `INTEGER?`                                     |
+| `state`              | `enum(reserved, settled, uncertain, released)` |
+
+No id column. PK owner_id/attempt_id. Mutable. Unique owner, call_id, attempt_number. Composite FK owner_id/call_id to model_calls. AttemptNumber is 1 through 3. Amounts use MicroUsd. Exactly one owning run or job. Nonnegative amounts. Reservation checks the whole call and execution budgets under an owner-specific usage lock.
 
 `JobInput` and `JobState` are closed unions in [Import and job protocols](/technical/import-protocol). Submission, `RunState`, `RunCheckpoint`, and `AiStepOutput` are in [AI functionality](/technical/ai-functionality). JSON is used for versioned payloads whose shape varies by kind. Financial identity, money, dates, and queryable relationships remain relational columns.
 

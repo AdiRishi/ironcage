@@ -9,7 +9,7 @@ The Commitments view groups recurring expenses and expected income. The Forecast
 
 The app identifies likely recurring services from payment history. Each entry shows the merchant, amount or expected range, cadence, last payment, and estimated next date. It distinguishes a proposed pattern from a confirmed commitment. Proposed schedules affect a forecast only when the user explicitly includes them as assumptions.
 
-The user can correct the next date, amount, cadence, or status. Mortgage payments, strata, insurance, and subscriptions can each have their own schedule. A quarterly levy remains quarterly in the cash calendar. Amount or schedule changes take effect on a recorded date and preserve earlier schedule segments.
+The user can correct the next date, amount, cadence, payment account, service period, or status. Mortgage payments, strata, insurance, and subscriptions can each have their own schedule. A quarterly levy remains quarterly in the cash calendar. Amount or schedule changes take effect on a recorded date and preserve earlier schedule segments.
 
 A changed amount prompts a comparison with prior payments. A missing payment is a possible lapse or missing record, not proof of cancellation. A subscription payment alone does not reveal whether the service was used.
 
@@ -25,8 +25,9 @@ A changed amount prompts a comparison with prior payments. A missing payment is 
     between two included accounts does not increase the combined balance.
   </Tab>
   <Tab title="Debt reduction">
-    Principal payments show how much debt was reduced. New borrowing, interest, and fees remain
-    separately identifiable.
+    The period shows repayments, separately dated interest and fees, and their net effect on loan
+    principal. New borrowing and other balance adjustments reconcile that effect to the change in
+    debt.
   </Tab>
 </Tabs>
 
@@ -38,13 +39,15 @@ The user chooses a 30-, 90-, or 365-day horizon and opens the assumptions behind
 
 Cash forecasts start from a reconciled balance date. Without a reliable balance anchor, the affected account has no predicted cash balance. Known scheduled payments remain visible. If records stop before today, the intervening period is also an estimate. A stale balance is never presented as a live bank balance.
 
+The user can inspect and confirm how variable purchases are divided between payment accounts. The cash forecast shows gross charges and assumed incoming credits separately. Fixed monthly loan interest and fee assumptions are shown separately from repayments; changes in rates or offset balances are not automatically projected.
+
 The app identifies known large upcoming expenses separately from ordinary variable spending. Forecasts avoid counting both card purchases and their settlements as additional personal spending, while still representing when cash leaves the deposit account.
 
 ## Scenarios
 
 A scenario changes named assumptions without changing historical records. The user can compare fewer delivery orders, a different subscription cost, or a planned purchase with the current baseline.
 
-Each comparison shows the expected effect, the horizon, and unchanged assumptions. A reduction in one category can include an explicit increase elsewhere. The app does not assume every reduction translates into equal savings.
+Each comparison shows the expected effect, the horizon, and unchanged assumptions. A missing cash anchor leaves the cash delta unavailable while supported cost effects remain visible. A reduction in one category can include an explicit increase elsewhere. The app does not assume every reduction translates into equal savings.
 
 Scenarios can be saved and later compared with actual outcomes. Scenario assumptions remain editable and distinguishable from confirmed facts.
 

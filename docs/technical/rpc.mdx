@@ -13,30 +13,113 @@ The financial API exports the methods below through the starter's native Worker 
 
 This rule defines a separate concrete schema for each exposed table. It is not permission to send arbitrary database rows. Tables not named in an output below are not exposed through a generic entity endpoint. `TransactionDetail` contains `posting: Dto<postings>`, `event: Dto<financial_events>`, `allocations: Dto<allocations>[]`, `counterparts: Dto<postings>[]`, `credits: Dto<cost_credits>[]`, `evidence: EvidenceRef[]`, `reviews: Dto<review_items>[]`, and `basis`.
 
-`JobView` is `{id, version, kind, state: JobState, attempt, deadline, cancelRequestedAt, createdAt, updatedAt}`. `ImportBatchView` contains `{id, items: {id, sourceId, filename, uploadStatus, job: JobView | null}[], totals: {files, acceptedPostings, matchedObservations, unresolvedObservations, failedFiles}}`. Counts are derived from committed records and observation dispositions.
+`JobView` is `{id, version, kind, state: JobState, attempt, executionGeneration, deadline, cancelRequestedAt, createdAt, updatedAt}`. `ImportBatchView` contains `{id, items: {id, sourceId, filename, uploadStatus, job: JobView | null}[], totals: {files, acceptedPostings, matchedObservations, unresolvedObservations, failedFiles}}`. Counts are derived from committed records and observation dispositions.
 
 ## Financial reads
 
 These methods allow user, agent, and job actors. IDs are checked against context.ownerId.
 
-| Method               | Input                                                                | Success                                                                                                                                                                                                                                                                                       |
-| -------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `getDatasetHead`     | `{}`                                                                 | `{revision: Revision, updatedAt: Instant}`                                                                                                                                                                                                                                                    |
-| `listAccounts`       | `{includeArchived: boolean}`                                         | `{accounts: Dto<accounts>[], periods: Dto<account_periods>[]}`                                                                                                                                                                                                                                |
-| `getReferenceData`   | `{}`                                                                 | `{categories: Dto<categories>[], merchants: Dto<merchants>[], tags: Dto<tags>[], personalEvents: Dto<personal_events>[]}`                                                                                                                                                                     |
-| `getCoverage`        | `{accountIds: Id<"account">[], period: Range, basis: ReadBasis}`     | `{basis, coverage: CoverageSummary}`                                                                                                                                                                                                                                                          |
-| `listTransactions`   | `{filter: TransactionFilter, basis: ReadBasis, page: PageRequest}`   | `Page<{posting: Dto<postings>, event: Dto<financial_events>, reviewCount: number}>`                                                                                                                                                                                                           |
-| `getTransaction`     | `{postingId, basis: ReadBasis}`                                      | `TransactionDetail`                                                                                                                                                                                                                                                                           |
-| `getOverview`        | `{period: Range, accountIds: Id<"account">[], currency: Currency}`   | `{basis, coverage, metrics: {grossCosts, netPersonalCosts, income, surplus, cashBalanceChange, principalRepaid}, upcoming: ScheduleOccurrence[], insightIds: Id<"insight">[]}`. Each metric is `Money \| null`. Null denotes unavailable evidence. Upcoming covers the next 30 calendar days. |
-| `queryFinancials`    | `{query: FinancialQuery, basis: ReadBasis}`                          | `AnalysisResult` with comparison data. Returns calculated totals even when coverage is partial.                                                                                                                                                                                               |
-| `getAnalysisResult`  | `{resultId}`                                                         | `AnalysisResult`                                                                                                                                                                                                                                                                              |
-| `listEvidence`       | `{resultId, page: PageRequest}`                                      | `Page<EvidenceRef>` against the immutable result basis                                                                                                                                                                                                                                        |
-| `listCommitments`    | `{status: CommitmentStatus[], period: Range, basis: ReadBasis}`      | `{basis, commitments: Dto<commitments>[], segments: Dto<commitment_segments>[], occurrences: ScheduleOccurrence[]}`                                                                                                                                                                           |
-| `getPersonalContext` | `{accountIds, merchantIds, period: Range, includeProposed: boolean}` | `{revision, items: Dto<personal_context>[]}`. Removed entries are excluded. Agent callers receive confirmed entries only.                                                                                                                                                                     |
-| `listSavedAnalyses`  | `{includeArchived: boolean, page: PageRequest}`                      | `Page<Dto<saved_analyses>>`                                                                                                                                                                                                                                                                   |
-| `listScenarios`      | `{includeArchived: boolean, page: PageRequest}`                      | `Page<Dto<scenarios>>`                                                                                                                                                                                                                                                                        |
-| `listInsights`       | `{states: InsightState[], page: PageRequest}`                        | `Page<Dto<insights>>`, sorted rank descending, then createdAt and id descending                                                                                                                                                                                                               |
-| `listIntentions`     | `{states: IntentionState[], page: PageRequest}`                      | `Page<Dto<intentions>>`                                                                                                                                                                                                                                                                       |
+### getDatasetHead
+
+Input: `{}`
+
+Success: `{revision: Revision, contextGeneration: Revision, updatedAt: Instant}`
+
+### listAccounts
+
+Input: `{includeArchived: boolean}`
+
+Success: `{accounts: Dto<accounts>[], periods: Dto<account_periods>[]}`
+
+### getReferenceData
+
+Input: `{}`
+
+Success: `{categories: Dto<categories>[], merchants: Dto<merchants>[], tags: Dto<tags>[], personalEvents: Dto<personal_events>[]}`
+
+### getCoverage
+
+Input: `{accountIds: Id<"account">[], period: Range, basis: ReadBasis}`
+
+Success: `{basis, coverage: CoverageSummary}`
+
+### listTransactions
+
+Input: `{filter: TransactionFilter, basis: ReadBasis, page: PageRequest}`
+
+Success: `Page<{posting: Dto<postings>, event: Dto<financial_events>, reviewCount: number}>`
+
+### getTransaction
+
+Input: `{postingId, basis: ReadBasis}`
+
+Success: `TransactionDetail`
+
+### getOverview
+
+Input: `{period: Range, accountIds: Id<"account">[], currency: Currency}`
+
+Success: `{basis, coverage, metrics: {grossCosts, netPersonalCosts, income, surplus, cashBalanceChange, principalRepaid}, upcoming: ScheduleOccurrence[], insightIds: Id<"insight">[]}`. Each metric is `Money | null`. Null denotes unavailable evidence. Upcoming covers the next 30 calendar days.
+
+### queryFinancials
+
+Input: `{query: FinancialQuery, basis: ReadBasis}`
+
+Success: `AnalysisResult` with comparison data. Returns calculated totals even when coverage is partial.
+
+### getAnalysisResult
+
+Input: `{resultId}`
+
+Success: `AnalysisResult`
+
+### listContributions
+
+Input: `{selection: ResultSelection, page: PageRequest}`
+
+Success: `Page<ContributionRow>` from the result snapshot. The selected rows reconcile to its period total; supporting postings do not add extra contributions.
+
+### listEvidence
+
+Input: `{resultId, page: PageRequest}`
+
+Success: `Page<EvidenceRef>` against the immutable result basis
+
+### listCommitments
+
+Input: `{status: CommitmentStatus[], period: Range, basis: ReadBasis}`
+
+Success: `{basis, commitments: Dto<commitments>[], segments: Dto<commitment_segments>[], occurrences: ScheduleOccurrence[]}`
+
+### getPersonalContext
+
+Input: `{accountIds, merchantIds, period: Range, includeProposed: boolean, basis: ReadBasis}`
+
+Success: `{basis, contextGeneration: Revision, items: Dto<personal_context>[]}`. Removed entries are excluded. Agent callers receive confirmed entries only.
+
+### listSavedAnalyses
+
+Input: `{includeArchived: boolean, page: PageRequest}`
+
+Success: `Page<Dto<saved_analyses>>`
+
+### listScenarios
+
+Input: `{includeArchived: boolean, page: PageRequest}`
+
+Success: `Page<Dto<scenarios>>`
+
+### listInsights
+
+Input: `{states: InsightState[], page: PageRequest}`
+
+Success: `Page<Dto<insights>>`, sorted rank descending, then createdAt and id descending
+
+### listIntentions
+
+Input: `{states: IntentionState[], page: PageRequest}`
+
+Success: `Page<Dto<intentions>>`
 
 Reference-data arrays are complete for this single-user dataset. Their configured cap is 10,000 entities of each type. Exceeding it returns `LimitExceeded` and requires a paginated implementation before increasing the cap.
 
@@ -44,17 +127,77 @@ Reference-data arrays are complete for this single-user dataset. Their configure
 
 ## Imports, review, and operational reads
 
-| Method              | Allowed actors   | Input                                                                                                                                                       | Success                                                                                                         |
-| ------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `createImportBatch` | user             | `Command<{label: string \| null, files: {clientFileId: UUID, filename: string, mediaType: string, byteCount: number, accountId: Id<"account"> \| null}[]}>` | `CommandReceipt<{batchId, items: {clientFileId, itemId, uploadPath, expiresAt}[]}>`                             |
-| `getImportBatch`    | user, job        | `{batchId}`                                                                                                                                                 | `ImportBatchView`                                                                                               |
-| `listImports`       | user             | `{page: PageRequest}`                                                                                                                                       | `Page<ImportBatchView>`                                                                                         |
-| `getJob`            | user, job, agent | `{jobId}`                                                                                                                                                   | `JobView`                                                                                                       |
-| `getCommandReceipt` | user, job, agent | `{commandId}`                                                                                                                                               | `CommandReceipt` or NotFound. Jobs and agents can read only their own command IDs.                              |
-| `listReviewItems`   | user, agent      | `{states: ReviewState[], issueKinds: ReviewIssueKind[], page: PageRequest}`                                                                                 | `Page<Dto<review_items>>`                                                                                       |
-| `listInbox`         | user             | `{unreadOnly: boolean, page: PageRequest}`                                                                                                                  | `Page<Dto<inbox_items>>`                                                                                        |
-| `getSettings`       | user             | `{}`                                                                                                                                                        | `Dto<user_settings>`                                                                                            |
-| `getUsage`          | user             | `{month: Date}`                                                                                                                                             | `{month, reservedMicroUsd, settledMicroUsd, uncertainMicroUsd, inputTokens, outputTokens, policy: UsagePolicy}` |
+### createImportBatch
+
+Allowed actors: user
+
+Input: `Command<{label: string | null, files: {clientFileId: UUID, filename: string, mediaType: string, byteCount: number, accountId: Id<"account"> | null}[]}>`
+
+Success: `CommandReceipt<{batchId, items: {clientFileId, itemId, uploadPath, expiresAt}[]}>`
+
+### getImportBatch
+
+Allowed actors: user, job
+
+Input: `{batchId}`
+
+Success: `ImportBatchView`
+
+### listImports
+
+Allowed actors: user
+
+Input: `{page: PageRequest}`
+
+Success: `Page<ImportBatchView>`
+
+### getJob
+
+Allowed actors: user, job, agent
+
+Input: `{jobId}`
+
+Success: `JobView`
+
+### getCommandReceipt
+
+Allowed actors: user, job, agent
+
+Input: `{commandId}`
+
+Success: `CommandReceipt` or NotFound. Jobs and agents can read only their own command IDs.
+
+### listReviewItems
+
+Allowed actors: user, agent
+
+Input: `{states: ReviewState[], issueKinds: ReviewIssueKind[], page: PageRequest}`
+
+Success: `Page<Dto<review_items>>`
+
+### listInbox
+
+Allowed actors: user
+
+Input: `{unreadOnly: boolean, page: PageRequest}`
+
+Success: `Page<Dto<inbox_items>>`
+
+### getSettings
+
+Allowed actors: user
+
+Input: `{}`
+
+Success: `Dto<user_settings>`
+
+### getUsage
+
+Allowed actors: user
+
+Input: `{month: CalendarDate}`
+
+Success: `{month, reservedMicroUsd, settledMicroUsd, uncertainMicroUsd, inputTokens, outputTokens, policy: UsagePolicy}`
 
 Empty state arrays select all states. Month inputs must be the first calendar day of a month in UTC. The API normalizes the current month in the settings view, not in stored accounting entries.
 
@@ -62,21 +205,83 @@ Empty state arrays select all states. Month inputs must be the first calendar da
 
 These methods accept `Command<Input>` and return `CommandReceipt<Output>`. They allow user actors. Agent access is limited by the action authorization contract in [AI functionality](/technical/ai-functionality#mutation-authority).
 
-| Method              | Input inside Command                                                                                                                                                                                     | Output and invariants                                                                                                                        |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `saveAccount`       | `{accountId: Id<"account"> \| null, expectedVersion: Version \| null, label, currency, institution, periods: {startDate, endDate, role, offsetLoanId}[]}`                                                | `Dto<accounts>`. Null ID creates with null expectedVersion. Updates require a version. Currency cannot change after accepted postings exist. |
-| `saveCategory`      | `{categoryId: Id<"category"> \| null, expectedVersion: Version \| null, slug, label, parentId, archived}`                                                                                                | `Dto<categories>`. Prevents hierarchy cycles and preserves referenced IDs.                                                                   |
-| `saveTag`           | `{tagId: Id<"tag"> \| null, expectedVersion: Version \| null, label, archived}`                                                                                                                          | `Dto<tags>`                                                                                                                                  |
-| `saveMerchant`      | `{merchantId: Id<"merchant"> \| null, expectedVersion: Version \| null, label, service, aliases: string[]}`                                                                                              | `Dto<merchants>`. Alias conflicts return InvalidInput.                                                                                       |
-| `correctEvent`      | `{eventId, expectedVersion, change: EventChange, reason: string \| null}`                                                                                                                                | `{event: Dto<financial_events>, correctionId}`. Amount conservation and credit eligibility are rechecked.                                    |
-| `linkCostCredit`    | `{creditAllocationId, expectedCreditVersion, targets: {costAllocationId, expectedVersion, amountMinor}[]}`                                                                                               | `{creditLinks: Dto<cost_credits>[], correctionId}`. Positive targets, matching currency, no clipping of excess.                              |
-| `unlinkCostCredit`  | `{creditLinkId, expectedCreditVersion, expectedCostVersion}`                                                                                                                                             | `{correctionId}`                                                                                                                             |
-| `linkMovements`     | `{kind: "transfer" \| "cardSettlement" \| "loanPayment", postingIds: Id<"posting">[], expectedEventVersions: {eventId, version}[], interestPostingIds: Id<"posting">[], feePostingIds: Id<"posting">[]}` | `{event: Dto<financial_events>, correctionId}`. Replaces prior event memberships atomically and supersedes replaced events.                  |
-| `undoCorrection`    | `{correctionId, expectedTargetVersions: {entityKind, id, version}[]}`                                                                                                                                    | `{correctionId: Id<"correction">}` for the new inverse change. Rejects when newer changes make the inverse invalid.                          |
-| `savePersonalEvent` | `{personalEventId: Id<"personalEvent"> \| null, expectedVersion: Version \| null, label, period: Range \| null, excludeFromOrdinary: boolean, note: string \| null, allocationIds: Id<"allocation">[]}`  | `Dto<personal_events>`. Explicit membership includes advance bookings.                                                                       |
-| `saveContext`       | `{contextId: Id<"context"> \| null, expectedVersion: Version \| null, kind, text, accountIds, merchantIds, effectivePeriod: Range \| null, evidence: EvidenceRef[]}`                                     | `Dto<personal_context>` in confirmed state. Text maximum 4,000 characters.                                                                   |
-| `removeContext`     | `{contextId, expectedVersion}`                                                                                                                                                                           | `{contextId, status: "removed"}`                                                                                                             |
-| `saveCommitment`    | `{commitmentId: Id<"commitment"> \| null, expectedVersion: Version \| null, label, merchantId, accountId, status, effectiveFrom: Date, schedule: ScheduleDefinition}`                                    | `{commitment: Dto<commitments>, segment: Dto<commitment_segments>}`. Closes the previous effective segment.                                  |
+### saveAccount
+
+Input inside Command: `{accountId: Id<"account"> | null, expectedVersion: Version | null, label, currency, institution, periods: {startDate, endDate, role, offsetLoanId}[]}`
+
+Output and invariants: `Dto<accounts>`. Null ID creates with null expectedVersion. Updates require a version. Currency cannot change after accepted postings exist.
+
+### saveCategory
+
+Input inside Command: `{categoryId: Id<"category"> | null, expectedVersion: Version | null, slug, label, parentId, archived}`
+
+Output and invariants: `Dto<categories>`. Prevents hierarchy cycles and preserves referenced IDs.
+
+### saveTag
+
+Input inside Command: `{tagId: Id<"tag"> | null, expectedVersion: Version | null, label, archived}`
+
+Output and invariants: `Dto<tags>`
+
+### saveMerchant
+
+Input inside Command: `{merchantId: Id<"merchant"> | null, expectedVersion: Version | null, label, service, aliases: string[]}`
+
+Output and invariants: `Dto<merchants>`. Alias conflicts return InvalidInput.
+
+### correctEvent
+
+Input inside Command: `{eventId, expectedVersion, change: EventChange, reason: string | null}`
+
+Output and invariants: `{event: Dto<financial_events>, correctionId}`. Amount conservation and credit eligibility are rechecked.
+
+### linkCostCredit
+
+Input inside Command: `{creditAllocationId, expectedCreditVersion, targets: {costAllocationId, expectedVersion, amountMinor}[]}`
+
+Output and invariants: `{creditLinks: Dto<cost_credits>[], correctionId}`. Positive targets, matching currency, no clipping of excess.
+
+### unlinkCostCredit
+
+Input inside Command: `{creditLinkId, expectedCreditVersion, expectedCostVersion}`
+
+Output and invariants: `{correctionId}`
+
+### linkMovements
+
+Input inside Command: `{kind: "transfer" | "cardSettlement" | "loanPayment", postingIds: Id<"posting">[], expectedEventVersions: {eventId, version}[]}`
+
+Output and invariants: `{event: Dto<financial_events>, correctionId}`. Replaces prior event memberships atomically and supersedes replaced events.
+
+### undoCorrection
+
+Input inside Command: `{correctionId, expectedTargetVersions: {entityKind, id, version}[]}`
+
+Output and invariants: `{correctionId: Id<"correction">}` for the new inverse change. Rejects when newer changes make the inverse invalid.
+
+### savePersonalEvent
+
+Input inside Command: `{personalEventId: Id<"personalEvent"> | null, expectedVersion: Version | null, label, period: Range | null, excludeFromOrdinary: boolean, note: string | null, allocationIds: Id<"allocation">[]}`
+
+Output and invariants: `Dto<personal_events>`. Explicit membership includes advance bookings.
+
+### saveContext
+
+Input inside Command: `{contextId: Id<"context"> | null, expectedVersion: Version | null, kind, text, accountIds, merchantIds, effectivePeriod: Range | null, evidence: EvidenceRef[]}`
+
+Output and invariants: `Dto<personal_context>` in confirmed state. Text maximum 4,000 characters.
+
+### removeContext
+
+Input inside Command: `{contextId, expectedVersion}`
+
+Output and invariants: `{contextId, status: "removed"}`
+
+### saveCommitment
+
+Input inside Command: `{commitmentId: Id<"commitment"> | null, expectedVersion: Version | null, label, merchantId, status, effectiveFrom: CalendarDate, schedule: ScheduleDefinition}`
+
+Output and invariants: `{commitment: Dto<commitments>, segment: Dto<commitment_segments>}`. Closes the previous effective segment.
 
 `EventChange` is one of the following closed variants:
 
@@ -95,62 +300,184 @@ type EventChange =
       }[];
     }
   | { kind: "role"; eventKind: EventKind; allocations: AllocationInput[] }
-  | { kind: "purchaseDate"; date: Date; evidence: EvidenceRef[] };
+  | { kind: "purchaseDate"; date: CalendarDate; evidence: EvidenceRef[] };
 ```
 
 `AllocationInput` is the allocation object in the allocations variant. Existing IDs preserve credit links. Removing or reducing an allocation with linked credits requires an explicit compatible relink in a separate prepared change. Bank amounts, source dates, and posting identity are not fields of `EventChange`.
+
+User-only `setOccurrenceOverride(Command<{commitmentId, expectedCommitmentVersion, nominalDate: CalendarDate, scheduledDate: CalendarDate, servicePeriod: Range | null, status: "expected" | "skipped"}>)` returns a commitment occurrence DTO. NominalDate identifies an occurrence generated by an effective schedule segment. The command changes its displayed payment date or service period without moving segment membership. Matched occurrences require source resolution before their match can be changed. Supplied service periods must be nonempty and their evidence or user-confirmed status is recorded in the correction.
 
 ## Previews, rules, and review resolution
 
 `RulePredicate` contains optional exact merchantId, accountId, role, normalized description prefix up to 100 characters, and amount range. At least one field is required. Fields combine with AND. `ClassificationAction` contains categoryId and optional merchantId and tagIds. Rules do not change financial roles, bank values, refunds, or movement relationships.
 
-`ChangeImpact` contains `{recordCount, affectedEventIds, beforeTotals: Money[], afterTotals: Money[], reviewCount, warnings: string[]}`. The stored preview contains the full affected set even when the UI pages it.
+`ChangeImpact` contains `{recordCount, affectedEventIds, measures: {metric: FinancialQuery["metric"], period: Range, accountIds: Id<"account">[], currency: Currency, before: Money | null, after: Money | null, coverageBefore: CoverageSummary, coverageAfter: CoverageSummary}[], reviewCount, warnings: string[]}`. Preview measures always use total normalization. Costs, income, cash balance change, and the net loan repayment effect appear when affected. The stored preview includes the exact command input and full affected set even when the UI pages it.
 
-| Method           | Input                                                                                                                                                                                 | Success                                                                                                                                                                   |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `previewRule`    | `{ruleId: Id<"rule"> \| null, expectedVersion: Version \| null, name, predicate: RulePredicate, action: ClassificationAction, effectivePeriod: Range \| null, applyHistory: boolean}` | `{previewId, revision, expiresAt, impact: ChangeImpact}`                                                                                                                  |
-| `applyRule`      | `Command<{previewId, expectedRevision}>`                                                                                                                                              | `CommandReceipt<{rule: Dto<classification_rules>, jobId: Id<"job"> \| null}>`. Saves the rule, then applies a large historical set in bounded version-checked job groups. |
-| `setRuleEnabled` | `Command<{ruleId, expectedVersion, enabled}>`                                                                                                                                         | `CommandReceipt<Dto<classification_rules>>`. Does not undo historical decisions.                                                                                          |
-| `listRules`      | `{page: PageRequest}`                                                                                                                                                                 | `Page<Dto<classification_rules>>`                                                                                                                                         |
-| `resolveReview`  | `Command<{reviewId, expectedVersion, resolution: ReviewResolution}>`                                                                                                                  | `CommandReceipt<{review: Dto<review_items>, correctionId: Id<"correction"> \| null}>`                                                                                     |
+`PreviewInput` is a closed union: `{kind: "eventChange", change: PreparedEventChange}`, `{kind: "rule", rule: RulePreviewInput}`, `{kind: "roleRule", rule: RoleRuleInput}`, or `{kind: "sourceRemoval", sourceId, expectedVersion}`. RulePreviewInput is the previewRule input below. PreparedEventChange is a discriminated union of `{operation: "correctEvent" | "linkMovements" | "linkCostCredit" | "unlinkCostCredit", input}` with the exact input schema of the selected method.
+
+`previewEventChange({change: PreparedEventChange})` allows user actors and agent proposals. It returns `{previewId, revision, expiresAt, impact}` after executing the same validation and calculation as the eventual command, without a financial mutation. `acceptEventChange(Command<{previewId, expectedRevision}>)` allows user actors or a server-authorized agent and returns `{correctionId, affectedEventIds}`. Acceptance reloads the exact stored input, checks expiry, revision, target versions, and authorization, then commits once. A changed input needs a new preview.
+
+Direct correctEvent calls support single-event merchant changes, categories, tags, and evidenced purchase-date changes only. Allocation edits through this path must preserve IDs, roles, and amounts. Financial-role changes, splits, movement links, and credit links enter through acceptEventChange. The corresponding method schemas describe the shared internal operations; they are not alternate public routes around preview acceptance. Undo that affects roles, allocation amounts, or relationships also uses a PreparedEventChange variant `{operation: "undoCorrection", input: UndoCorrectionInput}`. UndoCorrectionInput is the undoCorrection input above.
+
+`RoleRulePredicate` is `{match: {kind: "description", normalizedExact: string} | {kind: "counterpartyReference", reference: string}, expectedSign: "debit" | "credit"}`. `RoleRuleInput` contains `{ruleId: Id<"roleRule"> | null, expectedVersion: Version | null, accountId, predicate: RoleRulePredicate, role: "purchase" | "income" | "financingCost", effectiveStart: CalendarDate, effectiveEnd: CalendarDate | null, applyHistory: boolean}`. User-only `previewRoleRule({rule: RoleRuleInput})` and `acceptRoleRule(Command<{previewId, expectedRevision}>)` use the same preview and version checks, returning a rule DTO and optional historical-application job. `listRoleRules({page: PageRequest})` returns a page of role rules. `setRoleRuleEnabled(Command<{ruleId, expectedVersion, enabled}>)` changes future application without undoing accepted history. Rules are scoped user confirmation, not model authority.
+
+### previewRule
+
+Input: `{ruleId: Id<"rule"> | null, expectedVersion: Version | null, name, predicate: RulePredicate, action: ClassificationAction, effectivePeriod: Range | null, applyHistory: boolean}`
+
+Success: `{previewId, revision, expiresAt, impact: ChangeImpact}`
+
+### applyRule
+
+Input: `Command<{previewId, expectedRevision}>`
+
+Success: `CommandReceipt<{rule: Dto<classification_rules>, jobId: Id<"job"> | null}>`. Saves the rule, then applies a large historical set in bounded version-checked job groups.
+
+### setRuleEnabled
+
+Input: `Command<{ruleId, expectedVersion, enabled}>`
+
+Success: `CommandReceipt<Dto<classification_rules>>`. Does not undo historical decisions.
+
+### listRules
+
+Input: `{page: PageRequest}`
+
+Success: `Page<Dto<classification_rules>>`
+
+### resolveReview
+
+Input: `Command<{reviewId, expectedVersion, resolution: ReviewResolution}>`
+
+Success: `CommandReceipt<{review: Dto<review_items>, correctionId: Id<"correction"> | null}>`
 
 `ReviewOption` contains `{id: string, label: string, resolution: ReviewResolution}`. Resolution variants are `chooseOption {optionId}`, `mapAccount {accountId}`, `matchPosting {postingId}`, `distinctPosting {}`, `useObservation {observationId}`, `classify {change: EventChange}`, `explain {text}`, and `dismiss {reason}`. chooseOption is resolved to a stored non-chooseOption value. The issue kind determines the allowed variants. Free-text explanations can resolve context questions but cannot establish unreadable amounts or duplicate identity without further evidence.
 
-Review resolution locks the review subject, checks its version, applies the selected financial command, and marks the review resolved in the same transaction. Dismiss leaves unresolved financial values outside confirmed totals. Agent callers can propose review options but cannot dismiss unresolved evidence automatically.
+Review resolution locks the review subject, checks its version, applies the selected financial command, and marks the review resolved in the same transaction. A classify resolution that changes roles or allocation amounts must carry an accepted event-change preview; the resolution variant for that path is `acceptChange {previewId, expectedRevision}`. It checks the preview and resolves the review atomically, without bypassing impact review. Dismiss leaves unresolved financial values outside confirmed totals. Agent callers can propose review options but cannot dismiss unresolved evidence automatically.
 
 ## Saved work and controls
 
-| Method            | Input inside Command                                                                                                                                                                                    | Output                                                       |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `startAnalysis`   | `{definition: AnalysisDefinition, basis: ReadBasis}`                                                                                                                                                    | `AcceptedJob`                                                |
-| `saveAnalysis`    | `{savedAnalysisId: Id<"savedAnalysis"> \| null, expectedVersion: Version \| null, label, question: string \| null, definition: AnalysisDefinition, refresh: "onChange" \| "manual", archived: boolean}` | `Dto<saved_analyses>`                                        |
-| `refreshAnalysis` | `{savedAnalysisId, expectedVersion}`                                                                                                                                                                    | `AcceptedJob`                                                |
-| `saveScenario`    | `{scenarioId: Id<"scenario"> \| null, expectedVersion: Version \| null, label, baseline: ForecastDefinition, overrides: ScenarioOverride[], archived: boolean}`                                         | `Dto<scenarios>`                                             |
-| `setInsightState` | `{insightId, expectedVersion, state: "seen" \| "useful" \| "dismissed"}`                                                                                                                                | `Dto<insights>`                                              |
-| `saveIntention`   | `{intentionId: Id<"intention"> \| null, expectedVersion: Version \| null, label, definition: IntentionDefinition, state: "active" \| "paused" \| "completed"}`                                          | `Dto<intentions>`                                            |
-| `setInboxState`   | `{inboxItemIds: Id<"inbox">[], state: "read" \| "dismissed"}`                                                                                                                                           | `{updatedIds}`. Maximum 200 items.                           |
-| `updateSettings`  | `{expectedVersion, timezone, currency, policy: UsagePolicy, importReminderDays: number}`                                                                                                                | `Dto<user_settings>`                                         |
-| `retryJob`        | `{jobId, expectedVersion}`                                                                                                                                                                              | `AcceptedJob` with the same job ID and a new bounded attempt |
-| `cancelJob`       | `{jobId, expectedVersion}`                                                                                                                                                                              | `JobView` with durable cancellation intent                   |
-| `startExport`     | `{includeSources: boolean, includeConversations: boolean}`                                                                                                                                              | `AcceptedJob`                                                |
+### startAnalysis
 
-All rows in this table return `CommandReceipt` around the output. Only user actors can change settings, remove data, cancel unrelated jobs, or export account data. Starting an analysis, saving an investigation, and refreshing it are also available to authorized agent runs.
+Input inside Command: `{definition: AnalysisDefinition, basis: ReadBasis}`
+
+Output: `AcceptedJob`. A latest request freezes records during execution. All explicit forecast assumptions remain in the accepted definition.
+
+### saveAnalysis
+
+Input inside Command: `{savedAnalysisId: Id<"savedAnalysis"> | null, expectedVersion: Version | null, label, question: string | null, definition: AnalysisDefinition, refresh: "onChange" | "manual", archived: boolean}`
+
+Output: `Dto<saved_analyses>`
+
+### refreshAnalysis
+
+Input inside Command: `{savedAnalysisId, expectedVersion}`
+
+Output: `AcceptedJob`
+
+### saveScenario
+
+Input inside Command: `{scenarioId: Id<"scenario"> | null, expectedVersion: Version | null, label, baseline: ForecastDefinition, overrides: ScenarioOverride[], archived: boolean}`
+
+Output: `Dto<scenarios>`
+
+### setInsightState
+
+Input inside Command: `{insightId, expectedVersion, state: "seen" | "useful" | "dismissed"}`
+
+Output: `Dto<insights>`
+
+### saveIntention
+
+Input inside Command: `{intentionId: Id<"intention"> | null, expectedVersion: Version | null, label, definition: IntentionDefinition, state: "active" | "paused" | "completed"}`
+
+Output: `Dto<intentions>`
+
+### setInboxState
+
+Input inside Command: `{inboxItemIds: Id<"inbox">[], state: "read" | "dismissed"}`
+
+Output: `{updatedIds}`. Maximum 200 items.
+
+### updateSettings
+
+Input inside Command: `{expectedVersion, timezone, currency, policy: UsagePolicy, importReminderDays: number}`
+
+Output: `Dto<user_settings>`
+
+### retryJob
+
+Input inside Command: `{jobId, expectedVersion}`
+
+Output: `AcceptedJob` with the same job ID and a new bounded attempt
+
+### cancelJob
+
+Input inside Command: `{jobId, expectedVersion}`
+
+Output: `JobView` with durable cancellation intent
+
+### startExport
+
+Input inside Command: `{includeSources: boolean, includeConversations: boolean}`
+
+Output: `AcceptedJob`
+
+All methods in this section return `CommandReceipt` around the output. Only user actors can change settings, remove data, cancel unrelated jobs, or export account data. Starting an analysis, saving an investigation, and refreshing it are also available to authorized agent runs.
 
 `previewSourceRemoval({sourceId, expectedVersion})` returns a ten-minute `{previewId, revision, expiresAt, impact: ChangeImpact, unsupportedPostingIds}`. `removeSource(Command<{previewId, expectedRevision, unsupportedRecords: "retainWithWarning" | "withdraw"}>)` records the choice and returns `AcceptedJob`. Removal invalidates affected evidence and follows the backup policy. Raw source deletion never runs from a model tool.
 
 ## Processor-only RPC
 
-Only job actors can call these methods, and each input jobId must match the caller. Mutations return stored idempotent step outcomes keyed by jobId and stepKey.
+Only job actors can call these methods, and each input jobId must match the caller. Every job-actor mutation, including shared model-call and artifact operations, also carries executionGeneration, checked against the current job before a new effect. Mutations return stored idempotent step outcomes keyed by jobId and stepKey. Completed compatible step outcomes can be reused by a later generation after this check.
 
-| Method                  | Input                                                                                               | Success                                                            |
-| ----------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `getJobInput`           | `{jobId}`                                                                                           | `JobInput`                                                         |
-| `captureSnapshot`       | `{jobId, stepKey, definition: AnalysisDefinition}`                                                  | `{snapshotId, revision, manifest: SnapshotManifest}`               |
-| `stageObservations`     | `{jobId, stepKey, extractionId, observations: ParsedObservation[]}`                                 | `{stagedCount, observationIds}`                                    |
-| `publishPostingGroup`   | `{jobId, stepKey, expectedRevision, group: PostingPublication}`                                     | `{revision, acceptedPostingIds, matchedObservationIds, reviewIds}` |
-| `commitInterpretations` | `{jobId, stepKey, expectedRevision, decisions: InterpretationDecision[]}`                           | `{revision, appliedEventIds, reviewIds}`                           |
-| `publishAnalysis`       | `{jobId, stepKey, snapshotId, definitionHash, result: AnalysisResultData, evidence: EvidenceRef[]}` | `{resultId, publication: "current" \| "historical"}`               |
-| `checkpointJob`         | `{jobId, stepKey, expectedVersion, state: JobState}`                                                | `JobView`                                                          |
+### getJobInput
+
+Input: `{jobId}`
+
+Success: `JobInput`
+
+### captureSnapshot
+
+Input: `{jobId, stepKey, definition: AnalysisDefinition, basis: ReadBasis}`
+
+Success: `{snapshotId, revision, manifest: SnapshotManifest}`. Captures requested rows and contextGeneration together, then persists the snapshot and step outcome. Retries reuse that successful outcome.
+
+### commitRoles
+
+Input: `{jobId, stepKey, expectedRevision, decisions: RoleDecision[]}`
+
+Success: `{revision, appliedEventIds, reviewIds}`. Revalidates source markers or user-accepted role rules.
+
+### stageObservations
+
+Input: `{jobId, stepKey, extractionId, observations: ParsedObservation[]}`
+
+Success: `{stagedCount, observationIds}`
+
+### publishPostingGroup
+
+Input: `{jobId, stepKey, expectedRevision, group: PostingPublication}`
+
+Success: `{revision, acceptedPostingIds, matchedObservationIds, reviewIds}`
+
+### commitInterpretations
+
+Input: `{jobId, stepKey, expectedRevision, decisions: InterpretationDecision[]}`
+
+Success: `{revision, appliedEventIds, reviewIds}`
+
+### publishAnalysis
+
+Input: `{jobId, stepKey, snapshotId, definitionHash, result: AnalysisResultData, evidence: EvidenceRef[]}`
+
+Success: `{resultId, publication: "current" | "historical"}`
+
+### checkpointJob
+
+Input: `{jobId, stepKey, expectedVersion, state: JobState}`
+
+Success: `JobView`
 
 Artifact transfer uses authenticated private HTTP streams. A worker does not receive production SQL credentials or arbitrary R2 access from these calls. The payload schemas and step identities are in [Import and job protocols](/technical/import-protocol).
 
@@ -158,34 +485,104 @@ Artifact transfer uses authenticated private HTTP streams. A worker does not rec
 
 These methods are private to agent actors, with runId matching `CallerContext`. `acceptRun` is called by the authenticated conversation ingress with user context, before an agent context exists.
 
-| Method                | Input                                                                                                                       | Success                                                                                                               |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `acceptRun`           | `{conversationId, submissionId, text, selection}` from the submission schema                                                | `{runId, state: RunState}`. Repeated submission and payload return the same run. Changed payloads conflict.           |
-| `cancelRun`           | `{runId, expectedVersion}` with authenticated user context                                                                  | `{state: RunState}` after durable cancellation intent is recorded.                                                    |
-| `listConversations`   | `{page: PageRequest}` with authenticated user context                                                                       | `Page<{conversationId, lastRunId, lastQuestion: string, lastActivityAt: Instant}>`, grouped from accepted run inputs. |
-| `startChildRun`       | `{parentRunId, stepKey, question, snapshotId, reservedBudgetMicroUsd}` from an agent parent                                 | `{runId, conversationId}`. At most two children, no grandchildren, budget reserved from parent.                       |
-| `getRun`              | `{runId}`                                                                                                                   | `{id, version, state: RunState, checkpoint: RunCheckpoint}`                                                           |
-| `checkpointRun`       | `{runId, expectedVersion, state: RunState, checkpoint: RunCheckpoint}`                                                      | `{version, state}`                                                                                                    |
-| `recordAiStep`        | `{runId, stepKey, inputHash, output: AiStepOutput}`                                                                         | `{stepId, replayed: boolean}`. An existing key with another input conflicts.                                          |
-| `createClarification` | `{runId, subject, issueKind, question, options, evidence}`                                                                  | `{reviewId, version}`. Reuses an existing open issue on that subject/version.                                         |
-| `proposeContext`      | `{runId, kind, text, accountIds, merchantIds, effectivePeriod, evidence}`                                                   | `{contextId, status: "proposed"}`                                                                                     |
-| `reserveUsage`        | `{callId, runId: Id<"run"> \| null, jobId: Id<"job"> \| null, modelRole, maxInputTokens, maxOutputTokens}`                  | `{reservationId, reservedMicroUsd}`. Also available to the owning job. Exactly one execution owner is set.            |
-| `settleUsage`         | `{callId, outcome: {kind: "known", inputTokens, outputTokens, actualMicroUsd} \| {kind: "uncertain"} \| {kind: "notSent"}}` | `{state, chargedMicroUsd, heldMicroUsd}`. Idempotent, with uncertain-to-known reconciliation permitted.               |
+### acceptRun
+
+Input: `{conversationId, submissionId, text, selection}` from the submission schema
+
+Success: `{runId, state: RunState}`. Repeated submission and payload return the same run. Changed payloads conflict.
+
+### cancelRun
+
+Input: `{runId, expectedVersion}` with authenticated user context
+
+Success: `{state: RunState}` after durable cancellation intent is recorded.
+
+### listConversations
+
+Input: `{page: PageRequest}` with authenticated user context
+
+Success: `Page<{conversationId, lastRunId, lastQuestion: string, lastActivityAt: Instant}>`, grouped from accepted run inputs.
+
+### startChildRun
+
+Input: `{parentRunId, stepKey, question, snapshotId, reservedBudgetMicroUsd}` from an agent parent
+
+Success: `{runId, conversationId}`. At most two children, no grandchildren, budget reserved from parent.
+
+### getRun
+
+Input: `{runId}`
+
+Success: `{id, version, state: RunState, checkpoint: RunCheckpoint}`
+
+### captureRunSnapshot
+
+Input: `{runId, stepKey, definition: AnalysisDefinition, basis: ReadBasis}`
+
+Success: `{snapshotId, revision, manifest, contextGeneration}`. Uses the same capture protocol as job snapshots, scoped to the run.
+
+### checkpointRun
+
+Input: `{runId, expectedVersion, state: RunState, checkpoint: RunCheckpoint}`
+
+Success: `{version, state}`
+
+### recordAiStep
+
+Input: `{runId, stepKey, inputHash, output: AiStepOutput}`
+
+Success: `{stepId, replayed: boolean}`. An existing key with another input conflicts.
+
+### createClarification
+
+Input: `{runId, subject, issueKind, question, options, evidence}`
+
+Success: `{reviewId, version}`. Reuses an existing open issue on that subject/version.
+
+### proposeContext
+
+Input: `{runId, kind, text, accountIds, merchantIds, effectivePeriod, evidence}`
+
+Success: `{contextId, status: "proposed"}`
+
+### openModelCall
+
+Input: `{callId, stepKey, modelRole, inputHash, contextGeneration, runId: Id<"run"> | null, jobId: Id<"job"> | null}`
+
+Success: `{status, completedOutput: RoleOutput | null, attempts}`. Available to the owning job or agent. Repeated input reuses the record; changed input conflicts.
+
+### completeModelCall
+
+Input: `{callId, output: RoleOutput, attemptIds: UUID[]}`
+
+Success: `{replayed: boolean}`. Validates the role output and completed attempts, then stores immutable logical output.
+
+### reserveUsage
+
+Input: `{callId, attemptId, attemptNumber, runId: Id<"run"> | null, jobId: Id<"job"> | null, modelRole, maxInputTokens, maxOutputTokens}`
+
+Success: `{reservationId, reservedMicroUsd}`. Also available to the owning job. Exactly one execution owner is set.
+
+### settleUsage
+
+Input: `{attemptId, outcome: {kind: "known", inputTokens, outputTokens, actualMicroUsd} | {kind: "uncertain"} | {kind: "notSent"}}`
+
+Success: `{state, chargedMicroUsd, heldMicroUsd}`. Idempotent per attempt, with uncertain-to-known reconciliation permitted. All monetary fields use MicroUsd; one attempt never replaces another attempt's reservation.
 
 `registerArtifact` is available to the owning job or agent. Input is `{stepKey, kind, mediaType, byteCount, contentHash}` and output is `{artifactId, uploadPath}`. RegisterArtifact creates an expiring artifact_uploads grant. The authenticated private upload verifies size and hash before creating the available artifacts row. `readArtifact({artifactId})` streams only an artifact referenced by the caller's run or job. Application-supplied bytes never provide their own bucket key.
 
 ## Browser HTTP and conversation boundaries
 
-| Route                                | Method and body                                              | Result                                                                                                             |
-| ------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| `/api/imports/:itemId/content`       | PUT raw bytes, declared Content-Type, `Idempotency-Key` UUID | 202 `{sourceId, jobId, repeatedSource}`. The server verifies bytes, hashes content, and registers the source.      |
-| `/api/sources/:sourceId/content`     | GET, optional Range header                                   | Authenticated source stream with correct media type and disposition.                                               |
-| `/api/artifacts/:artifactId/content` | GET                                                          | Authenticated artifact stream.                                                                                     |
-| `/api/analyst/:conversationId/*`     | SDK HTTP, streaming, and WebSocket protocol                  | Authenticated proxy to the owner-bound AIChatAgent. SDK message frames are not replaced by a custom chat protocol. |
+| Route                                | Method and body                                              | Result                                                                                                                                                                         |
+| ------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/api/imports/:itemId/content`       | PUT raw bytes, declared Content-Type, `Idempotency-Key` UUID | 202 `{sourceId, jobId, repeatedSource}`. The server verifies bytes, hashes content, and registers the source.                                                                  |
+| `/api/sources/:sourceId/content`     | GET, optional Range header                                   | Authenticated source stream with correct media type and disposition.                                                                                                           |
+| `/api/artifacts/:artifactId/content` | GET                                                          | Authenticated artifact stream.                                                                                                                                                 |
+| `/api/analyst/:conversationId/*`     | SDK HTTP, streaming, and WebSocket protocol                  | Authenticated routing to the owner-bound AIChatAgent through its cross-script Durable Object namespace binding. SDK message frames are not replaced by a custom chat protocol. |
 
-Financial screen reads and commands use typed TanStack Start server functions that call the RPC methods. The upload path expires after one hour before upload begins. Limits are 100 files per batch, 100 MiB per file, and 500 PDF pages per file. Larger limits require configuration and resource validation, not silent truncation. The importer must accommodate every supplied file.
+Financial screen reads and commands use typed TanStack Start server functions that call the RPC methods. The upload path expires after one hour before upload begins. Limits are 100 files per batch, 33,554,432 bytes per file, displayed as 32 MiB, and 500 PDF pages per file. Larger limits require configuration and resource validation, not silent truncation. The importer must accommodate every supplied file.
 
-Browser mutations validate origin and session before forwarding. Each conversation identity is derived from the authenticated owner and its conversation UUID. A browser cannot route itself to another owner's Durable Object by changing the URL.
+Browser mutations validate origin and session before forwarding. The web Worker owns the HTTP and WebSocket ingress and binds directly to the analyst-owned Durable Object namespace. The analyst Worker exports the class and owns migrations; no intermediate analyst HTTP proxy is deployed. Routing translates the app path to the SDK route and exposes only the analyst namespace. Deployment tests cover authentication, owner-derived instance names, upgrades, streaming, and reconnects. Each conversation identity is derived from the authenticated owner and its conversation UUID. A browser cannot route itself to another owner's Durable Object by changing the URL.
 
 ## Worked correction exchange
 

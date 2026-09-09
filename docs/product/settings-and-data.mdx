@@ -11,7 +11,7 @@ The user can inspect and change account labels, roles, and evidenced relationshi
 
 Categories and tags are editable. Referenced categories retain their identity when renamed or archived. Merchant management exposes accepted aliases and service distinctions. Conflicting aliases require resolution before a change applies.
 
-Classification rules show their conditions, priority relative to individual corrections, and historical or future scope. Broad changes use the preview described in [Transactions](/product/transactions#corrections-and-splits). A change to a general rule preserves transaction-specific exceptions.
+Classification rules show their conditions, priority relative to individual corrections, and historical or future scope. Broad changes use the preview described in [Transactions](/product/transactions#corrections-and-splits). A change to a general rule preserves transaction-specific exceptions. Rules that establish purchase, income, or financing-cost roles have their own account and source-reference scope and require a financial-impact preview before acceptance.
 
 ## Display and reminder preferences
 
@@ -31,7 +31,7 @@ Settings shows the configured AI usage limits and current usage, including unset
 
 When a limit prevents further AI work, the app explains which limit applies and preserves completed work. The user can adjust the limit and explicitly retry unfinished work. Ordinary financial views and accepted records remain accessible. A retry does not repeat a committed correction.
 
-The application identifies the configured model providers and explains the data sent for a task. It sends the relevant records and context rather than the entire financial history by default. AI Gateway routing does not imply that processing remains within Cloudflare. Provider and backup retention are disclosed separately from application deletion.
+The application identifies the configured model providers and explains the data sent for a task. It sends the relevant records and context rather than the entire financial history by default. AI Gateway routing does not imply that processing remains within Cloudflare. Provider and backup retention are disclosed separately from application deletion. The [retention policy](/technical/operations#sources-backups-and-retention) includes daily backups for 30 days and monthly portable backups for 12 months.
 
 ## Export
 

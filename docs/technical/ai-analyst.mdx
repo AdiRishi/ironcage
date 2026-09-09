@@ -33,7 +33,7 @@ sequenceDiagram
     participant Model as Model through Gateway
     Browser->>Agent: Question with submission ID
     Agent-->>Browser: Accepted receipt
-    Agent->>API: Scope, coverage, and data snapshot
+    Agent->>API: Scope, coverage, and snapshot captured at execution
     API-->>Agent: Revision and evidence scope
     Agent->>Model: Question, context, and tool definitions
     Model-->>Agent: Financial tool request
@@ -66,7 +66,7 @@ A server tool can finish a database write before its result reaches the conversa
 
 Long numerical or document work runs as a Workflow job. The agent stores the job reference and waits or reports progress. It does not keep a web request open as the only owner of that work.
 
-Run limits cover model steps, elapsed time, tokens, and spend. Enforcement uses recorded usage and reservations for in-flight calls. A stopped or exhausted run preserves completed evidence and has an explicit terminal state. Provider retries and Workflow retries share one attempt budget.
+Run limits cover model steps, elapsed time, tokens, and spend. Enforcement uses recorded usage and reservations for in-flight calls. A stopped or exhausted run preserves completed evidence and has an explicit terminal state. Provider attempts have separate cost reservations within one persisted logical-call budget. Workflow replay does not reset those attempts.
 
 ## Clarification and corrections
 
@@ -82,7 +82,7 @@ Confirmed account roles, mortgage context, category rules, preferences, and trac
 
 Context retrieval begins with facts relevant to the selected accounts, dates, and question. Conversation summaries are lower-priority context. Contradictions with confirmed facts create review work rather than overwrite those facts.
 
-Removing a fact excludes it from future context retrieval. Historical answers retain their original evidence basis and can be marked affected. Embeddings can assist retrieval later, but they do not replace structured account or date filters.
+Removing or changing a confirmed fact advances the context generation. The [prompt assembly policy](/technical/ai-functionality#memory-and-summary) refreshes snapshots and excludes older transcript text and summaries from future model calls. Removing a fact excludes it from future context retrieval. Historical answers retain their original evidence basis and can be marked affected. Embeddings can assist retrieval later, but they do not replace structured account or date filters.
 
 ## Computational investigations
 

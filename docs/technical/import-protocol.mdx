@@ -13,9 +13,9 @@ This reference specifies the processor's contracts. The [ingestion overview](/te
 
 ```ts
 type ParsedPosting = {
-  postingDate: Date | null;
-  purchaseDate: Date | null;
-  valueDate: Date | null;
+  postingDate: CalendarDate | null;
+  purchaseDate: CalendarDate | null;
+  valueDate: CalendarDate | null;
   amountMinor: Minor | null;
   balanceMinor: Minor | null;
   currency: Currency | null;
@@ -61,7 +61,7 @@ Each `STMTTRN` produces an observation. `TRNAMT` uses exact decimal parsing and 
 
 Each file has its own source identity and extraction run. Companion CSV files can add descriptions, balances, or corroboration after reconciliation. Neither file format has unconditional precedence over contradictory evidence. File naming and upload order cannot establish a match.
 
-The OFX standard scopes transaction IDs to the institution and account. The importer also checks value consistency because exports can reuse an ID. [OFX specification, section 3.2.3](https://www.financialdataexchange.org/common/Uploaded%20files/OFX%20files/OFX%202.2.pdf)
+The OFX standard scopes transaction IDs to the institution and account. The importer also checks value consistency because exports can reuse an ID. [OFX specification, section 3.2.3](https://financialdataexchange.org/wp-content/uploads/2025/12/OFX-2.2.pdf)
 
 ## PDF extraction and checks
 
@@ -75,28 +75,41 @@ A segment is a statement transaction table, an OFX statement envelope, or a boun
 
 Matching only considers postings in the same account and booked currency. An amount conflict is not a fuzzy match. Accepted user matches and explicit distinct-posting decisions take precedence over scoring.
 
-An OFX `FITID` is a candidate hint within the mapped institution and account. Matching still requires consistent currency, amount, date, and occurrence evidence. Reused IDs with conflicting values disable identifier-based matching for those observations. A missing ID follows the ordinary matching rules. IDs are not a unique constraint on canonical postings.
+Matching applies the following paths in order. Every automatic match requires consistent account, currency, signed amount, and posting date, with an offset permitted only by an evaluated source-profile convention. Different non-null balances or conflicting user decisions block a match. A missing balance supplies no positive or negative evidence.
 
-For literal overlap, the key is account, posting date, signed amount, literal description, supplied balance, and occurrence rank within the source. Across overlapping files, the largest evidenced occurrence count is preserved. Source ordinals resolve multiplicity within a file but are not global transaction identifiers.
+1. A previously accepted observation match is reused after its posting version and source evidence are checked.
+2. Equal institution, account, and FITID establish an identifier match when the values above agree and the identifier maps to one distinct posting. Repeated identical observations preserve one identity. Conflicting values for the same account-scoped FITID create review; the same FITID in another account is unrelated.
+3. Literal overlap groups by account, posting date, amount, and literal description. Supplied balances partition otherwise identical occurrences when both sources contain them. A reconciled overlapping interval with matching occurrence counts can attach its complete occurrence group one-to-one, using source rank only within that group. An incomplete interval, unequal ambiguous multiplicities, or indistinguishable subsets go to review. The largest established occurrence count is preserved.
+4. Cross-format matching uses the scored candidate graph below. A no-candidate observation becomes new only after account, amount, date, and segment validation. Plausible unresolved candidates stay staged.
 
-For cross-format differences, candidate edges require an equal signed amount and posting dates within three calendar days. A versioned rule score starts at zero:
+Candidate edges require equal signed amounts and posting dates within three days. Proven source offsets are applied for comparison only; bank-booked dates remain unchanged.
 
-| Evidence                                                                    | Score |
-| --------------------------------------------------------------------------- | ----- |
-| Same posting date                                                           | 30    |
-| Posting date differs by one to three days                                   | 10    |
-| Exact normalized description                                                | 35    |
-| Otherwise description token Jaccard similarity at least 0.8                 | 20    |
-| Equal supplied balance                                                      | 25    |
-| Compatible predecessor and successor already matched in the source sequence | 10    |
+| Evidence                                                    | Score |
+| ----------------------------------------------------------- | ----- |
+| Same posting date after a proven source offset              | 30    |
+| Other difference of one to three days                       | 10    |
+| Exact normalized description                                | 35    |
+| Otherwise description-token Jaccard similarity at least 0.8 | 20    |
+| Equal non-null supplied balance                             | 25    |
+| Compatible predecessor and successor already matched        | 10    |
 
-Normalization uppercases, collapses whitespace, and standardizes punctuation. It retains numerical references and service tokens. Different non-null balances eliminate an edge. The parser's proven date convention can justify a date offset but does not change the booked date.
+Normalization uppercases, collapses whitespace, and standardizes punctuation while retaining numerical references and service tokens. For candidates with two supplied balances, automatic matching requires at least 90 points. Without a balance on either side, it requires 75 points, exact normalized descriptions, equal dates after proven offsets, and both independently matched neighbors. Identifier and literal-overlap paths can establish those neighbors. Missing balances never receive balance points.
 
-Automatic matching requires score at least 90, a margin of at least 20 over the next candidate for either endpoint, and a one-to-one assignment. A maximum-weight bipartite assignment handles a connected component. Equal optima or repeated indistinguishable purchases go to review. The score is not presented as a probability.
+Each automatic scored edge also needs a margin of 20 over alternatives for either endpoint. A maximum-weight bipartite assignment must have a unique optimum. Competing plausible purchases remain unresolved. The score is a rule score, not a probability.
 
-These are `matching-v1` defaults. The checked synthetic duplicate corpus must have zero false merges before automatic matching is enabled. Threshold changes are versioned and rerun that corpus. A low match rate produces review, not a relaxed merge rule.
+`matching-v1` is a provisional policy. Promotion requires zero false merges in the checked synthetic corpus, preservation of every real repeated purchase, and at least 95% resolution of labelled resolvable overlap observations in each supplied format pair. The evaluated set includes at least 100 resolvable duplicates and 100 distinct-posting cases, with and without balances. Known account-scoped FITID and complete literal-overlap cases must all resolve. Private-corpus validation additionally accounts for every source; a broad review state is not successful ingestion. Threshold changes require recorded evaluation evidence and a new policy version.
 
-No-candidate observations create new postings only when account, amount, date, and segment validation permit publication. Unresolved candidates remain staged. All observations receive one disposition: matched posting, new posting, review item, or rejected non-transaction.
+Each observation receives one disposition: matched posting, new posting, review, or rejected non-transaction. Matches record their policy version, path, and supporting evidence.
+
+## Financial-role establishment
+
+`RoleEvidence` is `{kind: "sourceLabel", observationId, profileVersion, label: "cardPurchase" | "eftposPurchase" | "interestDebit" | "feeDebit" | "interestCredit"}`, or `{kind: "acceptedRule", ruleId, ruleVersion}`. A source profile recognizes a literal labelled posting field or an anchored bank-generated description marker verified on the supplied layout. Generic DEBIT, CREDIT, DIRECT DEBIT, DIRECT CREDIT, BPAY, merchant names, and account labels do not establish purpose. The profile registry records the exact marker, expected sign, account role, and positive and negative extraction fixtures before a marker is enabled.
+
+`RoleDecision` contains `{eventId, expectedVersion, role: "purchase" | "income" | "financingCost", evidence: RoleEvidence}`. The deterministic interpretation step proposes these decisions before category classification. CardPurchase and eftposPurchase require a debit and produce purchase cost with the unclassified category. InterestDebit and feeDebit require a debit and produce financing cost with the interest or fee category. InterestCredit requires a deposit credit and produces income. Sign or source conflicts produce role review.
+
+User-confirmed role rules contain a single account, exact normalized description or bank-provided counterparty reference, effective period, expected sign, and one of those three roles. The user previews historical matches before acceptance. Conflicting role rules produce review. Ownership, borrowing, refunds, reimbursements, and movement pairing require their separately evidenced relationship or explicit user confirmation. An LLM cannot create or accept a role rule.
+
+`commitRoles` rechecks each decision against immutable observations or the accepted rule inside the financial transaction. Accepted user interpretations take precedence. Unsupported decisions remain unresolved and are excluded from cost and income totals, with their amounts disclosed. `commitInterpretations` then applies eligible merchant/category decisions only to established roles.
 
 ## Publication payload
 
@@ -106,24 +119,26 @@ The API verifies that every referenced observation belongs to this extraction, e
 
 The owner revision lock protects publication. The API rechecks existing observation links and required input revision before changing records. If the revision changed, the Workflow obtains a new snapshot and repeats matching. It does not merely substitute a fresh revision number into the old result.
 
-On commit, the API creates unresolved financial events for new postings, attaches sources, records dispositions, and queues interpretation. Established purchase roles can enter gross costs with an unclassified category. Unknown movement roles remain explicitly unresolved until interpreted.
+On commit, the API creates unresolved events for new postings, attaches sources, records dispositions, and dispatches interpretation. Interpretation establishes roles through commitRoles before category classification. Unknown roles remain reviewable; an established cost with an unknown category contributes as unclassified.
 
 ## Job kinds and inputs
 
 All job inputs contain `{schemaVersion: 1}` plus a kind-specific payload:
 
-| `JobKind`      | Payload                                                                                            | Dedupe key                                                         |
-| -------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `import`       | `{sourceId, accountId: Id<"account"> \| null, extractorVersion}`                                   | Source ID and extractor version                                    |
-| `interpret`    | `{eventIds, inputRevision, interpretationVersion}`                                                 | Sorted event IDs, revision, interpretation version                 |
-| `analysis`     | `{definition: AnalysisDefinition, basis: ReadBasis, savedAnalysisId: Id<"savedAnalysis"> \| null}` | Normalized definition hash, resolved revision, calculation version |
-| `refresh`      | `{revision, affectedAccountIds, affectedEventIds, affectedPeriod: Range \| null}`                  | Revision and affected-scope hash                                   |
-| `applyRule`    | `{ruleId, ruleVersion, previewId}`                                                                 | Rule ID, rule version, preview ID                                  |
-| `export`       | `{includeSources, includeConversations}`                                                           | Accepted command ID                                                |
-| `removeSource` | `{sourceId, previewId, unsupportedRecords}`                                                        | Accepted command ID                                                |
-| `computation`  | `{runId: Id<"run"> \| null, snapshotId, question, runtimeVersion}`                                 | Run ID and normalized input hash                                   |
+| `JobKind`      | Payload                                                                                            | Dedupe key                                                      |
+| -------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `import`       | `{sourceId, accountId: Id<"account"> \| null, extractorVersion}`                                   | Source ID and extractor version                                 |
+| `interpret`    | `{eventIds, inputRevision, interpretationVersion}`                                                 | Sorted event IDs, revision, interpretation version              |
+| `analysis`     | `{definition: AnalysisDefinition, basis: ReadBasis, savedAnalysisId: Id<"savedAnalysis"> \| null}` | Accepted command ID; calculation reuse follows snapshot capture |
+| `refresh`      | `{revision, affectedAccountIds, affectedEventIds, affectedPeriod: Range \| null}`                  | Revision and affected-scope hash                                |
+| `applyRule`    | `{ruleKind: "classification" \| "role", ruleId, ruleVersion, previewId}`                           | Rule kind, ID, version, preview ID                              |
+| `export`       | `{includeSources, includeConversations}`                                                           | Accepted command ID                                             |
+| `removeSource` | `{sourceId, previewId, unsupportedRecords}`                                                        | Accepted command ID                                             |
+| `computation`  | `{runId: Id<"run"> \| null, snapshotId, question, runtimeVersion}`                                 | Run ID and normalized input hash                                |
 
-Job IDs are persisted before queue delivery. An analysis request resolves latest to a concrete revision before deduplication. A newer revision is a different job, not a mutation to the input of running work.
+Job IDs are persisted before Workflow dispatch. An analysis with basis latest freezes its input at the first successful snapshot-capture step during execution, not at request acceptance. The accepted job states that timing explicitly. Capture records the actual revision and snapshot ID atomically with its durable step outcome after object upload. On retry, that outcome is reused. A basis snapshot request uses the supplied immutable input immediately.
+
+After capture, calculations can reuse a result with the same snapshot content hash, definition hash, and calculation version. Work submitted under another command has its own job record even when the calculation is reused. Refresh jobs capture current input at execution; an intervening change never masquerades as an older snapshot. Expected saved-definition versions are checked before updating live result pointers.
 
 ## State and checkpoints
 
@@ -137,9 +152,11 @@ type JobState =
   | { kind: "cancelled"; lastCompletedStep: string | null; cancelledAt: Instant };
 ```
 
-`Failure` is the safe tagged failure from Shared contracts. `JobResult` has these variants, with kind matching `JobKind`: `import {sourceId, acceptedPostingIds, matchedObservationIds, reviewIds, rejectedObservationIds}`, `interpret {appliedEventIds, reviewIds}`, `analysis {resultId}`, `refresh {savedAnalysisIds, insightIds}`, `applyRule {ruleId, appliedCount, conflictReviewIds}`, `export {artifactId}`, `removeSource {sourceId, affectedPostingIds, affectedResultIds}`, or `computation {artifactIds, resultId}`.
+`Failure` is the safe tagged failure from Shared contracts. `JobResult` has these variants, with kind matching `JobKind`: `import {sourceId, acceptedPostingIds, matchedObservationIds, reviewIds, rejectedObservationIds}`, `interpret {appliedEventIds, reviewIds}`, `analysis {resultId}`, `refresh {savedAnalysisIds, insightIds}`, `applyRule {ruleKind, ruleId, appliedCount, conflictReviewIds}`, `export {artifactId}`, `removeSource {sourceId, affectedPostingIds, affectedResultIds}`, or `computation {artifactIds, resultId}`.
 
 Queued enters running. Running can advance steps, wait for review, succeed, fail, or cancel. Waiting enters running only after its blocking reviews are resolved or dismissed according to the segment policy. Failed can retry from its recorded resume step. An explicit retry can move a cancelled job back to queued with a new attempt. Succeeded never returns to running. Cancellation records intent immediately and transitions at the next safe checkpoint.
+
+Rule jobs use the ruleKind to select classification_rules or role_rules and validate the corresponding preview. Rule IDs are branded for that selected kind. Historical groups check expected subject versions and preserve individual exceptions.
 
 Each import Workflow uses these stable steps:
 
@@ -149,15 +166,17 @@ Each import Workflow uses these stable steps:
 4. `publish:<group-hash>` commits bounded groups and records the receipt.
 5. `summarize` derives counts from dispositions and committed postings.
 
-Interpretation and refresh are separate durable jobs created by committed publication. Their failure does not reverse accepted bank history. Each external model call has a persisted call ID so Workflow retries and provider retries share the same budget.
+Interpretation and refresh are separate durable jobs created by committed publication. Their failure does not reverse accepted bank history. Each logical model call and provider attempt is persisted. Workflow replay reuses completed output and never resets the attempt count or budget.
 
 ## Delivery, retries, and cancellation
 
-Queue messages are `{schemaVersion: 1, jobId, inputHash}`. Consumers load the authoritative job and reject an inputHash mismatch. The Workflow instance identity is the job ID. Duplicate delivery resolves the existing instance and state.
+Workflow parameters are `{schemaVersion: 1, jobId, inputHash, executionGeneration}`. The API dispatcher calls the processor's cross-script Workflow binding directly. The Workflow loads its job and checks inputHash and generation before work. The outbox is the durable obligation to start execution. Cloudflare Queues is not part of this design.
 
-The dispatcher claims at most 20 pending rows for 60 seconds using `FOR UPDATE SKIP LOCKED`, commits the leases, then sends messages. Acknowledgment records deliveredAt only when the lease token still matches. Failed sends retry after 1, 5, 30, 120, then 300 seconds. The minute scheduler recovers expired leases. After ten delivery failures, the job fails visibly and manual retry resets delivery with the same job ID.
+The dispatcher claims at most 20 pending rows for 60 seconds using `FOR UPDATE SKIP LOCKED`, commits the leases, then calls Workflow.create. Instance identity is `jobId-generation`. A successful create or verified existing instance marks deliveredAt only with the matching lease token. An ambiguous create is resolved by instance lookup. Persistent job state remains authoritative after Workflow retention expires; a completed job is never started again merely because the platform no longer remembers its instance.
 
-Transient database deadlocks and serialization failures retry the whole transaction up to three times with randomized delays capped at one second. Business conflicts trigger recomputation or user review, not a blind retry. Provider transport and rate-limit failures allow two retries within the call reservation. Invalid structured output allows one repair attempt. Exhausted work records a typed failure and a resume point.
+Failed dispatch retries after 1, 5, 30, 120, then 300 seconds. The minute scheduler recovers expired leases and eligible pending records; delays are lower bounds, not exact dispatch times. After ten failures, the job fails visibly. Retrying failed or cancelled work increments executionGeneration and creates a fresh Workflow instance after the previous instance is terminal or terminated. Jobs and step receipts keep stable IDs across generations. Checkpoint and financial-step mutations reject stale generations, so an old execution cannot race its replacement. A succeeded job cannot retry. [Cross-script Workflows and retention](https://developers.cloudflare.com/workflows/build/workers-api/)
+
+Transient database deadlocks and serialization failures retry the whole transaction up to three times with randomized delays capped at one second. Business conflicts trigger recomputation or review. Provider transport and rate-limit failures allow at most two retries. Invalid structured output allows one repair, within the same overall maximum of three provider attempts. Each attempt has its own usage reservation. SDK and Gateway automatic retries and fallbacks are disabled; the shared AI executor owns these attempts. Exhaustion records a typed failure and resume point.
 
 Interactive financial reads have a ten-second deadline. Write transactions use a two-second lock timeout and five-second transaction deadline. Import jobs have a 30-minute active-work budget. Completed step durations accumulate in activeElapsedMs. Waiting for review freezes the remaining budget, and resume resets deadline from that remainder. A computation job has the separate limits in the AI specification. These are initial application defaults and are tested against the supplied corpus.
 

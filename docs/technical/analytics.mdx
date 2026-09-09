@@ -11,7 +11,7 @@ Analytics takes a financial query and a stable dataset revision. It returns nume
 
 Postgres performs indexed filtering and exact aggregation through the financial API. Shared finance functions calculate comparisons, allocation adjustments, and statistical summaries. Live charts, agent tools, and scheduled jobs use these same functions.
 
-Period definitions include date basis, timezone, account scope, filters, and comparison strategy. Partial-month comparisons align elapsed calendar dates. Daily averages are a separate named calculation. Missing periods do not contribute zero-valued observations.
+Period definitions include date basis, timezone, account scope, filters, and comparison strategy. Partial-month comparisons align elapsed calendar dates. Daily averages use the query's explicit normalization and the denominator and incomplete-coverage rules in Calculation rules. Missing periods do not contribute zero-valued observations.
 
 Category, merchant, and account totals group disjoint cost allocations. Tag and personal-event breakdowns identify overlapping groups. Multi-tag filters deduplicate allocation IDs. Merchant aliases resolve before grouping, while service distinctions such as rides and delivery remain intact.
 
@@ -67,7 +67,7 @@ A forecast combines schedules for known income and commitments with estimates of
 
 The starting position uses reconciled account anchors. Missing time between the last anchor and today is simulated and labelled estimated. Card purchase estimates increase card liability. The payment schedule determines when deposit cash is reduced. The same purchase is not subtracted twice from cash.
 
-Variable-cost candidates begin with recent-window baselines and exponential smoothing. More complex methods are adopted only when they improve held-out results at relevant horizons. [Exponential smoothing](https://otexts.com/fpp3/ses.html) provides a transparent recent-weighted baseline.
+Variable-cost candidates begin with joint resampling of recent fully covered weeks and a multiplicatively adjusted exponential-smoothing candidate. More complex methods are adopted only when they improve held-out results at relevant horizons. [Exponential smoothing](https://otexts.com/fpp3/ses.html) provides a transparent recent-weighted baseline.
 
 Prediction ranges use the joint historical resampling defined in [Calculation rules](/technical/calculation-rules#forecast-contract). Their calibration status is reported separately from the simulated range. Simulations preserve relevant dependence, such as weekly spending patterns and substitution between food categories. Adding independent category percentiles is not a valid combined prediction interval.
 
@@ -79,7 +79,7 @@ A scenario contains named overrides to a baseline definition. It never changes t
 
 Forecast evaluation uses rolling historical cutoffs. Each run trains on prior records and predicts later periods. As-known evaluation respects import and correction timestamps. Retrospective evaluation uses transaction dates and is labelled separately, as defined in [Calculation rules](/technical/calculation-rules#scenarios-and-evaluation). [Rolling-origin evaluation](https://otexts.com/fpp3/tscv.html)
 
-Evaluation measures absolute error, bias, and interval coverage at the product's forecast horizons. It compares models against simple baselines and separates periods around known structural changes. Two years of history provides limited evidence for annual seasonality.
+Evaluation measures absolute error, bias, and interval coverage at the product's forecast horizons. It compares models against simple baselines and separates periods around known structural changes. Usable history is determined per account and comparable regime, including reconciled older statements. Calibration depends on held-out target windows, not the requested export range or the age of the oldest file.
 
 ## Result publication
 
