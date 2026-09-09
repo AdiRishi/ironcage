@@ -13,7 +13,7 @@ Imports accept batches of CommBank CSV and OFX exports and PDF statements. A bat
     progress. Renaming a previously uploaded file does not make it new financial data.
   </Step>
   <Step title="Read the records">
-    The app identifies the account where evidence permits, extracts transactions, and determines the
+    The app recognizes the account where evidence permits, extracts transactions, and determines the
     period supported by the contents. An uncertain account mapping becomes a review item. Processing
     continues after the upload is accepted, even if the user leaves the page.
   </Step>
@@ -33,9 +33,9 @@ An unreadable file does not prevent unrelated files from completing. A file that
 
 <Accordion>
   <AccordionItem title="The same file is uploaded twice" defaultOpen>
-    The second upload identifies the existing source and its processing result. It adds no
-    transactions and does not repeat completed model processing. A failed attempt can resume against
-    the existing source.
+    The second upload returns the existing source and its processing result. It adds no transactions
+    and does not repeat completed model processing. A failed attempt can resume against the existing
+    source.
   </AccordionItem>
   <AccordionItem title="Two exports contain the same week">
     Transactions already present are matched. Transactions outside the overlap are added. Both
@@ -51,21 +51,21 @@ An unreadable file does not prevent unrelated files from completing. A file that
   </AccordionItem>
 </Accordion>
 
-A bank-provided transaction ID helps identify a record only when its values are consistent within the account. A missing or reused ID does not remove a real purchase. Conflicting evidence remains reviewable.
+A bank-provided transaction ID helps match a record only when its values are consistent within the account. A missing or reused ID does not remove a real purchase. Conflicting evidence remains reviewable.
 
 ## Coverage and confidence
 
 Coverage is shown by account and period. A filename can describe the requested export range without containing records for that whole range. The app checks contents and statement totals before describing a period as reconciled.
 
-The import result distinguishes a confirmed interval with no activity from an interval for which records are unavailable. It also identifies when the latest records stop. Forecasts and comparisons use those distinctions.
+The import result distinguishes a confirmed interval with no activity from an interval for which records are unavailable. It also shows the date the latest records stop. Forecasts and comparisons use those distinctions.
 
-An established purchase can be accepted even when its category remains unknown. An **Unclassified** expense still contributes to spending. A record with an uncertain amount or duplicate identity remains outside confirmed totals, with its impact disclosed. A valid bank posting with an unknown financial role remains visible in account history. Cost and income views identify that unresolved role rather than assigning it to either measure.
+A purchase with a confirmed amount and date can be accepted even when its category remains unknown. An **Unclassified** expense still contributes to spending. A record with an uncertain amount or duplicate identity remains outside confirmed totals, with its impact disclosed. A valid bank posting with an unknown financial role remains visible in account history. Cost and income views flag that unresolved role rather than assigning it to either measure.
 
 ## Questions that need an answer
 
 A review item presents the actual record, the proposed interpretation, and the reason for uncertainty. For example, the app can ask whether a particular destination account belongs to the user. It remembers the answer with its relevant scope.
 
-The user can confirm a proposed interpretation, correct it, or leave the item unresolved. Dismissing a question does not establish a missing amount or prove a duplicate match. The app keeps unresolved work visible without repeating the same question in every conversation.
+The user can confirm a proposed interpretation, correct it, or leave the item unresolved. Dismissing a question does not supply a missing amount or prove a duplicate match. The app keeps unresolved work visible without repeating the same question in every conversation.
 
 ## Failure and recovery
 
@@ -75,6 +75,6 @@ A timeout after the server accepts a file does not require another upload. A pro
 
 Sources remain accessible from their transactions. The app does not silently remove old data when a shorter or incomplete export arrives.
 
-Exports and source removal follow [Settings and data controls](/product/settings-and-data). Removal previews identify the effect on accepted history and saved results.
+Exports and source removal follow [Settings and data controls](/product/settings-and-data). Removal previews show the effect on accepted history and saved results.
 
 Implementation details are in [Ingestion and reconciliation](/technical/ingestion).

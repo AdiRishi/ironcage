@@ -19,7 +19,7 @@ The examples below describe different views of the same records. They are fictio
 | $120 purchase with a linked $40 refund                             | $80 net purchase cost | Both the payment and refund retain their bank dates.                     |
 | $3,900 mortgage repayment and $2,800 interest in one period        | $2,800 interest cost  | $3,900 cash payment and $1,100 principal reduction are shown separately. |
 
-The app never treats every transfer as internal or every incoming payment as income. A transfer that pays rent is still an expense. A loan drawdown is borrowing. A confirmed movement can retain its known role when the other account's posting is unavailable. The detail identifies that missing evidence and can attach a later counterpart without changing spending.
+The app never treats every transfer as internal or every incoming payment as income. A transfer that pays rent is still an expense. A loan drawdown is borrowing. A confirmed movement can retain its known role when the other account's posting is unavailable. The detail shows that missing evidence and can attach a later counterpart without changing spending.
 
 ## Classification with several useful dimensions
 
@@ -27,7 +27,7 @@ A transaction has a primary financial role and can carry additional context. A d
 
 Merchant views unite aliases for the same business. Distinct services remain distinguishable, such as rides and food delivery from the same provider. The original wording remains available.
 
-Ordinary retail payments do not establish the exact items bought. Item-level claims require supporting detail, such as a receipt or the user's explanation. Bank-statement import alone does not establish that detail. It does not invent basket contents from a merchant name.
+Ordinary retail payments do not reveal the exact items bought. Item-level claims require supporting detail, such as a receipt or the user's explanation. Bank-statement import alone does not supply that detail. It does not invent basket contents from a merchant name.
 
 ## Corrections and splits
 
@@ -41,14 +41,14 @@ Linked refunds and reimbursements reduce the original purchase period in the net
 
 ## Dates and currencies
 
-The account view follows the bank posting date. Spending trends use the purchase date when the source reliably identifies it, otherwise the posting date. The selected basis is visible. A bank value date is not automatically described as the purchase date.
+The account view follows the bank posting date. Spending trends use the purchase date when the source reliably supplies it, otherwise the posting date. The selected basis is visible. A bank value date is not automatically described as the purchase date.
 
-Foreign purchases show the booked Australian-dollar amount, any supplied original-currency amount, and associated fees. The app uses the actual booked amount for historical totals. An inferred fee relationship is identified as an inference until established.
+Foreign purchases show the booked Australian-dollar amount, any supplied original-currency amount, and associated fees. The app uses the actual booked amount for historical totals. An inferred fee relationship is labelled as an inference until confirmed.
 
 ## Unresolved relationships
 
 When a refund or reimbursement arrives, the app proposes a relationship to the original expense. It supports partial credits, several credits against one expense, and a credit shared across several expenses. Linked amounts cannot exceed the eligible cost or available credit. Any excess requires a separate financial role.
 
-An unresolved incoming transfer is not silently treated as salary. An ambiguous duplicate is not silently removed. Relevant views identify unresolved amounts and explain how they affect the answer.
+An unresolved incoming transfer is not silently treated as salary. An ambiguous duplicate is not silently removed. Relevant views show unresolved amounts and explain how they affect the answer.
 
 The calculation rules are defined in [Financial records and metrics](/technical/financial-model).
