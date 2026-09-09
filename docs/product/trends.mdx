@@ -3,11 +3,11 @@ title: Trends
 description: Explore how spending changes and follow each difference to its contributing records.
 ---
 
-Trends is the main place to investigate spending over time. Adi can compare weeks, months, quarters, years, rolling periods, or custom ranges. The same comparison can be broken down by category, merchant, account, purpose, or event.
+Trends is the main place to investigate spending over time. The user can compare weeks, months, quarters, years, rolling periods, or custom ranges. The same comparison can be broken down by category, merchant, account, tag, or personal event.
 
-## An investigation can keep going
+## Investigation flow
 
-A comparison begins with a difference and remains connected as Adi narrows the question.
+A comparison begins with a difference and remains connected as the user narrows the question.
 
 <Steps>
   <Step title="Find the change">
@@ -26,11 +26,11 @@ A comparison begins with a difference and remains connected as Adi narrows the q
   </Step>
 </Steps>
 
-Each contributor links to records. The contributions add up to the displayed difference, including an explicit remainder when the view groups small contributors.
+Each contributor links to records. Category, merchant, and account contributions add to the displayed difference, including a remainder for grouped small contributors. Tag and personal-event groups can overlap. Those views identify the overlap and do not present their rows as additive parts of the total.
 
 ## Comparable periods
 
-A partial month is labelled as partial. Its default comparison covers the same elapsed calendar dates in the comparison month. Adi can choose full periods or a daily average explicitly.
+A month still in progress is labelled as partial. The default comparison covers matching elapsed calendar dates in the comparison month. Missing records are identified separately as a coverage limitation. The user can choose full periods or a daily average explicitly.
 
 The app does not present a decrease as a saving when an account's data is missing. Changing from a debit account to a credit card preserves the combined purchase trend.
 
@@ -40,7 +40,7 @@ Percentage changes accompany absolute changes. A percentage is unavailable when 
 
 Actual spending includes exceptional purchases. The ordinary-cost view separately estimates the ongoing cost of normal life. It spreads known annual or quarterly obligations across the periods they cover and identifies excluded events.
 
-Adi can inspect and change those adjustments. A trip remains visible in actual spending even when excluded from the ordinary-cost view. Repeated exceptional purchases are visible as a pattern of their own.
+The user can inspect the variable-cost baseline, the allocated commitments, and the excluded events. Changing exclusions affects the ordinary-cost analysis and leaves actual spending intact. A trip remains visible in actual spending even when excluded from the ordinary-cost view. Repeated exceptional purchases are visible as a pattern of their own.
 
 The app can compare periods before and after an event, such as the mortgage beginning. The event gives context. Timing alone does not prove that the event caused every change.
 
@@ -54,13 +54,15 @@ The explorer and analyst support questions such as these:
 - What did a trip cost, including bookings paid months earlier?
 - Has my ordinary monthly cost increased, after accounting for unusual expenses?
 - Which commitments are new, and which costs have disappeared?
+- Which recurring services may overlap, and what evidence supports that comparison?
+- Which costs tend to occur together?
 - Did a change I made produce a lasting difference?
 
 A higher average transaction does not establish a price increase. Different products, quantities, or group sizes can change the average. Item-level claims require item-level evidence.
 
 ## Saved analyses
 
-Adi can save the filters, comparison, adjustments, and question as a named analysis. New imports refresh the analysis with the same definition. A correction refreshes affected results.
+The user can save the filters, comparison, adjustments, and question as a named analysis. Automatic refresh is the default, with manual refresh available. New imports and corrections refresh affected analyses using their saved definition. A fixed date range stays fixed; refreshing does not silently extend it.
 
 Each completed result retains its data version and assumptions. Historical answers remain inspectable, while the current view identifies when a newer result is available.
 

@@ -15,19 +15,21 @@ When the evidence cannot establish the answer, the analyst says what it can esta
 
 ## Clarification
 
-A clarification shows the record or decision it concerns. Adi can answer in the conversation or open the review item. The answer is retained, so returning later does not start the question again.
+A clarification shows the record or decision it concerns. The user can answer in the conversation or open the review item. The answer is retained, so returning later does not start the question again.
 
-An explicit instruction such as **Treat this payment as strata** can apply the correction and show the result. A model-generated suggestion remains a proposal until accepted or supported by an existing rule. Applying a correction broadly shows its scope first.
+An explicit instruction such as **Treat this payment as strata** can apply a category correction to one selected transaction when the target and category are unambiguous. Direct text edits also support merchant and tag changes on that selection. Financial-role changes and broader edits require a concrete preview and acceptance.
 
-If the underlying record changes before Adi answers, the app explains the change and checks the answer against the current record. It does not apply an old answer to a different problem.
+An analyst-generated correction remains a proposal until accepted or supported by an existing rule. Automatic category classification follows the separately evaluated import policy.
+
+If the underlying record changes before the user answers, the app explains the change and checks the answer against the current record. It does not apply an old answer to a different problem.
 
 ## Useful memory
 
 Memory includes confirmed account roles, life events, preferences, classification rules, goals, and explanations for unusual periods. Each item has an inspectable source and scope.
 
-For example, the known shift toward credit-card payments applies to account interpretation. It does not justify assuming a change in shopping habits. A mortgage start date can guide period comparisons without explaining unrelated spending.
+For example, a confirmed shift toward credit-card payments applies to account interpretation. It does not justify assuming a change in shopping habits. A mortgage start date can guide period comparisons without explaining unrelated spending.
 
-Adi can inspect, correct, or remove remembered context. A correction to a remembered fact affects future reasoning. Older answers remain historical records and show when their assumptions have changed.
+The user can inspect, correct, or remove remembered context. A correction to a remembered fact affects future reasoning. Older answers remain historical records and show when their assumptions have changed.
 
 Conversation summaries help the analyst continue long discussions. They do not override confirmed facts or corrections.
 
@@ -35,16 +37,16 @@ Conversation summaries help the analyst continue long discussions. They do not o
 
 An investigation shows whether it is queued, running, waiting for an answer, complete, stopped, or failed. Progress describes completed work, such as a finished period comparison, rather than a decorative percentage.
 
-Closing the tab leaves accepted work running. Returning restores the conversation and available results. **Stop** requests cancellation of the investigation. A stopped investigation retains completed work and states what did not finish.
+Closing the tab leaves accepted work running. Returning restores the conversation and available results. **Stop** requests cancellation of the investigation. A stopped investigation retains completed work and states what did not finish. A correction committed before cancellation remains applied.
 
-A retry after an interrupted request does not submit the same question twice. A second question submitted during a running answer waits in order unless Adi explicitly stops the current work.
+A retry after an interrupted request does not submit the same question twice. A second question submitted during a running answer waits in order unless the user explicitly stops the current work.
 
 ## Saved investigations
 
-A saved investigation retains its question, analysis definition, filters, assumptions, results, and evidence. It can be refreshed after new data arrives.
+An investigation can save a named analysis with its question, definition, filters, and assumptions. The conversation retains the related results, explanations, and evidence. The saved analysis can refresh automatically or manually after new data arrives.
 
-If a saved investigation needs a new interpretation, the app asks once and preserves the answer. A result from old data is labelled until refreshed. Adi can compare the previous and current result without losing the earlier explanation.
+If a saved investigation needs a new interpretation, the app asks once and preserves the answer. A result from old data is labelled until refreshed. The user can compare the previous and current result without losing the earlier explanation.
 
-Open-ended computational analysis can produce a script or other artifact when ordinary tools are insufficient. The result includes the data snapshot and calculation used, so a useful investigation can be repeated.
+Open-ended computational analysis can produce a script or other artifact when ordinary tools are insufficient. The result includes the data snapshot and calculation used, so the investigation can be repeated while those artifacts are retained. These results are labelled exploratory and do not replace the defined financial measures.
 
 Runtime and tool behavior are defined in [AI analyst](/technical/ai-analyst).

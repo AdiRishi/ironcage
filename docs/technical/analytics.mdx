@@ -13,7 +13,7 @@ Postgres performs indexed filtering and exact aggregation through the financial 
 
 Period definitions include date basis, timezone, account scope, filters, and comparison strategy. Partial-month comparisons align elapsed calendar dates. Daily averages are a separate named calculation. Missing periods do not contribute zero-valued observations.
 
-Totals group by disjoint cost allocations. Multi-tag filters deduplicate allocation IDs. Merchant aliases resolve before grouping, while service distinctions such as rides and delivery remain intact.
+Category, merchant, and account totals group disjoint cost allocations. Tag and personal-event breakdowns identify overlapping groups. Multi-tag filters deduplicate allocation IDs. Merchant aliases resolve before grouping, while service distinctions such as rides and delivery remain intact.
 
 Absolute differences are computed before percentages. A zero baseline produces an unavailable percentage and an absolute new amount. Decreases remain negative contributions in an explanation of a net increase.
 
@@ -53,7 +53,7 @@ Effective dates preserve historical prices. A changed subscription amount create
 
 ## Change detection and insight ranking
 
-Initial detectors compare recent periods with robust historical medians and quantiles. Sustained changes can use a penalized change-point method after comparison with simple rolling baselines. Minimum sample rules and thresholds live in versioned detector configuration.
+The detectors in [Calculation rules](/technical/calculation-rules#insight-detectors-and-ranking) compare recent periods with historical baselines. Their sample requirements, thresholds, and ranking rules are versioned configuration. A replacement method requires evaluation evidence and an updated specification.
 
 Each candidate records its query, observed change, baseline, sample size, and evidence. Coverage failures suppress unsupported conclusions. Persistence requirements and meaningful absolute amounts reduce chance findings from scanning many categories.
 
@@ -69,7 +69,7 @@ The starting position uses reconciled account anchors. Missing time between the 
 
 Variable-cost candidates begin with recent-window baselines and exponential smoothing. More complex methods are adopted only when they improve held-out results at relevant horizons. [Exponential smoothing](https://otexts.com/fpp3/ses.html) provides a transparent recent-weighted baseline.
 
-Prediction ranges use forecast errors or simulations calibrated on history. Simulations preserve relevant dependence, such as weekly spending patterns and substitution between food categories. Adding independent category percentiles is not a valid combined prediction interval.
+Prediction ranges use the joint historical resampling defined in [Calculation rules](/technical/calculation-rules#forecast-contract). Their calibration status is reported separately from the simulated range. Simulations preserve relevant dependence, such as weekly spending patterns and substitution between food categories. Adding independent category percentiles is not a valid combined prediction interval.
 
 Known commitments are included once. Variable-cost training excludes the same scheduled obligations to prevent double counting. One-off future expenses are explicit scenario inputs.
 
@@ -77,7 +77,7 @@ Known commitments are included once. Variable-cost training excludes the same sc
 
 A scenario contains named overrides to a baseline definition. It never changes transactions or confirmed commitments. A saved comparison retains both definitions and the input revision.
 
-Forecast evaluation uses rolling historical cutoffs. Each run trains on records available before its cutoff and predicts later periods. Import availability and later corrections are respected when recreating what was known at the time. [Rolling-origin evaluation](https://otexts.com/fpp3/tscv.html)
+Forecast evaluation uses rolling historical cutoffs. Each run trains on prior records and predicts later periods. As-known evaluation respects import and correction timestamps. Retrospective evaluation uses transaction dates and is labelled separately, as defined in [Calculation rules](/technical/calculation-rules#scenarios-and-evaluation). [Rolling-origin evaluation](https://otexts.com/fpp3/tscv.html)
 
 Evaluation measures absolute error, bias, and interval coverage at the product's forecast horizons. It compares models against simple baselines and separates periods around known structural changes. Two years of history provides limited evidence for annual seasonality.
 

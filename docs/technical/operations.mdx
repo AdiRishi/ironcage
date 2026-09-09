@@ -7,7 +7,7 @@ This page defines the target operating policy for private financial records, mod
 
 ## Access boundary
 
-Cloudflare Access protects the public application with an explicit allowlist for Adi's identity. The web Worker validates the Access token's signature, issuer, audience, and expiry. The same policy covers downloads, API handlers, and conversation upgrades. [Access token validation](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/)
+Cloudflare Access protects the public application with an explicit allowlist for the user's identity. The web Worker validates the Access token's signature, issuer, audience, and expiry. The same policy covers downloads, API handlers, and conversation upgrades. [Access token validation](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/)
 
 The authenticated owner is assigned by the server, not by an LLM or request body. Internal Workers have no public route and receive owner-scoped calls through service bindings. Data records carry ownership even though the product has one user.
 
@@ -57,7 +57,7 @@ Prompt and completion bodies are excluded from routine Gateway and application l
 
 ## Usage and recovery controls
 
-Model policies define allowed providers, fallback capabilities, per-run limits, and a monthly usage ceiling. The application records observed cost where supplied and a labelled estimate otherwise. Reservations account for concurrent in-flight calls.
+Model policies define allowed providers, fallback capabilities, per-run limits, and a monthly usage ceiling. The application records observed cost where supplied and a labelled estimate otherwise. [Settings and data controls](/product/settings-and-data) defines the visible usage and retention disclosures. Reservations account for concurrent in-flight calls.
 
 When a ceiling is reached, ordinary transaction views remain available. Affected AI work stops with its progress preserved and can resume under an explicit updated policy. A fallback does not bypass the ceiling.
 

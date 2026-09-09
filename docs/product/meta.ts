@@ -12,6 +12,7 @@ export default defineMeta({
     "commitments-and-forecasts",
     "analyst-and-memory",
     "insights-and-follow-through",
+    "settings-and-data",
     "acceptance",
   ],
 });

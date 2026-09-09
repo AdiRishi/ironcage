@@ -17,7 +17,7 @@ Tests exercise public finance operations with independently known expected outco
 | Import order does not change accepted history          | Overlapping files produce different totals depending on arrival order. |
 | Identical real purchases retain multiplicity           | A naive duplicate key removes genuine spending.                        |
 | CSV and PDF observations converge                      | Cross-format aliases produce duplicate purchases.                      |
-| Allocation sums equal the source amount                | Splits create or lose money.                                           |
+| Allocation sums equal the event magnitude              | Splits create or lose money.                                           |
 | Own transfers and card settlements do not create costs | Money movement is counted as additional spending.                      |
 | Partial refunds and reimbursements apply once          | Repeated links or retries reduce a purchase twice.                     |
 | Balance anchors reconcile with movements               | Missing postings are silently treated as complete history.             |
@@ -68,7 +68,7 @@ Clarification tests verify concrete questions, retained pending state, subject-v
 
 ## Forecast evaluation
 
-Rolling-origin backtests evaluate forecasts using only information available at each cutoff. Metrics cover absolute error, bias, and interval coverage at several useful horizons.
+Rolling-origin backtests follow the as-known and retrospective modes in [Calculation rules](/technical/calculation-rules#scenarios-and-evaluation). The reported mode distinguishes records available to the app at the cutoff from history uploaded later. Metrics cover absolute error, bias, and interval coverage at several useful horizons.
 
 Every candidate is compared with a simple baseline. Scheduled obligations and variable spending are checked for double counting. A data gap before today must remain visibly estimated.
 
@@ -103,7 +103,7 @@ Effect modules use `@effect/vitest`. React components use Vitest Browser Mode. L
 
 Each workspace keeps tests in `tests/`, mirroring the paths under `src/`, with a separate test TypeScript project. Module and component files use `.test.ts` or `.test.tsx`. Infrastructure suites live in `infra/tests/` with `.integration.test.ts`. Deployed browser suites use `.browser.test.ts`.
 
-`pnpm check`, `pnpm typecheck`, and `pnpm test` are the root validation commands. Implemented database suites provision isolated local PostgreSQL instances in ordinary CI and need no production credentials. `pnpm test:infra-live` creates real hosted resources and is reserved for deployed behavior, including the isolated PlanetScale integration. Financial suites accompany their implementations. These specifications do not claim that those future suites already exist or pass.
+`pnpm check`, `pnpm typecheck`, and `pnpm test` are the root validation commands. Implemented database suites provision isolated local PostgreSQL instances in ordinary CI and need no production credentials. `pnpm test:infra-live` creates real hosted resources and is reserved for deployed behavior, including the isolated PlanetScale integration. Financial suites accompany their implementations. The technical index identifies these suites as target implementation requirements.
 
 ## Completion evidence
 

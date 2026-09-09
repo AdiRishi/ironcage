@@ -3,19 +3,19 @@ title: Insights and follow-through
 description: Discover meaningful changes and evaluate the effects of decisions over time.
 ---
 
-Insights presents findings worth investigating, including gradual cost increases, changed recurring payments, unusual fees, and shifts in purchase frequency. A finding needs evidence and relevance to Adi's history.
+The Insights view presents findings worth investigating, including gradual cost increases, changed recurring payments, unusual fees, and shifts in purchase frequency. A finding needs evidence and relevance to the user's history.
 
 ## A useful finding
 
 Each finding states what changed, the comparison period, the amount involved, and the supporting records. It distinguishes a confirmed change from a possible explanation.
 
-A subscription increase can show the old and new amounts. Repeated fees can show their cumulative cost. An unusual transaction can show why it differs from comparable history. The app does not label ordinary personal preferences as waste.
+A subscription increase can show the old and new amounts. Repeated fees can show their cumulative cost. An unusual transaction can show why it differs from comparable history. The analyst can investigate potentially overlapping services and costs that tend to occur together. Those explanations identify the supporting schedules or transactions and distinguish association from cause. Payments alone do not establish service usage or whether a subscription is unnecessary.
 
 Findings are ranked by material impact, persistence, novelty, and known interests. Several observations about the same underlying change are grouped. Tiny changes with large percentages do not automatically outrank substantial costs.
 
 ## Review flow
 
-Adi can inspect the evidence, ask the analyst to investigate, mark a finding useful, dismiss it, or add context. A dismissed finding stays dismissed unless a meaningful change warrants another review.
+The user can inspect the evidence, ask the analyst to investigate, mark a finding useful, dismiss it, or add context. A dismissed finding stays dismissed unless a new change period or an additional material impact meets the detector rules. A reopened finding identifies the new evidence.
 
 Adding an explanation can change the interpretation. For example, a visiting family member can explain a temporary increase. The app remembers the relevant period without applying the explanation to unrelated future spending.
 
@@ -23,18 +23,18 @@ Corrected or newly imported records can invalidate a finding. The app marks it s
 
 ## Follow a deliberate change
 
-Adi can turn a finding into a tracked intention, such as reducing delivery orders while protecting social dining. The intention records the chosen measure, comparison period, start date, and relevant context.
+The user can turn a finding into a tracked intention, such as reducing delivery orders while protecting social dining. The intention records the chosen measure, comparison period, start date, and relevant context. The user can edit, pause, or complete it without changing the underlying transactions.
 
-Later reviews compare actual outcomes with that baseline. They include related changes, such as higher grocery spending, when Adi has chosen to track the combined effect.
+Later reviews compare actual outcomes with that baseline. They include related changes, such as higher grocery spending, when the user has chosen to track the combined effect.
 
 The app distinguishes progress from insufficient evidence. A single quiet week does not establish a lasting habit change. It does not assume that a correlation proves the intention caused the outcome.
 
 ## Notification behavior
 
-New imports and corrections trigger analysis of affected periods. The app stores useful findings even when Adi is offline.
+New imports and corrections trigger analysis of affected periods. The app stores useful findings even when the user is offline.
 
 The default notification channel is the in-app inbox. It identifies new findings, finished investigations, failures, and questions requiring an answer. Unchanged findings do not produce repeated alerts.
 
-Longer-term reminders can revisit confirmed commitments or tracked intentions. With no new transaction data, the app can remind Adi to import records but cannot claim a new spending observation.
+Scheduled reviews can revisit confirmed commitments or tracked intentions. With no new transaction data, the app can remind the user to import records but cannot claim a new spending observation.
 
 The detection and ranking design is in [Analytics and forecasts](/technical/analytics). Background execution is described in [Architecture](/technical/architecture).

@@ -38,9 +38,9 @@ These methods allow user, agent, and job actors. IDs are checked against context
 | `listInsights`       | `{states: InsightState[], page: PageRequest}`                        | `Page<Dto<insights>>`, sorted rank descending, then createdAt and id descending                                                                                                                                                                                                               |
 | `listIntentions`     | `{states: IntentionState[], page: PageRequest}`                      | `Page<Dto<intentions>>`                                                                                                                                                                                                                                                                       |
 
-Reference-data arrays are complete for this single-user dataset. Their configured cap is 10,000 entities of each type. Exceeding it returns LimitExceeded and requires a paginated implementation before increasing the cap.
+Reference-data arrays are complete for this single-user dataset. Their configured cap is 10,000 entities of each type. Exceeding it returns `LimitExceeded` and requires a paginated implementation before increasing the cap.
 
-`queryFinancials` has a ten-second request deadline. If the selected scope exceeds the interactive extraction limit, it returns LimitExceeded with `limitName: "interactiveAnalysis"`. The caller uses `startAnalysis` with the same definition. It never silently returns a partial total.
+`queryFinancials` has a ten-second request deadline. If the selected scope exceeds the interactive extraction limit, it returns `LimitExceeded` with `limitName: "interactiveAnalysis"`. The caller uses `startAnalysis` with the same definition. It never silently returns a partial total.
 
 ## Imports, review, and operational reads
 
@@ -98,7 +98,7 @@ type EventChange =
   | { kind: "purchaseDate"; date: Date; evidence: EvidenceRef[] };
 ```
 
-`AllocationInput` is the allocation object in the allocations variant. Existing IDs preserve credit links. Removing or reducing an allocation with linked credits requires an explicit compatible relink in a separate prepared change. Bank amounts, source dates, and posting identity are not fields of EventChange.
+`AllocationInput` is the allocation object in the allocations variant. Existing IDs preserve credit links. Removing or reducing an allocation with linked credits requires an explicit compatible relink in a separate prepared change. Bank amounts, source dates, and posting identity are not fields of `EventChange`.
 
 ## Previews, rules, and review resolution
 
@@ -134,9 +134,9 @@ Review resolution locks the review subject, checks its version, applies the sele
 | `cancelJob`       | `{jobId, expectedVersion}`                                                                                                                                                                              | `JobView` with durable cancellation intent                   |
 | `startExport`     | `{includeSources: boolean, includeConversations: boolean}`                                                                                                                                              | `AcceptedJob`                                                |
 
-All rows in this table return CommandReceipt around the output. Only user actors can change settings, remove data, cancel unrelated jobs, or export account data. Starting an analysis, saving an investigation, and refreshing it are also available to authorized agent runs.
+All rows in this table return `CommandReceipt` around the output. Only user actors can change settings, remove data, cancel unrelated jobs, or export account data. Starting an analysis, saving an investigation, and refreshing it are also available to authorized agent runs.
 
-`previewSourceRemoval({sourceId, expectedVersion})` returns a ten-minute `{previewId, revision, expiresAt, impact: ChangeImpact, unsupportedPostingIds}`. `removeSource(Command<{previewId, expectedRevision, unsupportedRecords: "retainWithWarning" | "withdraw"}>)` records the choice and returns AcceptedJob. Removal invalidates affected evidence and follows the backup policy. Raw source deletion never runs from a model tool.
+`previewSourceRemoval({sourceId, expectedVersion})` returns a ten-minute `{previewId, revision, expiresAt, impact: ChangeImpact, unsupportedPostingIds}`. `removeSource(Command<{previewId, expectedRevision, unsupportedRecords: "retainWithWarning" | "withdraw"}>)` records the choice and returns `AcceptedJob`. Removal invalidates affected evidence and follows the backup policy. Raw source deletion never runs from a model tool.
 
 ## Processor-only RPC
 
@@ -156,7 +156,7 @@ Artifact transfer uses authenticated private HTTP streams. A worker does not rec
 
 ## Analyst execution RPC
 
-These methods are private to agent actors, with runId matching CallerContext. `acceptRun` is called by the authenticated conversation ingress with user context, before an agent context exists.
+These methods are private to agent actors, with runId matching `CallerContext`. `acceptRun` is called by the authenticated conversation ingress with user context, before an agent context exists.
 
 | Method                | Input                                                                                                                       | Success                                                                                                               |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -216,7 +216,7 @@ The fictional request changes one purchase to the strata category. The UUIDs and
 }
 ```
 
-Success contains the same commandId, the committed timestamp, the new dataset revision, event version 4, correctionId, and invalidations for the affected date range. Repeating the request returns that exact receipt. Sending expectedVersion 3 under a new command ID returns VersionConflict once version 4 exists.
+Success contains the same commandId, the committed timestamp, the new dataset revision, event version 4, correctionId, and invalidations for the affected date range. Repeating the request returns that exact receipt. Sending expectedVersion 3 under a new command ID returns `VersionConflict` once version 4 exists.
 
 A stale version is represented at the browser boundary as HTTP 409:
 
@@ -237,4 +237,4 @@ A stale version is represented at the browser boundary as HTTP 409:
 }
 ```
 
-The native RPC caller receives the corresponding tagged VersionConflict value. The HTTP envelope belongs only to the browser adapter.
+The native RPC caller receives the corresponding tagged `VersionConflict` value. The HTTP envelope belongs only to the browser adapter.

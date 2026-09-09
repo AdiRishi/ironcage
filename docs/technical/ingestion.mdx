@@ -56,7 +56,7 @@ Exact matching uses occurrence counts, not a set of date, merchant, and amount. 
 
 Cross-format matching uses a scored candidate graph. One source observation can support one canonical posting. Matching is one-to-one within an overlapping source sequence, with explicit allowances for source date conventions. Competing plausible matches remain unresolved rather than being forced by row order.
 
-The score is a rule score, not a calibrated probability. Thresholds are selected against checked duplicate and non-duplicate examples. Accepted matches retain the evidence that justified them.
+The score is a rule score, not a calibrated probability. Versioned thresholds are defined in [Import and job protocols](/technical/import-protocol#duplicate-matching) and evaluated against checked duplicate and non-duplicate examples. Accepted matches retain the evidence that justified them.
 
 <Accordion>
   <AccordionItem title="Exact repeated upload">
@@ -110,7 +110,7 @@ Extraction, model interpretation, and source-object writes finish outside the fi
 
 ## Enrich and refresh
 
-Known merchant rules and explicit corrections run before model classification. Only novel or unresolved interpretations require model calls. Accepted amount/date evidence remains separate from semantic proposals.
+Known merchant rules and explicit corrections run before model classification. Only novel or unresolved interpretations require model calls. Accepted amount and date evidence remains separate from semantic proposals.
 
 After publication, jobs update recurring-cost detection, affected period summaries, saved analyses, forecasts, and insights. Jobs include their input revision and calculation version. A late job cannot replace newer results.
 

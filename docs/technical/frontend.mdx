@@ -68,3 +68,7 @@ Wide layouts can show the analyst beside a financial view. Mobile layouts use se
 Controls use shadcn buttons, forms, dialogs, sheets, tables, and alerts. Keyboard focus returns to the initiating control after a detail or correction dialog closes. Loading regions announce progress without repeatedly interrupting screen-reader users.
 
 Tables use pagination or virtualization when measured record counts require it. Mobile summaries expose the same detail actions. Amounts, source evidence, and correction controls remain available without horizontal page overflow.
+
+## Settings disclosure
+
+Settings uses `getSettings` and `getUsage` for editable policy and recorded usage. Server-only configuration supplies the model provider names and retention disclosures shown to the user. The client receives only those display fields, never provider credentials or deployment secrets. [Settings and data controls](/product/settings-and-data) defines the visible behavior.

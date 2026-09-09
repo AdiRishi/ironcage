@@ -3,9 +3,9 @@ title: Product
 description: The complete spend-management experience and the behavior that defines it.
 ---
 
-Ironcage is a private, responsive web app for Adi. It brings supplied financial records into one history, explains spending over time, and supports questions about future commitments and savings.
+Ironcage is a private, responsive web app for one user. It brings supplied financial records into one history, explains spending over time, and supports questions about future commitments and savings.
 
-The scope includes every capability below. The sections organize the specification. They do not define a reduced release or a sequence of optional features.
+All capabilities below belong to the current spend-management scope. Statements of product behavior are requirements for the completed application, including behavior described with "can." Examples illustrate those requirements; they do not limit them.
 
 <CardGroup cols={2}>
   <Card title="Workspace" href="/product/workspace" icon="panels-top-left">
@@ -35,7 +35,10 @@ The scope includes every capability below. The sections organize the specificati
     href="/product/insights-and-follow-through"
     icon="lightbulb"
   >
-    Useful discoveries and the results of changes Adi chooses to make.
+    Useful discoveries and the results of changes the user chooses to make.
+  </Card>
+  <Card title="Settings and data controls" href="/product/settings-and-data" icon="settings">
+    Account setup, preferences, AI usage, exports, and removal of records or context.
   </Card>
   <Card title="Acceptance scenarios" href="/product/acceptance" icon="list-checks">
     Observable outcomes that establish whether the product meets this specification.
@@ -44,20 +47,35 @@ The scope includes every capability below. The sections organize the specificati
 
 ## Product-wide behavior
 
-The same financial question has the same numerical answer in a chart, a saved analysis, and an analyst response. Each answer identifies the period and records it uses.
+The same financial question against the same records and assumptions has the same numerical answer in charts, saved analyses, and analyst responses. Each answer identifies its period, included accounts, measure, and data coverage.
 
 Imports can be repeated safely. Corrections survive later uploads. A failure leaves an explanation and a way to continue, without damaging previously accepted history.
 
-Adi can inspect the transactions behind a number, correct an interpretation, and see the affected views update. The app asks concrete questions when evidence is insufficient. It does not require an accounting questionnaire before import.
+The user can inspect the transactions behind a number and correct an interpretation. Affected views show that an update is pending until a current result is available. Questions identify a specific missing fact and its effect on the answer. Import can proceed while unrelated questions remain unresolved.
 
-## Current financial context
+## Supported financial history
 
-The supplied history includes spending and savings accounts, a credit card, and a mortgage. Mortgage payments and strata levies affect ongoing commitments. Credit-card adoption is a known change in payment method.
+The application supports CommBank spending and savings accounts, offset accounts, credit cards, and home loans. Mortgage payments, strata levies, and changes in payment account are part of the required analysis. Account relationships and effective dates come from source evidence or user confirmation.
 
 Account labels describe where money sits. They do not determine the purpose of every transaction. An expense paid from a savings account remains an expense.
 
+## Product terms
+
+| Term           | Meaning                                                                                                  |
+| -------------- | -------------------------------------------------------------------------------------------------------- |
+| Transaction    | An accepted bank posting, with its account, amount, dates, and supporting source records.                |
+| Financial role | How a movement affects costs, income, cash, or debt, such as a purchase, transfer, refund, or borrowing. |
+| Category       | The cost classification for a purchase or part of a split purchase.                                      |
+| Tag            | An additional purpose or context label. Several tags can apply to the same cost.                         |
+| Personal event | A trip, life change, or other named event associated with dates and relevant transactions.               |
+| Analysis       | A question and calculation definition, including filters and assumptions, that can be saved for reuse.   |
+| Result         | One completed calculation against a particular version of the records.                                   |
+| Investigation  | An analyst conversation that can use several analyses and retain their results and explanations.         |
+
+"Spending" means net personal costs unless a view explicitly selects another measure. [Transactions](/product/transactions) defines how purchases, credits, and repayments affect that measure.
+
 ## Scope boundary
 
-Recurring manual file import is the input path. The app ingests all supplied records, including older statements, and makes actual coverage visible.
+Recurring manual file import is the input path. Automatic bank feeds are outside the current scope. The app ingests all supplied records, including older statements, and makes actual coverage visible.
 
 This specification does not include executing payments, placing trades, or managing crypto positions. Those belong to later product definitions. Transfers toward an investment remain identifiable money movements in the spending history.

@@ -16,7 +16,7 @@ A service owns its behavior, durable state, infrastructure declarations, and rec
 | `workers/processor` | Import extraction, reconciliation preparation, interpretation, numerical analysis, refresh, export, removal, and bounded computation jobs.                               | Dispatch queue and dead-letter queue, Workflows, and the computation Container when required by the specified workload. Workflow state owns execution scheduling. |
 | `workers/analyst`   | AIChatAgent, conversation sequencing, analyst tools, clarification, memory selection, answers, and run recovery.                                                         | Agent Durable Object namespace and its conversation storage.                                                                                                      |
 
-The API owns durable application job and AI-run records because receipts, usage reservations, authorizations, and result publication refer to the same owner and financial evidence. The processor owns Workflow execution history. The analyst owns canonical conversation messages. These records have different purposes; each field has one authoritative writer and store as defined in the [database schema](/technical/database-schema) and [AI functionality](/technical/ai-functionality).
+The API owns durable application job and AI-run records because receipts, usage reservations, authorizations, and result publication refer to the same owner and financial evidence. The processor owns Workflow execution history. The analyst owns canonical conversation messages. These records have different purposes. Each field has one authoritative writer and store as defined in the [database schema](/technical/database-schema) and [AI functionality](/technical/ai-functionality).
 
 An accepted classification is an API command. A processor-generated classification is a proposal until that command accepts it. A chart and an analyst tool call the same financial queries. Neither the web app nor the analyst maintains a separate calculation implementation.
 
@@ -32,15 +32,15 @@ Each export names a cohesive module. It is not a requirement to create a separat
 
 The contracts package defines values and payloads once. Scalar and record modules are leaves. Query and command modules compose them. Job and AI payloads reuse those definitions through an acyclic import graph. Cross-references use IDs and shared value schemas rather than mutually recursive imports of full records.
 
-The finance package accepts decoded records, an explicit calculation definition, and any required clock value or seed. It returns calculated values and evidence references. It never fetches missing data. Snapshot completeness and publication remain API responsibilities. Money brands and codecs come from contracts; finance supplies operations on those values rather than declaring a second money type.
+The finance package accepts decoded records, an explicit calculation definition, and any required clock value or seed. It returns calculated values and evidence references. It never fetches missing data. Snapshot completeness and publication remain API responsibilities. Money brands and codecs come from contracts. Finance supplies operations on those values rather than declaring a second money type.
 
-The AI execution module accepts a role, validated input, execution identity, and the caller's cancellation scope. Runtime composition supplies Gateway configuration, the selected role prompt and output schema, and the typed usage reservation and settlement operations. The role definition preserves the input/output type relationship; callers cannot pair a document input with an interpretation decoder. The module reserves usage before a provider call and records its outcome under the stable call ID. Its public result contains validated role output and usage identity, or a tagged failure from the [AI contract](/technical/ai-functionality). It does not advance a Workflow or agent checkpoint. The caller owns that transition.
+The AI execution module accepts a role, validated input, execution identity, and the caller's cancellation scope. Runtime composition supplies Gateway configuration, the selected role prompt and output schema, and the typed usage reservation and settlement operations. The role definition preserves the input and output type relationship. Callers cannot pair a document input with an interpretation decoder. The module reserves usage before a provider call and records its outcome under the stable call ID. Its public result contains validated role output and usage identity, or a tagged failure from the [AI contract](/technical/ai-functionality). It does not advance a Workflow or agent checkpoint. The caller owns that transition.
 
 Streaming execution exposes typed incremental events and one final decoded result. The analyst adapter connects those events to AIChatAgent. Cancelling or losing a stream settles or retains the usage reservation according to the AI recovery contract. An emitted text fragment does not count as a validated financial claim.
 
 Prompts and evaluation fixtures stay with the behavior they implement. Document and interpretation prompts live in the processor. Intent, analyst, and summary prompts live in the analyst. The shared model registry records their version IDs. Moving provider execution into a package does not move product decisions into a generic agent framework.
 
-UI components stay in `apps/web/src/components/ui`, because there is one web application. Parsers stay in the processor. SQL repositories stay in the API. A second real consumer can justify extracting one of these modules later; anticipated stock or crypto features do not create empty packages now.
+UI components stay in `apps/web/src/components/ui`, because there is one web application. Parsers stay in the processor. SQL repositories stay in the API. A second real consumer can justify extracting one of these modules later. Anticipated stock or crypto features do not create empty packages now.
 
 ## Workspace layout
 
@@ -88,7 +88,7 @@ infra/src/
 infra/alchemy.run.ts           root deployment entry point
 ```
 
-Each workspace keeps its own tests. The API's financial operations use concrete repositories and the shared transaction protocol. A repository groups SQL for a domain operation; it is not a generic CRUD interface for each table. Internal query and command modules can use the same transaction-scoped database layer without calling each other over RPC.
+Each workspace keeps its own tests. The API's financial operations use concrete repositories and the shared transaction protocol. A repository groups SQL for a domain operation and keeps table access private. Internal query and command modules can use the same transaction-scoped database layer without calling each other over RPC.
 
 ## Dependency rules
 
@@ -137,11 +137,11 @@ Infrastructure remains one Alchemy application with service-owned modules. The A
 
 `worker-bindings.ts` composes capabilities from those owned resource declarations. There is no global data-plane object handed to every runtime. The API receives database and evidence storage capabilities, plus a producer binding for the processor's queue. The processor and analyst receive API bindings and their own execution resources. Source and artifact transfers use the scoped private streams defined in the RPC specification. They do not require a shared writable bucket binding.
 
-A queue is owned by its consumer, including delivery policy and dead-letter handling. The API's transaction outbox owns the obligation to send a job. The processor owns what happens after delivery. The API's export and removal commands record authorization and work status; the processor coordinates the job and calls the API for storage operations.
+A queue is owned by its consumer, including delivery policy and dead-letter handling. The API's transaction outbox owns the obligation to send a job. The processor owns what happens after delivery. The API's export and removal commands record authorization and work status. The processor coordinates the job and calls the API for storage operations.
 
 Services may add a private database when their state has an independent lifecycle and cannot be represented adequately by their existing runtime storage. D1 is an option for such a service. The present design needs no additional D1 database: Workflow persistence handles processor scheduling, and Durable Object storage handles conversation state.
 
-A private store has one owning service, its own migrations and retention policy, and a documented recovery path. Other services use its owner's interface. Data derived from financial records carries the source revision and can be rebuilt or reconciled. An operation that requires an atomic financial change remains inside the API's Postgres transaction; splitting that operation across databases would add a distributed consistency problem.
+A private store has one owning service, its own migrations and retention policy, and a documented recovery path. Other services use its owner's interface. Data derived from financial records carries the source revision and can be rebuilt or reconciled. An operation that requires an atomic financial change remains inside the API's Postgres transaction. Splitting that operation across databases would add a distributed consistency problem.
 
 Financial migrations live at `workers/api/migrations/`, alongside the owning implementation. Alchemy executes them with the deployment role. If another service later needs SQL migrations, they live under that service. This replaces the starter's undifferentiated root migration directory when the financial schema is implemented.
 
@@ -153,6 +153,6 @@ Unit tests protect each package's public behavior. Contracts test encoding and b
 
 Implementation adds import restrictions to the existing lint configuration for forbidden workspace directions and private source imports. The rules allow the assembly exceptions above explicitly. Browser build checks reject SQL drivers, provider clients, Worker runtime modules, and deployment code in client bundles. These are required implementation checks, not claims about checks already present in the starter.
 
-Work is divided by a complete behavior and its owning workspace. A correction change includes the API command, affected finance rules, contract changes, and consumer updates in one reviewable change. A forecast change belongs to finance and processor, with its result consumers updated together. Shared schemas are agreed first when work proceeds concurrently; each contributor then owns named files and verifies the consumers of changed exports.
+Work is divided by a complete behavior and its owning workspace. A correction change includes the API command, affected finance rules, contract changes, and consumer updates in one reviewable change. A forecast change belongs to finance and processor, with its result consumers updated together. Shared schemas are agreed first when work proceeds concurrently. Each contributor then owns named files and verifies the consumers of changed exports.
 
 A new package needs independent consumers and a useful interface. A new service needs a distinct execution, state, or operational requirement. Size alone does not decide either split. The four planned runtimes and three shared packages cover the current spend-management scope.

@@ -20,7 +20,7 @@ The main destinations have distinct purposes.
 | Analyst      | Continue conversations and saved investigations.                     |
 | Imports      | Upload files, inspect coverage, and resolve import issues.           |
 
-Personal context, preferences, and usage controls are available in settings. A review queue collects unresolved transactions and questions that need Adi's input.
+Settings contains [account, preference, and data controls](/product/settings-and-data). The review queue collects unresolved transactions and questions requiring user input. Each item links to its source evidence and explains which results it affects.
 
 ## From a chart to an explanation
 
@@ -58,6 +58,6 @@ When a request fails, the view retains the selected filters and any unsaved inpu
 
 A transaction detail exposes the original description, the current interpretation, and the source record. A correction applies to that transaction by default. Applying a rule more broadly shows the matching records before the change is committed.
 
-After a correction, affected totals update together. Older analyst answers show that their data has changed and offer a refreshed answer. The app keeps the earlier answer available as historical context.
+After a correction commits, affected views mark their previous result as out of date while the replacement is calculated. A view presents one consistent result and never mixes old and new totals. Older analyst answers show that their data has changed and offer a refreshed answer. The app keeps the earlier answer available as historical context.
 
-The visual components follow the existing application design system. Charts and interaction controls use shadcn components, with layouts adapted to the financial task.
+Visual controls follow the application design system across all destinations. The [frontend design](/technical/frontend) defines component and chart implementation.

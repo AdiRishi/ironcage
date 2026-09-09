@@ -3,7 +3,7 @@ title: Transactions
 description: A connected history of purchases, repayments, transfers, refunds, and the context that explains them.
 ---
 
-The transaction list combines the supplied accounts while preserving the account behind each movement. Filters cover dates, amounts, accounts, merchants, categories, personal purposes, and review status.
+The transaction list combines the supplied accounts while preserving the account behind each movement. Filters cover dates, amounts, accounts, merchants, categories, tags and personal events, and review status.
 
 A record detail shows the bank description and booked amount, its dates, the current interpretation, linked movements, and source evidence. Search works with both original descriptions and recognized merchant names.
 
@@ -23,19 +23,21 @@ The app never treats every transfer as internal or every incoming payment as inc
 
 ## Classification with several useful dimensions
 
-A transaction has a primary financial role and can carry additional context. A dinner can be dining, social, part of a trip, and partly reimbursed. These descriptions answer different questions without duplicating the money.
+A transaction has a primary financial role and can carry additional context. A dinner can have a dining category, a social tag, a trip association, and a linked partial reimbursement. These descriptions answer different questions without duplicating the money.
 
 Merchant views unite aliases for the same business. Distinct services remain distinguishable, such as rides and food delivery from the same provider. The original wording remains available.
 
-Ordinary retail payments do not establish the exact items bought. The app can use an invoice, receipt, or Adi's explanation as additional evidence. It does not invent basket contents from a merchant name.
+Ordinary retail payments do not establish the exact items bought. Item-level claims require supporting detail, such as a receipt or the user's explanation. Bank-statement import alone does not establish that detail. It does not invent basket contents from a merchant name.
 
 ## Corrections and splits
 
-Adi can change a category, merchant, purpose, linked refund, or transfer interpretation. A mixed purchase can be split into parts whose amounts equal the original total.
+The user can change a category, merchant, tag, personal-event association, linked credit, or transfer interpretation. Changes to financial roles and relationships show their effect on costs, income, cash, and debt before acceptance. A mixed purchase can be split into parts whose amounts equal the original total.
 
 **Apply to this transaction** is the default. **Apply a rule** previews the matching records and distinguishes historical changes from future automatic classification. A one-off exception remains an exception when a general rule changes.
 
-The change history records what changed. Undo restores the prior interpretation through a new correction. It does not erase the original bank evidence.
+The change history records the prior interpretation, the accepted change, its scope, and its time. Undo restores the prior interpretation through a new correction. It does not erase the original bank evidence.
+
+Linked refunds and reimbursements reduce the original purchase period in the net-cost view. The account view shows each credit on its bank posting date. An earlier saved result remains unchanged; a refreshed result includes the newly linked credit.
 
 ## Dates and currencies
 
@@ -45,7 +47,7 @@ Foreign purchases show the booked Australian-dollar amount, any supplied origina
 
 ## Unresolved relationships
 
-When a refund or reimbursement arrives, the app proposes a relationship to the original expense. It supports partial repayments and several repayments against one expense.
+When a refund or reimbursement arrives, the app proposes a relationship to the original expense. It supports partial credits, several credits against one expense, and a credit shared across several expenses. Linked amounts cannot exceed the eligible cost or available credit. Any excess requires a separate financial role.
 
 An unresolved incoming transfer is not silently treated as salary. An ambiguous duplicate is not silently removed. Relevant views identify unresolved amounts and explain how they affect the answer.
 

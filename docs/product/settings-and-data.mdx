@@ -1,0 +1,53 @@
+---
+title: Settings and data controls
+description: Manage account context, display preferences, AI usage, exports, and the removal of financial evidence.
+---
+
+Settings groups the controls that apply across the application. The product serves one authenticated user. Financial records, source downloads, and conversations are private to that user.
+
+## Accounts and classification
+
+The user can inspect and change account labels, roles, and evidenced relationships, including which loan an offset account belongs to. Role and relationship changes have effective dates so current account context does not silently replace historical context. Account names do not determine the purpose of every payment.
+
+Categories and tags are editable. Referenced categories retain their identity when renamed or archived. Merchant management exposes accepted aliases and service distinctions. Conflicting aliases require resolution before a change applies.
+
+Classification rules show their conditions, priority relative to individual corrections, and historical or future scope. Broad changes use the preview described in [Transactions](/product/transactions#corrections-and-splits). A change to a general rule preserves transaction-specific exceptions.
+
+## Display and reminder preferences
+
+The default calendar timezone is Australia/Sydney and the default reporting currency is AUD. Changing a preference updates subsequent views. It does not convert the bank's booked amounts or rewrite a saved historical result. A view for one currency identifies records excluded because they use another currency.
+
+Import reminders use the configured interval. They indicate that financial records may be out of date. They do not imply a bank connection or a newly observed spending change. Findings and completed work appear in the [in-app inbox](/product/insights-and-follow-through#notification-behavior).
+
+## Personal context
+
+The user can inspect confirmed facts, proposed facts, their evidence, and the accounts or periods to which they apply. Accepting, correcting, or removing a fact changes future analysis. Historical results identify assumptions that have changed.
+
+Conversation summaries are distinct from confirmed facts. The [analyst and memory specification](/product/analyst-and-memory#useful-memory) defines how each affects an answer.
+
+## AI usage and privacy
+
+Settings shows the configured AI usage limits and current usage, including unsettled reservations and uncertain charges. Estimated costs are labelled. The user can change the monthly ceiling and investigation or import limits. New calls follow the updated policy.
+
+When a limit prevents further AI work, the app explains which limit applies and preserves completed work. The user can adjust the limit and explicitly retry unfinished work. Ordinary financial views and accepted records remain accessible. A retry does not repeat a committed correction.
+
+The application identifies the configured model providers and explains the data sent for a task. It sends the relevant records and context rather than the entire financial history by default. AI Gateway routing does not imply that processing remains within Cloudflare. Provider and backup retention are disclosed separately from application deletion.
+
+## Export
+
+The user can export financial records, interpretations, corrections, personal context, and evidence relationships. Source files and conversations are selectable additions. The export identifies its data version and completion time.
+
+Export runs in the background. The app provides a download when the package is complete and identifies any failure that prevents completion. The export supports recovery and migration without requiring this documentation or the discovery conversation to interpret the records.
+
+## Source removal
+
+Removing a source begins with a preview of affected transactions, evidence, and saved results. A transaction supported by another source remains in the financial history.
+
+When the source is the last support for a transaction, the user chooses one of two outcomes:
+
+- Retain the transaction with a visible warning that its original source is unavailable.
+- Withdraw the transaction from current financial views and refresh affected totals.
+
+The app applies the selected outcome explicitly. It retains the operation's audit record and marks affected historical results. A retained result can display its stored calculation, but a deleted source is shown as unavailable. The app does not promise access to removed evidence.
+
+Deleting remembered context excludes it from future retrieval. Existing historical results and retained backups follow the disclosed retention policy. A source-removal or context-removal action does not claim to erase every copy immediately.

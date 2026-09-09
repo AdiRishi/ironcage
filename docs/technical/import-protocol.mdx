@@ -82,7 +82,7 @@ No-candidate observations create new postings only when account, amount, date, a
 
 ## Publication payload
 
-`PostingPublication` contains `{extractionId, accountId, newPostings: {observationIds, posting: ParsedPosting}[], matches: {observationId, postingId, expectedVersion, method, score: number | null}[], reviews: ReviewDraft[], rejectedObservationIds: Id<"observation">[]}`. ReviewDraft contains subject, issueKind, question, options, and evidence, as defined in the RPC reference. The group account must match the established source mapping.
+`PostingPublication` contains `{extractionId, accountId, newPostings: {observationIds, posting: ParsedPosting}[], matches: {observationId, postingId, expectedVersion, method, score: number | null}[], reviews: ReviewDraft[], rejectedObservationIds: Id<"observation">[]}`. `ReviewDraft` contains subject, issueKind, question, options, and evidence, as defined in the RPC reference. The group account must match the established source mapping.
 
 The API verifies that every referenced observation belongs to this extraction, every new posting has non-null required fields, and no observation is assigned twice. Groups contain at most 200 new or matched postings. Their step key is `publish:<extractionId>:<groupInputHash>`.
 
@@ -119,7 +119,7 @@ type JobState =
   | { kind: "cancelled"; lastCompletedStep: string | null; cancelledAt: Instant };
 ```
 
-`Failure` is the safe tagged failure from Shared contracts. `JobResult` has these variants, with kind matching JobKind: `import {sourceId, acceptedPostingIds, matchedObservationIds, reviewIds, rejectedObservationIds}`, `interpret {appliedEventIds, reviewIds}`, `analysis {resultId}`, `refresh {savedAnalysisIds, insightIds}`, `applyRule {ruleId, appliedCount, conflictReviewIds}`, `export {artifactId}`, `removeSource {sourceId, affectedPostingIds, affectedResultIds}`, or `computation {artifactIds, resultId}`.
+`Failure` is the safe tagged failure from Shared contracts. `JobResult` has these variants, with kind matching `JobKind`: `import {sourceId, acceptedPostingIds, matchedObservationIds, reviewIds, rejectedObservationIds}`, `interpret {appliedEventIds, reviewIds}`, `analysis {resultId}`, `refresh {savedAnalysisIds, insightIds}`, `applyRule {ruleId, appliedCount, conflictReviewIds}`, `export {artifactId}`, `removeSource {sourceId, affectedPostingIds, affectedResultIds}`, or `computation {artifactIds, resultId}`.
 
 Queued enters running. Running can advance steps, wait for review, succeed, fail, or cancel. Waiting enters running only after its blocking reviews are resolved or dismissed according to the segment policy. Failed can retry from its recorded resume step. An explicit retry can move a cancelled job back to queued with a new attempt. Succeeded never returns to running. Cancellation records intent immediately and transitions at the next safe checkpoint.
 

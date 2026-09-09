@@ -13,9 +13,7 @@ AIChatAgent supplies persisted messages and resumable streams. Its React client 
 
 The analyst needs typed numerical results, persistent conversations, clarification, and background work. Cloudflare's integrated chat lifecycle reduces the amount of runtime coordination the application must own, while Alchemy remains responsible for deployment.
 
-TanStack AI was the closest alternative. Its typed interaction and persistence capabilities fit the product, but its ordinary chat path requires more application-owned storage and producer supervision. Flue offers a more complete agent framework, with additional build and protocol conventions. Eve requires more hosting and workflow integration for this Cloudflare application.
-
-This decision does not make a model more accurate. The financial tools and evaluation corpus establish answer quality. Higher-level frameworks are not installed alongside the selected runtime as speculative alternatives.
+Financial tools and the evaluation corpus establish answer quality. Conversation persistence handles message delivery and replay; the application still owns financial command receipts and investigation checkpoints.
 
 ## Agent responsibilities
 
@@ -60,7 +58,7 @@ Exact model IDs are selected from current provider catalogs and tested against t
 
 ## Durable state and recovery
 
-Each conversation has a stable, owner-bound identity. Repeated submission IDs return the existing receipt. New submissions queue in accepted order by default. Browser disconnection detaches the client. An explicit stop records durable cancellation intent.
+Each conversation has a stable, owner-bound identity. Repeated submission IDs return the existing receipt. New submissions queue in accepted order by default. Browser disconnection detaches the client. An explicit stop records durable cancellation intent. Cancelled and failed runs remain terminal. Retrying creates a new run that can reuse compatible completed evidence.
 
 AIChatAgent persists conversation and stream state. Application run metadata records the financial snapshot, job references, status, cancellation intent, and usage. Transcript text is not the sole record of whether a financial command committed.
 
@@ -76,7 +74,7 @@ A clarification contains a question ID, subject version, allowed response shape,
 
 An answer is consumed atomically with the corresponding correction where a correction is required. A stale subject version causes reevaluation against current data. Repeated answers return the original outcome.
 
-Explicit user instructions can authorize scoped corrections. Model-generated changes remain proposals unless an existing accepted rule covers them. A broad rule change includes a preview of affected records and preserves transaction-specific exceptions.
+Explicit user instructions can authorize the single-record category, merchant, and tag corrections defined in [Mutation authority](/technical/ai-functionality#mutation-authority). Other edits require an accepted structured action. Analyst-generated corrections remain proposals unless an existing accepted rule covers them. Automatic import categorization uses its separate evaluation gate. A broad rule change includes a preview of affected records and preserves transaction-specific exceptions.
 
 ## Personal context
 

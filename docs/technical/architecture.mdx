@@ -45,7 +45,7 @@ Each runtime owns its application behavior and infrastructure module. Financial 
 
 ## Infrastructure and service boundaries
 
-Alchemy composes service-owned runtime declarations, resources, bindings, and migrations into one application graph. Each service has its own infrastructure module; the root graph wires only the capabilities its callers need. Effect owns service composition, typed failures, and cancellation inside each runtime. Worker RPC derives its method contracts from the service declarations.
+Alchemy composes service-owned runtime declarations, resources, bindings, and migrations into one application graph. Each service has its own infrastructure module. The root graph wires only the capabilities its callers need. Effect owns service composition, typed failures, and cancellation inside each runtime. Worker RPC derives its method contracts from the service declarations.
 
 Only the public web Worker accepts browser traffic. Other runtimes receive capability-specific bindings. The API holds financial write capabilities. The analyst receives financial query and command tools rather than direct storage access.
 

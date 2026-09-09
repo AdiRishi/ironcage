@@ -1,14 +1,12 @@
 # Ironcage
 
-Ironcage is Adi's personal finance platform. Its current product scope is complete spend management: a connected financial history, detailed trends, forecasts, and an analyst that retains useful context.
+Ironcage is a private personal finance platform for one user. Its current product scope is complete spend management: a connected financial history, detailed trends, forecasts, and an analyst that retains useful context.
 
 The documentation defines the product and target implementation. Investment, stock-trading, and crypto capabilities have a place in the broader vision, but their detailed specifications come later.
 
 ## Read the docs
 
-Read the [published documentation](https://adirishi.github.io/ironcage/), or run it locally:
-
-The documentation is a [Blume](https://useblume.dev/) site. From the repository root:
+Read the [published documentation](https://adirishi.github.io/ironcage/). To run the [Blume](https://useblume.dev/) site locally, use this command from the repository root:
 
 ```sh
 pnpm docs:dev

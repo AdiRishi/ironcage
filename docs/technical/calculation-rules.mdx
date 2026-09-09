@@ -68,7 +68,7 @@ type ScheduleDefinition = {
 };
 ```
 
-ScheduleOccurrence is `{commitmentId, scheduledDate, expected: Money, status: "expected" | "matched" | "skipped", eventId: Id<"event"> | null}`. Calendar stepping uses the anchor's day or the last day of the destination month. Weekend adjustment uses weekdays only. Public-holiday changes require an evidenced exception or corrected date.
+`ScheduleOccurrence` is `{commitmentId, scheduledDate, expected: Money, status: "expected" | "matched" | "skipped", eventId: Id<"event"> | null}`. Calendar stepping uses the anchor's day or the last day of the destination month. Weekend adjustment uses weekdays only. Public-holiday changes require an evidenced exception or corrected date.
 
 Detector candidates group by merchant, service, currency, reporting account, and allocation role. They require at least three observations for weekly through quarterly cadence, and two for annual cadence. At least 80% of observed intervals must fit expected dates within three days, or seven days for annual payments. Fixed-amount tolerance is the greater of 100 minor units or 5% of the median. Other consistent series produce variable-amount proposals.
 
@@ -92,7 +92,7 @@ Estimated card purchases increase card liability. A card-payment schedule moves 
 
 ## Scenarios and evaluation
 
-ScenarioOverride is `{kind: "variableCostScale", categoryId, factor: Decimal}`, `{kind: "commitmentAmount", commitmentId, minor: Minor, effectiveFrom: Date}`, or `{kind: "oneOff", date, accountId, role: "cost" | "income", amount: Money}`. Factors must be nonnegative and at most 10. Baseline and scenario run on the same snapshot and random seed. Related substitutions are separate explicit overrides.
+`ScenarioOverride` is `{kind: "variableCostScale", categoryId, factor: Decimal}`, `{kind: "commitmentAmount", commitmentId, minor: Minor, effectiveFrom: Date}`, or `{kind: "oneOff", date, accountId, role: "cost" | "income", amount: Money}`. Factors must be nonnegative and at most 10. Baseline and scenario run on the same snapshot and random seed. Related substitutions are separate explicit overrides.
 
 `ForecastEvaluation` contains `{cutoffCount, horizonDays, meanAbsoluteError: Money, bias: Money, intervalCoverage: Decimal | null, baselineMeanAbsoluteError: Money, method: "asKnown" | "retrospective"}`. Rolling cutoffs train only on prior data. Historical uploads that arrived together permit retrospective transaction-date backtests, but cannot prove what the app knew before upload. As-known tests also respect import and correction availability timestamps.
 

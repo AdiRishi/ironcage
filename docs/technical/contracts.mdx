@@ -26,9 +26,9 @@ The shapes below describe encoded values. Decoded money uses `bigint`. Fields ar
 
 Money and date codecs are shared with the [Postgres schema](/technical/database-schema). IDs of different entity kinds are not interchangeable. Arbitrary model text never becomes an identifier without a successful lookup in the authorized scope.
 
-Actor is the actor union in CallerContext. AnalysisResultData is the data union in AnalysisResult.
+`Actor` is the actor union in `CallerContext`. `AnalysisResultData` is the data union in `AnalysisResult`.
 
-EventKind, AllocationRole, CommitmentStatus, InsightState, IntentionState, ReviewState, and ReviewIssueKind are the corresponding closed enum values in Database schema. SubjectRef is `{entityKind: string, id: UUID, version: Version}`, restricted to the registered entity schemas. Immutable observations use version 1.
+`EventKind`, `AllocationRole`, `CommitmentStatus`, `InsightState`, `IntentionState`, `ReviewState`, and `ReviewIssueKind` use the enum values in [Database schema](/technical/database-schema). `SubjectRef` is `{entityKind: string, id: UUID, version: Version}`, restricted to the registered entity schemas. Immutable observations use version 1.
 
 ## Ownership and caller context
 
@@ -88,13 +88,13 @@ type FinancialQuery = {
 };
 ```
 
-The server normalizes UI omissions to spending dates, Australia/Sydney, AUD, monthly buckets, no comparison, and empty filter arrays. Empty arrays mean no restriction. Values within one dimension match with OR, dimensions combine with AND, and explicit exclusions apply last. Category selection includes descendants. Account filters use the event's reporting account, defined in [Calculation rules](/technical/calculation-rules).
+The server normalizes UI omissions to net personal costs, spending dates, Australia/Sydney, AUD, monthly buckets, no comparison, and empty filter arrays. Empty arrays mean no restriction. Values within one dimension match with OR, dimensions combine with AND, and explicit exclusions apply last. Category selection includes descendants. Account filters use the event's reporting account, defined in [Calculation rules](/technical/calculation-rules).
 
 Cash balance change always uses posting dates and deposit accounts. Principal repaid uses loan-payment events. Invalid metric/date/account combinations return `InvalidInput`. A query selects one booked currency. Other currencies remain visible as excluded scope in coverage, without inferred FX conversion.
 
 Tags and personal events can overlap. Their group breakdown includes `overlapping: true` and does not claim its rows add to the overall total. Category, merchant, and account breakdowns partition the selected allocations. All filters deduplicate allocation IDs before aggregation.
 
-`TransactionFilter` contains optional `period`, `amount: {min: Minor | null, max: Minor | null}`, `search` up to 200 characters, and arrays `accountIds`, `merchantIds`, `categoryIds`, `tagIds`, `personalEventIds`, `roles`, `reviewStates`. Amount compares signed bank postings in the supplied `currency`. Search is case-insensitive text matching against original descriptions and normalized merchant names. An empty filter returns all accepted postings, with pagination.
+`TransactionFilter` contains `currency: Currency`, default AUD at the browser boundary, optional `period`, `amount: {min: Minor | null, max: Minor | null}`, `search` up to 200 characters, and arrays `accountIds`, `merchantIds`, `categoryIds`, `tagIds`, `personalEventIds`, `roles`, `reviewStates`. Amount compares signed bank postings in the supplied `currency`. Search is case-insensitive text matching against original descriptions and normalized merchant names. An empty filter returns all accepted postings, with pagination.
 
 ## Evidence and results
 
@@ -115,12 +115,51 @@ Result paths are JSON Pointers into a validated immutable result. The server che
 
 `AnalysisResult` contains `id`, `schemaVersion`, `definition`, `basis`, `calculationVersion`, `createdAt`, `coverage`, `evidenceManifestId`, and `data`. Data is a closed union:
 
-| Kind          | Required data                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `comparison`  | `current: Money \| null`, `previous: Money \| null`, `delta: Money \| null`, `relativeChange: Decimal \| null`, `currentSurplusRate: Decimal \| null`, `previousSurplusRate: Decimal \| null`, `series: {period: Range, value: Money \| null}[]`, `contributors: {key: string, label: string, current: Money, previous: Money, delta: Money, recordCount: number}[]`, `remainder: Money \| null`, `overlapping: boolean`, `frequency: FrequencyBreakdown \| null`. |
-| `forecast`    | `horizon: Range`, `startingBalances: {accountId, at: Date, amount: Money, estimated: boolean}[]`, `points: {date: Date, cashP10: Money \| null, cashP50: Money \| null, cashP90: Money \| null, debtP50: Money \| null}[]`, `intervalStatus: "calibrated" \| "uncalibrated" \| "unavailable"`, `assumptions: ForecastDefinition`, `modelVersion`, `seed`, `evaluation: ForecastEvaluation \| null`.                                                                |
-| `scenario`    | `baselineResultId`, `scenarioResultId`, `terminalCashDelta: Money`, `costDelta: Money`, `changedAssumptions: ScenarioOverride[]`.                                                                                                                                                                                                                                                                                                                                  |
-| `computation` | `artifactIds`, `summary`, `claims: Claim[]`, `runtimeVersion`, `inputHash`, `outputHash`.                                                                                                                                                                                                                                                                                                                                                                          |
+### Comparison result
+
+- `kind: "comparison"`.
+- `current: Money | null`.
+- `previous: Money | null`.
+- `delta: Money | null`.
+- `relativeChange: Decimal | null`.
+- `currentSurplusRate: Decimal | null`.
+- `previousSurplusRate: Decimal | null`.
+- `series: {period: Range, value: Money | null}[]`.
+- `contributors: {key: string, label: string, current: Money, previous: Money, delta: Money, recordCount: number}[]`.
+- `remainder: Money | null`.
+- `overlapping: boolean`.
+- `frequency: FrequencyBreakdown | null`.
+
+### Forecast result
+
+- `kind: "forecast"`.
+- `horizon: Range`.
+- `startingBalances: {accountId, at: Date, amount: Money, estimated: boolean}[]`.
+- `points: {date: Date, cashP10: Money | null, cashP50: Money | null, cashP90: Money | null, debtP50: Money | null}[]`.
+- `intervalStatus: "calibrated" | "uncalibrated" | "unavailable"`.
+- `assumptions: ForecastDefinition`.
+- `modelVersion`.
+- `seed`.
+- `evaluation: ForecastEvaluation | null`.
+
+### Scenario result
+
+- `kind: "scenario"`.
+- `baselineResultId`.
+- `scenarioResultId`.
+- `terminalCashDelta: Money`.
+- `costDelta: Money`.
+- `changedAssumptions: ScenarioOverride[]`.
+
+### Computation result
+
+- `kind: "computation"`.
+- `artifactIds`.
+- `summary`.
+- `claims: Claim[]`.
+- `runtimeVersion`.
+- `inputHash`.
+- `outputHash`.
 
 `FrequencyBreakdown` contains current and previous purchase counts, average costs as `Decimal | null`, frequency and average-cost contributions as `Money | null`, and `status: "comparable" | "newActivity" | "ceasedActivity" | "noActivity"`. The [calculation specification](/technical/calculation-rules) defines each result's computation. A result with incomplete coverage is still a typed result, not an exception.
 
