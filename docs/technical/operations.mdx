@@ -75,7 +75,7 @@ An incident can be traced from an inbox failure to its job and source evidence t
 
 Alchemy plans and deploys the complete financial resource graph. Development, staging, production, and isolated test stages use separate storage and runtime identities. A deployment preserves stable resource identities.
 
-Versioned Postgres migrations in `migrations/` run once through the deployment process before dependent code receives traffic. A migration lock prevents concurrent schema changes. The runtime role cannot alter the schema. The same migration files create a fresh database and upgrade an existing one.
+Versioned Postgres migrations in `workers/api/migrations/` run once through the deployment process before dependent code receives traffic. A migration lock prevents concurrent schema changes. The runtime role cannot alter the schema. The same migration files create a fresh database and upgrade an existing one.
 
 Schema changes are applied explicitly to each stage. PlanetScale Postgres branches are isolated databases, not an automatic schema-promotion mechanism. Transactional DDL uses rollback on failure. Operations that require execution outside a transaction have an explicit resumable migration step.
 

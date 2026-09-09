@@ -5,6 +5,8 @@ description: Model tasks, structured outputs, tool contracts, mutation authority
 
 The [AI analyst architecture](/technical/ai-analyst) selects Cloudflare Agents SDK, AIChatAgent, Vercel AI SDK, and AI Gateway. This reference specifies the application behavior those frameworks implement. Prompt wording and model IDs can evolve, but the schemas, authority rules, and evaluation gates are part of the product contract.
 
+The shared `@repo/ai` package owns provider execution, schema adaptation, and usage integration. The processor and analyst own their role prompts, product tools, and durable execution transitions. [Monorepo and ownership](/technical/monorepo#shared-packages) defines those interfaces.
+
 ## Model roles and policy
 
 The versioned model registry has entries `{role, provider, modelId, promptVersion, outputSchemaVersion, maxInputTokens, maxOutputTokens, timeoutMs, fallbackRole: ModelRole | null}`. Roles are `document`, `interpretation`, `intent`, `analyst`, and `summary`. A fallback must implement the same input and output schemas and pass the same evaluation gate. The runtime never substitutes a provider silently.

@@ -97,6 +97,8 @@ Internal collaborators run in process or in the actual local Cloudflare runtime.
 
 ## Repository test ownership
 
+[Monorepo and ownership](/technical/monorepo#build-test-and-change-ownership) defines package-level test responsibilities, import restrictions, and browser bundle checks. Contract changes typecheck and test their consumers. Infrastructure tests verify the composed service graph and capability wiring.
+
 Effect modules use `@effect/vitest`. React components use Vitest Browser Mode. Local Cloudflare integrations use `alchemy/Test/Vitest`, and complete browser flows use Playwright.
 
 Each workspace keeps tests in `tests/`, mirroring the paths under `src/`, with a separate test TypeScript project. Module and component files use `.test.ts` or `.test.tsx`. Infrastructure suites live in `infra/tests/` with `.integration.test.ts`. Deployed browser suites use `.browser.test.ts`.

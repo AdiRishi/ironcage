@@ -15,8 +15,9 @@ Before changing test layout or setup, read `docs/technical/verification.mdx`.
 `docs/` is a Blume site. Run `pnpm docs:dev` to browse it locally and
 `pnpm docs:build` after changing pages or documentation configuration.
 
-Infrastructure belongs in `infra/`; Worker bindings are defined once in
-`infra/src/worker-bindings.ts` and imported by each runtime.
+Before adding a workspace, moving shared code, or changing service resources, read
+`docs/technical/monorepo.mdx`. Infrastructure belongs in service-owned modules under
+`infra/`; `infra/src/worker-bindings.ts` composes their typed capabilities.
 
 Run `pnpm check`, `pnpm typecheck`, and `pnpm test` before committing.
 

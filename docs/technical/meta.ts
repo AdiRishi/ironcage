@@ -7,6 +7,7 @@ export default defineMeta({
     "index",
     "build-spend-management",
     "architecture",
+    "monorepo",
     "contracts",
     "database-schema",
     "financial-model",

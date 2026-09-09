@@ -24,7 +24,7 @@ flowchart TD
     Dispatcher --> Dispatch[Queues]
     Dispatch --> Jobs[Processor Workflows]
     Jobs -->|request financial snapshot| API
-    Jobs -->|read sources and store artifacts| Sources
+    Jobs -->|scoped source and artifact streams| API
     Jobs -->|commit prepared results| API
     Analyst -->|financial tools| API
     Analyst --> Conversations[(Durable Object conversation state)]
@@ -37,31 +37,19 @@ PlanetScale Postgres owns financial records, corrections, review items, commitme
 
 The API owns financial queries and writes, including snapshot extraction and publication of prepared imports. The processor requests snapshots, performs extraction and analysis, then calls the API to commit validated results. The browser, processor, and analyst do not hold financial database credentials.
 
-## Modules and planned locations
+## Monorepo ownership
 
-The following locations are the target layout, not a claim that the modules already exist.
+[Monorepo and ownership](/technical/monorepo) defines the workspace layout, package exports, allowed dependencies, and resource ownership. Shared contracts define boundary values. The finance package owns deterministic rules used by the API and processor. The AI package owns model execution policy used by the processor and analyst.
 
-| Planned location                  | Responsibility                                                                                                                          |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/finance/src/`           | Financial types, money arithmetic, matching rules, metric definitions, and statistical calculations. No Worker bindings or model calls. |
-| `packages/contracts/src/finance/` | Boundary schemas for imports, queries, corrections, results, and failures.                                                              |
-| `workers/api/src/finance/`        | Repositories, query services, financial commands, revisions, and dispatch records.                                                      |
-| `workers/processor/src/imports/`  | Source extraction and staged reconciliation.                                                                                            |
-| `workers/processor/src/analysis/` | Enrichment, recurring-cost detection, forecasts, insights, and saved-analysis refresh.                                                  |
-| `workers/analyst/src/`            | Agent class, tools, context selection, stream data, and model policy.                                                                   |
-| `apps/web/src/features/`          | Product views, query options, correction flows, and conversation UI.                                                                    |
-| `infra/src/`                      | Alchemy graph for financial resources, Workflows, analyst bindings, and access policy.                                                  |
-| `migrations/`                     | Financial schema and subsequent data migrations.                                                                                        |
-
-`packages/finance` exists because the API and processor need the same numerical rules. Financial tools call the API rather than maintain an agent-specific copy of those rules. New modules are grouped by domain ownership, not by each step of a pipeline.
+Each runtime owns its application behavior and infrastructure module. Financial repositories remain private to the API. Product views remain in the web app, document parsers in the processor, and conversation tools in the analyst.
 
 ## Infrastructure and service boundaries
 
-Alchemy owns runtime declarations, PlanetScale resources, Hyperdrive bindings, migrations, local wiring, and deployment. Effect owns service composition, typed failures, and cancellation inside each runtime. Worker RPC derives its method contracts from the service declarations.
+Alchemy composes service-owned runtime declarations, resources, bindings, and migrations into one application graph. Each service has its own infrastructure module; the root graph wires only the capabilities its callers need. Effect owns service composition, typed failures, and cancellation inside each runtime. Worker RPC derives its method contracts from the service declarations.
 
 Only the public web Worker accepts browser traffic. Other runtimes receive capability-specific bindings. The API holds financial write capabilities. The analyst receives financial query and command tools rather than direct storage access.
 
-TanStack Start uses the Alchemy-managed Cloudflare integration. Runtime modules do not maintain independent deployment configurations. A local request cancellation does not establish that a remote financial command stopped. Command receipts determine the outcome.
+TanStack Start uses the Alchemy-managed Cloudflare integration. Service infrastructure lives under `infra/src/<service>/` and uses the shared stage configuration. A service can own additional storage when its lifecycle requires it. A local request cancellation does not establish that a remote financial command stopped. Command receipts determine the outcome.
 
 ## Financial database connection
 
