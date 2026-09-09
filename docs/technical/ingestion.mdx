@@ -3,7 +3,7 @@ title: Ingestion and reconciliation
 description: Preserve source evidence, identify transactions once, and publish a consistent financial history.
 ---
 
-The import pipeline handles every supplied CSV and PDF. File identity, transaction identity, and financial relationships are separate decisions. A repeated file is not the same problem as a transfer recorded in two accounts.
+The import pipeline handles every supplied CSV, OFX, and PDF. File identity, transaction identity, and financial relationships are separate decisions. A repeated file is not the same problem as a transfer recorded in two accounts.
 
 [Import and job protocols](/technical/import-protocol) defines the extraction schemas, scoring thresholds, publication payloads, Workflow steps, and recovery states used by this flow.
 
@@ -26,6 +26,12 @@ The upload path supports the full supplied corpus. Operational byte and page lim
     transaction ID. It preserves empty card balances, quoted fields, byte-order marks, and line
     locations. Parsing is deterministic and does not call a model.
   </Tab>
+  <Tab title="OFX">
+    The structured adapter reads the export header, account and currency metadata, transaction
+    records, and balance anchors. It supports the supplied OFX 1.02 SGML layout and preserves
+    literal fields and source locations. Parsing does not require a companion CSV or a model call.
+    Transaction IDs are checked for reuse and conflicts before matching.
+  </Tab>
   <Tab title="PDF text">
     A document adapter extracts page text and positions with a Worker-compatible PDF parser. It
     separates transaction tables from totals, rewards, notices, and repeated page headers. Debit and
@@ -40,17 +46,17 @@ The upload path supports the full supplied corpus. Operational byte and page lim
 
 Parser and extraction versions are recorded per observation. An improved parser can reprocess original files without replacing user corrections. The PDF adapter's exact library and rendering build are pinned after a corpus extraction check. They share the same output contract.
 
-An observation contains raw fields, normalized candidate fields, page or row locator, extraction version, and validation findings. A schema-valid model output is still a proposal until amount, date, and reconciliation checks pass.
+An observation contains raw fields, normalized candidate fields, a format-specific source locator, extraction version, and validation findings. A schema-valid model output is still a proposal until amount, date, and reconciliation checks pass.
 
 ## Establish accounts and intervals
 
-Statement identifiers and previously confirmed account mappings establish account identity. Masked suffixes can narrow candidates but are not globally unique. A CSV with no account identifier uses its batch mapping and prior evidence. An unresolved mapping creates a concrete review item.
+Statement and OFX account identifiers, together with previously confirmed mappings, establish account identity. Masked suffixes can narrow candidates but are not globally unique. A CSV with no account identifier uses its batch mapping and prior evidence. An unresolved mapping creates a concrete review item.
 
 Coverage stores separate facts: the requested export interval, observed transaction dates, statement interval, and reconciled interval. A sparse transaction list alone does not prove missing days. A matching opening balance, closing balance, and set of postings can establish a period with no activity.
 
 ## Match observations to transactions
 
-The matcher first restricts candidates to the same account. It then uses amount, currency, posting date, available balance, identifiers, description tokens, and source order.
+The matcher first restricts candidates to the same account. OFX identifiers are corroborating evidence, never a globally unique deduplication key. Reused identifiers with conflicting values cannot establish a match. It then uses amount, currency, posting date, available balance, identifiers, description tokens, and source order.
 
 Exact matching uses occurrence counts, not a set of date, merchant, and amount. Two identical rows in one source can represent two real purchases. Their multiplicity survives an overlapping export.
 

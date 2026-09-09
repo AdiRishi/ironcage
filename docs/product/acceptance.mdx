@@ -11,7 +11,7 @@ These scenarios make the feature requirements observable. They use fictional val
 | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Upload the same bytes with a different filename                     | One source identity and no added transactions or repeated completed enrichment.                                   |
 | Upload overlapping exports in either order                          | The same final history, with each real purchase counted once.                                                     |
-| Upload a CSV and PDF containing one purchase                        | One purchase with both source records available.                                                                  |
+| Upload CSV, OFX, and PDF files containing one purchase              | One purchase with all supporting source records available.                                                        |
 | Two real same-day purchases share merchant and amount               | Both purchases remain.                                                                                            |
 | A statement contains a date or amount that cannot be read reliably  | The affected source is reviewable and is not silently accepted as reconciled.                                     |
 | One file fails in a multi-file batch                                | Other valid files complete and the failed file can resume.                                                        |
@@ -22,6 +22,8 @@ These scenarios make the feature requirements observable. They use fictional val
 | Move $2,000 between owned accounts                                  | Combined income and spending do not increase.                                                                     |
 | Pay $300 for dinner and receive $200 confirmed reimbursements       | Net personal cost is $100, with all movements available.                                                          |
 | Pay $3,900 against a loan with $2,800 interest and no other changes | The app distinguishes $3,900 cash outflow, $2,800 cost, and $1,100 principal reduction.                           |
+| Import an OFX file without its companion CSV                        | The OFX source is processed and retained independently. Missing evidence creates specific review items.           |
+| Reuse one OFX transaction ID on different dates or amounts          | The importer preserves the distinct observations and does not merge them solely because their IDs match.          |
 
 ## Exploration and corrections
 

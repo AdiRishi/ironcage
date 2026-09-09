@@ -3,7 +3,7 @@ title: Imports
 description: Add the full financial history, repeat an upload safely, and resolve only the records that need attention.
 ---
 
-Imports accept batches of CommBank CSV exports and PDF statements. A batch can mix accounts, formats, periods, and files uploaded before. Older records are included rather than discarded because they fall outside the recent export window.
+Imports accept batches of CommBank CSV and OFX exports and PDF statements. A batch can mix accounts, formats, periods, and files uploaded before. Older records are included rather than discarded because they fall outside the recent export window. CSV and OFX files can arrive separately or together. Import order and filename pairing do not determine correctness.
 
 ## Import flow
 
@@ -41,15 +41,17 @@ An unreadable file does not prevent unrelated files from completing. A file that
     Transactions already present are matched. Transactions outside the overlap are added. Both
     exports remain available as evidence.
   </AccordionItem>
-  <AccordionItem title="A PDF and a CSV contain the same purchase">
-    The purchase appears once, with both source records attached. Formatting differences in the
-    merchant name do not automatically create another purchase.
+  <AccordionItem title="CSV, OFX, and PDF files contain the same purchase">
+    The purchase appears once, with all supporting source records attached. Formatting differences
+    in the merchant name do not automatically create another purchase.
   </AccordionItem>
   <AccordionItem title="Two real purchases have the same amount and merchant">
     Both remain in the history. Matching amounts and dates alone are insufficient to discard a
     transaction.
   </AccordionItem>
 </Accordion>
+
+A bank-provided transaction ID helps identify a record only when its values are consistent within the account. A missing or reused ID does not remove a real purchase. Conflicting evidence remains reviewable.
 
 ## Coverage and confidence
 

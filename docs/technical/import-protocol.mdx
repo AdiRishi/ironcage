@@ -7,9 +7,9 @@ This reference specifies the processor's contracts. The [ingestion overview](/te
 
 ## Extraction schemas
 
-`SourceLocator` is `{kind: "csv", row: number}` or `{kind: "pdf", page: number, ordinal: number, box: {x, y, width, height} | null}`. Rows and pages are one-based. PDF coordinates are normalized to the page rectangle from 0 to 1. Ordinal disambiguates records on a page.
+`SourceLocator` is `{kind: "csv", row: number}`, `{kind: "ofx", statement: number, transaction: number, byteStart: number, byteEnd: number}`, or `{kind: "pdf", page: number, ordinal: number, box: {x, y, width, height} | null}`. Rows, pages, and OFX statement and transaction ordinals are one-based. OFX byte offsets form a zero-based half-open range into the original file. PDF coordinates are normalized to the page rectangle from 0 to 1. Ordinal disambiguates records on a page.
 
-`RawObservation` contains `{dateText, amountText, descriptionText, balanceText: string | null, originalCurrencyText: string | null}`. These are literal source values. A raw row is never replaced by an LLM-normalized description.
+`RawObservation` contains `{dateText, amountText, descriptionText, balanceText: string | null, originalCurrencyText: string | null, ofx: OfxFields | null}`. `OfxFields` contains `{fitId, transactionType, name, memo, postedDate, userDate, correctFitId, correctAction}`, each a literal string or null. CSV and PDF observations set `ofx` to null. These are literal source values. A raw row is never replaced by an LLM-normalized description.
 
 ```ts
 type ParsedPosting = {
@@ -47,21 +47,39 @@ Decimal parsing removes permitted thousands separators only after CSV decoding, 
 
 Deposit amounts represent changes in assets. Card and loan adapters normalize statements to liability-negative balances and corresponding signed deltas. Sign rules are selected from the source layout and verified against statement totals, not inferred from a model's expense category. Reversals preserve their bank sign.
 
+## OFX normalization
+
+The adapter detects the OFX header and message structure from content. The private corpus uses OFX 1.02 SGML with `OFXHEADER:100`, `ENCODING:USASCII`, and `CHARSET:1252`. Its leaf values can omit closing tags. A generic XML parser alone does not handle that format. Encoding follows the declared header, and unsupported or malformed input becomes a specific import issue. OFX XML uses a separate decoding path when supplied. External entity and network resolution are disabled.
+
+Each statement envelope supplies account candidates and `CURDEF`. Account identity uses the institution and account identifiers, scoped to the owner. The adapter supports bank and card statement envelopes, including the supplied loan export's layout. Message tags alone do not establish whether an account is a deposit, card, or loan.
+
+Each `STMTTRN` produces an observation. `TRNAMT` uses exact decimal parsing and the established account sign convention. `DTPOSTED` supplies the posting date. The supplied exports use date-only `YYYYMMDD` values, which remain calendar dates. Timestamp variants retain their original representation and explicit offset during decoding. An absent offset uses a documented source-profile convention rather than the host timezone. `DTUSER` stays in raw evidence until its meaning is established; it is not automatically a purchase date.
+
+`NAME` and `MEMO` retain their literal values. The candidate description joins nonempty values with a space, omitting a duplicate when both are equal. `TRNTYPE` is bank metadata, not an expense category. `FITID`, correction references, and correction actions remain source fields. A bank correction creates a source-conflict review and requires the existing evidence-resolution command before changing accepted history.
+
+`DTSTART` and `DTEND` describe the reported download window, not proof of complete coverage. `LEDGERBAL` supplies a balance anchor at `DTASOF` after sign normalization. `AVAILBAL` is retained as available-balance metadata and does not replace the ledger anchor. A closing balance alone does not establish an opening balance or prove that all movements were exported.
+
+Each file has its own source identity and extraction run. Companion CSV files can add descriptions, balances, or corroboration after reconciliation. Neither file format has unconditional precedence over contradictory evidence. File naming and upload order cannot establish a match.
+
+The OFX standard scopes transaction IDs to the institution and account. The importer also checks value consistency because exports can reuse an ID. [OFX specification, section 3.2.3](https://www.financialdataexchange.org/common/Uploaded%20files/OFX%20files/OFX%202.2.pdf)
+
 ## PDF extraction and checks
 
 Each document is classified by layout before row extraction. The layout record contains account candidates, statement range, currency, opening and closing balances where present, and debit/credit total anchors. Text extraction retains page positions and joins description continuation lines only within the same table row.
 
 Model-assisted page extraction uses the [document model contract](/technical/ai-functionality#document-extraction). Each returned row has a locator and literal strings. Deterministic date, decimal, sign, and total validation follows. Repeated headings, reward balances, summaries, and notices are rejected as non-transaction rows with a reason.
 
-A segment is a statement transaction table or a bounded CSV sequence. Opening balance plus normalized movements must equal closing balance exactly in minor units. If intermediate balances are present, every adjacent delta is also checked. A mismatch blocks the affected segment, not other files. Absence of balance anchors permits established rows to enter history with partial coverage, but never reconciled coverage.
+A segment is a statement transaction table, an OFX statement envelope, or a bounded CSV sequence. Opening balance plus normalized movements must equal closing balance exactly in minor units. If intermediate balances are present, every adjacent delta is also checked. A mismatch blocks the affected segment, not other files. Absence of balance anchors permits established rows to enter history with partial coverage, but never reconciled coverage.
 
 ## Duplicate matching
 
 Matching only considers postings in the same account and booked currency. An amount conflict is not a fuzzy match. Accepted user matches and explicit distinct-posting decisions take precedence over scoring.
 
+An OFX `FITID` is a candidate hint within the mapped institution and account. Matching still requires consistent currency, amount, date, and occurrence evidence. Reused IDs with conflicting values disable identifier-based matching for those observations. A missing ID follows the ordinary matching rules. IDs are not a unique constraint on canonical postings.
+
 For literal overlap, the key is account, posting date, signed amount, literal description, supplied balance, and occurrence rank within the source. Across overlapping files, the largest evidenced occurrence count is preserved. Source ordinals resolve multiplicity within a file but are not global transaction identifiers.
 
-For CSV/PDF differences, candidate edges require an equal signed amount and posting dates within three calendar days. A versioned rule score starts at zero:
+For cross-format differences, candidate edges require an equal signed amount and posting dates within three calendar days. A versioned rule score starts at zero:
 
 | Evidence                                                                    | Score |
 | --------------------------------------------------------------------------- | ----- |

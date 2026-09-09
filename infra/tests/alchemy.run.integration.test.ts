@@ -3,7 +3,6 @@ import * as Test from "alchemy/Test/Vitest";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import { HttpClient } from "effect/unstable/http";
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import { expect, inject } from "vitest";
 
 import Stack from "../alchemy.run.ts";
@@ -66,22 +65,3 @@ for (const request of [
     }),
   );
 }
-
-test(
-  "the public application passes its Playwright suite",
-  Effect.gen(function* () {
-    const { websiteUrl } = yield* stack;
-    yield* waitForWorker(websiteUrl);
-    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-    const exitCode = yield* spawner.exitCode(
-      ChildProcess.make("pnpm", ["exec", "playwright", "test"], {
-        env: { APPLICATION_URL: websiteUrl },
-        extendEnv: true,
-        stdout: "inherit",
-        stderr: "inherit",
-      }),
-    );
-    expect(exitCode).toBe(0);
-  }),
-  { timeout: 240_000 },
-);

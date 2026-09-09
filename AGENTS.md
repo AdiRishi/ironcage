@@ -10,6 +10,8 @@ Before changing financial schemas or service interfaces, read
 `docs/technical/rpc.mdx`. For processing, calculations, or AI behavior, read the
 corresponding protocol linked from `docs/technical/index.mdx`.
 
+Before using private bank exports or adding import fixtures, read `fixtures/README.md`.
+
 Before changing test layout or setup, read `docs/technical/verification.mdx`.
 
 `docs/` is a Blume site. Run `pnpm docs:dev` to browse it locally and

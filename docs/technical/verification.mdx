@@ -16,7 +16,7 @@ Tests exercise public finance operations with independently known expected outco
 | Same-file import is idempotent                         | Repeated uploads inflate transactions or repeat completed enrichment.  |
 | Import order does not change accepted history          | Overlapping files produce different totals depending on arrival order. |
 | Identical real purchases retain multiplicity           | A naive duplicate key removes genuine spending.                        |
-| CSV and PDF observations converge                      | Cross-format aliases produce duplicate purchases.                      |
+| CSV, OFX, and PDF observations converge                | Cross-format aliases produce duplicate purchases.                      |
 | Allocation sums equal the event magnitude              | Splits create or lose money.                                           |
 | Own transfers and card settlements do not create costs | Money movement is counted as additional spending.                      |
 | Partial refunds and reimbursements apply once          | Repeated links or retries reduce a purchase twice.                     |
@@ -48,7 +48,9 @@ Migration tests cover an empty database and an upgrade with existing financial r
 
 ## Extraction and interpretation evaluation
 
-A checked corpus includes headerless CSVs, empty card balances, multiline PDF descriptions, repeated headings, rewards rows, foreign currency, refunds, and conflicting sources.
+A checked corpus includes OFX 1.02 SGML, date-only OFX postings, reused FITIDs, bank and card envelopes, standalone OFX uploads, headerless CSVs, empty card balances, multiline PDF descriptions, repeated headings, rewards rows, foreign currency, refunds, and conflicting sources.
+
+The local private corpus belongs in `fixtures/commbank/`. Read `fixtures/README.md` before using it. Private-corpus validation is an explicit local operation and ordinary tests run without those files.
 
 Public fixtures are synthetic. Private statement evaluations use local or access-controlled sources and store only aggregate results in ordinary CI artifacts.
 

@@ -51,7 +51,7 @@ Deleting remembered context prevents future retrieval. Backup retention is discl
 
 All model calls use the configured Cloudflare AI Gateway path. Gateway routing does not imply that inference occurs only within Cloudflare. The selected provider and its retention settings are recorded in model configuration.
 
-The app sends only the records and context required for the current task. Account numbers and unrelated personal identifiers are excluded where they are not needed. Private records do not enter the documentation repository, test fixtures, or public deployment assets.
+The app sends only the records and context required for the current task. Account numbers and unrelated personal identifiers are excluded where they are not needed. Private records stay out of tracked repository files, public test fixtures, and deployment assets. The ignored local validation corpus follows `fixtures/README.md`.
 
 Prompt and completion bodies are excluded from routine Gateway and application logs. Diagnostic capture is an explicit, bounded mode with a retention policy. Provider-side retention is a separate configuration responsibility.
 
