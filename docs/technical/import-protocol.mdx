@@ -66,7 +66,7 @@ Each statement envelope supplies account candidates and `CURDEF`. Account identi
 
 Each `STMTTRN` produces an observation. `TRNAMT` uses exact decimal parsing and the established account sign convention. `DTPOSTED` supplies the posting date. The supplied exports use date-only `YYYYMMDD` values, which remain calendar dates. Timestamp variants retain their original representation and explicit offset during decoding. Offset-free timestamps, including the supplied 14-digit DTASOF values, use GMT as OFX specifies. Display timezone does not change that interpretation. A bank-specific deviation requires a separately evidenced and versioned profile. [OFX date defaults, section 3.2.8.2](https://financialdataexchange.org/wp-content/uploads/2025/12/OFX-2.2.pdf)
 
-The initial CommBank export profile preserves CSV Value Date and OFX DTUSER separately and uses postingDate when there is no independently evidenced purchaseDate. Agreement between these fields does not itself promote them. A later profile may recognize a purchase-date marker only for its evaluated transaction layout and established purchase role. CommBank describes value date as a possible date of the underlying deposit or withdrawal, which does not make it a purchase date for every movement. [CommBank date descriptions](https://www.commbank.com.au/content/dam/commbank-assets/banking/docs/TSIA-addendum.pdf)
+The initial CommBank export profile preserves CSV Value Date and OFX DTUSER separately and uses postingDate when there is no independently evidenced purchaseDate. Agreement between these fields does not itself promote them. A later profile may recognize a purchase-date marker only for its evaluated transaction layout and established purchase role. CommBank describes value date as a possible date of the underlying deposit or withdrawal, which does not make it a purchase date for every movement. [CommBank transaction, savings and investment account terms, notes to table 3.1.2](https://www.commbank.com.au/personal/apply-online/download-printed-forms/SavingsInvestment_ADB2852.pdf)
 
 `NAME` and `MEMO` retain their literal values. The candidate description joins nonempty values with a space, omitting a duplicate when both are equal. `TRNTYPE` is bank metadata, not an expense category. `FITID`, correction references, and correction actions remain source fields. A bank correction creates a source-conflict review and requires the existing evidence-resolution command before changing accepted history.
 
@@ -122,7 +122,7 @@ Stored match methods are identifier, exact, scored, and user. Literal-overlap ma
 
 `RoleEvidence` is `{kind: "sourceLabel", observationId, profileVersion, label: "cardPurchase" | "eftposPurchase" | "interestDebit" | "feeDebit" | "interestCredit"}`, or `{kind: "acceptedRule", ruleId, ruleVersion}`. A source profile recognizes a literal labelled posting field or an anchored bank-generated description marker verified on the supplied layout. Generic DEBIT, CREDIT, DIRECT DEBIT, DIRECT CREDIT, BPAY, merchant names, and account labels do not establish purpose. The profile registry records the exact marker, expected sign, account role, and positive and negative extraction fixtures before a marker is enabled.
 
-`RoleDecision` contains `{eventId, expectedVersion, role: "purchase" | "income" | "financingCost", evidence: RoleEvidence}`. The deterministic interpretation step proposes these decisions before category classification. CardPurchase and eftposPurchase require a debit and produce purchase cost with the unclassified category. InterestDebit and feeDebit require a debit and produce financing cost with the interest or fee category. InterestCredit requires a deposit credit and produces income. Sign or source conflicts produce role review.
+`RoleDecision` contains `{eventId, expectedVersion, role: "purchase" | "income" | "financingCost", evidence: RoleEvidence}`. The deterministic interpretation step proposes these decisions before category classification. CardPurchase and eftposPurchase require a debit and produce purchase cost with the unclassified category. InterestDebit requires a debit and produces financing cost in `housing.mortgage-interest` on a loan account, otherwise in `interest`. FeeDebit requires a debit and produces financing cost in `fees`. InterestCredit requires a deposit credit and produces income. Sign or source conflicts produce role review.
 
 User-confirmed role rules contain a single account, exact normalized description or bank-provided counterparty reference, effective period, expected sign, and one of those three roles. The user previews historical matches before acceptance. Conflicting role rules produce review. Ownership, borrowing, refunds, reimbursements, and movement pairing require their separately evidenced relationship or explicit user confirmation. An LLM cannot create or accept a role rule.
 
@@ -180,10 +180,11 @@ Each import Workflow uses these stable steps:
 
 1. `inspect` uses beginExtraction and stageInspection to record media type, layout, account candidates, and coverage anchors.
 2. `extract:<page-or-chunk>` stages validated observations.
-3. `match:<segment>:<revision>` uses captureReconciliation and determines observation dispositions.
-4. `publish:<extractionId>:<groupInputHash>` commits bounded groups and records the receipt.
-5. `finalize:<extractionId>:<inputHash>` uses finalizeExtraction to publish supported summaries and coverage.
-6. `summarize` derives counts from dispositions and committed postings.
+3. `capture:<segment>:<n>` uses captureReconciliation to freeze matching input and records the returned artifact ID and revision. A revision conflict at publication runs a new capture with the next `n`.
+4. `match:<segment>:<artifactId>` determines observation dispositions from that frozen input.
+5. `publish:<extractionId>:<groupInputHash>` commits bounded groups and records the receipt.
+6. `finalize:<extractionId>:<inputHash>` uses finalizeExtraction to publish supported summaries and coverage.
+7. `summarize` derives counts from dispositions and committed postings.
 
 Workflow parameters and non-stream step results stay below 1 MiB. Extraction steps stage rows through the API and return receipt IDs, counts, and artifact references. Large matching and calculation inputs use artifacts. Streamed step outputs are supported but are not required by this protocol. [Workflow limits](https://developers.cloudflare.com/workflows/reference/limits/)
 

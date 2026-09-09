@@ -96,7 +96,7 @@ type FinancialQuery = {
 };
 ```
 
-The server normalizes UI omissions to net personal costs, spending dates, Australia/Sydney, AUD, monthly buckets, total normalization, no comparison, and empty filter arrays. Empty arrays mean no restriction. Values within one dimension match with OR, dimensions combine with AND, and explicit exclusions apply last. Category selection includes descendants. Account filters use the event's reporting account, defined in [Calculation rules](/technical/calculation-rules).
+The server normalizes UI omissions to net personal costs, spending dates, the timezone and currency in the owner's settings, monthly buckets, total normalization, no comparison, and empty filter arrays. Empty arrays mean no restriction. Values within one dimension match with OR, dimensions combine with AND, and explicit exclusions apply last. Category selection includes descendants. Account filters use the event's reporting account, defined in [Calculation rules](/technical/calculation-rules).
 
 FinancialQuery always contains resolved calendar dates. SavedFinancialQuery and SavedAnalysisDefinition retain relative date choices as defined in [Saved date selections](/technical/calculation-rules#saved-date-selections). Comparison unit describes the selected period independently of interval, which controls chart buckets. Custom and rolling ranges default to dayCount; calendar selections retain their calendar unit.
 
@@ -104,7 +104,7 @@ Cash balance change always uses posting dates and deposit accounts. Principal re
 
 Tags and personal events can overlap. Their group breakdown includes `overlapping: true` and does not claim its rows add to the overall total. Category, merchant, and account breakdowns partition the selected allocations. All filters deduplicate allocation IDs before aggregation.
 
-`TransactionFilter` contains `currency: Currency`, default AUD at the browser boundary, optional `period`, `amount: {min: Minor | null, max: Minor | null}`, `search` up to 200 characters, and arrays `accountIds`, `merchantIds`, `categoryIds`, `tagIds`, `personalEventIds`, `eventKinds: EventKind[]`, `allocationRoles: AllocationRole[]`, `reviewStates`. EventKinds matches the posting's active event. AllocationRoles matches any allocation in that event. Values within each filter combine with OR, and filters combine with AND. Amount compares signed bank postings in the supplied `currency`. Search is case-insensitive text matching against original descriptions and normalized merchant names. An empty filter returns all accepted postings, with pagination.
+`TransactionFilter` contains `currency: Currency`, defaulting to the settings currency at the browser boundary, optional `period`, `amount: {min: Minor | null, max: Minor | null}`, `search` up to 200 characters, and arrays `accountIds`, `merchantIds`, `categoryIds`, `tagIds`, `personalEventIds`, `eventKinds: EventKind[]`, `allocationRoles: AllocationRole[]`, `reviewStates`. EventKinds matches the posting's active event. AllocationRoles matches any allocation in that event. Values within each filter combine with OR, and filters combine with AND. Amount compares signed bank postings in the supplied `currency`. Search is case-insensitive text matching against original descriptions and normalized merchant names. An empty filter returns all accepted postings, with pagination.
 
 ## Evidence and results
 

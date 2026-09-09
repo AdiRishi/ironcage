@@ -50,7 +50,7 @@ Parsing converts decimal strings directly to minor units. SQL aggregates and fra
 
 Account balances use asset-positive and liability-negative signs. Credit-card exports that lack balances do not produce invented opening balances. A statement anchor can establish a balance, followed by reconciled postings.
 
-Bank posting dates use Postgres `DATE` and calendar-date strings at application boundaries. Import times and command times use `TIMESTAMPTZ` and UTC instants. Display and calendar grouping use Australia/Sydney by default. A selected timezone is part of an analysis definition. Driver decoding preserves calendar dates without converting them through midnight in a local timezone.
+Bank posting dates use Postgres `DATE` and calendar-date strings at application boundaries. Import times and command times use `TIMESTAMPTZ` and UTC instants. Display and calendar grouping use the settings timezone, initially Australia/Sydney. A selected timezone is part of an analysis definition. Driver decoding preserves calendar dates without converting them through midnight in a local timezone.
 
 Posting date, supplied value date, and evidenced purchase date remain separate fields. Spending uses an evidenced purchase date when available, otherwise posting date. Value dates alone do not establish when a purchase occurred.
 
@@ -103,7 +103,7 @@ The same definition feeds chart datasets and agent tool results. Neither consume
 
 ## Persistence and concurrency
 
-PlanetScale Postgres stores these records in relational tables, with indexes on account and posting date, source identity, event membership, and review state. Foreign keys, unique constraints, and row-level checks protect record relationships. Constraints that span several rows are checked within the financial command transaction.
+This section owns the financial write protocol. Other pages link here instead of restating it. PlanetScale Postgres stores these records in relational tables, with indexes on account and posting date, source identity, event membership, and review state. Foreign keys, unique constraints, and row-level checks protect record relationships. Constraints that span several rows are checked within the financial command transaction.
 
 Every financial mutation starts a `READ COMMITTED` transaction and locks the owner's dataset-revision row with `SELECT ... FOR UPDATE`. It reads affected records after acquiring that lock. All commands that change financial interpretations or revision-dependent context use this boundary. Short writes are serialized per owner, which fits the single-user workload and gives cross-record checks one concurrency rule.
 

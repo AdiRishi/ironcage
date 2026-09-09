@@ -114,7 +114,7 @@ Mutable. Unique active label per owner.
 
 Mutable. Trips and life events. Membership determines event costs, not the date range alone.
 
-Initial category slugs are `housing.mortgage-interest`, `housing.strata`, `housing.utilities`, `food.groceries`, `food.dining`, `food.delivery`, `transport.rides`, `transport.other`, `subscriptions`, `shopping`, `travel`, `health`, `insurance`, `fees`, `other`, and `unclassified`. Parent categories `housing`, `food`, and `transport` group their children. The initial taxonomy is editable reference data, not an enum baked into transactions.
+Initial category slugs are `housing.mortgage-interest`, `housing.strata`, `housing.utilities`, `food.groceries`, `food.dining`, `food.delivery`, `transport.rides`, `transport.other`, `subscriptions`, `shopping`, `travel`, `health`, `insurance`, `interest`, `fees`, `other`, and `unclassified`. Parent categories `housing`, `food`, and `transport` group their children. `housing.mortgage-interest` is for loan accounts; `interest` covers card and other financing interest. The initial taxonomy is editable reference data, not an enum baked into transactions.
 
 ## Sources and staging
 
@@ -455,7 +455,7 @@ Mutable. Scope arrays contain valid owner-scoped IDs. Confirmed entries are user
 | `import_reminder_days` | `INTEGER`           |
 | `updated_at`           | `TIMESTAMPTZ`       |
 
-No id. Default reminder interval 30 days, 0 disables. UsagePolicy is defined in [AI functionality](/technical/ai-functionality).
+No id. The initial row uses Australia/Sydney, AUD, and a 30-day reminder interval; 0 disables reminders. Query and forecast defaults read this row, so a changed timezone or currency applies to later requests that omit them. UsagePolicy is defined in [AI functionality](/technical/ai-functionality).
 
 `RulePredicate`, `RoleRulePredicate`, `ClassificationAction`, `ReviewOption`, `PreviewInput`, and `ChangeImpact` are closed schemas in [RPC specification](/technical/rpc). Corrections record user intent and accepted automated changes, with the actor distinguishing them. Audit history is not a second mutable interpretation store.
 
@@ -656,17 +656,17 @@ Immutable upload grant. Exactly one owner execution is set. Artifact ID is uniqu
 
 ### artifacts
 
-| Column         | Definition                                                           |
-| -------------- | -------------------------------------------------------------------- |
-| `kind`         | `enum(snapshot, evidence, calculation, chart, export, documentPage)` |
-| `object_key`   | `TEXT`                                                               |
-| `media_type`   | `TEXT`                                                               |
-| `content_hash` | `CHAR(64)`                                                           |
-| `byte_count`   | `BIGINT`                                                             |
-| `run_id`       | `FK(ai_runs)?`                                                       |
-| `job_id`       | `FK(jobs)?`                                                          |
+| Column         | Definition                                                                           |
+| -------------- | ------------------------------------------------------------------------------------ |
+| `kind`         | `enum(snapshot, evidence, calculation, script, chart, export, backup, documentPage)` |
+| `object_key`   | `TEXT`                                                                               |
+| `media_type`   | `TEXT`                                                                               |
+| `content_hash` | `CHAR(64)`                                                                           |
+| `byte_count`   | `BIGINT`                                                                             |
+| `run_id`       | `FK(ai_runs)?`                                                                       |
+| `job_id`       | `FK(jobs)?`                                                                          |
 
-Immutable. Registry accepts objects only after upload and hash verification.
+Immutable. Registry accepts objects only after upload and hash verification. Database dumps use `backup`, portable backups and user downloads use `export`, and computation jobs register their script as `script` with JSON, CSV, and text outputs as `calculation` and images as `chart`.
 
 ### ai_runs
 
@@ -738,7 +738,6 @@ No id column. PK owner_id/call_id. Mutable until completed or exhausted; unique 
 | `call_id`            | `UUID`                                         |
 | `attempt_id`         | `UUID`                                         |
 | `attempt_number`     | `INTEGER`                                      |
-| `model_role`         | `TEXT`                                         |
 | `model_id`           | `TEXT`                                         |
 | `model_config_id`    | `TEXT`                                         |
 | `pricing_version`    | `TEXT`                                         |

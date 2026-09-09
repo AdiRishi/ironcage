@@ -118,13 +118,9 @@ The state diagram describes a processing segment. A batch contains independently
 
 ## Publish atomically
 
-A Workflow stages extraction and matching against an immutable financial snapshot. The API commits bounded groups of validated postings, observation links, review items, and dispatch records in Postgres transactions.
+A Workflow stages extraction and matching against an immutable financial snapshot. The API commits bounded groups of validated postings, observation links, review items, and dispatch records as commands under the [financial command protocol](/technical/financial-model#persistence-and-concurrency). If the input revision changed, matching repeats against current records, and remaining groups are matched against the resulting snapshot before publication.
 
-Every group has a stable commit ID. The API acquires the owner revision lock and checks the staged input revision before publication. If a commit returns no response, the caller retrieves the recorded outcome before retrying. If the input revision changed, matching repeats against current records. After a group commits, remaining groups are matched against the resulting snapshot before publication.
-
-Unique source-observation constraints and revision checks make simultaneous overlapping imports converge to the same history. Batch summaries derive from committed results, not from attempted insert counts.
-
-Extraction, model interpretation, and source-object writes finish outside the financial transaction. The commit performs only bounded validation and database changes. The [financial command protocol](/technical/financial-model#persistence-and-concurrency) defines locking, receipts, and retries.
+Unique source-observation constraints and revision checks make simultaneous overlapping imports converge to the same history. Batch summaries derive from committed results, not from attempted insert counts. Extraction, model interpretation, and source-object writes finish outside the financial transaction.
 
 ## Enrich and refresh
 

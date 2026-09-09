@@ -499,7 +499,7 @@ Input inside Command: `{includeSources: boolean, includeConversations: boolean}`
 
 Output: `AcceptedJob`
 
-All methods in this section return `CommandReceipt` around the output. Only user actors can change settings, remove data, cancel unrelated jobs, or export account data. Starting an analysis, saving an investigation, and refreshing it are also available to authorized agent runs. An owning refresh job may call startAnalysis and refreshAnalysis with executionGeneration and stable command IDs for affected definitions. These child analysis jobs retain the accepted saved version and resolved snapshot on replay.
+All methods in this section return `CommandReceipt` around the output. Only user actors can change settings, remove data, cancel unrelated jobs, or export account data. Starting an analysis, saving an investigation or scenario, and refreshing an investigation are also available to authorized agent runs. An owning refresh job may call startAnalysis and refreshAnalysis with executionGeneration and stable command IDs for affected definitions. These child analysis jobs retain the accepted saved version and resolved snapshot on replay.
 
 ### previewSourceRemoval
 
@@ -663,7 +663,7 @@ Allowed actors: owning database-backup job
 
 Input: `{jobId, stepKey}`
 
-Success: `{artifactId, completedAt}`. The API runs the fixed pg_dump task in its maintenance Container with the dedicated backup connection, streams its output to backup storage, and verifies the artifact before recording completion. This operation has no generated-code input. Its runtime and retention are defined in Operations.
+Success: `{artifactId, completedAt}`. The API runs the fixed pg_dump task in its maintenance Container with the dedicated backup connection, streams its output to backup storage as a `backup` artifact, and verifies the artifact before recording completion. This operation has no generated-code input. Its runtime and retention are defined in Operations.
 
 ### completeSourceRemoval
 
@@ -683,9 +683,9 @@ Input: `{jobId, executionGeneration, stepKey, conversationId}`
 
 Success: `{artifactId, throughSequence, pendingRunIds}`. The analyst validates getExportScope through the API, routes to the owner-bound conversation, and exports the longest canonical message prefix represented by the accepted submissions and completed answers in that scope. Incomplete database/message pairs enter pendingRunIds rather than introducing references absent from the backup. Before streaming, the analyst freezes the prefix's last message ID in application-owned Durable Object state under jobId and stepKey. Retries retain that prefix even if later messages become available. Message export uses the SDK's supported message interface. The analyst registers and uploads the export artifact under the requesting job through the API; the processor receives no general conversation or writable storage capability. Replays return the recorded artifact.
 
-## Analyst execution RPC
+## Conversation ingress RPC
 
-These methods are private to agent actors, with runId matching `CallerContext`. `acceptRun` is called by the authenticated conversation ingress with user context, before an agent context exists.
+These methods take authenticated user context. The analyst calls acceptRun and cancelRun with the user identity bound to the connection, before an agent context exists. The web app calls listConversations through a server function.
 
 ### acceptRun
 
@@ -695,15 +695,19 @@ Success: `{runId, state: RunState}`. Repeated submission and payload return the 
 
 ### cancelRun
 
-Input: `{runId, expectedVersion}` with authenticated user context
+Input: `{runId, expectedVersion}`
 
 Success: `{state: RunState}` after durable cancellation intent is recorded.
 
 ### listConversations
 
-Input: `{page: PageRequest}` with authenticated user context
+Input: `{page: PageRequest}`
 
 Success: `Page<{conversationId, lastRunId, lastQuestion: string, lastActivityAt: Instant}>`, grouped from accepted run inputs.
+
+## Analyst execution RPC
+
+These methods are private to agent actors, with runId matching `CallerContext`.
 
 ### startChildRun
 
