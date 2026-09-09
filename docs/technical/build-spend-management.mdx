@@ -25,7 +25,7 @@ Use the selected frameworks and the project-specific policies in these docs. Con
 
 Choose remaining libraries, model IDs, schemas, indexes, detector thresholds, and operating defaults during implementation. Use the corpus checks and evaluations in [Verification](/technical/verification) to justify those choices. Pin dependencies and record effective configuration so results can be reproduced.
 
-Verify the integration points that can affect the design early: authenticated conversation transport through the web Worker, source extraction, atomic financial publication, and recovery after a lost response. Keep the resulting checks with their owning modules.
+Verify the integration points that can affect the design early: authenticated conversation transport through the web Worker, source extraction, and the Effect Postgres connection through Hyperdrive. Include atomic financial publication, stable snapshots, and recovery after a lost commit response. Keep the resulting checks with their owning modules.
 
 Use concrete review items for missing financial facts. For example, an unknown account relationship remains unresolved until evidence or Adi's answer establishes it. Continue implementing the surrounding behavior without inventing personal context.
 
@@ -35,7 +35,7 @@ If an external credential, deployment identity, or private source is unavailable
 
 Build in dependency order, with connected behavior at each step:
 
-1. Implement the [financial model](/technical/financial-model) and [ingestion pipeline](/technical/ingestion). Establish canonical history, source evidence, review, corrections, and retry behavior.
+1. Implement the Postgres schema and transaction protocol in the [financial model](/technical/financial-model), then the [ingestion pipeline](/technical/ingestion). Establish canonical history, source evidence, review, corrections, and retry behavior.
 2. Connect the [workspace](/product/workspace) and [transactions](/product/transactions) through the shared financial API. Verify that a correction updates every affected view coherently.
 3. Implement [trends](/product/trends), [commitments and forecasts](/product/commitments-and-forecasts), and saved analyses using the shared [calculation services](/technical/analytics).
 4. Connect the [analyst and memory](/product/analyst-and-memory) to those services through the [agent runtime](/technical/ai-analyst). Include clarification, reconnection, cancellation, and reproducible computational investigations.

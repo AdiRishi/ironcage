@@ -98,11 +98,13 @@ The state diagram describes a processing segment. A batch contains independently
 
 ## Publish atomically
 
-A Workflow stages extraction and matching against a captured dataset revision. The API commits bounded groups of validated postings, observation links, review items, and dispatch records in D1 transactions.
+A Workflow stages extraction and matching against an immutable financial snapshot. The API commits bounded groups of validated postings, observation links, review items, and dispatch records in Postgres transactions.
 
-Every group has a stable commit ID. If a commit returns no response, the caller retrieves the recorded outcome before retrying. If another import changed candidate matches, publication rejects the stale expectation and matching repeats against current records.
+Every group has a stable commit ID. The API acquires the owner revision lock and checks the staged input revision before publication. If a commit returns no response, the caller retrieves the recorded outcome before retrying. If the input revision changed, matching repeats against current records. After a group commits, remaining groups are matched against the resulting snapshot before publication.
 
 Unique source-observation constraints and revision checks make simultaneous overlapping imports converge to the same history. Batch summaries derive from committed results, not from attempted insert counts.
+
+Extraction, model interpretation, and source-object writes finish outside the financial transaction. The commit performs only bounded validation and database changes. The [financial command protocol](/technical/financial-model#persistence-and-concurrency) defines locking, receipts, and retries.
 
 ## Enrich and refresh
 

@@ -25,6 +25,25 @@ Tests exercise public finance operations with independently known expected outco
 
 Date fixtures include month boundaries, leap days, daylight-saving changes, value dates, and missing purchase dates. Currency fixtures include decimal parsing, negative amounts, fee corrections, and aggregation near the supported range.
 
+## Database transactions and snapshots
+
+Repository and concurrency tests use real PostgreSQL with the production migrations. Pure finance tests remain in process. SQLite and mocked SQL clients cannot establish Postgres locking or isolation behavior.
+
+| Scenario                                                      | Required evidence                                                                                         |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| A command fails after changing allocations                    | Financial rows, audit entry, receipt, revision, and dispatch all roll back.                               |
+| Two commands claim the same remaining reimbursable amount     | The later command sees the committed allocation and cannot over-allocate it.                              |
+| Two callers submit one command ID                             | One outcome is committed and both callers receive it. A different payload using that ID is rejected.      |
+| A stale import publishes while a correction commits           | The owner lock and revision check prevent publication against obsolete matching decisions.                |
+| A snapshot reads several tables while another command commits | Every value and the recorded revision belong to the same repeatable-read snapshot.                        |
+| A commit succeeds but its response is lost                    | Retrying resolves the stored receipt without another correction or dispatch record.                       |
+| A query follows a committed correction through Hyperdrive     | The query sees the committed value rather than a cached earlier result.                                   |
+| A deadlock or transaction timeout interrupts a command        | Partial writes roll back and the bounded retry policy produces one committed result or a visible failure. |
+
+Encoding checks round-trip `BIGINT`, exact aggregate values, negative amounts, and `DATE` values through the SQL driver and public boundary schemas. Chart formatting never changes the exact values used by evidence tables.
+
+Migration tests cover an empty database and an upgrade with existing financial records. Restore checks cover database records and their R2 evidence together. An isolated hosted suite verifies PlanetScale roles, TLS, Hyperdrive pooling, fresh reads, and connection recovery. Local Postgres tests do not stand in for that hosted integration.
+
 ## Extraction and interpretation evaluation
 
 A checked corpus includes headerless CSVs, empty card balances, multiline PDF descriptions, repeated headings, rewards rows, foreign currency, refunds, and conflicting sources.
@@ -80,7 +99,7 @@ Effect modules use `@effect/vitest`. React components use Vitest Browser Mode. L
 
 Each workspace keeps tests in `tests/`, mirroring the paths under `src/`, with a separate test TypeScript project. Module and component files use `.test.ts` or `.test.tsx`. Infrastructure suites live in `infra/tests/` with `.integration.test.ts`. Deployed browser suites use `.browser.test.ts`.
 
-`pnpm check`, `pnpm typecheck`, and `pnpm test` are the root validation commands. `pnpm test:infra-live` creates real Cloudflare resources and is reserved for deployed behavior. Financial suites accompany their implementations. These specifications do not claim that those future suites already exist or pass.
+`pnpm check`, `pnpm typecheck`, and `pnpm test` are the root validation commands. Implemented database suites provision isolated local PostgreSQL instances in ordinary CI and need no production credentials. `pnpm test:infra-live` creates real hosted resources and is reserved for deployed behavior, including the isolated PlanetScale integration. Financial suites accompany their implementations. These specifications do not claim that those future suites already exist or pass.
 
 ## Completion evidence
 

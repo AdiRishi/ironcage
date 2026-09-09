@@ -33,7 +33,7 @@ Search parameters represent date ranges, comparison mode, accounts, category and
 
 Feature `queries.ts` modules own query keys and options. Route loaders and components use the same definitions. Query keys include the normalized query and applicable data revision, rather than a separately assembled component-specific filter object.
 
-Financial totals come from API results. The client formats money and dates but does not recompute official totals or forecast ranges. The server returns covered intervals and unresolved information with each result.
+Financial totals come from API results. The client decodes exact monetary values from the shared decimal-string contract and formats money and dates. It does not recompute official totals or forecast ranges. Chart coordinates can use finite display numbers, while labels and tables retain the exact values. The server returns covered intervals and unresolved information with each result.
 
 ## Corrections and refresh
 

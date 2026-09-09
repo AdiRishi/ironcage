@@ -53,13 +53,13 @@ An extraction rerun reuses its persisted locators. A new extraction version does
 
 ## Amounts and dates
 
-Amounts use signed integer minor units with an explicit currency. Parsing converts decimal strings directly to minor units, without binary floating-point multiplication. Fractional intermediate calculations use decimal or rational arithmetic and round only at a defined output boundary.
+Amounts use signed integer minor units with an explicit currency. Postgres stores booked amounts as `BIGINT`. Domain arithmetic uses `bigint`, and JSON contracts encode minor units as decimal strings. Boundary schemas validate the stored range and decode values without conversion through a JavaScript `number`.
 
-Wire values and aggregation reject values outside the supported exact integer range. A currency's exponent is explicit. Historical Australian-dollar totals use the bank's booked Australian-dollar amount, not a later exchange rate.
+Parsing converts decimal strings directly to minor units. SQL aggregates and fractional calculations retain exact values through `NUMERIC`, decimal, or rational arithmetic. Rounding occurs only at a defined output boundary. A currency's exponent is explicit. Historical Australian-dollar totals use the bank's booked Australian-dollar amount, not a later exchange rate.
 
 Account balances use asset-positive and liability-negative signs. Credit-card exports that lack balances do not produce invented opening balances. A statement anchor can establish a balance, followed by reconciled postings.
 
-Bank posting dates are calendar dates, not midnight UTC timestamps. Import times and command times are UTC instants. Display and calendar grouping use Australia/Sydney by default. A selected timezone is part of an analysis definition.
+Bank posting dates use Postgres `DATE` and calendar-date strings at application boundaries. Import times and command times use `TIMESTAMPTZ` and UTC instants. Display and calendar grouping use Australia/Sydney by default. A selected timezone is part of an analysis definition. Driver decoding preserves calendar dates without converting them through midnight in a local timezone.
 
 Posting date, supplied value date, and evidenced purchase date remain separate fields. Spending uses an evidenced purchase date when available, otherwise posting date. Value dates alone do not establish when a purchase occurred.
 
@@ -112,10 +112,18 @@ The same definition feeds chart datasets and agent tool results. Neither consume
 
 ## Persistence and concurrency
 
-The initial storage design uses relational D1 tables for these records, plus indexes on account and posting date, source identity, event membership, and review state. Numeric totals remain exact across queries.
+PlanetScale Postgres stores these records in relational tables, with indexes on account and posting date, source identity, event membership, and review state. Foreign keys, unique constraints, and row-level checks protect record relationships. Constraints that span several rows are checked within the financial command transaction.
 
-Financial writes use an expected revision and a unique command ID. A transaction atomically records the change, audit entry, new revision, and dependent dispatch record. A repeated command returns its stored result. A concurrent stale command receives a conflict with the current version.
+Every financial mutation starts a `READ COMMITTED` transaction and locks the owner's dataset-revision row with `SELECT ... FOR UPDATE`. It reads affected records after acquiring that lock. All commands that change financial interpretations or revision-dependent context use this boundary. Short writes are serialized per owner, which fits the single-user workload and gives cross-record checks one concurrency rule.
 
-D1 batches provide the atomic boundary for related SQL statements. Revision checks are enforced inside that boundary, with every dependent write gated on the accepted command. An optimistic update that affects no rows cannot be followed by unconditional financial writes. [D1 batches](https://developers.cloudflare.com/d1/worker-api/d1-database/#batch)
+Within the lock, a command first checks its stored receipt. A repeated command ID with the same payload returns that outcome. Reusing an ID for a different payload returns a conflict. New commands validate expected subject versions and any required input revision before applying changes.
+
+The transaction commits the financial change, audit entry, receipt, new revision, and dependent dispatch records together. A stale expectation rolls the transaction back and returns the current version. Record reads, application validation, and writes use the same Effect SQL transaction context and connection.
+
+Deadlocks and serialization failures retry the whole transaction within a finite budget. Business conflicts return to the caller for reevaluation. A lost commit response is resolved by looking up the command receipt on the primary before attempting another change.
+
+Document processing, model calls, R2 transfers, and queue sends occur outside financial write transactions. Statement, lock, and transaction deadlines bound resource use. Dispatch status changes have their own lease operations and do not advance the financial revision.
+
+Read-only snapshot extraction uses `REPEATABLE READ` as defined in [Architecture](/technical/architecture#revisions-and-stable-answers). The write protocol above uses explicit serialization through the owner lock. It does not assume that PostgreSQL's default isolation protects arbitrary read-modify-write sequences. [PostgreSQL isolation](https://www.postgresql.org/docs/current/transaction-iso.html)
 
 Immutable source observations and correction history support auditability without requiring every ordinary read to replay a complete event log. Historical analyses retain the snapshot or evidence version they used.

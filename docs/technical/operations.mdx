@@ -13,15 +13,31 @@ The authenticated owner is assigned by the server, not by an LLM or request body
 
 Local development uses an explicit local identity only in the local stage. Staging and production cannot activate that path through a client-supplied header. Browser mutations validate origin and authenticated session context.
 
+## Database environments and credentials
+
+Alchemy declares the PlanetScale Postgres database, stage-specific branches and roles, and the API's Hyperdrive binding. Local development and ordinary CI use disposable PostgreSQL instances with the same major version and migrations as production. Hosted integration checks use an isolated PlanetScale branch.
+
+Application roles have only the data permissions needed by the financial API. Migration and backup roles are separate. Credentials are stored as deployment secrets, and runtime connections require TLS. The analyst and processor obtain financial records through API calls or immutable snapshots.
+
+Hyperdrive targets the primary and has query caching disabled. The runtime uses execution-scoped connection pools through `@effect/sql-pg`. Lock, statement, transaction, and pool-acquisition deadlines are explicit configuration. The application resolves ambiguous commit results through command receipts rather than assuming a network failure means rollback.
+
+Database region, cluster size, availability mode, backup retention, and connection limits are explicit deployment configuration. Availability mode distinguishes single-node from replicated clusters. Capacity is selected against measured imports and queries, with the recurring cost recorded. Worker placement accounts for the database region and measured round-trip latency.
+
+New test and development branches start empty and receive the versioned migrations and synthetic fixtures. A branch restored from a production backup contains private financial data and retains production access restrictions. [PlanetScale branches](https://planetscale.com/docs/postgres/branching)
+
 ## Sources, backups, and retention
 
 Original files, extraction versions, corrections, and saved analysis evidence are retained until explicit removal. Reprocessing does not replace the source. Ordinary infrastructure changes preserve financial data.
 
-Production destruction requires an explicit destructive operation, with backup verification. Ordinary deployment preserves D1 data, R2 objects, and Durable Object identities. Schema changes preserve canonical IDs and source links.
+Production destruction requires an explicit destructive operation, with backup verification. Ordinary deployment preserves the PlanetScale database and production branch, R2 objects, and Durable Object identities. Schema changes preserve canonical IDs and source links.
 
-D1 recovery capabilities are supplemented by scheduled logical exports to a separate R2 backup location. A backup manifest identifies schema version, source-object inventory, and creation time. R2 artifacts are immutable where possible. Restore checks verify balances, source links, and saved-analysis references in an isolated stage.
+PlanetScale backups provide database recovery. Scheduled logical exports to a separate R2 backup location provide an additional portable copy. A backup manifest identifies schema version, financial revision, referenced source objects, and creation time. Database backups do not include the corresponding R2 files. The backup job verifies that each referenced object is retained. [PlanetScale backup and restore](https://planetscale.com/docs/postgres/backups)
 
-Conversation storage needs its own backup/export path because a D1 backup does not include Durable Object SQLite. The supported conversation export or application export records canonical messages and attachments without modifying framework-owned tables directly.
+Logical exports run with PostgreSQL backup tooling in a controlled job through a dedicated connection. Backup and migration connections bypass the application's Hyperdrive pool. Their credentials are unavailable to generated analysis code.
+
+Conversation storage has its own export path because a Postgres backup does not include Durable Object SQLite. The supported conversation export or application export records canonical messages and attachments without modifying framework-owned tables directly.
+
+A restore targets an isolated database branch and stage. Verification checks balances, corrections, source links, command receipts, saved-analysis references, and conversation exports. Dispatch remains paused until reconciliation identifies which jobs or external deliveries already completed. The restored stage does not automatically resend every pending outbox record.
 
 Temporary upload objects and intermediate extraction artifacts have bounded cleanup policies. Cleanup distinguishes unreferenced temporary objects from accepted source evidence. It does not remove the last source for an accepted transaction.
 
@@ -51,13 +67,17 @@ Import and analysis jobs use stable IDs, deadlines, and finite attempt budgets. 
 
 Structured events carry import ID, source ID, job ID, conversation ID, command ID, dataset revision, operation, attempt, duration, and safe failure code where relevant. Routine events omit descriptions, amounts, and raw document text.
 
-Operational views identify queued jobs with no progress, repeated extraction failures, unreconciled sources, stale analyses, failed publications, and model usage. Financial completeness is derived from source coverage, not from the absence of logged errors.
+Operational views identify queued jobs with no progress, repeated extraction failures, unreconciled sources, stale analyses, failed publications, and model usage. Database metrics include pool waits, transaction duration, lock timeouts, rolled-back commands, and dispatch lease expiry. Financial completeness is derived from source coverage, not from the absence of logged errors.
 
 An incident can be traced from an inbox failure to its job and source evidence through authenticated application views. Logs provide the path to investigate without becoming another copy of the bank history.
 
 ## Deployment checks
 
-Alchemy plans and deploys the complete financial resource graph. Development, staging, production, and isolated test stages use separate storage and runtime identities. A deployment preserves stable resource identities and applies explicit schema migrations.
+Alchemy plans and deploys the complete financial resource graph. Development, staging, production, and isolated test stages use separate storage and runtime identities. A deployment preserves stable resource identities.
+
+Versioned Postgres migrations in `migrations/` run once through the deployment process before dependent code receives traffic. A migration lock prevents concurrent schema changes. The runtime role cannot alter the schema. The same migration files create a fresh database and upgrade an existing one.
+
+Schema changes are applied explicitly to each stage. PlanetScale Postgres branches are isolated databases, not an automatic schema-promotion mechanism. Transactional DDL uses rollback on failure. Operations that require execution outside a transaction have an explicit resumable migration step.
 
 The production plan is reviewed before application. A schema change that cannot preserve old readers uses a coordinated deployment and a verified backup. Model and detector versions are promoted independently of financial data migrations.
 

@@ -14,11 +14,14 @@ flowchart TD
     User[Browser] --> Web[TanStack Start web Worker]
     Web -->|private service binding| API[API Worker]
     Web -->|authenticated stream proxy| Analyst[Analyst Worker and AIChatAgent]
-    API --> DB[(D1 financial records)]
+    API --> Hyperdrive[Hyperdrive with query caching disabled]
+    Hyperdrive --> DB[(PlanetScale Postgres)]
     API --> Sources[(R2 source files)]
-    API --> Dispatch[Durable dispatch records]
-    Dispatch --> Jobs[Queues and processor Workflows]
-    Jobs -->|read financial snapshot| DB
+    API --> Dispatcher[Dispatcher]
+    DB -->|pending dispatch records| Dispatcher
+    Dispatcher --> Dispatch[Queues]
+    Dispatch --> Jobs[Processor Workflows]
+    Jobs -->|request financial snapshot| API
     Jobs -->|read sources and store artifacts| Sources
     Jobs -->|commit prepared results| API
     Analyst -->|financial tools| API
@@ -28,9 +31,9 @@ flowchart TD
     Gateway --> Models[Configured model providers]
 ```
 
-D1 owns financial records, corrections, review items, commitments, and completed analysis results. R2 owns original files and large artifacts. Durable Object storage owns conversation messages, stream state, and conversation-local execution state.
+PlanetScale Postgres owns financial records, corrections, review items, commitments, dispatch records, and completed analysis metadata. R2 owns original files and large artifacts. Durable Object storage owns conversation messages, stream state, and conversation-local execution state.
 
-The browser does not query storage directly. The API owns financial writes, including publication of prepared imports. The processor performs extraction and analysis, then calls the API to commit validated results. One write boundary keeps concurrency and revision checks consistent.
+The API owns financial queries and writes, including snapshot extraction and publication of prepared imports. The processor requests snapshots, performs extraction and analysis, then calls the API to commit validated results. The browser, processor, and analyst do not hold financial database credentials.
 
 ## Modules and planned locations
 
@@ -52,15 +55,25 @@ The following locations are the target layout, not a claim that the modules alre
 
 ## Infrastructure and service boundaries
 
-Alchemy owns runtime declarations, bindings, migrations, local emulation, and deployment. Effect owns service composition, typed failures, and cancellation inside each runtime. Worker RPC derives its method contracts from the service declarations.
+Alchemy owns runtime declarations, PlanetScale resources, Hyperdrive bindings, migrations, local wiring, and deployment. Effect owns service composition, typed failures, and cancellation inside each runtime. Worker RPC derives its method contracts from the service declarations.
 
 Only the public web Worker accepts browser traffic. Other runtimes receive capability-specific bindings. The API holds financial write capabilities. The analyst receives financial query and command tools rather than direct storage access.
 
 TanStack Start uses the Alchemy-managed Cloudflare integration. Runtime modules do not maintain independent deployment configurations. A local request cancellation does not establish that a remote financial command stopped. Command receipts determine the outcome.
 
+## Financial database connection
+
+The API uses `@effect/sql-pg` through Alchemy's Postgres integration and a Hyperdrive binding. Runtime connections target the PlanetScale primary with a role scoped to application tables. Migration credentials belong to the deployment process.
+
+Hyperdrive query caching is disabled for this binding. Reads after a correction must see committed data. Hyperdrive retains connection pooling when caching is disabled. Explicit caches for immutable analysis results use their result identity and revision. [Hyperdrive caching](https://developers.cloudflare.com/hyperdrive/concepts/query-caching/)
+
+Connections are scoped to a Worker execution. A transaction reserves one connection until commit or rollback. Transaction-local settings apply within that boundary, without relying on session state across requests. [Hyperdrive pooling](https://developers.cloudflare.com/hyperdrive/concepts/connection-pooling/)
+
+Postgres lets financial commands read current records, validate a decision in Effect code, and commit related changes together. It also provides consistent snapshots across several queries. These capabilities support corrections and concurrent imports without encoding every application decision into a prepared SQL batch.
+
 ## Durable work
 
-A financial command commits its data change and a dispatch record together. A dispatcher delivers work using a stable job identity. Duplicate delivery returns the existing job or committed result.
+A financial command commits its data change and a dispatch record in one Postgres transaction. The API's dispatcher claims pending records with a bounded lease, then sends queue messages after committing the claim. A failed or ambiguous send leaves recoverable work. Duplicate delivery returns the existing job or committed result.
 
 Queues distribute work. Workflows own the ordered steps of an import or analysis job. Agent conversations own question-and-answer state. A job has one execution owner. The queue consumer does not independently repeat work that belongs to a Workflow.
 
@@ -70,9 +83,9 @@ Workflows persist progress and retry failed steps. The application still makes c
 
 Every accepted financial change advances a dataset revision. An analysis captures a revision and its query definition before computation. Its result records that revision, metric version, assumptions, and evidence.
 
-The API reads the required records and revision from a coherent snapshot. Longer analyses use an immutable extracted dataset, stored in R2 when too large for a bounded response. Subsequent writes cannot change that input silently.
+The API captures the revision and required rows in a read-only `REPEATABLE READ` transaction on the primary. Every query in that extraction sees the same database snapshot. The API completes the database read before model calls or numerical analysis begin.
 
-A bounded read captures its revision and rows in one transactional batch. A paginated snapshot reads from the primary and verifies the revision before and after extraction. If the revision changed, extraction restarts before publishing the snapshot.
+Longer investigations use an immutable extracted dataset, stored in R2 when it exceeds the bounded tool response. Tool pagination reads that saved dataset. It does not hold a database transaction open between browser requests or model turns. A revision number alone cannot reconstruct an earlier database state after commit.
 
 After publication, dependent live views refresh. Historical results remain available with their original basis. An older job cannot overwrite a newer result: publication checks the expected input revision and result identity.
 

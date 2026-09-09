@@ -7,7 +7,7 @@ Analytics takes a financial query and a stable dataset revision. It returns nume
 
 ## Comparisons
 
-D1 performs indexed filtering and aggregation. Shared finance functions calculate comparisons, allocation adjustments, and statistical summaries. Live charts, agent tools, and scheduled jobs use these same functions.
+Postgres performs indexed filtering and exact aggregation through the financial API. Shared finance functions calculate comparisons, allocation adjustments, and statistical summaries. Live charts, agent tools, and scheduled jobs use these same functions.
 
 Period definitions include date basis, timezone, account scope, filters, and comparison strategy. Partial-month comparisons align elapsed calendar dates. Daily averages are a separate named calculation. Missing periods do not contribute zero-valued observations.
 
@@ -81,6 +81,6 @@ Evaluation measures absolute error, bias, and interval coverage at the product's
 
 ## Result publication
 
-An analysis result stores its definition, input revision, metric and model versions, values, adjustments, coverage, and evidence manifest. Large results live in R2 with metadata in D1.
+An analysis result stores its definition, input revision, metric and model versions, values, adjustments, coverage, and evidence manifest. Large results live in R2 with metadata in Postgres. Snapshot extraction ends before statistical computation starts.
 
-A correction schedules refreshes for affected subjects and periods. The application atomically selects the newest compatible completed result for live views. Historical results remain immutable, with a link to the newer result when one exists.
+A correction schedules refreshes for affected subjects and periods. A publication transaction checks the current revision under the owner lock before selecting a completed result for live views. A stale result can remain historical evidence but cannot replace the current result. Publishing derived results does not itself advance the financial revision or trigger another analysis cycle.

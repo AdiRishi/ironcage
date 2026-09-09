@@ -59,7 +59,7 @@ sequenceDiagram
     Agent-->>Browser: Persisted answer with evidence links
 ```
 
-Each tool response identifies the data revision and query scope. When an investigation needs a new revision, it restarts the affected calculation explicitly. It does not combine values from different snapshots without saying so.
+Each tool response identifies the data revision and query scope. Multi-tool investigations use a captured dataset or versioned evidence after the Postgres read transaction has closed. When an investigation needs a new revision, it restarts the affected calculation explicitly. It does not combine values from different snapshots without saying so.
 
 The model can return an insight summary or narrative, but official numbers and chart datasets come from tool results. Client components accept typed result data. Model output does not become arbitrary executable UI code.
 
@@ -77,7 +77,7 @@ Each conversation has a stable, owner-bound identity. Repeated submission IDs re
 
 AIChatAgent persists conversation and stream state. Application run metadata records the financial snapshot, job references, status, cancellation intent, and usage. Transcript text is not the sole record of whether a financial command committed.
 
-A server tool can finish a database write before its result reaches the conversation. Recovery looks up the command's recorded outcome before repeating it. A provider interruption can require another model call. Buffered text replay does not resume arbitrary JavaScript execution.
+A server tool can finish a database write before its result reaches the conversation. Recovery looks up the command's recorded outcome before repeating it. Postgres financial commits and Durable Object message persistence are separate transactions. A provider interruption can require another model call. Buffered text replay does not resume arbitrary JavaScript execution.
 
 Long numerical or document work runs as a Workflow job. The agent stores the job reference and waits or reports progress. It does not keep a web request open as the only owner of that work.
 

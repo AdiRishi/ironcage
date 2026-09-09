@@ -3,7 +3,7 @@ title: Technical
 description: The implementation design for the spend-management product.
 ---
 
-The design extends the existing Alchemy and Effect application platform. Financial records and calculations belong to application services. The AI analyst uses those services through typed tools, and the web app uses the same services for its views.
+The design extends the existing Alchemy and Effect application platform. PlanetScale Postgres holds financial records, with Cloudflare Hyperdrive connecting the financial API to the database. Financial calculations belong to application services. The AI analyst and web app use those same services.
 
 :::note
 These pages define the target implementation. Module locations, schemas, routes, and runtime behavior describe the design to build, not a claim of shipped functionality.
@@ -40,7 +40,7 @@ To implement the product, start with [Build spend management](/technical/build-s
 
 ## Design status
 
-Cloudflare, the existing starter, TanStack Start, shadcn components, Cloudflare Agents SDK, AIChatAgent, Vercel AI SDK, Workflows, and AI Gateway are selected.
+Cloudflare Workers, PlanetScale Postgres, Hyperdrive, Alchemy, Effect, TanStack Start, shadcn components, Cloudflare Agents SDK, AIChatAgent, Vercel AI SDK, Workflows, and AI Gateway are selected.
 
 The data structures and policies in these pages are implementation decisions derived from the [product contract](/product). Their correctness is established through the [acceptance scenarios](/product/acceptance), not by the presence of a framework feature.
 
