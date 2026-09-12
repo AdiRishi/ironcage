@@ -3,5 +3,6 @@
   "root": true,
   "packageManager": "pnpm",
   "workspaces": true,
-  "cooldown": "1d"
+  "cooldown": "1d",
+  "reject": ["vitest", "@vitest/browser-playwright"]
 }
