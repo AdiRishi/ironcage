@@ -5,6 +5,12 @@ description: Private access, durable financial data, bounded model usage, and ac
 
 This page defines the target operating policy for private financial records, model calls, and persistent investigations.
 
+## Application domain
+
+The production application uses `wealth.arishi.dev`, under the user's existing `arishi.dev` domain. The web service's Alchemy infrastructure owns the custom domain and routes it to the public web Worker. Cloudflare Access protects this hostname using the access policy below. Internal services use private bindings and have no public domains.
+
+The staging hostname, Cloudflare DNS zone configuration, Access login provider, and allowed user identity remain deployment selections to record before the corresponding environment goes live.
+
 ## Access boundary
 
 Cloudflare Access protects the public application with an explicit allowlist for the user's identity. The web Worker validates the Access token's signature, issuer, audience, and expiry. The same policy covers downloads, API handlers, and conversation upgrades. [Access token validation](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/)
