@@ -65,3 +65,23 @@ await test("dry-run uses pull and the latest ref for an existing vendor", (conte
     "[sync:repos] effect: git subtree pull --prefix=.repos/effect https://github.com/Effect-TS/effect.git main --squash\n",
   );
 });
+
+await test("invalid catalog values report a schema error", (context) => {
+  const root = copyWorkspace(context);
+  writeFileSync(join(root, "pnpm-workspace.yaml"), "catalog:\n  effect: 112\n");
+  const result = runSync(root, ["--dry-run", "--repo", "effect"]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /catalog/);
+  assert.match(result.stderr, /effect/);
+  assert.match(result.stderr, /string/);
+  assert.doesNotMatch(result.stdout, /\[sync:repos\]/);
+});
+
+await test("a missing catalog version identifies the required entry", (context) => {
+  const root = copyWorkspace(context);
+  writeFileSync(join(root, "pnpm-workspace.yaml"), "catalog: {}\n");
+  const result = runSync(root, ["--dry-run", "--repo", "effect"]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /catalog\.effect is missing from pnpm-workspace\.yaml/);
+  assert.doesNotMatch(result.stdout, /\[sync:repos\]/);
+});

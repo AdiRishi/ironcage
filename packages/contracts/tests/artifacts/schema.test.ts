@@ -92,12 +92,17 @@ it.each([-1, 0.5])("profile and progress counts reject invalid counts: %s", (val
   ).toBe(false);
 });
 
-it.each([0, maxUploadBytes + 1])("artifact byte sizes reject unsupported sizes: %s", (size) => {
-  expect(Schema.is(ArtifactByteSize)(size)).toBe(false);
-  expect(() => Schema.decodeSync(CsvUpload)(new File([new Uint8Array(size)], "data.csv"))).toThrow(
-    "CSV files must be between 1 byte and 256 KB.",
+for (const size of [0, maxUploadBytes + 1]) {
+  it.effect(`artifact byte sizes reject unsupported sizes: ${size}`, () =>
+    Effect.gen(function* () {
+      expect(Schema.is(ArtifactByteSize)(size)).toBe(false);
+      const failure = yield* Effect.flip(
+        Schema.decodeEffect(CsvUpload)(new File([new Uint8Array(size)], "data.csv")),
+      );
+      expect(failure.message).toContain("CSV files must be between 1 byte and 256 KB.");
+    }),
   );
-});
+}
 
 it.each([1, maxUploadBytes])("artifact byte sizes accept boundary sizes: %s", (size) => {
   expect(Schema.is(ArtifactByteSize)(size)).toBe(true);

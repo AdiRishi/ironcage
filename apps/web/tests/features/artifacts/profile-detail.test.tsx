@@ -6,7 +6,7 @@ import { render } from "vitest-browser-react";
 import { ProfileDetail } from "@/features/artifacts/profile-detail";
 
 test("a completed profile exposes the result and source download", async () => {
-  const artifact = Schema.decodeSync(ArtifactDetail)({
+  const artifact = await Schema.decodePromise(ArtifactDetail)({
     byteSize: 42,
     completedAt: "2026-08-22T00:00:01.000Z",
     contentType: "text/csv",

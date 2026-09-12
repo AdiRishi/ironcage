@@ -20,10 +20,10 @@ const title = name
 const stackName = title.replaceAll(" ", "");
 
 const packagePath = NodePath.join(root, "package.json");
-const packageJson = Schema.decodeSync(Schema.fromJsonString(Schema.JsonObject))(
+const packageJson = await Schema.decodePromise(Schema.fromJsonString(Schema.JsonObject))(
   NodeFS.readFileSync(packagePath, "utf8"),
 );
-const packageName = Schema.decodeUnknownSync(Schema.String)(packageJson.name);
+const packageName = await Schema.decodeUnknownPromise(Schema.String)(packageJson.name);
 if (packageName !== oldName) {
   throw new Error(`Expected package name "${oldName}", received "${packageName}".`);
 }

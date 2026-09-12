@@ -4,7 +4,7 @@ import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 
 import { NodeRuntime, NodeServices } from "@effect/platform-node";
-import { Console, Effect, Option, Schema } from "effect";
+import { Cause, Console, Data, Effect, Option, Schema } from "effect";
 import { Command, Flag } from "effect/unstable/cli";
 import * as YAML from "yaml";
 
@@ -14,7 +14,10 @@ const repoRoot = NodePath.resolve(import.meta.dirname, "../..");
 const WorkspaceCatalog = Schema.Struct({
   catalog: Schema.Record(Schema.String, Schema.String),
 });
-const decodeWorkspaceCatalog = Schema.decodeUnknownSync(WorkspaceCatalog);
+
+class ReferenceRepoConfigError extends Data.TaggedError("ReferenceRepoConfigError")<{
+  readonly message: string;
+}> {}
 
 const selectedRepos = (repoId: string | undefined) => {
   if (repoId === undefined) return referenceRepos;
@@ -25,15 +28,19 @@ const selectedRepos = (repoId: string | undefined) => {
   return [selected];
 };
 
-const pinnedVersion = (repo: ReferenceRepo) => {
-  const source = NodeFS.readFileSync(NodePath.join(repoRoot, repo.versionSourcePath), "utf8");
-  const workspace = decodeWorkspaceCatalog(YAML.parse(source));
+const pinnedVersion = Effect.fn(function* (repo: ReferenceRepo) {
+  const contents: unknown = yield* Effect.try(() =>
+    YAML.parse(NodeFS.readFileSync(NodePath.join(repoRoot, repo.versionSourcePath), "utf8")),
+  );
+  const workspace = yield* Schema.decodeUnknownEffect(WorkspaceCatalog)(contents);
   const version = workspace.catalog[repo.catalogPackage];
   if (version === undefined) {
-    throw new Error(`catalog.${repo.catalogPackage} is missing from ${repo.versionSourcePath}.`);
+    return yield* new ReferenceRepoConfigError({
+      message: `catalog.${repo.catalogPackage} is missing from ${repo.versionSourcePath}.`,
+    });
   }
   return version;
-};
+});
 
 const assertCleanWorkingTree = () => {
   const status = NodeChildProcess.execFileSync("git", ["status", "--porcelain"], {
@@ -53,13 +60,17 @@ const command = Command.make(
     repo: Flag.string("repo").pipe(Flag.optional),
   },
   ({ dryRun, latest, repo }) =>
-    Effect.try(() => {
-      const repos = selectedRepos(Option.getOrUndefined(repo));
-      if (!dryRun) assertCleanWorkingTree();
+    Effect.gen(function* () {
+      const repos = yield* Effect.try(() => selectedRepos(Option.getOrUndefined(repo)));
+      if (!dryRun) yield* Effect.try(assertCleanWorkingTree);
 
       for (const repo of repos) {
-        const action = NodeFS.existsSync(NodePath.join(repoRoot, repo.prefix)) ? "pull" : "add";
-        const ref = latest ? repo.latestRef : `${repo.versionTagPrefix}${pinnedVersion(repo)}`;
+        const action = yield* Effect.try(() =>
+          NodeFS.existsSync(NodePath.join(repoRoot, repo.prefix)) ? "pull" : "add",
+        );
+        const ref = latest
+          ? repo.latestRef
+          : `${repo.versionTagPrefix}${yield* pinnedVersion(repo)}`;
         const args = [
           "subtree",
           action,
@@ -68,18 +79,24 @@ const command = Command.make(
           ref,
           "--squash",
         ];
-        process.stdout.write(`[sync:repos] ${repo.id}: git ${args.join(" ")}\n`);
+        yield* Console.log(`[sync:repos] ${repo.id}: git ${args.join(" ")}`);
         if (dryRun) continue;
 
-        const result = NodeChildProcess.spawnSync("git", args, { cwd: repoRoot, stdio: "inherit" });
-        if (result.status !== 0) {
-          throw new Error(`git subtree ${action} failed with exit code ${result.status}.`);
-        }
+        yield* Effect.try(() => {
+          const result = NodeChildProcess.spawnSync("git", args, {
+            cwd: repoRoot,
+            stdio: "inherit",
+          });
+          if (result.status !== 0) {
+            throw new Error(`git subtree ${action} failed with exit code ${result.status}.`);
+          }
+        });
       }
     }).pipe(
-      Effect.tapError((error) =>
-        Console.error(error.cause instanceof Error ? error.cause.message : String(error.cause)),
-      ),
+      Effect.tapError((error) => {
+        const cause = Cause.isUnknownError(error) ? error.cause : error;
+        return Console.error(cause instanceof Error ? cause.message : String(cause));
+      }),
     ),
 ).pipe(
   Command.withDescription("Synchronize vendored reference repositories with pinned versions."),
