@@ -1,89 +1,46 @@
 ---
 title: Frontend
-description: TanStack Start routes, shared query definitions, shadcn components, and responsive financial interactions.
+description: Connected stage flows using TanStack Start, shared queries, and accessible controls.
 ---
 
-## Delivery scope
+Every [stage](/stages) includes a working frontend. Extend the existing React, TanStack Start, TanStack Router, TanStack Query, Tailwind CSS, and shadcn setup. [Workspace](/product/workspace) owns visible behavior. Branding, typography, colors, and screen composition remain open design decisions.
 
-Every stage includes its complete frontend. Stage 1 starts with imports, bank history, source review, settings, and operational status. Later stages add their own views and extend shared flows. Query state, accessibility, and recovery apply from their first use; chart and analyst requirements apply only when those features arrive.
+## Routes and state
 
-[Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
+Stage 1 provides Imports, Transactions, source Review, and account/display settings. Later stages add interpretation controls, historical overview and Trends, Commitments/Forecasts, the analyst, and Insights/inbox in order. Navigation exposes only implemented destinations.
 
-The frontend extends the existing TanStack Start application with React, TanStack Router, TanStack Query, Tailwind CSS, and shadcn components. Alchemy continues to supply the Worker bindings and Cloudflare integration.
+Route modules own URLs and loaders. Feature modules own server functions, query definitions, and views. Common controls stay in the existing UI directory. Keep implemented filters in validated search parameters so browser back and bookmarked views restore the query.
 
-The [workspace contract](/product/workspace) defines the visible experience. This page defines how the frontend carries that state consistently.
+Server functions call the typed financial API with trusted owner context. Shared boundary schemas define money and filters. Query keys contain the operation and its normalized inputs. A global dataset revision is not needed in every key.
 
-The selected [stage](/stages) supplies the written user flows and required states. Visual branding, typography, colors, and layout are open design decisions. No screen image is an implementation requirement.
+## Imports and review
 
-Server functions call the methods in the [RPC specification](/technical/rpc). Filters, cursors, receipts, tagged failures, and chart payloads use [Shared contracts](/technical/contracts). The frontend does not define a parallel query or monetary schema.
+Display per-file upload and processing state, committed counts, and specific unresolved rows. The status read uses stored summaries and platform state where necessary. A failed action offers retry or reupload. Review shows the source and candidate decisions, including declaring a distinct purchase.
 
-## Routes and feature ownership
-
-The following application routes are planned. These are app URLs, not links to pages in this documentation site.
-
-| App route                      | Feature directory under `apps/web/src/features/` | Introduction                                                                                |
-| ------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| `/`                            | Import/history entry, then `overview/`           | Stage 1 entry; stage 4 historical overview; stage 5 upcoming commitments; stage 7 findings. |
-| `/transactions`                | `transactions/`                                  | Stage 1 bank history; stage 3 semantic filters and interpretation.                          |
-| `/transactions/$transactionId` | `transactions/`                                  | Stage 1 bank evidence; stage 2 PDF/removal state; stage 3 interpretation and corrections.   |
-| `/imports`                     | `imports/`                                       | Stage 1 CSV/OFX; stage 2 PDF.                                                               |
-| `/review`                      | `review/`                                        | Stage 1 source issues; stage 3 interpretations; stage 6 context clarification.              |
-| `/settings`                    | `settings/`                                      | Stage 1 accounts/display/operations; additions follow Settings stage ownership.             |
-| `/trends`                      | `trends/`                                        | Stage 4 actual history; stage 5 ordinary costs.                                             |
-| `/commitments`                 | `commitments/`                                   | Stage 5.                                                                                    |
-| `/forecasts`                   | `forecasts/`                                     | Stage 5, including scenarios.                                                               |
-| `/analyst`                     | `analyst/`                                       | Stage 6.                                                                                    |
-| `/analyst/$conversationId`     | `analyst/`                                       | Stage 6.                                                                                    |
-| `/insights`                    | `insights/`                                      | Stage 7, including intentions.                                                              |
-
-Operational status, saved analyses, evidence, exports, and inbox have reachable entry points in their owning stage. Their route nesting is an implementation choice. Do not create later routes or inactive navigation in an earlier stage.
-
-The analyst index lists conversations through listConversations and provides a new-conversation action. That action creates a conversation UUID, navigates to its route, and persists the conversation when its first submission is accepted. Empty conversations have no stored history.
-
-The transaction route parameter is the canonical posting ID accepted by getTransaction. The product calls that record a transaction.
-
-Route modules own URLs, loaders, and HTTP handlers. Feature modules own page composition, query options, server functions, and domain-specific components. Shared visual controls stay in `components/ui/`.
-
-## Query state
-
-From stage 1, search parameters retain the implemented posting filters. Stage 3 adds semantic filters. Stage 4 introduces PeriodSelection, comparison mode and unit, and selected financial measures. Saved views retain the selector; calculation requests use its resolved dates. A shared boundary schema validates those values before creating a financial query.
-
-Feature `queries.ts` modules own query keys and options. Route loaders and components use the same definitions. Query keys include the normalized query and applicable data revision, rather than a separately assembled component-specific filter object.
-
-Financial totals come from API results. The client decodes exact monetary values from the shared decimal-string contract and formats money and dates. It does not recompute official totals or forecast ranges. Chart coordinates can use finite display numbers, while labels and tables retain the exact values. The server returns source coverage and measure-specific completeness with each result. Overview cards use their own metric assessment.
+Transaction detail reads bank postings independently of interpretation. Stage 3 adds semantic fields and single/bulk category acceptance. Manual categorization remains available when a provider fails or declines to suggest a category.
 
 ## Corrections and refresh
 
-A mutation carries a command ID and expected subject version. The UI can show a pending state, but official financial values update after the server confirms the commit.
+Financial edits send a command ID and expected record versions. Show pending state until the server confirms the write. Retry a lost response with the same command ID. A stale edit preserves user input and displays current records for another decision.
 
-The mutation response includes the new revision and affected query subjects. Stage 1 refreshes bank records, reviews, and coverage; stage 3 includes interpretations; stage 4 adds saved-result invalidation. Query invalidation refreshes visible results and review counts. A stale edit preserves the user's input and displays the current record before another commit.
-
-An analyst answer created at an old revision is not silently rewritten. It shows that newer data exists and offers a refresh. Saved-analysis definitions and immutable historical results remain separate objects.
+Invalidate the affected visible TanStack Query results after success. Saved analyses store definitions and run on open or refresh. Closed saved views do not need background refresh. An earlier analyst message keeps its displayed time and text; a new query reads current data.
 
 ## Charts and evidence
 
-shadcn chart components supply the visual building blocks. The current chart documentation describes integration with Recharts. The application supplies typed series, labels, units, and comparison semantics. [shadcn charts](https://ui.shadcn.com/docs/components/base/chart)
+Use existing chart components rather than building a plotting framework. Financial totals come from the API. Display coordinates can use finite numbers, but formatted amounts and evidence tables retain the exact monetary contract.
 
-Each chart has an accessible title, a textual summary, and a table view. Tooltips are supplementary. Selecting a segment creates a ResultSelection and calls listContributions against the result snapshot. The detail shows each contribution, its original bank amount, and supporting credits or counterpart postings. Ordinary-cost rows identify monthly-equivalent estimates and link to their source allocations or schedules. Daily-average selections retain their denominator and total contributions. Opening Transactions independently still uses TransactionFilter.
+Each chart has a title, textual summary, and table equivalent. Tooltips are supplementary. Selecting a contributor preserves the query and retrieves its current headline and rows together. Show the calculated contribution separately from the bank amount, including linked credits and counterpart evidence. If data changed, refresh the headline with those rows.
 
-Confidence ranges, estimates, and actual values have distinct labels and styles. A forecast interval is not drawn as another observed series. Chart resizing preserves readable labels and selected evidence on narrow screens.
+Label estimates, observed amounts, source gaps, and overlapping groups. Stage 5 displays cost estimates and known payment dates without probability bands or simulated balances.
 
 ## Conversation transport
 
-The analyst feature uses `useAgentChat` and typed SDK message parts. Server tool results render as explicit components for comparisons, transaction evidence, forecasts, and clarification.
+Stage 6 uses the SDK chat hook and message/tool-result components. The public web Worker authenticates SDK HTTP/WebSocket requests and routes them through the analyst-owned namespace binding. It supplies verified owner metadata on the private hop; browser frames cannot replace it. Verify routing, private access, streaming, reconnect, and stop through that actual binding.
 
-The public web Worker authenticates the request and routes SDK HTTP and WebSocket traffic directly through the analyst-owned Durable Object namespace binding. It translates the app route to the SDK route with an owner-derived instance name. The web Worker supplies verified owner and subject metadata on the private hop, and the analyst binds it to the connection before accepting submissions. Integration checks verify identity replacement, namespace restriction, upgrades, streaming, and reconnects through this binding.
+Allow one active answer per conversation. A failed answer can be submitted again. Proposed edits use existing controls or confirmation cards, not automatic financial writes from text. Note changes start a fresh conversation with current notes and leave prior conversations inspectable.
 
-Ordinary reads use bounded RPC deadlines. Conversation streaming and long-running jobs use dedicated handlers and receipts. A job's lifetime is independent of the request that started it.
+## Accessibility and settings
 
-## Responsive behavior and accessibility
+Every action works on narrow and wide screens and with a keyboard. Preserve selected filters and useful unsaved input after failure. Restore focus after temporary details or edits close. Announce loading without repeatedly interrupting screen-reader users.
 
-Every stage preserves access to its actions, details, and query state on wide and narrow screens. Layout and control presentation are design decisions. Browser back navigation restores the previous view and selection. Stage 6 adds analyst interactions with the same continuity requirement.
-
-Use the selected shadcn component library for accessible controls. Keyboard focus returns to the initiating control after a temporary detail or correction interaction closes. Loading regions announce progress without repeatedly interrupting screen-reader users.
-
-Tables use pagination or virtualization when measured record counts require it. Mobile views expose the same detail actions. Amounts, source evidence, and correction controls remain available without horizontal page overflow.
-
-## Settings disclosure
-
-Settings uses `getSettings` from stage 1 and `getUsage` from stage 2. Its schemas and controls follow [Stage boundaries](/technical/stage-boundaries). Server-only configuration supplies the model provider names and retention disclosures shown to the user. The client receives only those display fields, never provider credentials or deployment secrets. [Settings and data controls](/product/settings-and-data) defines the visible behavior.
+Use pagination or virtualization when measured record counts require it. Amounts, evidence, and correction actions remain accessible without horizontal page overflow. Settings shows implemented controls and provider/retention disclosures, never credentials.

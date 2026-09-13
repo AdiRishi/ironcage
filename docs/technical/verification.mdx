@@ -1,174 +1,96 @@
 ---
 title: Verification
-description: Verify each stage through user outcomes, financial invariants, and recovery.
+description: Verify financial outcomes, safe user retries, and complete stage journeys.
 ---
 
-## Delivery scope
-
-Verify the selected stage end to end and preserve earlier regressions. Stage 1 covers CSV/OFX, stage 2 the full corpus and document models, stage 3 financial interpretation, stage 4 comparisons/results, stage 5 forecasts, stage 6 analyst behavior, and stage 7 findings. The checks below apply when their operation is introduced, not all at the first stage.
-
-[Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
-
-Verification follows the [product acceptance scenarios](/product/acceptance). A schema-valid model response, successful build, or rendered chart is insufficient evidence that a financial answer is correct.
-
-Contract tests encode and decode each implemented [shared schema](/technical/contracts), exercise each implemented [RPC method](/technical/rpc) through its public interface, and check the [database constraints](/technical/database-schema) against real Postgres. Processor fixtures cover each implemented transition in [Import and job protocols](/technical/import-protocol). AI cases follow the [functionality specification](/technical/ai-functionality), and numerical expected values follow [Calculation rules](/technical/calculation-rules).
+Verify the selected stage through its [acceptance scenarios](/product/acceptance), then preserve earlier regressions. Name the user-visible regression before adding a test. Test public operations with real in-process collaborators and independently known expected values. Replace only true external seams, such as model providers.
 
 ## Financial invariants
 
-Tests exercise public finance operations with independently known expected outcomes. Fixtures use synthetic records that preserve the structural cases found in the supplied exports.
+| Introduction | Regression to prevent                                                            |
+| ------------ | -------------------------------------------------------------------------------- |
+| Stage 1      | Reupload or overlapping exports duplicate transactions.                          |
+| Stage 1      | A deduplication key collapses two real identical purchases.                      |
+| Stage 1      | Missing or reused OFX IDs create false matches or reject valid history.          |
+| Stage 1      | Missing rows or balances are silently labelled complete history.                 |
+| Stage 1      | A failed or repeated publication creates partial or duplicate financial records. |
+| Stage 2      | PDF decoding changes dates, decimal placement, signs, or row counts.             |
+| Stage 3      | Splits create or lose money; repeated credit links over-reimburse a cost.        |
+| Stage 3      | Transfers and card settlements count as additional income or spending.           |
+| Stage 3      | Reprocessing or model suggestions overwrite user corrections.                    |
+| Stage 4      | A headline mixes records from before and after a correction.                     |
+| Stage 4      | Contributor totals, counts, and average-payment explanations disagree.           |
+| Stage 5      | A scheduled cost remains in the variable baseline and is counted twice.          |
 
-| Invariant                                              | Regression caught                                                      |
-| ------------------------------------------------------ | ---------------------------------------------------------------------- |
-| Same-file import is idempotent                         | Repeated uploads inflate transactions or repeat completed enrichment.  |
-| Import order does not change accepted history          | Overlapping files produce different totals depending on arrival order. |
-| Identical real purchases retain multiplicity           | A naive duplicate key removes genuine spending.                        |
-| CSV, OFX, and PDF observations converge                | Cross-format aliases produce duplicate purchases.                      |
-| Allocation sums equal the event magnitude              | Splits create or lose money.                                           |
-| Own transfers and card settlements do not create costs | Money movement is counted as additional spending.                      |
-| Partial refunds and reimbursements apply once          | Repeated links or retries reduce a purchase twice.                     |
-| Balance anchors reconcile with movements               | Missing postings are silently treated as complete history.             |
-| Corrections survive reprocessing                       | New extraction or merchant rules overwrite user decisions.             |
-| Analysis revisions remain coherent                     | One answer mixes values before and after a correction.                 |
-| Frequency and average contributions sum to the change  | A numerical explanation does not reconcile to its headline.            |
+Money/date cases cover exact decimal decoding, negatives, supported range, leap days, calendar boundaries, value dates, and timezone handling. Driver encoding preserves BIGINT and DATE without an intermediate floating-point or local-midnight conversion.
 
-Date fixtures include month boundaries, leap days, daylight-saving changes, value dates, and missing purchase dates. Currency fixtures include decimal parsing, negative amounts, fee corrections, and aggregation near the supported range.
+## Database transactions
 
-## Database transactions and snapshots
+Use real PostgreSQL and production migrations for transaction and concurrency tests. Mocked SQL and SQLite cannot prove Postgres isolation. Test two overlapping imports, two commands claiming the same remaining credit, repeated command IDs, stale previews, and a committed write whose response is lost.
 
-Repository and concurrency tests use real PostgreSQL with the production migrations. Pure finance tests remain in process. SQLite and mocked SQL clients cannot establish Postgres locking or isolation behavior.
+An injected failure before commit leaves no partial financial rows or receipt. A repeated successful command returns its result once. The same source published through a new action also cannot add records twice. Matching reads current records after acquiring the financial write lock. A correction made during parsing remains authoritative.
 
-| Scenario                                                      | Required evidence                                                                                         |
-| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| A command fails after changing allocations                    | Financial rows, audit entry, receipt, revision, and dispatch all roll back.                               |
-| Two commands claim the same remaining reimbursable amount     | The later command sees the committed allocation and cannot over-allocate it.                              |
-| Two callers submit one command ID                             | One outcome is committed and both callers receive it. A different payload using that ID is rejected.      |
-| A stale import publishes while a correction commits           | The owner lock and revision check prevent publication against obsolete matching decisions.                |
-| A snapshot reads several tables while another command commits | Every value and the recorded revision belong to the same repeatable-read snapshot.                        |
-| A commit succeeds but its response is lost                    | Retrying resolves the stored receipt without another correction or dispatch record.                       |
-| A query follows a committed correction through Hyperdrive     | The query sees the committed value rather than a cached earlier result.                                   |
-| A deadlock or transaction timeout interrupts a command        | Partial writes roll back and the bounded retry policy produces one committed result or a visible failure. |
+Related totals read consistent data. Through Hyperdrive, a query after a committed correction must see fresh values. Verify actual hosted roles, TLS, binding behavior, and database access separately from local database tests.
 
-Encoding checks round-trip `BIGINT`, exact aggregate values, negative amounts, and `DATE` values through the SQL driver and public boundary schemas. Chart formatting never changes the exact values used by evidence tables.
-
-Migration tests cover an empty database and an upgrade with existing financial records. Restore checks cover database records and their R2 evidence together. An isolated hosted suite verifies PlanetScale roles, TLS, Hyperdrive pooling, fresh reads, and connection recovery. Local Postgres tests do not stand in for that hosted integration.
+Test migrations from empty and previously populated databases when changing schema. Verify the chosen managed backup restore into an isolated environment, including correction preservation and access to independently retained source files. Repeated quarterly drills or a custom cross-store restore suite are not required.
 
 ## Extraction and interpretation evaluation
 
-A checked corpus includes OFX 1.02 SGML, date-only OFX postings, missing, empty, whitespace-only, and reused FITIDs, bank and card envelopes, standalone OFX uploads, headerless CSVs, empty card balances, multiline PDF descriptions, repeated headings, rewards rows, foreign currency, refunds, and conflicting sources.
+Inspect `fixtures/README.md` and the actual local files in `fixtures/commbank/`. Ordinary CI uses synthetic fixtures and runs without private data. Publish aggregate evaluation results only.
 
-The local private corpus belongs in `fixtures/commbank/`. Read `fixtures/README.md` before using it. Private-corpus validation is an explicit local operation and ordinary tests run without those files.
+Stage 1 checks every supplied CSV and OFX. Cover headerless CSV, quoted/multiline fields, empty card balances, OFX 1.02 SGML, declared encoding, date-only values, offset-free timestamps, bank/card envelopes, and blank/reused FITIDs. OFX and CSV each work without a companion file.
 
-Public fixtures are synthetic. Private statement evaluations use local or access-controlled sources and store only aggregate results in ordinary CI artifacts.
+Stage 2 checks every PDF, including multiline descriptions, repeated headings, rewards rows, foreign money, and visible decimal repairs. Compare row completeness, dates, exact signed amounts, and available balances against source evidence. Validate the chosen library in the hosted runtime.
 
-Extraction evaluation measures row completeness, date and amount accuracy, sign accuracy, and statement reconciliation. Categorization evaluation measures accuracy by role and category, ambiguity detection, and the financial amount affected by errors.
+Run overlapping files in different orders. Report accepted, matched, and unresolved rows, with the reason for each unresolved class. Compare final history after the same explicit review decisions. Fix missing deterministic matches and parser defects. A blanket review result is not successful ingestion; neither is a guessed duplicate merge that lowers the review count.
 
-The model is compared with deterministic rules and prior accepted mappings. Evaluation separately measures unresolved cases rather than rewarding unsupported guesses. A model upgrade must preserve accepted corrections and improve or maintain the relevant checked outcomes.
+Stage 3 checks representative category suggestions, conflicting rules, manual single/bulk categorization, invalid model output, and provider failure. Accepted corrections must survive all of them. Use task-relevant examples without mandatory sample quotas or a model confidence score as a correctness gate.
 
 ## Analyst evaluation
 
-An investigation corpus contains questions with independently verified calculations and supporting records. Checks verify that the answer uses the correct date range, reports complete contributors, and identifies missing coverage.
+Use questions with independently verified API results. Check dates, scope, coverage, source links, and whether the narrative agrees with financial tool output. A model judge is not the sole authority for numerical accuracy.
 
-Scenarios include a mortgage-era comparison, a switch from debit to credit, a trip with advance bookings, an annual bill, a partial reimbursement, and a changed subscription.
+Verify that source text and model output cannot authorize writes. Suggested edits need explicit user acceptance and current version checks. Exercise failed answers, stop, and reconnect using the real SDK integration. After note removal, a fresh conversation must not inherit the withdrawn note through old transcripts or summaries.
 
-Tool results are checked directly. Narrative checks verify agreement with those results and distinction between fact and inference. Model judges can assess clarity, but they cannot be the sole authority for numerical accuracy.
+## Forecast verification
 
-Clarification tests verify concrete questions, retained pending state, subject-version checks, one-time application, and subsequent recall. Context tests verify that model summaries cannot overwrite confirmed facts.
+Check the deterministic baseline, included schedules, one-offs, and scenario differences against independently calculated examples. Missing weeks remain missing. Scheduled costs are excluded from the variable mean before being added once. The cash calendar distinguishes payments from costs.
 
-## Forecast evaluation
-
-Rolling-origin backtests follow the as-known and retrospective modes in [Calculation rules](/technical/calculation-rules#scenarios-and-evaluation). The reported mode distinguishes records available to the app at the cutoff from history uploaded later. Metrics cover absolute error, bias, and interval coverage at several useful horizons.
-
-Every candidate is compared with a simple baseline. Scheduled obligations and variable spending are checked for double counting. A data gap before today must remain visibly estimated.
-
-Scenario tests verify that overrides change only the intended assumptions, preserve historical data, and include explicitly modelled substitution effects.
+Changing a scenario preserves historical records and baseline commitments. Verify expected labels for estimates and historical balance dates. Statistical model selection, calibration thresholds, and probabilistic backtesting are outside the implemented forecast contract.
 
 ## Runtime and browser coverage
 
-<Tabs>
-  <Tab title="Runtime recovery">
-    Tests interrupt work after a source upload, after a financial commit, and before a tool result
-    is recorded. Duplicate Workflow dispatch, retained and expired instance histories, stale
-    execution generations, stale job completion, lost responses, and cancellation exercise the
-    public command and recovery interfaces.
-  </Tab>
-  <Tab title="Conversation continuity">
-    Tests close and reconnect the client, submit two questions concurrently, resume a clarification
-    after restart, and verify that interrupted work has a truthful terminal or waiting state.
-  </Tab>
-  <Tab title="Responsive experience">
-    Browser tests cover chart-to-record navigation, correction previews, analyst evidence, keyboard
-    access, mobile layouts, and unavailable-data states. They assert visible outcomes rather than
-    private component structure.
-  </Tab>
-</Tabs>
+Exercise upload through transaction detail, a specific review decision, retry after failure, and the lost-write-response case. Browser refresh restores truthful import status even if a Workflow failed before writing its summary. Built-in workflow behavior needs integration verification, not a duplicate test suite for a custom execution engine.
 
-Internal collaborators run in process or in the actual local Cloudflare runtime. Controlled adapters replace external model/provider calls for deterministic recovery tests. A separate bounded live suite verifies the chosen provider's tool and structured-output behavior.
+Every stage checks desktop, mobile, keyboard navigation, source access, empty states, pending changes, failures, and unavailable data. Use the same public operations as the UI. Model tests use controlled external adapters plus a bounded live check for any selected document/tool format.
 
 ## Repository test ownership
 
-[Monorepo and ownership](/technical/monorepo#build-test-and-change-ownership) defines package-level test responsibilities, import restrictions, and browser bundle checks. Contract changes typecheck and test their consumers. Infrastructure tests verify the composed service graph and capability wiring.
+Use existing workspace conventions. Effect modules use `@effect/vitest`, React components use Vitest Browser Mode, local Cloudflare integration uses `alchemy/Test/Vitest`, and complete browser flows use Playwright where needed. Tests remain under workspace `tests/`, mirroring `src/`, with separate test TypeScript projects. Infrastructure integration and browser suites stay in `infra/tests/`.
 
-Effect modules use `@effect/vitest`. React components use Vitest Browser Mode. Local Cloudflare integrations use `alchemy/Test/Vitest`, and complete browser flows use Playwright.
-
-Each workspace keeps tests in `tests/`, mirroring the paths under `src/`, with a separate test TypeScript project. Module and component files use `.test.ts` or `.test.tsx`. Infrastructure suites live in `infra/tests/` with `.integration.test.ts`. Deployed browser suites use `.browser.test.ts`.
-
-`pnpm check`, `pnpm typecheck`, and `pnpm test` are the root validation commands. Implemented database suites provision isolated local PostgreSQL instances in ordinary CI and need no production credentials. `pnpm test:infra-live` creates real hosted resources and is reserved for deployed behavior, including the isolated PlanetScale integration. Financial suites accompany their implementations. The technical index identifies these suites as target implementation requirements.
+Run `pnpm check`, `pnpm typecheck`, and `pnpm test` before committing. `pnpm test:infra-live` is for isolated hosted checks. Database suites use disposable local Postgres with the same major version and migrations as production. Run `pnpm docs:doctor` and `pnpm docs:build` for documentation changes.
 
 ## Contract regression cases
 
-Stage identifies the owning implementation. Shared format checks expand to PDF in stage 2. Backup checks begin with recorded data in stage 1 and add conversation reconciliation in stage 6. The calendar-refresh portion of the final case begins in stage 4. These cases accompany the owning implementation. Their expected outcomes use fictional data and public operations.
-
-| Stage | Case                                                                      | Required outcome                                                                                                           |
-| ----- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| 1     | Match a corroborated account-scoped FITID without balances                | One posting gains another observation. The same FITID on another account remains independent.                              |
-| 1     | Match scored no-balance observations with independently matched neighbors | Known resolvable overlaps meet the per-format success gate without false merges.                                           |
-| 3     | Import a profile-labelled purchase                                        | Role establishment creates an unclassified cost before category enrichment. Generic incoming transfers stay unresolved.    |
-| 3     | Charge interest August 31 and repay September 2                           | Interest remains in August. The repayment effect uses each period's own postings.                                          |
-| 3     | Record multiple repayments or costs exceeding repayment                   | Components reconcile; the signed repayment effect is not clamped or attributed to an arbitrary payment.                    |
-| 5     | Forecast seven zero weeks and six 100-dollar weeks                        | Direct-resampling paths contain those observed week amounts. Scaling the category to zero removes its variable purchases.  |
-| 5     | Forecast purchases on a card and a deposit account                        | Shares, purchases, credits, and settlements produce the expected account movements once.                                   |
-| 5     | Reach 20 overlapping evaluation cutoffs                                   | Count alone does not establish calibration. Held-out coverage and interval-score gates still apply.                        |
-| 4     | Accept latest analysis, then correct data before capture                  | The job records the revision captured at execution and reuses it on retry.                                                 |
-| 4     | Drill into a January purchase posted in February                          | The January spending selection includes its allocation and later credit evidence, with bank dates unchanged.               |
-| 4     | Request a daily average with missing source days                          | Average is unavailable; known totals and the full requested denominator remain visible.                                    |
-| 3     | Accept a stale role-change preview                                        | Revision or version conflict preserves records and requires a fresh preview.                                               |
-| 6     | Request a textual category change without a unique label match            | The intent pass yields spans and the server requests resolution; no guessed ID is authorized.                              |
-| 2     | Lose a possibly billable provider response, then retry                    | Two distinct reservations remain until their individual outcomes are known.                                                |
-| 6     | Remove a fact and continue the same conversation                          | Future prompts exclude old transcript and summary text; committed actions remain recorded.                                 |
-| 6     | Concurrently accept conversation submissions through Hyperdrive           | Transaction-scoped locking assigns unique monotonic sequences and repeated submissions return their run.                   |
-| 5     | Move a commitment to a new payment account                                | Earlier segments and occurrences keep the earlier account.                                                                 |
-| 5     | Assign a quarterly service period                                         | Ordinary cost follows covered days; cash follows payment date.                                                             |
-| 5     | Compare scenarios without balance anchors                                 | Cash delta is unavailable while supported cost effects remain inspectable.                                                 |
-| 1     | Restart after Workflow state retention expires                            | Succeeded durable jobs stay complete; unfinished work resumes from application step receipts with a new fenced generation. |
-| 6     | Restore a daily backup with R2 and conversations                          | Manifests, hashes, versions, and reference counts reconcile before dispatch resumes.                                       |
-
-These cases cover import boundaries, saved periods, and maintenance:
-
-| Stage | Case                                                                                                       | Required outcome                                                                                                                        |
-| ----- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| 1     | Import blank FITIDs on otherwise valid card and loan rows                                                  | Empty IDs supply no identity evidence; literal and scored paths still run.                                                              |
-| 1     | Import an offset-free ledger timestamp                                                                     | The instant uses OFX's GMT default; changing display timezone does not reinterpret it.                                                  |
-| 5     | Compare ordinary-cost groups across 13 complete weeks: five with A=$100, five with B=$100, three with both | With no other costs, the monthly estimate is $535.15. Rounded category contributions sum to that same amount.                           |
-| 5     | Calculate an older ordinary-cost period after importing newer history                                      | Its training weeks end at that period's cutoff and exclude later observations.                                                          |
-| 5     | Confirm and then unmatch a recurring bill                                                                  | Matched costs enter the forecast once. Explicit unmatching prevents automatic rematching of that event.                                 |
-| 4     | Refresh a rolling analysis on a later date                                                                 | Its window advances; a saved fixed range stays fixed; prior results retain their resolved dates.                                        |
-| 3     | Reconcile bank movements with an unresolved income role                                                    | The cash metric can be complete while income identifies the unresolved credit.                                                          |
-| 3     | Link a borrowing debit and deposit credit                                                                  | Borrowing increases available cash and debt without increasing income; both postings retain their bank dates.                           |
-| 3     | Confirm a transfer with only one posting, then import the counterpart                                      | Its role is known before pairing, no synthetic posting exists, and later pairing preserves the confirmed event ID.                      |
-| 3     | Import original-currency money and associate a separate fee                                                | Both currencies remain inspectable; booked money and the separate fee enter their metrics once.                                         |
-| 2     | Remove a source, finish removal, and reupload identical bytes                                              | The source ID and observations are reused, retained records regain evidence, and withdrawn records stay withdrawn until previewed undo. |
-| 2     | Replay a completed removal after restoration                                                               | Its receipt returns without deleting the new source object.                                                                             |
-| 3     | Split import interpretation into several jobs                                                              | Extraction and all derived attempts share the original per-source ceiling, including unsettled charges.                                 |
-| 2     | Fall back to a second model configuration                                                                  | Its role is unchanged, its exact pricing version is reserved, and the attempt consumes the same execution budget.                       |
-| 6     | Export a conversation while an accepted run completes                                                      | The frozen prefix references only captured submissions and completed answers; incomplete pairs are listed for reconciliation.           |
-| 1     | Run the same scheduled backup or calendar refresh twice                                                    | The dedupe key selects one job and verified artifact; a timer alone produces no new spending observation.                               |
-
-The exact-money and grouping examples are synthetic. These checks accompany the implementation of the owning public operations, not a separate test framework.
+| Stage | Case and expected outcome                                                                                                                                                |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1     | Corroborated account-scoped FITID without balances attaches evidence once; the same ID on another account is independent.                                                |
+| 1     | Empty FITID supplies no identity evidence. Exact overlap with corroboration can still match.                                                                             |
+| 1     | Offset-free OFX ledger timestamp uses GMT; display timezone does not reinterpret it.                                                                                     |
+| 1     | A source-conflict review preserves the accepted bank record while a parser correction is evaluated.                                                                      |
+| 3     | A 30000-minor-unit cost with a 20000 credit leaves 10000. Another 20000 application rejects the excess.                                                                  |
+| 3     | Interest on August 31 stays in August when repayment posts September 2.                                                                                                  |
+| 3     | Unresolved income purpose does not invalidate an otherwise reconciled account movement.                                                                                  |
+| 4     | January purchase evidence can include a February posting or later linked credit without changing their bank dates.                                                       |
+| 4     | Missing source days make a daily average unavailable, without shrinking its denominator.                                                                                 |
+| 4     | A rolling saved query advances on reopening; a fixed query retains its dates.                                                                                            |
+| 5     | Across 13 complete weeks, five with A=$100, five with B=$100, and three with both produce ordinary monthly cost $535.15. Rounded group contributions add to that amount. |
+| 5     | An older ordinary-cost period excludes later history from its baseline.                                                                                                  |
+| 5     | A quarterly service period spreads ordinary cost across covered days, while the cash calendar keeps its payment date.                                                    |
+| 5     | Unmatching an occurrence prevents immediate automatic rematching of that event.                                                                                          |
+| 6     | Text requesting a category change leaves the record untouched until explicit UI acceptance.                                                                              |
+| 7     | Repeated scans preserve dismissal and create no duplicate notification for an unchanged finding.                                                                         |
 
 ## Completion evidence
 
-A stage is accepted when its frontend and backend flows work together, its allocated requirements and acceptance scenarios pass, and earlier behavior remains correct. Each requirement has verification evidence or a specific outstanding check. Do not claim a stage complete while one of its required checks remains outstanding. Full spend management is complete only after stage 7 and the cumulative stage evidence accounts for every requirement.
-
-Stage 1 private-corpus validation accounts for every supplied CSV and OFX source. From stage 2 it accounts for every supplied source, including PDFs. Unresolved records identify specific missing or conflicting evidence. A parser failure or a blanket review state is an implementation defect, not proof that the source was handled.
-
-Every stage includes recovery, access, mobile, and keyboard evidence. Add document evaluations in stage 2, role/category evaluations in stage 3, comparison/snapshot evidence in stage 4, forecast backtests in stage 5, analyst evaluations in stage 6, and detector/follow-through evidence in stage 7. Performance checks use the actual corpus and realistic growth, with measured query latency and bounded model usage.
+A stage is accepted when its frontend and backend work together, required outcomes have evidence, and earlier behavior remains correct. Report specific outstanding external checks rather than treating local success as proof of hosted behavior. Performance checks use actual input sizes and observed latency before justifying another runtime or more complex processing.

@@ -1,144 +1,54 @@
 ---
 title: Stage boundaries
-description: Introduction stages for shared records, service interfaces, jobs, and frontend capabilities.
+description: Introduce each capability when its user flow exists, and keep shared contracts limited to real behavior.
 ---
 
-The [delivery stages](/stages) control implementation scope. This reference allocates the shared technical design to those stages. A stage number means the first stage that requires the behavior; later stages preserve it and implement only their named additions. Deployment environments such as local, staging, and production are independent of delivery stage numbers.
+[Stage pages](/stages) own deliverables and stopping points. Product references own user behavior. Technical references own financial meaning and implementation constraints. This page allocates shared behavior without prescribing all future table columns or RPC signatures.
 
 ## Contract evolution
 
-The schema and RPC references describe the eventual contracts. Implement a complete, typed projection for the selected stage, using the explicit allocations below. Add later fields, union variants, foreign keys, methods, and infrastructure when their owning stage is implemented. Do not implement a full union with unsupported branches or create future tables just to satisfy a future foreign key.
+Implement the selected stage and preserve earlier outcomes. Add fields, tables, and operations only when their owning behavior is implemented. Boundary types are inferred from implementation schemas; RPC methods are inferred from the server. A migration can introduce a later relationship without manufacturing placeholder data earlier.
 
-Keep canonical entity IDs, exact money/date codecs, source locators, ownership, versions, and receipt semantics stable. Migrations add later fields and relations without reimporting history or replacing IDs. Persisted payloads, receipts, snapshots, and exports retain their schema version; a later incompatible shape needs versioned decoding or migration. Derive each stage's real consumer types from its implemented boundary schemas.
-
-A field whose behavior belongs to a later stage is omitted from the current schema and DTO. It is not an empty result claiming that behavior ran. Fields already meaningful in the current stage keep their documented nullability. A later consumer cannot make an earlier import depend on classification, analysis, or conversation availability.
+Each stage includes its frontend, backend, integration, and verification. Use libraries and platform capabilities first. Failure can require user action; accepted financial data must remain consistent and safe to retry.
 
 ## Stage 1
 
-[Upload and record transactions](/stages/record-transactions) owns the following initial contract.
+Owns accounts, verified sources, import status, observations, postings, evidence links, coverage, source review, display preferences, and financial command receipts. The UI contains upload, status, transaction list/detail, account controls, and review. Its home page leads to upload and history.
 
-| Area                  | Required subset                                                                                                                                                                                                                                                                                                                                                                                       |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Runtimes              | Web, API, processor Workflows, Postgres, Hyperdrive, source/artifact/backup storage, dispatch recovery, and fixed-command database backup Container.                                                                                                                                                                                                                                                  |
-| Shared packages       | Contracts for implemented records, imports, jobs, commands, and errors; finance money, unresolved-event construction, and reconciliation. No AI package or analyst runtime.                                                                                                                                                                                                                           |
-| Tables                | owners, dataset_heads, accounts, account_periods, source_files, import_batches, import_items, extraction_runs, observations, posting_sources, observation_dispositions, coverage_intervals, statement_summaries, postings, financial_events, event_postings, allocations, command_receipts, corrections, review_items, user_settings, jobs, job_steps, dispatch_records, artifact_uploads, artifacts. |
-| Reads                 | getDatasetHead, listAccounts, getSourceCoverage, listTransactions, getTransaction, getImportBatch, listImports, getJob, getCommandReceipt, listReviewItems, getSettings.                                                                                                                                                                                                                              |
-| Commands              | createImportBatch, saveAccount, resolveReview for source evidence, updateSettings for display preferences, retryJob, cancelJob.                                                                                                                                                                                                                                                                       |
-| Processor and storage | getJobInput, beginExtraction, stageInspection, getExtraction, captureReconciliation, stageObservations, publishPostingGroup, finalizeExtraction, checkpointJob, readSource, registerArtifact, readArtifact; prepareExport, completeExport, and runDatabaseBackup for operational backups.                                                                                                             |
-| Jobs and HTTP         | import and backup jobs; authenticated uploads and source/artifact streams. No derived interpretation or refresh dispatch.                                                                                                                                                                                                                                                                             |
-| Frontend              | Imports, transaction history/detail, source review, account/display settings, operational job and backup status. The home page starts with import/history actions.                                                                                                                                                                                                                                    |
-
-Accounts have source-backed or user-confirmed account roles and periods so signs and identity are correct. Offset-to-loan relationships are added in stage 3. Account type does not classify postings.
-
-Every accepted posting belongs to one unresolved event, with one unresolved allocation equal to its magnitude. Event kinds and allocation roles contain only unresolved at this stage. Merchant/category/tag/personal-event references, fee associations, credit relationships, and movement links arrive in stage 3. The current TransactionDetail contains posting, event, unresolved allocations, observation evidence, reviews, and basis. TransactionFilter contains currency, period, amount, original-description search, accountIds, and import reviewStates. Semantic filters and detail collections arrive in stage 3.
-
-Corrections initially audit source-evidence resolution. Review kinds are accountMapping, unreadableValue, duplicate, and sourceConflict. Resolution supports stored choices, mapAccount, matchPosting, distinctPosting, useObservation, and dismiss under their existing evidence rules. Unknown role alone creates no interpretation job or role-review workload before stage 3.
-
-SourceCoverage, live pagination, revision fencing, and reconciliation artifacts are required now. Persisted interpretation snapshots and the snapshots table arrive in stage 3; public snapshot-based analysis reads arrive in stage 4. Backup/export capture has its own immutable ExportManifest and record artifact. Dataset contextGeneration stays at its documented initial value until stage 6; its presence does not require context tables.
-
-Settings initially contains timezone and currency. AI policy fields arrive in stage 2, and importReminderDays arrives in stage 7. Jobs gain budget_job_id and model accounting in stage 2. The current backup manifest enumerates every implemented table and required source/artifact object, with no conversation fields or analyst binding. Restore verifies this implemented dataset, receipts, source links, and dispatch reconciliation.
+Read the CSV/OFX portions of Ingestion and Import protocol. Use exact values and ownership from Shared contracts and the financial write rule. Events, allocations, categories, model calls, saved queries, and AI runs do not exist. Source access and managed database backups protect the first private records.
 
 ## Stage 2
 
-[Historical imports](/stages/historical-imports) adds PDF media, page locators, document rendering and extraction, and their validation gates to the existing import contract. It retains unresolved financial events.
+Adds PDF page evidence, full-corpus reconciliation, on-demand financial export, original-file removal, and provider/usage settings only if document models are used. Reuse stage 1 posting and review operations. Source removal retains recorded transactions and extracted evidence; there is no withdrawal or restoration-undo action.
 
-| Area             | Additions                                                                                                                                                               |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Runtime/package  | Processor document-rendering Container, shared AI execution package and AI Gateway. Document is the only model role.                                                    |
-| Tables           | change_previews for source removal and withdrawal undo; model_calls and usage_attempts for document jobs.                                                               |
-| Model RPC        | getUsage, openModelCall, completeModelCall, reserveUsage, settleUsage for the owning job. Shared artifact transfer already exists.                                      |
-| Data-control RPC | startExport, previewSourceRemoval, removeSource, completeSourceRemoval; previewEventChange, acceptEventChange, and undoCorrection restricted to source-withdrawal undo. |
-| Jobs             | User export and removeSource. Backup and export internals from stage 1 are reused.                                                                                      |
-| Frontend         | PDF evidence/review, user export and removal/restore flows, document provider/privacy disclosure, usage and limit settings.                                             |
-
-Source-removal ChangeImpact contains affected records, evidence warnings, and review counts. Its measures field is introduced in stage 3 with the financial calculations. Withdrawal undo restores only eligible source-backed postings and their unresolved events. Other event edits and rule previews are not accepted in stage 2.
-
-User exports include all currently implemented records and optional source files. includeConversations and conversation manifest entries arrive in stage 6. Removal tracks affected result IDs only from stage 4, when analysis results exist. Each new stage extends export/restore and removal invalidation to its records as part of that stage's completion.
-
-UsagePolicy initially includes monthlyLimitMicroUsd, importJobLimitMicroUsd, and maxConcurrentModelCalls, plus schema/version fields. Analyst run limits and maxSteps arrive in stage 6. Model roles, inputs, outputs, and actor scopes contain only implemented variants. Document work uses the owning job; it needs no ai_runs or analyst authorization tables.
+The PDF library is selected; any additional model/document runtime must address an actual supplied file. A failed model-assisted extraction can require human review. Classification is still absent.
 
 ## Stage 3
 
-[Interpretation and corrections](/stages/interpret-transactions) adds financial meaning above the same postings.
+Introduces interpretation events and allocations, categories, merchants, tags, personal events, role/rule decisions, movement and credit links, splits, correction history, and undo. The transaction UI grows semantic fields and filters. Details and previews gain financial measures.
 
-| Area                     | Additions                                                                                                                                                                                                                                                                     |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tables                   | snapshots for interpretation, categories, merchants, merchant_aliases, tags, personal_events, fee_associations, allocation_tags, allocation_events, cost_credits, role_rules, classification_rules; extend events, allocations, corrections, and previews for interpretation. |
-| Reference reads/commands | getReferenceData, saveCategory, saveTag, saveMerchant, savePersonalEvent; extend saveAccount with evidenced relationships.                                                                                                                                                    |
-| Financial commands       | correctEvent, linkCostCredit, unlinkCostCredit, linkMovements, setFeeAssociation; extend previewEventChange, acceptEventChange, undoCorrection, and resolveReview to semantic edits.                                                                                          |
-| Rules                    | previewRoleRule, acceptRoleRule, listRoleRules, setRoleRuleEnabled, previewRule, applyRule, setRuleEnabled, listRules.                                                                                                                                                        |
-| Processing               | captureSnapshot for interpretation, commitRoles, commitInterpretations, applyRuleGroup; interpret and applyRule jobs. Interpretation model role and evaluation.                                                                                                               |
-| Frontend                 | Complete interpretation detail, semantic search/filters/review, linked movement/credit evidence, splits, previews, correction history, rule and reference-data controls.                                                                                                      |
-
-All financial event kinds, allocation roles, category/merchant relations, and movement/credit collections become available. Personal events hold dates and transaction associations; exclude_from_ordinary arrives in stage 5. General personal_context and its effect on classification arrive in stage 6; stage 3 InterpretationInput omits that context field.
-
-Financial-role rules, conservation, metric arithmetic, and CoverageSummary needed by ChangeImpact belong here. This includes cash and loan-period calculations and the difference between unknown roles and unclassified costs. Interpretation capture uses the financial definition and query fields needed to select its accepted account, period, and event scope, with no comparison or grouping. Its manifest stores the selected rows and evidence; it produces no comparison result. General FinancialQuery comparison endpoints and historical result machinery arrive in stage 4. A correction preview computes its bounded before/after impact directly in the API without requiring saved analyses.
-
-Posting publication now dispatches interpretation. Installing stage 3 durably schedules pre-existing unresolved events for interpretation with stable job identities, preserving source decisions and user corrections. Work with no original source-processing budget uses the standalone interpretation policy. The migration/backfill has visible progress and retry behavior. It does not reupload or reparse sources solely to classify history.
+Existing postings can be interpreted through an explicit action without reupload. Uninterpreted records remain visible. Suggestions are reviewable individually or in bulk; users can categorize without AI. Preserve source values and accepted corrections.
 
 ## Stage 4
 
-[Historical exploration](/stages/explore-spending) owns comparisons and persistent analysis results.
-
-| Area                | Additions                                                                                                                                                                   |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tables              | saved_analyses and analysis_results; extend interpretation snapshots to financial analyses.                                                                                 |
-| Reads               | getCoverage, getOverview, queryFinancials, getAnalysisResult, listContributions, listEvidence, listSavedAnalyses.                                                           |
-| Commands/processing | startAnalysis, saveAnalysis, refreshAnalysis, captureSnapshot for financial analyses, and publishAnalysis.                                                                  |
-| Contracts/jobs      | FinancialQuery actual-history measures, comparison results, ResultSelection, allocation/posting contributions, fixed/relative saved definitions; analysis and refresh jobs. |
-| Frontend            | Historical overview, Trends, evidence drilldowns, saved-analysis controls, immutable result history, pending refresh.                                                       |
-
-getOverview initially contains basis, sourceCoverage, and metrics. Upcoming schedules arrive in stage 5 and insightIds in stage 7. ordinaryMonthlyCost, ordinaryBasis, and estimate contributions arrive in stage 5. Forecast/scenario definitions and results arrive in stage 5; computation arrives in stage 6. No future result variant is accepted in stage 4.
-
-Refresh coordinates saved-analysis jobs through startAnalysis and refreshAnalysis, with results committed through publishAnalysis. publishRefresh is introduced in stage 5 for commitment proposals and extended in stage 7 for insights and intentions. Imports and corrections dispatch refresh only for existing consumers. The scheduler now refreshes relative saved analyses when their dates change.
+Adds historical overview, comparison queries, contributors, frequency/average-payment views, and saved query definitions. Reuse stage 3 measures. Calculate on open or explicit refresh and invalidate visible frontend queries after writes. Relative date selection resolves at read time. There is no required snapshot store or automatic saved-analysis refresh.
 
 ## Stage 5
 
-[Planning](/stages/plan-costs) extends existing analysis and refresh contracts.
-
-| Area                  | Additions                                                                                                                                      |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tables                | commitments, commitment_segments, commitment_occurrences, scenarios.                                                                           |
-| Reads                 | listCommitments, listScenarios; getOverview gains upcoming.                                                                                    |
-| Commands/processing   | saveCommitment, setOccurrenceOverride, setOccurrenceMatch, saveScenario, commitOccurrenceMatches, and publishRefresh for commitment proposals. |
-| Calculation contracts | Ordinary costs and exclusions, schedules/detection, forecast/scenario definitions and results, estimate contributions, evaluation.             |
-| Frontend              | Commitments, Forecasts, scenario controls, ordinary-cost analysis and exclusion controls, upcoming commitments in overview.                    |
-
-The existing analysis and refresh jobs gain these definition variants. Scheduled date refresh includes forecasts and commitments. Commitment proposals appear in their owning view. No insight or intention job is required to make recurrence detection useful.
+Adds schedules, effective changes, occurrence matching, ordinary costs, deterministic 30/90-day cost outlooks, a known-payment cash calendar, and saved scenarios. Financial values remain separate from estimates. Forecast assumptions cannot edit actual history. Statistical forecasts and future balance simulation are outside this stage.
 
 ## Stage 6
 
-[The analyst](/stages/analyst) adds a conversation consumer of the financial services.
+Adds AIChatAgent, authenticated conversation routing, bounded read-only financial tools, explicit notes, and confirmation actions through the existing UI commands. The SDK owns messages and streaming. A failed answer can require a new request. Note changes lead to a fresh conversation so the prior transcript is not reused.
 
-| Area                 | Additions                                                                                                                                               |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Runtime              | Analyst Worker, AIChatAgent Durable Object, authenticated web namespace binding and SDK transport; computational Container.                             |
-| Tables               | personal_context, ai_runs, ai_steps, action_authorizations.                                                                                             |
-| Context RPC          | getPersonalContext, saveContext, removeContext; confirmed context now informs interpretation.                                                           |
-| Conversation ingress | acceptRun, cancelRun, listConversations.                                                                                                                |
-| Execution RPC        | startChildRun, getRun, captureRunSnapshot, checkpointRun, recordAiStep, createClarification, proposeContext.                                            |
-| Existing contracts   | Agent actor authority; intent, analyst, and summary model roles; investigation limits, context invalidation, computation definition/result and job.     |
-| Export               | getExportScope and exportConversation, includeConversations, conversation manifests and backup watermarks, private processor-to-analyst export binding. |
-| Frontend             | Analyst conversations, contextual investigation actions, memory controls, computational artifacts, investigation usage and recovery.                    |
-
-Shared model RPC and artifacts already exist; extend their permitted actor variants to authorized runs. A numerical analyst tool cannot invent a parallel metric implementation. Conversation backups extend the current export protocol and validate the represented message prefix against the financial snapshot before publication.
+No parallel AI-run schema, text-edit intent service, child-agent execution, arbitrary computation service, or coordinated chat/database restore is required.
 
 ## Stage 7
 
-[Findings and follow-through](/stages/follow-through) completes the cumulative spend-management scope.
+Adds deterministic finding scans, user finding state, intentions, an in-app inbox, and reminder preferences. A normal scheduled handler can invoke the same bounded scan used by the UI. Scans preserve dismissed state and avoid duplicate notifications. Failure offers retry without a dependency-refresh coordinator.
 
-| Area       | Additions                                                                                                                                                           |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tables     | insights, intentions, inbox_items.                                                                                                                                  |
-| Reads      | listInsights, listIntentions, listInbox; getOverview gains insightIds.                                                                                              |
-| Commands   | setInsightState, saveIntention, setInboxState.                                                                                                                      |
-| Processing | Insight detectors/ranking, intention results, publishRefresh insight and intention payloads, scheduled follow-up, deduplicated inbox delivery and import reminders. |
-| Frontend   | Insights, tracked intentions, general inbox, reminder settings, overview findings.                                                                                  |
+## Shared controls
 
-Before stage 7, import, review, model, backup, and analysis failures appear in the relevant owning view and operational status. Stage 7 adds inbox aggregation without becoming a prerequisite for earlier recovery. Export/restore includes all final records and preserves delivery state.
+Financial exports begin in stage 2 and include new financial/domain records as they arrive. They are data downloads, not synchronized system backups. Provider backup configuration remains an operating concern. Original-file removal retains records at every stage, so it does not introduce later financial-impact or result-history protocols.
 
-## Reference and verification ownership
-
-[Product acceptance](/product/acceptance) assigns every scenario to its introduction stage. Within a shared feature page, its delivery table allocates the detailed behaviors. Technical sections inherit the corresponding contract allocation above; shared correctness rules apply whenever the operation exists.
-
-Stage 1 validates all supplied CSV/OFX. Stage 2 expands that gate to all supplied formats. Stage 3 adds role and category evaluation, stage 4 comparison/snapshot checks, stage 5 forecast evaluation, stage 6 analyst/routing/computation checks, and stage 7 detector and follow-through checks. Every stage verifies its browser flows, data controls, and recovery and keeps earlier regression coverage.
+Stage 1 review concerns source facts and identity. Stage 3 adds interpretation review. Stage 6 suggestions use those existing controls. Stage 7 inbox entries link to owning views rather than introducing another state machine for the same action.

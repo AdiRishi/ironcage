@@ -1,69 +1,58 @@
 ---
 title: Settings and data controls
-description: Manage account context, display preferences, AI usage, exports, and the removal of financial evidence.
+description: Manage accounts, preferences, AI usage, financial exports, and original files.
 ---
 
 ## Delivery scope
 
-| Stage                               | Controls and behavior introduced                                                                                                            |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| [1](/stages/record-transactions)    | Account labels/types/effective periods, timezone, currency, private access, retention disclosure, and operational backup status/recovery.   |
-| [2](/stages/historical-imports)     | Document provider/privacy and usage controls, user exports, source-removal previews, retention/withdrawal, restoration and withdrawal undo. |
-| [3](/stages/interpret-transactions) | Offset/loan relationships, categories, tags, merchant aliases, classification/role rules, and interpretation usage.                         |
-| [4](/stages/explore-spending)       | Export and removal effects on saved analyses and results.                                                                                   |
-| [5](/stages/plan-costs)             | Export and invalidation coverage for schedules, ordinary costs, forecasts, and scenarios.                                                   |
-| [6](/stages/analyst)                | General personal context, investigation limits, conversation export selection, and conversation retention/restore.                          |
-| [7](/stages/follow-through)         | Import reminders, inbox behavior, and export/restore of findings and intentions.                                                            |
+| Stage                               | Controls introduced                                                                                               |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| [1](/stages/record-transactions)    | Account labels, evidenced roles/effective periods, timezone, currency, private access, and retention disclosures. |
+| [2](/stages/historical-imports)     | Financial data export, original-file removal, and document-provider/usage controls if models are needed.          |
+| [3](/stages/interpret-transactions) | Account relationships, categories, tags, merchant aliases, interpretation rules, and category suggestions.        |
+| [4](/stages/explore-spending)       | Saved query management and export of definitions.                                                                 |
+| [5](/stages/plan-costs)             | Schedules and scenario assumptions.                                                                               |
+| [6](/stages/analyst)                | Explicit personal notes, analyst limits, and conversation access.                                                 |
+| [7](/stages/follow-through)         | Import reminders, inbox preferences, findings, and intentions.                                                    |
 
-Settings exposes only the controls whose behavior exists. Exports include all records implemented at that stage and grow with later entities. Stage 1 operating backups are automatic and inspectable; user-requested export begins in stage 2. Source-removal previews begin with records and evidence in stage 2, add financial impact in stage 3, and saved-result impact in stage 4.
-
-Settings groups the controls that apply across the application. The product serves one authenticated user. Financial records, source downloads, and conversations are private to that user.
+Show controls only when their behavior exists. Financial exports grow with implemented records. Managed backups are an operating requirement, not an application backup management screen.
 
 ## Accounts and classification
 
-The user can inspect and change account labels, roles, and evidenced relationships, including which loan an offset account belongs to. Role and relationship changes have effective dates so current account context does not silently replace historical context. Account names do not determine the purpose of every payment.
+Account labels do not establish transaction purpose. Account role and relationship changes retain their effective dates. Offset/loan relationships arrive in stage 3.
 
-Categories and tags are editable. Referenced categories retain their identity when renamed or archived. Merchant management exposes accepted aliases and service distinctions. Conflicting aliases require resolution before a change applies.
+Categories and tags remain editable. Renaming or archiving a referenced category preserves its identity. Accepted merchant aliases can distinguish services. Broad rule changes preview affected records and preserve transaction-specific exceptions. Conflicting rules require a user decision.
 
-Classification rules show their conditions, priority relative to individual corrections, and historical or future scope. Broad changes use the preview described in [Transactions](/product/transactions#corrections-and-splits). A change to a general rule preserves transaction-specific exceptions. Rules that assign purchase, income, or financing-cost roles have their own account and source-reference scope and require a financial-impact preview before acceptance.
+## Display and reminders
 
-## Display and reminder preferences
+Default to Australia/Sydney and AUD. Preferences affect subsequent views, not the bank's booked values. A one-currency view identifies excluded currencies without inferred conversion.
 
-The default calendar timezone is Australia/Sydney and the default reporting currency is AUD. Changing a preference updates subsequent views. It does not convert the bank's booked amounts or rewrite a saved historical result. A view for one currency shows which records it excludes because they use another currency.
-
-Import reminders use the configured interval. They indicate that financial records may be out of date. They do not imply a bank connection or a newly observed spending change. Findings and completed work appear in the [in-app inbox](/product/insights-and-follow-through#notification-behavior).
-
-## Personal context
-
-The user can inspect confirmed facts, proposed facts, their evidence, and the accounts or periods to which they apply. Accepting, correcting, or removing a fact changes future analysis. Historical results mark assumptions that have changed.
-
-Conversation summaries are distinct from confirmed facts. The [analyst and memory specification](/product/analyst-and-memory#useful-memory) defines how each affects an answer.
+From stage 7, an import reminder follows the configured interval and can be disabled. It indicates stale financial data, not a bank connection or a newly observed change.
 
 ## AI usage and privacy
 
-Settings shows the configured AI usage limits and current usage, including unsettled reservations and uncertain charges. Estimated costs are labelled. The user can change the monthly ceiling and investigation or import limits. The import limit covers one source-processing job and its derived interpretation work; standalone interpretation jobs report their own usage under that limit. New calls follow the updated policy.
+Name the configured provider and explain which records or document pages it receives. Gateway routing does not mean inference stays within Cloudflare. Show reported usage, labelled cost estimates, and unknown usage when a failed call provides no report.
 
-When a limit prevents further AI work, the app explains which limit applies and preserves completed work. The user can adjust the limit and explicitly retry unfinished work. Ordinary financial views and accepted records remain accessible. A retry does not repeat a committed correction.
+The user can disable AI and configure task limits and a usage warning threshold. The threshold can stop new calls after observed usage reaches it, but is not a guaranteed billing ceiling. Delayed reports, unknown charges, or concurrent requests can exceed it. Retrying can incur another charge. Avoid promising an exact spend cap without a separately verified provider capability.
 
-The application names the configured model providers and explains the data sent for a task. It sends the relevant records and context rather than the entire financial history by default. AI Gateway routing does not imply that processing remains within Cloudflare. Provider and backup retention are disclosed separately from application deletion. The [retention policy](/technical/operations#sources-backups-and-retention) includes daily backups for 30 days and monthly portable backups for 12 months.
+When AI cannot proceed, keep bank records and normal views available. Classification offers direct manual categorization. Document extraction identifies the source needing review or a clearer export.
+
+## Personal notes
+
+Stage 6 provides explicit notes with their supplied account or period scope. Edits and removals change future retrieval. Continue in a fresh conversation after a note change so older transcript text is not silently reused. [Analyst and memory](/product/analyst-and-memory#useful-memory) defines the confirmation and history behavior.
 
 ## Export
 
-The user can export financial records, interpretations, corrections, personal context, and evidence relationships. Source files and conversations are selectable additions. The export records its data version and completion time.
+Stage 2 exports implemented financial records and evidence relationships in a documented machine-readable format. Original source files are a selectable addition. Later stages include interpretations, corrections, saved definitions, schedules, scenarios, notes, findings, and intentions as they arrive.
 
-Export runs in the background. The app provides a download when the package is complete and reports any failure that prevents completion. The export supports recovery and migration without requiring this documentation or the discovery conversation to interpret the records.
+The download records what it contains and when it was produced. A failed export offers another attempt. Large exports can use the normal background workflow. This is a financial data download, not a synchronized backup of the database, source store, and chat history. Conversation export is not a stage completion requirement.
 
 ## Source removal
 
-Removing a source begins with a preview of affected transactions, evidence, and saved results. A transaction supported by another source remains in the financial history.
+The confirmation lists affected records and states that only original file bytes will be removed. Accepted transactions, extracted fields, corrections, and evidence relationships remain. Transaction detail marks the original file unavailable; other supporting files remain accessible.
 
-When the source is the last support for a transaction, the user chooses one of two outcomes:
+Reuploading the same verified bytes restores source access without adding transactions. A failed removal offers retry and shows the actual availability. Removing financial history or withdrawing transactions is outside this action's scope.
 
-- Retain the transaction with a visible warning that its original source is unavailable.
-- Withdraw the transaction from current financial views and refresh affected totals.
+## Retention
 
-The app applies the selected outcome explicitly. It retains the operation's audit record and marks affected historical results. A retained result can display its stored calculation, but a deleted source is shown as unavailable. The app does not promise access to removed evidence.
-
-Reuploading a removed source restores its evidence after verification. Previously withdrawn transactions stay withdrawn until the user accepts an undo of the withdrawal, with its financial impact shown. Reuploading during an unfinished removal waits for that operation to finish.
-
-Deleting remembered context excludes it from future retrieval. Existing historical results and retained backups follow the stated retention policy. A source-removal or context-removal action does not claim to erase every copy immediately.
+Disclose the actual configured database backup retention and original-file copy arrangement from [Operations](/technical/operations#sources-backups-and-retention). Source and note deletion do not promise immediate erasure from retained backups. Temporary downloads expire according to the configured policy.

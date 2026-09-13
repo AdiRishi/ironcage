@@ -1,45 +1,44 @@
 ---
 title: "2. Import the full historical corpus"
-description: Extend the working import app to PDF history and complete source-data controls.
+description: Extend the working importer to PDF statements and source-data controls.
 ---
 
 ## Outcome
 
-The same upload and transaction-history application accepts all supplied CommBank CSV, OFX, and PDF files. The user can inspect older statement evidence, resolve extraction issues, export recorded data, and explicitly remove a source.
+Extend the working importer to PDF statements and source-data controls.
 
-Prerequisite: stage 1 is verified. Extend its import pipeline, review flow, and transaction identities.
+Prerequisite: Stage 1 is verified. Reuse its posting identities and review flow.
 
 ## User flows and frontend
 
-- Upload PDF statements alongside structured exports. Show page-related extraction progress and the existing per-file outcomes.
-- Inspect statement pages and extracted rows when a value, account, or match needs review. Distinguish observed coverage, reconciled intervals, confirmed inactivity, and missing evidence.
-- See one bank posting supported by several formats. Retain access to every supporting observation and its source.
-- Request an export with optional original files, follow its background progress, and download the completed package.
-- Preview source removal. Identify transactions with surviving evidence and let the user retain unsupported records with a warning or withdraw them. Reupload restores evidence; returning withdrawn records requires an explicit undo preview.
-- Inspect model providers, retention, usage limits, reservations, and uncertain charges for document extraction. Change a limit and retry unfinished extraction while accepted records remain usable.
+- Upload PDF statements alongside structured exports and inspect page evidence for a questioned row.
+- See one posting supported by several formats and resolve genuine cross-format ambiguity.
+- Export financial records and evidence relationships, optionally with original files, and download the result. Retry an export that fails.
+- Confirm removal of original file bytes. Keep transactions and extracted fields, mark the file unavailable, and restore source access by reuploading the same bytes.
+- If document AI is needed, inspect its provider, usage estimates, and limits, or resolve the uncertain evidence manually.
 
-Use the existing Imports, Review, Transactions, and Settings experiences. Source-removal previews show affected records and evidence availability. Financial impact measures arrive with interpretation in stage 3; no spending impact is fabricated here.
+The stage is complete only when these flows use real persisted records and work on desktop, mobile, and with a keyboard. Empty, loading, review, and failed states belong to the same implementation.
 
 ## Backend and integration
 
-Add the selected unpdf adapter and versioned CommBank layouts. Render ambiguous or scanned pages through the document-processing Container where required, with structured model proposals and independent financial validation. Add shared model policy, AI Gateway routing, usage reservations, and document evaluation without an analyst runtime.
+Use unpdf with verified CommBank layouts. Validate every actual PDF, including the visible pages needed to establish repairs. Model assistance is a bounded optional extraction path for demonstrated document needs; no rendering runtime is prescribed in advance.
 
-Extend reconciliation and coverage to the full corpus. PDF observations attach to existing canonical postings. Corrected extractors preserve accepted evidence decisions. Roles remain unresolved and categorization is not dispatched.
-
-Implement user export, source-removal fencing, retention/withdrawal, evidence restoration, and undo of source withdrawal. Reuse stage 1 backup/export internals. Extend backup and restore coverage to extraction artifacts and model accounting. Conversation export remains absent until stage 6.
+Extend the same atomic publication and deterministic matching rules to PDF. Add on-demand exports and source-byte removal. Keep the bank records independent of categorization. Model failure leaves a specific review item without damaging earlier imports.
 
 ## Reading path
 
-Read [Imports](/product/imports) and the export, source-removal, AI usage, and privacy portions of [Settings](/product/settings-and-data). Follow [PDF extraction](/technical/ingestion#extraction), [PDF library selection](/technical/ingestion#pdf-library-selection), [PDF checks](/technical/import-protocol#pdf-extraction-and-checks), and [removal and restoration](/technical/import-protocol#refresh-and-removal).
+Read [Imports](/product/imports), export/removal in [Settings](/product/settings-and-data), [Stage boundaries](/technical/stage-boundaries#stage-2), [PDF library selection](/technical/ingestion#pdf-library-selection), [PDF checks](/technical/import-protocol#pdf-extraction-and-checks), and [Document extraction](/technical/ai-functionality#document-extraction).
 
-Use [Stage boundaries](/technical/stage-boundaries#stage-2) for model and data-control contracts. Read the document role, shared usage policy, and relevant evaluation gate in [AI functionality](/technical/ai-functionality). Inspect every actual CommBank source, including the visible PDF pages needed to resolve extraction assumptions. Apply the relevant operations and verification sections.
+Apply [Operations](/technical/operations), [Frontend](/technical/frontend), and [Verification](/technical/verification) to the introduced behavior. Later sections do not expand this stage.
 
 ## Completion evidence
 
-Account for every supplied CSV, OFX, and PDF file and reconcile the full corpus across formats and import orders. Compare extracted amounts, dates, and balances with independently checked statement evidence. Specific unresolved records are permissible only for missing or conflicting evidence; broad review output does not excuse parser defects.
+Account for every supplied file and check cross-format overlaps in different orders. Validate PDF dates, amounts, balances, and row completeness against visible statement evidence. A specific missing fact can require review; a parser defect or blanket review state is not completion.
 
-Exercise PDF review, model-limit recovery, export download, source removal with surviving and last-source evidence, reupload during and after removal, and explicit withdrawal undo through the UI. Verify rendering in the hosted runtime and restore the expanded backup format.
+Demonstrate export/download, failed-export retry, removal with one or several supporting sources, and reupload without new postings. If models are used, verify invalid output and provider failure with manual resolution. Verify the actual deployed extraction path.
+
+Preserve earlier stage regressions and report specific unverified external checks. Stop after this stage.
 
 ## Excluded
 
-Financial-role establishment, category models, merchant normalization, semantic relationship review, spending analysis, commitments, forecasts, analyst conversations, and proactive findings. Document extraction may use AI; the user-facing analyst does not exist yet.
+Categorization, interpretation records and relationships, spending analysis, planning, analyst conversations, and findings.

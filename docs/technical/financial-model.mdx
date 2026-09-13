@@ -1,17 +1,17 @@
 ---
 title: Financial records and metrics
-description: The identities, relationships, monetary rules, and revisions behind consistent financial answers.
+description: The identities, relationships, and monetary rules behind consistent financial answers.
 ---
 
 ## Delivery scope
 
-Stage 1 establishes identity, source evidence, exact values, unresolved events, and publication/recovery invariants. Stage 3 adds interpretation, relationships, and the measures required by correction previews. Stage 4 adds general analysis queries and immutable results; stage 5 adds ordinary-cost and schedule measures. Apply each invariant when its owning behavior exists.
+Stage 1 establishes identity, source evidence, exact values, and safe publication. Stage 3 introduces events, allocations, relationships, and the measures required by correction previews. Stage 4 adds current-data analysis queries and saved definitions; stage 5 adds ordinary-cost and schedule measures. Apply each invariant when its owning behavior exists.
 
 [Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
 
 This page defines the target data contract. SQL migrations and boundary schemas implement the contract. The names below are planned domain records.
 
-The [database schema](/technical/database-schema) specifies exact tables, columns, constraints, and indexes. [Shared contracts](/technical/contracts) specifies their wire representations. [Calculation rules](/technical/calculation-rules) defines event construction and metric algorithms.
+The [database schema](/technical/database-schema) defines record groups and required constraints. [Shared contracts](/technical/contracts) specifies their wire representations. [Calculation rules](/technical/calculation-rules) defines event construction and metric algorithms.
 
 ## Record identity
 
@@ -26,7 +26,7 @@ The [database schema](/technical/database-schema) specifies exact tables, column
 | Correction         | A user-authored change, with scope, prior version, and command identity.                                           |
 | Review item        | A specific unresolved interpretation, supporting evidence, candidate choices, and resolution state.                |
 | Commitment         | A recurring expense or income schedule with effective dates and evidence.                                          |
-| Analysis result    | A query result pinned to input revision, calculation version, assumptions, and evidence.                           |
+| Analysis result    | A calculated response with its query, time, assumptions, coverage, and evidence.                                   |
 
 ```mermaid
 erDiagram
@@ -46,7 +46,7 @@ The diagram shows conceptual relationships. Link tables implement many-to-many e
 
 Mutable interpretations have a version. Source locators and command IDs remain stable across retries. An extraction rerun does not create a new bank transaction by itself. Matching establishes that relationship separately.
 
-The [database schema](/technical/database-schema) owns the exact field, nullability, and constraint definitions for these records.
+The [database schema](/technical/database-schema) defines required relationships; implemented migrations own exact fields and constraints.
 
 ## Amounts and dates
 
@@ -62,7 +62,7 @@ Posting date, supplied value date, and evidenced purchase date remain separate f
 
 ## Evidence and interpretation
 
-Raw observations remain immutable. Reprocessing creates another extraction version and preserves the source location. An accepted transaction can have an unknown category without losing its amount from aggregate spending.
+Raw observations remain immutable. Reprocessing creates another extraction version and preserves the source location. A bank posting needs no interpretation record. From stage 3, an established cost with an unknown category remains in aggregate spending as unclassified.
 
 Financial roles distinguish income, purchase cost, financing cost, internal transfer, borrowing, refund, reimbursement, non-personal amounts, and unresolved movement. Net principal reduction is derived over a loan period; it is not an allocation of a repayment to the date of an interest charge. Categories describe the purpose of a cost. They are not a substitute for financial roles.
 
@@ -95,15 +95,15 @@ Splitting or relinking preserves the sum of recorded bank movements. Corrections
 
 Surplus is not a promise of available cash. Paying card balances, reducing loan principal, or moving funds to an investment can change available cash differently. Missing assets prevent a claim of complete net worth.
 
-Linked refunds and reimbursements reduce the original purchase period in the net-cost view. The account view retains the credit's posting date. A result created before the credit arrived keeps its prior revision. A refreshed result shows the revised net cost.
+Linked refunds and reimbursements reduce the original purchase period in the net-cost view. The account view retains the credit's posting date. The next calculation shows the revised net cost. Earlier displayed messages retain their calculation time without promising a replayable historical database.
 
 An unlinked refund is shown separately until its purchase or period is known. Unresolved money is disclosed alongside the affected metric. The result does not label itself complete when unresolved roles could materially change it.
 
 ## Query and result contracts
 
-A financial query identifies a metric, date basis, date range, comparison, account scope, filters, adjustment choices, and data revision. Calendar ranges use an inclusive start and exclusive end internally.
+A financial query identifies a metric, date basis, date range, comparison, account scope, filters, and adjustment choices. Calendar ranges use an inclusive start and exclusive end internally.
 
-A result contains values, units, covered intervals, unresolved counts and amounts, calculation version, and evidence references. Evidence lists are paginated or stored as immutable manifests. A large result is not truncated without a visible count.
+A result contains values, units, covered intervals, unresolved counts and amounts, calculation version, and evidence references. Evidence lists use bounded pages when needed. A large result is not truncated without a visible count.
 
 The same definition feeds chart datasets and agent tool results. Neither consumer recalculates official totals from formatted strings.
 
@@ -111,16 +111,14 @@ The same definition feeds chart datasets and agent tool results. Neither consume
 
 This section owns the financial write protocol. Other pages link here instead of restating it. PlanetScale Postgres stores these records in relational tables, with indexes on account and posting date, source identity, event membership, and review state. Foreign keys, unique constraints, and row-level checks protect record relationships. Constraints that span several rows are checked within the financial command transaction.
 
-Every financial mutation starts a `READ COMMITTED` transaction and locks the owner's dataset-revision row with `SELECT ... FOR UPDATE`. It reads affected records after acquiring that lock. All commands that change financial interpretations or revision-dependent context use this boundary. Short writes are serialized per owner, which fits the single-user workload and gives cross-record checks one concurrency rule.
+Every financial mutation starts a transaction and acquires a shared per-owner write lock, such as a Postgres transaction-level advisory lock. Read affected records after acquiring the lock. This serializes short financial writes for the single-user workload and protects cross-record matching and conservation checks. It does not require a dataset revision record.
 
-Within the lock, a command first checks its stored receipt. A repeated command ID with the same payload returns that outcome. Reusing an ID for a different payload returns a conflict. New commands validate expected subject versions and any required input revision before applying changes.
+A command first checks its receipt. Repeated command ID and input return the accepted result. New commands validate expected record versions, then commit changes, correction history where applicable, and the receipt together. Reusing an ID with different input is a conflict. Source hashes and observation links protect imports repeated through new actions as well.
 
-The transaction commits the financial change, audit entry, receipt, new revision, and dependent dispatch records together. A stale expectation rolls the transaction back and returns the current version. Record reads, application validation, and writes use the same Effect SQL transaction context and connection.
+A stale expectation leaves data unchanged and asks the user to review current records. Record reads, validation, and writes use the same transaction connection. A lost commit response can be retried with the same command ID rather than assuming rollback.
 
-Deadlocks and serialization failures retry the whole transaction within a finite budget. Business conflicts return to the caller for reevaluation. A lost commit response is resolved by looking up the command receipt on the primary before attempting another change.
+Parsing, document processing, model calls, and R2 transfers happen outside financial transactions. Normal finite database retries are acceptable for transient failures; exhausted errors return to the user. There are no dependent dispatch records in the financial commit.
 
-Document processing, model calls, R2 transfers, and Workflow dispatch occur outside financial write transactions. Statement, lock, and transaction deadlines bound resource use. Dispatch status changes have their own lease operations and do not advance the financial revision.
+Related financial totals use a consistent read transaction when several queries contribute to one response. Live views recalculate from current records and invalidate their TanStack Query cache after writes. The application does not retain a snapshot for every read or reconstruct old database states from revision numbers.
 
-Read-only snapshot extraction uses `REPEATABLE READ` as defined in [Architecture](/technical/architecture#revisions-and-stable-answers). The write protocol above uses explicit serialization through the owner lock. It does not assume that PostgreSQL's default isolation protects arbitrary read-modify-write sequences. [PostgreSQL isolation](https://www.postgresql.org/docs/current/transaction-iso.html)
-
-Immutable source observations and correction history support auditability without requiring every ordinary read to replay a complete event log. Historical analyses retain the snapshot or evidence version they used.
+Source observations and correction history preserve evidence without requiring ordinary reads to replay an event log. Interpretation records are introduced in stage 3; bank posting reads remain independent of them.

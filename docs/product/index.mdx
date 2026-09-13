@@ -47,9 +47,9 @@ These pages preserve the detailed spend-management requirements. [Delivery stage
 
 ## Product-wide behavior
 
-The same financial question against the same records and assumptions has the same numerical answer in charts, saved analyses, and analyst responses. Each answer states its period, included accounts, measure, and data coverage.
+The same financial question against the same records and assumptions has the same numerical answer in charts, saved analyses, and analyst responses. Each numerical answer states its period, included accounts, measure, calculation time, and data coverage.
 
-Imports can be repeated safely. Corrections survive later uploads. A failure leaves an explanation and a way to continue, without damaging previously accepted history.
+Imports can be repeated safely. Corrections survive later uploads. A failed action can require retry, reupload, or a user decision. It leaves accepted history consistent and cannot duplicate records when repeated.
 
 The user can inspect the transactions behind a number and correct an interpretation. Affected views show that an update is pending until a current result is available. Questions name a specific missing fact and its effect on the answer. Import can proceed while unrelated questions remain unresolved.
 
@@ -69,7 +69,7 @@ Account labels describe where money sits. They do not determine the purpose of e
 | Tag            | An additional purpose or context label. Several tags can apply to the same cost.                         |
 | Personal event | A trip, life change, or other named event associated with dates and relevant transactions.               |
 | Analysis       | A question and calculation definition, including filters and assumptions, that can be saved for reuse.   |
-| Result         | One completed calculation against a particular version of the records.                                   |
+| Result         | One calculation with its query, time, assumptions, and coverage.                                         |
 | Investigation  | An analyst conversation that can use several analyses and retain their results and explanations.         |
 
 "Spending" means net personal costs unless a view explicitly selects another measure. [Transactions](/product/transactions) defines how purchases, credits, and repayments affect that measure.

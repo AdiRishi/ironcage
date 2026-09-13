@@ -1,45 +1,42 @@
 ---
 title: "6. Investigate through the analyst"
-description: Connect a recoverable, evidence-backed analyst to the financial services already available in the UI.
+description: Add one conversational agent using the financial application already built.
 ---
 
 ## Outcome
 
-The user can ask questions about recorded history and planning, inspect evidence, retain useful context, and continue an investigation later. Numerical answers agree with the existing financial views.
+Add one conversational agent using the financial application already built.
 
-Prerequisite: stage 5 is verified. Analyst tools call the existing API and calculations.
+Prerequisite: Stage 5 is verified. Analyst tools reuse existing financial read operations.
 
 ## User flows and frontend
 
-- Start or reopen a conversation, ask a question, and inspect progress and supporting calculations.
-- Ask about a selected chart contribution or transaction while keeping its scope visible. Return from evidence to the originating view with query state preserved.
-- Answer a specific clarification, accept a proposed change through its required preview, and inspect the resulting correction.
-- Inspect, confirm, correct, and remove scoped personal context. Distinguish confirmed facts from conversation summaries.
-- Save an investigation and its analyses, reconnect after closing the browser, stop accepted work, and retry unfinished work without duplicate submissions or corrections.
-- Inspect exploratory scripts or artifacts with their input basis and limitations. Review model usage, including investigation limits and uncertain charges.
+- Start or reopen a conversation and ask about history, a selected record, a comparison, or a scenario.
+- Inspect tool results with calculation time, coverage, and links to supporting records.
+- Answer clarifications and accept proposed changes through existing edit controls or explicit confirmation cards.
+- Manage explicit personal notes. After changing or removing a note, continue in a fresh conversation and retain the old one for inspection.
+- Reconnect using SDK-supported message/stream recovery, stop an answer, or ask again after failure. Inspect available usage estimates.
 
-Add the analyst experience and contextual entry actions to working financial views. Its visual arrangement is a design decision. Existing views remain usable during a failed, stopped, or limited investigation.
+The stage is complete only when these flows use real persisted records and work on desktop, mobile, and with a keyboard. Empty, loading, review, and failed states belong to the same implementation.
 
 ## Backend and integration
 
-Add the analyst Worker and owner-bound AIChatAgent Durable Object, authenticated namespace routing, SDK transport, durable run records, tools, action authority, clarification, memory selection, and evidence validation. Reuse shared model execution and budget accounting from stage 2.
+Use AIChatAgent persistence and streaming with a normal bounded SDK tool loop. Authenticate owner-bound namespace routing. Financial tools are read-only; user acceptance invokes the existing financial command. Allow one active answer per conversation.
 
-Implement immutable investigation snapshots, ordered submissions, cancellation and recovery, bounded child investigations, and computational Containers where required by the protocol. Generated computations remain exploratory and cannot replace financial definitions.
-
-Extend portable exports and backups to conversations with the documented snapshot/message-watermark reconciliation. Extend existing Settings with personal-context management and conversation export selection. Include context invalidation and removal in historical-result disclosures.
+Keep notes explicit and use current domain records for account roles and rules. Do not add a parallel run supervisor, textual-edit authorization parser, child agents, or arbitrary computation runtime. Conversation storage follows the SDK lifecycle independently of managed financial backups.
 
 ## Reading path
 
-Read [Analyst and memory](/product/analyst-and-memory), the analyst additions in [Workspace](/product/workspace), and personal-context and conversation controls in [Settings](/product/settings-and-data). Follow [Stage boundaries](/technical/stage-boundaries#stage-6), [AI analyst](/technical/ai-analyst), and analyst tools, authority, execution, answers, memory, computation, and evaluation in [AI functionality](/technical/ai-functionality).
+Read [Analyst and memory](/product/analyst-and-memory), [Stage boundaries](/technical/stage-boundaries#stage-6), [AI analyst](/technical/ai-analyst), [AI functionality](/technical/ai-functionality), and conversation routing in [Frontend](/technical/frontend).
 
-Read the corresponding run/context schemas, analyst RPC, frontend transport, access routing, and conversation backup/recovery requirements.
+Apply [Operations](/technical/operations), [Frontend](/technical/frontend), and [Verification](/technical/verification) to the introduced behavior. Later sections do not expand this stage.
 
 ## Completion evidence
 
-Compare analyst answers with independently verified chart results and follow their evidence. Demonstrate a clarification resumed the next day, conflicting edits, two ordered questions, browser reconnection, cancellation after a committed correction, and context removal followed by another question.
+Compare numerical answers with independently verified API results. Follow source links, resolve a clarification, accept a suggested edit, and reject a stale edit. Test provider failure, stop, and reconnect through the actual SDK integration. Demonstrate a note removal followed by a fresh question without the old transcript. Verify unauthenticated access fails and source/model text cannot authorize writes.
 
-Verify owner-bound routing, action previews, budget recovery, computational isolation, and reproducible retained artifacts. Export and restore conversations with their represented financial snapshot and pending reconciliation records. Record analyst evaluation separately from financial arithmetic tests.
+Preserve earlier stage regressions and report specific unverified external checks. Stop after this stage.
 
 ## Excluded
 
-Automatic ranked findings, tracked intentions, the general inbox, scheduled intention reviews, and import reminders. An on-demand analyst can investigate a pattern without creating a proactive finding or claiming an intention was tracked.
+Custom investigation recovery, automatic financial writes from text, child agents, generated scripts, synchronized chat/database backups, and proactive findings.

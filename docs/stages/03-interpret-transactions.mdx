@@ -1,45 +1,44 @@
 ---
 title: "3. Interpret and correct transactions"
-description: Turn accepted postings into financial interpretations that the user can inspect and correct.
+description: Add financial meaning above recorded postings, with direct user control.
 ---
 
 ## Outcome
 
-The user can understand and correct what each transaction means. Financial roles, categories, merchants, linked movements, and credits sit above the accepted bank postings. Reimports preserve user decisions.
+Add financial meaning above recorded postings, with direct user control.
 
-Prerequisite: stage 2 is verified. Interpret the existing history without asking the user to upload it again.
+Prerequisite: Stage 2 is verified. Earlier postings can be interpreted without reupload.
 
 ## User flows and frontend
 
-- Inspect a transaction's role, merchant, category, allocations, tags, personal-event associations, and evidence alongside the original bank fields.
-- Establish purchases, income, financing costs, transfers, card settlements, borrowing, and loan repayments from evidence or explicit confirmation. Show missing counterpart evidence without inventing a posting.
-- Link partial refunds and reimbursements, including several credits and shared credits. Inspect personal cost separately from the bank amount.
-- Change one interpretation, split a purchase, inspect correction history, and undo through a new correction. Preview affected financial measures before accepting role, relationship, or allocation-amount changes.
-- Preview and apply historical or future rules while retaining individual exceptions. Manage categories, tags, merchants and aliases, personal events, and account relationships in their existing owning views.
-- Filter and search history using the newly available interpretations. Resolve role, category, and relationship questions, and track background interpretation progress and failures.
+- Inspect roles, categories, merchants, splits, tags, personal events, and evidence beside the original bank fields.
+- Confirm transfers, card settlements, borrowing, repayments, and missing counterpart evidence without inventing bank postings.
+- Link partial refunds and reimbursements and preview their effect on financial measures.
+- Edit one interpretation, preview broad rules, preserve individual exceptions, inspect change history, and undo through a new correction.
+- Request category suggestions for existing records, accept them individually or in bulk, or categorize manually when the model fails or is uncertain.
 
-These are complete transaction and correction experiences. They do not require a trends dashboard or conversation. Ordinary-cost exclusions on personal events arrive in stage 5.
+The stage is complete only when these flows use real persisted records and work on desktop, mobile, and with a keyboard. Empty, loading, review, and failed states belong to the same implementation.
 
 ## Backend and integration
 
-Add deterministic role establishment, known rules, and evaluated model classification in that order. Category classification applies only after a role is established. Unknown categories use unclassified costs; unknown roles remain excluded from cost and income measures with their impact disclosed.
+Introduce events and conserving allocations now, leaving still-uninterpreted postings visible. Apply user corrections and accepted rules before model suggestions. Financial roles require evidence or explicit confirmation; unknown categories on established costs remain unclassified.
 
-Introduce interpretation jobs after posting publication and a durable backfill of pre-existing unresolved events when this stage is installed. Reuse observations, posting IDs, and corrections. Backfill and retries must be idempotent and visible through job status; no reparsing or reupload is required solely to categorize history.
-
-Implement event construction, conservation, movement and credit relationships, corrections, previews, rule application, and revision-aware publication. Implement the exact financial measures needed by transaction details and impact previews now. Stage 4 builds historical exploration on those same calculations. Expand source-removal previews to financial impact and export/restore coverage to all new records.
+Implement financial measures for details and previews, credit limits, version-checked changes, and correction history. Use a bounded SDK classification call with validated category choices. Interpretation is requested independently from import and may rerun; accepted user decisions cannot be overwritten. Extend data export to these records.
 
 ## Reading path
 
-Read [Transactions](/product/transactions), classification and account controls in [Settings](/product/settings-and-data), and interpretation portions of [Imports](/product/imports). Use [Stage boundaries](/technical/stage-boundaries#stage-3), [Financial records](/technical/financial-model), [Financial event construction](/technical/calculation-rules#financial-event-construction), [role establishment](/technical/import-protocol#financial-role-establishment), and [Interpretation](/technical/ai-functionality#interpretation).
+Read [Transactions](/product/transactions), classification controls in [Settings](/product/settings-and-data), [Stage boundaries](/technical/stage-boundaries#stage-3), [Financial records](/technical/financial-model), [Event construction](/technical/calculation-rules#financial-event-construction), and [Classification](/technical/ai-functionality#classification).
 
-Read the corresponding schema tables, mutation/preview RPC, and classification evaluation gates. Preserve source-backed parsing and matching behavior from stages 1 and 2.
+Apply [Operations](/technical/operations), [Frontend](/technical/frontend), and [Verification](/technical/verification) to the introduced behavior. Later sections do not expand this stage.
 
 ## Completion evidence
 
-Demonstrate the documented card repayment, internal transfer, partial reimbursement, refund, and mortgage examples through transaction details and previews. Show unknown roles separately from unclassified costs. Verify conserving splits, credit limits, effective account relationships, correction undo, and historical rule previews that preserve exceptions.
+Demonstrate card settlement, internal transfer, refund, reimbursement, and mortgage examples through details and previews. Verify split conservation, credit limits, conflicting edits, rule exceptions, and undo. Categorize earlier history, then import overlapping statements without changing posting identity or accepted corrections.
 
-Categorize records imported before this stage, then upload overlapping older statements. Posting identities and accepted corrections must remain intact. Exercise model failure and usage ceilings without losing accepted history. Verify classification evaluation and export/restore of interpretations.
+Exercise unavailable and invalid model responses through the manual categorization flow. Check representative suggestions and their supporting evidence without mandatory confidence scores or labeling quotas.
+
+Preserve earlier stage regressions and report specific unverified external checks. Stop after this stage.
 
 ## Excluded
 
-Historical comparison screens, saved analyses, ordinary-cost estimates, schedules, forecasts, analyst conversations, and proactive findings. Financial arithmetic used in previews belongs here; its exploration UI belongs to stage 4.
+Historical comparison screens, saved analyses, ordinary-cost estimates, schedules, forecasts, analyst conversations, and findings.

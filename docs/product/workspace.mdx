@@ -5,15 +5,15 @@ description: Connected navigation, query context, evidence, and recovery as the 
 
 ## Delivery scope
 
-| Stage                               | Workspace additions                                                                                                   |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| [1](/stages/record-transactions)    | Home entry to upload/history; Imports, Transactions, source Review, account/display settings, and operational status. |
-| [2](/stages/historical-imports)     | PDF evidence, export/removal flows, and document usage controls.                                                      |
-| [3](/stages/interpret-transactions) | Interpretation detail, semantic review, corrections, and classification controls.                                     |
-| [4](/stages/explore-spending)       | Historical overview, Trends, evidence drilldowns, and saved analyses.                                                 |
-| [5](/stages/plan-costs)             | Commitments, Forecasts, ordinary costs, scenarios, and upcoming obligations in the overview.                          |
-| [6](/stages/analyst)                | Conversations, contextual analyst actions, investigations, and memory controls.                                       |
-| [7](/stages/follow-through)         | Insights, intentions, inbox, reminders, and overview findings.                                                        |
+| Stage                               | Workspace additions                                                                                              |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| [1](/stages/record-transactions)    | Home entry to upload/history; Imports, Transactions, source Review, account/display settings, and import status. |
+| [2](/stages/historical-imports)     | PDF evidence, export/removal flows, and document usage controls.                                                 |
+| [3](/stages/interpret-transactions) | Interpretation detail, semantic review, corrections, and classification controls.                                |
+| [4](/stages/explore-spending)       | Historical overview, Trends, evidence drilldowns, and saved analyses.                                            |
+| [5](/stages/plan-costs)             | Commitments, Forecasts, ordinary costs, scenarios, and upcoming obligations in the overview.                     |
+| [6](/stages/analyst)                | Conversations, contextual analyst actions, investigations, and memory controls.                                  |
+| [7](/stages/follow-through)         | Insights, intentions, inbox, reminders, and overview findings.                                                   |
 
 Each addition extends the same application. Earlier stages have working navigation and home behavior without links or placeholders for later capabilities. The latest import date and supported coverage remain visible wherever relevant.
 
@@ -29,7 +29,7 @@ From stage 4, selecting a chart contribution opens its supporting records with p
 
 From stage 6, asking the analyst about a selection retains that scope in the conversation. An answer can include comparisons and evidence. Returning from evidence restores the originating query and position.
 
-Date ranges and implemented filters are reflected in the page URL. A bookmarked view restores its query against current data. Saved historical results, introduced in stage 4, retain their original inputs and assumptions.
+Date ranges and implemented filters are reflected in the page URL. A bookmarked view restores its query against current data. Saved analyses, introduced in stage 4, retain query definitions and calculate from current data.
 
 ## Screen sizes
 
@@ -39,16 +39,16 @@ Information never depends on hover alone. Keyboard users can reach controls, evi
 
 ## Empty, loading, and incomplete states
 
-Before the first import, explain how to add the supported files. Do not show invented financial values. During processing, distinguish accepted uploads from completed imports and make resumed job progress available after refresh.
+Before the first import, explain how to add the supported files. Do not show invented financial values. During processing, distinguish accepted uploads from completed imports and restore stored import status after refresh.
 
 From stage 4, an updating result retains the last completed view with its state identified. Incomplete coverage names the missing account or period. Missing information is never zero spending.
 
-A failed request retains selected filters and unsaved input. Retrying does not create another import, correction, export, or investigation. Each owning feature exposes its failures before stage 7 adds inbox aggregation.
+A failed request retains selected filters and unsaved input. Repeating a financial write cannot duplicate records or apply a correction twice. Export and analyst retries may start new work. Each owning feature exposes its failures before stage 7 adds inbox aggregation.
 
 ## Corrections from any view
 
 Source-review decisions begin in stage 1. Semantic corrections begin in stage 3, default to the selected transaction, and show required impact previews for broader or financial changes. Details retain original source evidence and the current interpretation.
 
-From stage 4, affected results show that refresh is pending until a consistent replacement is available. A view never mixes old and new totals. Stage 6 analyst answers retain their historical basis and indicate when newer data is available.
+From stage 4, affected results show that refresh is pending until a consistent replacement is available. A view never mixes old and new totals. Stage 6 analyst messages retain their text and calculation time; a new question reads current data.
 
 [Frontend](/technical/frontend) defines state and component ownership. [Stage boundaries](/technical/stage-boundaries) specifies the contracts behind each workspace addition.

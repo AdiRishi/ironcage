@@ -1,64 +1,38 @@
 ---
 title: Commitments and forecasts
-description: Understand recurring costs, see likely future cash flow, and compare deliberate changes.
+description: Manage expected payments and compare transparent estimates of future costs.
 ---
 
-## Delivery scope
-
-All behavior on this page belongs to [stage 5](/stages/plan-costs). It includes the complete frontend, calculations, schedules, assumptions, saved scenarios, refresh, and evaluation. The previous stage supplies historical analysis and saved-result infrastructure.
-
-The Commitments view groups recurring expenses and expected income. The Forecasts view combines those schedules with variable spending and explicit assumptions. Future values are visibly distinct from actual transactions.
+All behavior here belongs to [stage 5](/stages/plan-costs). The stage includes the complete planning UI, saved assumptions, and deterministic calculations. Future estimates remain distinct from actual bank transactions.
 
 ## Recurring payments
 
-The app detects likely recurring services from payment history. Each entry shows the merchant, amount or expected range, cadence, last payment, and estimated next date. It distinguishes a proposed pattern from a confirmed commitment. Proposed schedules affect a forecast only when the user explicitly includes them as assumptions.
+The app suggests recurring payments from history and shows the supporting dates and amounts. The user confirms the amount, cadence, payment account, next date, and effective period before a schedule enters the baseline outlook. Mortgage payments, strata, insurance, and subscriptions can each have their own schedule.
 
-The user can correct the next date, amount, cadence, payment account, service period, or status. Mortgage payments, strata, insurance, and subscriptions can each have their own schedule. A quarterly levy remains quarterly in the cash calendar. Amount or schedule changes take effect on a recorded date and preserve earlier schedule segments. The user can inspect, confirm, or remove the match between a payment and its scheduled occurrence.
+A quarterly levy remains quarterly in the cash calendar. Its ordinary-cost contribution can be spread across its service period. Changes preserve earlier effective amounts and accounts. The user can inspect or correct a payment's occurrence match. A missing payment alone does not cancel a schedule.
 
-A changed amount prompts a comparison with prior payments. A missing payment is a possible lapse or missing record, not proof of cancellation. A subscription payment alone does not reveal whether the service was used.
+## Historical measures
 
-## Several views of progress
+Income minus personal costs is historical surplus. Cash changes come from evidenced deposit balances. Loan repayment effects distinguish repayments, separately dated interest and fees, borrowing, and other adjustments. These remain separate measures rather than a combined savings score or claim of complete net worth.
 
-<Tabs>
-  <Tab title="Money left after costs">
-    Income minus personal costs shows the surplus generated during a period. Loan principal
-    repayment and transfers between owned accounts are separate from those costs.
-  </Tab>
-  <Tab title="Cash balances">
-    Changes in deposit balances show where available cash increased or decreased. Moving cash
-    between two included accounts does not increase the combined balance.
-  </Tab>
-  <Tab title="Debt reduction">
-    The period shows repayments, separately dated interest and fees, and their net effect on loan
-    principal. New borrowing and other balance adjustments reconcile that effect to the change in
-    debt.
-  </Tab>
-</Tabs>
+## Cost outlook
 
-Each view explains its included accounts and period. The app does not combine these measures into an unexplained savings score. It does not claim complete net worth from bank records alone.
+Choose 30 or 90 days. Inspect recent covered weeks, estimated variable spending, confirmed commitments, expected income, and explicit one-offs. Each included scheduled cost appears once, with its historical payments removed from the variable baseline.
 
-## Forecast flow
+Show the baseline dates, actual week count, exclusions, and assumptions. If no covered baseline exists, the overall estimate is unavailable while the separate commitment calendar still works. The app never fills missing bank history with invented transactions.
 
-The user chooses a 30-, 90-, or 365-day horizon and opens the assumptions behind the forecast. The app shows expected income, known commitments, estimated variable spending, and a range of possible cash balances.
+The outlook shows estimated costs and surplus under those assumptions. It does not present probability ranges or claim a statistically calibrated prediction.
 
-Cash forecasts start from a reconciled balance date. Without a reliable balance anchor, the affected account has no predicted cash balance. Known scheduled payments remain visible. If records stop before today, the intervening period is also an estimate. A stale balance is never presented as a live bank balance.
+## Cash calendar
 
-The user can inspect and confirm how variable purchases are divided between payment accounts and which personal events leave the forecast training history. Those exclusions are saved forecast assumptions, separate from ordinary-cost exclusions. Variable bills use their expected amount in each forecast path; their displayed amount ranges are not additional simulated uncertainty. The cash forecast shows gross charges and assumed incoming credits separately. Fixed monthly loan interest and fee assumptions are shown separately from repayments; changes in rates or offset balances are not automatically projected.
+List known scheduled deposit movements, including card settlements and loan repayments. Those movements are distinct from purchase costs and interest. The same card purchase is not counted again as spending when it is repaid.
 
-The app lists known large upcoming expenses separately from ordinary variable spending. Forecasts avoid counting both card purchases and their settlements as additional personal spending, while still representing when cash leaves the deposit account.
+Show the latest evidenced account balances with their dates as historical context. This stage does not predict future cash or debt balances. An estimated cost reduction is not labelled money available in a bank account. Users can enter known future payment amounts and dates without configuring interest or card-cycle simulation.
 
 ## Scenarios
 
-A scenario changes named assumptions without changing historical records. The user can compare fewer delivery orders, a different subscription cost, or a planned purchase with the current baseline.
+Copy the baseline assumptions and change a category amount, commitment amount, or one-off. Show the estimated cost, income, or credit difference over the same horizon. A reduction in delivery can include an explicit increase in groceries; the app does not invent that substitution.
 
-Each comparison shows the expected effect, the horizon, and unchanged assumptions. A missing cash anchor leaves the cash delta unavailable while supported cost effects remain visible. A reduction in one category can include an explicit increase elsewhere. The app does not assume every reduction translates into equal savings.
+Save the assumptions for reuse. Opening or refreshing the scenario calculates from current records using the selected baseline period. Neither the scenario nor its calculation alters historical transactions or confirmed commitments.
 
-Scenarios can be saved and later compared with actual outcomes. A saved forecast distinguishes a fixed start date from a start date that resolves to today when refreshed. Scenario assumptions remain editable and distinguishable from confirmed facts.
-
-## Uncertainty and missing information
-
-Forecast ranges reflect historical variation and the assumptions used. A range without enough evaluation history is labelled uncalibrated. The annual calibration gate requires about 20 years of non-overlapping target observations plus training history, so annual ranges normally remain uncalibrated in a personal dataset. When the records cannot support a range, the app displays the known schedules and names the missing assumptions. Wider horizons can have greater uncertainty. Sparse or incomplete history produces a limited forecast with an explanation, not an invented precise answer.
-
-The app measures forecast performance against later observations and makes forecast error available. It can report that a simpler method performed better and use that method for subsequent forecasts.
-
-The selected methods and evaluation rules are in [Analytics and forecasts](/technical/analytics).
+[Calculation rules](/technical/calculation-rules#forecast-contract) defines the arithmetic and its limits.

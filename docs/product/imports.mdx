@@ -1,91 +1,46 @@
 ---
 title: Imports
-description: Add the full financial history, repeat an upload safely, and resolve only the records that need attention.
+description: Upload statements, record bank transactions, and resolve uncertain evidence.
 ---
 
-## Delivery scope
+Stage 1 supports CommBank CSV and OFX. Stage 2 adds PDF and source-data controls. Stage 3 adds independent interpretation. Importing and recording a transaction never requires its category to be known.
 
-| Stage                               | Behavior introduced                                                                                                                           |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| [1](/stages/record-transactions)    | CSV/OFX uploads, account mapping, parsing, overlaps, source evidence and coverage, source review, progress, retries, and unresolved postings. |
-| [2](/stages/historical-imports)     | PDF and cross-format history, document-model recovery, user export and source removal.                                                        |
-| [3](/stages/interpret-transactions) | Role and category interpretation, relationship questions, retained semantic corrections, and interpretation progress.                         |
-| [4](/stages/explore-spending)       | Overview and saved-analysis refresh from accepted history.                                                                                    |
+## Upload and record
 
-Before stage 3, import ends with accepted postings and unresolved events; it does not schedule interpretation or require category review. Stage 1 advertises and accepts CSV/OFX only. The full-format requirements below apply from stage 2. Later derived work never changes a completed posting import back to failed.
+Choose files, confirm the account when the source cannot establish it, and inspect per-file progress. The result shows new transactions, matched records, repeated files, and specific unresolved rows. A failed file does not prevent unrelated files from completing.
 
-Imports accept batches of CommBank CSV and OFX exports and PDF statements. A batch can mix accounts, formats, periods, and files uploaded before. Older records are included rather than discarded because they fall outside the recent export window. CSV and OFX files can arrive separately or together. Import order and filename pairing do not determine correctness.
+CSV and OFX each work independently. The app retains original files and their extracted rows. Filenames are labels, not evidence of account identity or complete history. From stage 2, PDF rows link to the relevant statement page.
 
-## Import flow
-
-<Steps>
-  <Step title="Choose files">
-    The user selects files or drops them into Imports. Each file shows its name, size, and upload
-    progress. Renaming a previously uploaded file does not make it new financial data.
-  </Step>
-  <Step title="Read the records">
-    The app recognizes the account where evidence permits, extracts transactions, and determines the
-    period supported by the contents. An uncertain account mapping becomes a review item. Processing
-    continues after the upload is accepted, even if the user leaves the page.
-  </Step>
-  <Step title="Resolve overlaps">
-    Existing transactions gain any new supporting evidence. Only new transactions extend the
-    history. Uncertain matches are held for review.
-  </Step>
-  <Step title="Review the result">
-    The result distinguishes new transactions, matched records, repeated files, and unresolved
-    records. The overview updates from the accepted history.
-  </Step>
-</Steps>
-
-An unreadable file does not prevent unrelated files from completing. A file that cannot be reconciled has a visible issue and retains its source for inspection.
+The transaction list shows accepted bank amounts, dates, descriptions, and accounts. Source evidence remains accessible from each record. A shorter later export does not remove previously accepted history.
 
 ## Repeated data
 
-<Accordion>
-  <AccordionItem title="The same file is uploaded twice" defaultOpen>
-    The second upload returns the existing source and its processing result. It adds no transactions
-    and does not repeat completed model processing. A failed attempt can resume against the existing
-    source.
-  </AccordionItem>
-  <AccordionItem title="Two exports contain the same week">
-    Transactions already present are matched. Transactions outside the overlap are added. Both
-    exports remain available as evidence.
-  </AccordionItem>
-  <AccordionItem title="CSV, OFX, and PDF files contain the same purchase">
-    The purchase appears once, with all supporting source records attached. Formatting differences
-    in the merchant name do not automatically create another purchase.
-  </AccordionItem>
-  <AccordionItem title="Two real purchases have the same amount and merchant">
-    Both remain in the history. Matching amounts and dates alone are insufficient to discard a
-    transaction.
-  </AccordionItem>
-</Accordion>
+The same verified bytes have one source identity even under a different filename. A repeat upload adds no duplicate postings. Overlapping exports can attach more evidence to existing postings. CSV, OFX, and PDF can support the same purchase.
 
-A bank-provided transaction ID helps match a record only when its values are consistent within the account. A missing or reused ID does not remove a real purchase. Conflicting evidence remains reviewable.
+Two real purchases with the same date, merchant, and amount remain distinct. Bank transaction IDs are useful only when their account and values agree. Missing or reused IDs do not remove a purchase. Plausible duplicate ambiguity goes to review instead of being silently merged or accepted as another purchase.
 
-## Coverage and confidence
+## Review
 
-Coverage is shown by account and period. A filename can describe the requested export range without containing records for that whole range. The app checks contents and statement totals before describing a period as reconciled.
+A review identifies the source row, uncertainty, and candidate choices. The user can confirm the account, resolve a value against visible evidence, identify an existing posting, or confirm a separate purchase. Accepted decisions survive reprocessing.
 
-The import result distinguishes a confirmed interval with no activity from an interval for which records are unavailable. It also shows the date the latest records stop. Forecasts and comparisons use those distinctions.
+Uncertain amounts and posting identities remain outside confirmed totals. Dismissing a question does not turn a missing amount into zero. An otherwise valid posting is recorded even when its financial role is unknown. From stage 3, an established cost with an unknown category contributes as unclassified.
 
-A purchase with a confirmed amount and date can be accepted even when its category remains unknown. An **Unclassified** expense still contributes to spending. A record with an uncertain amount or duplicate identity remains outside confirmed totals, with its impact disclosed. A valid bank posting with an unknown financial role remains visible in account history. Cost and income views flag that unresolved role rather than assigning it to either measure.
+Parser defects remain implementation work. Human review is for specific ambiguity or missing evidence, not a substitute for implementing the supported formats.
 
-## Questions that need an answer
+## Coverage
 
-A review item presents the actual record, the proposed interpretation, and the reason for uncertainty. For example, the app can ask whether a particular destination account belongs to the user. It remembers the answer with its relevant scope.
+Distinguish requested export periods, observed transaction dates, stated coverage, and reconciled intervals. A file named for two years may contain only two weeks. Missing records differ from an evidenced interval with no activity. Balances and supplied statement totals support reconciliation where available.
 
-The user can confirm a proposed interpretation, correct it, or leave the item unresolved. Dismissing a question does not supply a missing amount or prove a duplicate match. The app keeps unresolved work visible without repeating the same question in every conversation.
+## Failure and retry
 
-## Failure and recovery
+A failed action may require the user to retry, reupload, or resolve a specific uncertainty. It leaves accepted history consistent and cannot duplicate records when repeated.
 
-Import progress distinguishes upload, extraction, reconciliation, interpretation, and completion. Retrying resumes unfinished work. Refreshing the browser restores progress.
+If upload succeeded, retain the source and offer processing again. If bytes were not received completely, ask for reupload. Processing may restart from the beginning; the product does not promise to resume a particular step or avoid every repeated model call.
 
-A timeout after the server accepts a file does not require another upload. A processing failure preserves the last accepted history. Correcting a parser or adding a missing statement can reprocess the source without overwriting the user's corrections.
+Refreshing the browser restores the stored import summary or current processing status. A failure remains visible with the next action. Retrying after a lost publication response returns the committed outcome rather than recording the file twice.
 
-Sources remain accessible from their transactions. The app does not silently remove old data when a shorter or incomplete export arrives.
+## Interpretation after recording
 
-Exports and source removal follow [Settings and data controls](/product/settings-and-data). Removal previews show the effect on accepted history and saved results.
+Stage 3 provides a separate action to interpret recorded history, including earlier imports. User corrections and accepted rules take precedence over model suggestions. Failed or uncertain categorization leaves the bank transaction intact and offers manual single or bulk categorization.
 
-Implementation details are in [Ingestion and reconciliation](/technical/ingestion).
+[Settings and data controls](/product/settings-and-data) defines export and source removal from stage 2.

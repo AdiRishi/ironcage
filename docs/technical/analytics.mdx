@@ -1,94 +1,44 @@
 ---
 title: Analytics and forecasts
-description: Reproducible comparisons, recurring-cost detection, useful insights, and forecasts evaluated against history.
+description: Shared financial calculations, saved query definitions, and transparent estimates.
 ---
 
-## Delivery scope
+Stage 4 introduces historical exploration. Stage 5 adds commitments, ordinary costs, and scenarios. Stage 7 adds findings and intentions. Financial calculations are shared by the API, UI, and analyst; [Calculation rules](/technical/calculation-rules) defines their arithmetic.
 
-Comparisons, frequency, and saved-result publication belong to stage 4. Ordinary costs, recurring detection, forecasts, and scenarios belong to stage 5. Change detection, ranking, and intention refresh belong to stage 7. Stage 3 already owns the underlying financial measures used in previews.
+## Historical comparisons
 
-[Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
+A query identifies its measure, currency, accounts, dates, date basis, and filters. Related totals and contributors use one consistent database read. Include supporting credits and counterparts even when their posting dates fall outside the displayed spending period.
 
-Analytics takes a financial query and a stable dataset revision. It returns numerical results and evidence before an LLM writes an explanation. The [metric reference](/technical/financial-model#metric-definitions) defines which money belongs in each calculation.
+Category, merchant, and account groups partition costs. Tags and personal events can overlap and are labelled accordingly. Contribution rows show the amount used by the calculation separately from the bank posting. A drill-down runs the same query and returns its current headline with the rows, so new data cannot silently mix with an old displayed total.
 
-[Calculation rules](/technical/calculation-rules) defines the concrete algorithms, schedule and scenario schemas, forecast sampling, and detector defaults. [Shared contracts](/technical/contracts) defines result payloads.
+Frequency and average-payment comparisons use purchase counts and exact amounts. Higher average payments alone do not establish price inflation. Missing coverage remains separate from an observed decline.
 
-## Comparisons
+## Saved analyses
 
-Postgres performs indexed filtering and exact aggregation through the financial API. Shared finance functions calculate comparisons, allocation adjustments, and statistical summaries. Live charts, agent tools, and scheduled jobs use these same functions.
+Save a name and query definition, including fixed or relative date choices. Calculate when the view opens or the user presses refresh. Resolve relative dates using the current request time and selected timezone. Fixed dates remain fixed.
 
-Period definitions include date basis, timezone, account scope, filters, and comparison strategy. Partial-month comparisons align elapsed calendar dates. Daily averages use the query's explicit normalization and the denominator and incomplete-coverage rules in Calculation rules. Missing periods do not contribute zero-valued observations.
+TanStack Query invalidates visible results after relevant writes. Closed saved analyses require no work. There is no automatic refresh queue, midnight scheduler, or permanent result history.
 
-Category, merchant, and account totals group disjoint cost allocations. Tag and personal-event breakdowns identify overlapping groups. Multi-tag filters deduplicate allocation IDs. Merchant aliases resolve before grouping, while service distinctions such as rides and delivery remain intact.
+Saved analyses retain definitions only. Replayable historical reports are outside the current stages.
 
-Absolute differences are computed before percentages. A zero baseline produces an unavailable percentage and an absolute new amount. Decreases remain negative contributions in an explanation of a net increase.
+## Ordinary costs and commitments
 
-## Frequency and average payment
+Show actual costs separately from the estimate of an ordinary month. Use a recent mean with explicit exceptional-event exclusions, then add confirmed obligations without counting their historical payments twice. Show the selected weeks and the schedule contributions.
 
-For one consistent purchase population, total spending equals purchase count times average purchase cost. Refunds adjust the linked purchase cost. They do not add another purchase to the count.
+Recurring-pattern detection proposes schedules. The user confirms amount, cadence, dates, and account. Accepted schedules and payment matches can be corrected through the UI. Missing activity does not automatically cancel a commitment.
 
-Let count and average cost in the two periods be n0, p0 and n1, p1. The symmetric decomposition divides their interaction evenly:
+## Forecasts and scenarios
 
-$$
-\Delta S = (n_1-n_0)\frac{p_0+p_1}{2} + (p_1-p_0)\frac{n_0+n_1}{2}
-$$
+Start with a deterministic recent spending baseline, expected income, confirmed schedules, and explicit adjustments over 30 or 90 days. Show the assumptions and missing evidence. These are estimates, not probability intervals.
 
-The first term is the frequency contribution. The second is the average-cost contribution. They sum to the exact change before display rounding.
+The cash calendar shows explicit scheduled deposit movements. Card purchases count as costs and settlements count as cash movements, once in their respective measures. Do not derive future cash balances from cost totals or silently simulate card cycles and loan interest. The [forecast contract](/technical/calculation-rules#forecast-contract) defines the supported outlook.
 
-Displayed contributions use a deterministic remainder allocation so their rounded values also sum to the displayed total change. The evidence retains the unrounded calculation.
-
-For 10 purchases averaging $20 and 12 averaging $25, spending rises from $200 to $300. Frequency contributes $45 and average cost contributes $55. This does not establish that unit prices rose.
-
-When either period has no purchases, its average is undefined. The result describes new or ceased activity instead of applying the formula with a fabricated average.
-
-## Ordinary costs and events
-
-The ordinary-cost calculation combines the arithmetic mean of covered weekly variable costs with confirmed recurring obligations. Each estimate uses one week set and rounded contribution population across all groups. Quarterly and annual amounts are allocated over their covered periods. The adjustment never changes source cash dates.
-
-Event exclusions use explicit membership, such as a trip or a one-off home purchase. The result records the included and excluded allocations. Repeated exceptional spending remains visible in actual totals and can generate a separate finding.
-
-Known changes, including mortgage commencement, define meaningful comparison segments. Credit-card migration does not define a spending regime change by itself. Changes in account coverage take precedence over statistical explanations.
-
-## Recurring-cost detection
-
-Candidate series and eligible cadences follow the [schedule detection rules](/technical/calculation-rules#schedule-contract-and-detection). Month-end and weekend posting shifts do not require fixed day counts.
-
-The detector evaluates interval consistency, amount variation, observation count, and missing expected occurrences. Fixed subscriptions and variable bills use different amount tolerances. An inferred schedule retains its evidence and can be replaced by a confirmed schedule.
-
-Effective dates preserve historical prices. A changed subscription amount creates a new schedule segment. A missed occurrence is a candidate issue, not automatic cancellation.
+A scenario changes a copy of the baseline assumptions. Savings from reduced spending are described as estimated cost changes. Any substitution, such as more grocery spending after less delivery, is another explicit adjustment. Neither scenario edits actual history.
 
 ## Change detection and insight ranking
 
-The detectors in [Calculation rules](/technical/calculation-rules#insight-detectors-and-ranking) compare recent periods with historical baselines. Their sample requirements, thresholds, and ranking rules are versioned configuration. A replacement method requires evaluation evidence and an updated specification.
+Stage 7 runs bounded deterministic checks on current history and confirmed schedules. Rank findings by material amount and persistence, with clear supporting periods. Stable finding identity and retained user state prevent unchanged scans from creating new notifications.
 
-Each candidate records its query, observed change, baseline, sample size, and evidence. Coverage failures suppress unsupported conclusions. Persistence requirements and meaningful absolute amounts reduce chance findings from scanning many categories.
+Opening Insights can run the current scan. A scheduled scan may do the same operation for in-app follow-up. A failed scan is visible and can be retried. It does not require dependency invalidation, versioned snapshots, or a generalized refresh coordinator.
 
-Related candidates share a finding identity based on metric, subject, and change interval. Ranking considers amount affected, persistence, novelty, and user feedback. Reprocessing the same revision does not create another inbox item.
-
-The analyst can investigate a candidate and write its explanation. It cannot turn a statistical association into an established cause. Dismissals and supplied context affect ranking without altering raw history.
-
-## Forecast construction
-
-A forecast combines schedules for known income and commitments with estimates of variable costs. It keeps costs and cash settlement separate, especially for credit cards and loan repayments.
-
-The starting position uses reconciled account anchors. Missing time between the last anchor and today is simulated and labelled estimated. Card purchase estimates increase card liability. The payment schedule determines when deposit cash is reduced. The same purchase is not subtracted twice from cash.
-
-Variable-cost candidates begin with joint resampling of recent fully covered weeks and a multiplicatively adjusted exponential-smoothing candidate. More complex methods are adopted only when they improve held-out results at relevant horizons. [Exponential smoothing](https://otexts.com/fpp3/ses.html) provides a transparent recent-weighted baseline.
-
-Prediction ranges use the joint historical resampling defined in [Calculation rules](/technical/calculation-rules#forecast-contract). Their calibration status is reported separately from the simulated range. Joint samples preserve weekday patterns and category relationships within each sampled week. They do not preserve dependence between successive weeks or seasonal changes. Adding independent category percentiles is not a valid combined prediction interval.
-
-Known commitments are included once. Variable-cost training excludes the same scheduled obligations to prevent double counting. One-off future expenses are explicit scenario inputs.
-
-## Scenarios and evaluation
-
-A scenario contains named overrides to a baseline definition. It never changes transactions or confirmed commitments. A saved comparison retains both definitions and the input revision.
-
-Forecast evaluation uses rolling historical cutoffs. Each run trains on prior records and predicts later periods. As-known evaluation respects import and correction timestamps. Retrospective evaluation uses transaction dates and is labelled separately, as defined in [Calculation rules](/technical/calculation-rules#scenarios-and-evaluation). [Rolling-origin evaluation](https://otexts.com/fpp3/tscv.html)
-
-Evaluation measures absolute error, bias, and interval coverage at the product's forecast horizons. It compares models against simple baselines and separates periods around known structural changes. Usable history is determined per account and comparable regime, including reconciled older statements. Calibration depends on held-out target windows, not the requested export range or the age of the oldest file.
-
-## Result publication
-
-An analysis result stores its resolved definition, input revision, metric and model versions, values, adjustments, coverage, and evidence manifest. Large results live in R2 with metadata in Postgres. Snapshot extraction ends before statistical computation starts.
-
-A correction schedules refreshes for affected subjects and periods. A publication transaction checks the current revision under the owner lock before selecting a completed result for live views. A stale result can remain historical evidence but cannot replace the current result. Publishing derived results does not itself advance the financial revision or trigger another analysis cycle.
+Intentions compare a fixed baseline with a current period and any explicitly selected related costs. Results describe observed change without claiming causality. Missing post-change history produces an explanation rather than a guessed outcome.

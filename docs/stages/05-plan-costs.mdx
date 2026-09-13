@@ -1,42 +1,42 @@
 ---
 title: "5. Plan future costs"
-description: Add recurring obligations, ordinary-cost estimates, and inspectable forecasts and scenarios.
+description: Manage commitments and compare transparent cost estimates and scenarios.
 ---
 
 ## Outcome
 
-The user can manage expected payments, understand ordinary costs, and compare future assumptions. Historical transactions remain distinct from schedules and predictions.
+Manage commitments and compare transparent cost estimates and scenarios.
 
-Prerequisite: stage 4 is verified. Forecasts and ordinary costs reuse its snapshots, financial measures, and saved-result behavior.
+Prerequisite: Stage 4 is verified. Reuse current-data queries and saved definitions.
 
 ## User flows and frontend
 
-- Inspect detected recurring payments, confirm or revise a commitment, and manage amount, cadence, account, effective dates, service periods, and occurrence matches.
-- See upcoming commitments in the overview and distinguish proposed schedules from confirmed obligations.
-- Compare actual spending with an ordinary-cost estimate. Inspect covered training weeks, excluded personal events, and time-allocated obligations.
-- Choose a forecast horizon, inspect anchors and assumptions, and see known payments alongside estimated variable costs and cash balances.
-- Save and compare scenarios, including an explicit increase elsewhere when reducing one category. Inspect forecast error, uncalibrated intervals, insufficient history, and missing balance anchors.
+- Review suggested recurring payments and confirm amount, cadence, account, effective dates, and payment matches.
+- See upcoming scheduled cash movements, with card settlements and loan repayments distinct from costs.
+- Inspect an ordinary-month estimate with its recent covered weeks, excluded events, and allocated commitments.
+- View a 30- or 90-day cost outlook with its baseline, expected income, commitments, and explicit one-off assumptions.
+- Save a scenario and compare changed costs or income, including any explicit substitution into another category.
 
-Use complete Commitments and Forecasts experiences and extend existing Trends, overview, personal-event controls, and saved analyses. The user can perform all planning actions without an analyst.
+The stage is complete only when these flows use real persisted records and work on desktop, mobile, and with a keyboard. Empty, loading, review, and failed states belong to the same implementation.
 
 ## Backend and integration
 
-Implement versioned schedules, recurrence detection, occurrence matching and overrides, ordinary-cost allocation, variable baselines, forecast paths, scenario overrides, and evaluation. User-accepted schedules and exclusions retain their scope and effective dates.
+Implement confirmed schedules, effective changes, occurrence decisions, recent means, and deterministic scenario arithmetic. Remove already scheduled payments from the variable baseline before adding obligations once. Display historical balance dates and missing inputs accurately.
 
-Extend analysis definitions and result unions with ordinary-cost, forecast, and scenario behavior. Refresh affected outputs after data, schedule, assumption, or date changes. Recurrence proposals are visible in Commitments; proactive alerts and the general inbox arrive in stage 7. Export, removal impact, and restore include the new entities and saved results.
+Calculate on open or explicit refresh. Forecasts estimate costs and surplus under stated assumptions; the cash calendar shows known scheduled movements. They do not simulate future cash/debt balances, card cycles, or interest. Extend export to schedules and scenario definitions.
 
 ## Reading path
 
-Read [Commitments and forecasts](/product/commitments-and-forecasts) and ordinary costs and events in [Trends](/product/trends). Use [Stage boundaries](/technical/stage-boundaries#stage-5), [Ordinary costs](/technical/calculation-rules#ordinary-costs), schedule/detection, forecast, and scenario sections in [Calculation rules](/technical/calculation-rules), and their [Analytics](/technical/analytics) explanations.
+Read [Commitments and forecasts](/product/commitments-and-forecasts), ordinary costs in [Trends](/product/trends), [Stage boundaries](/technical/stage-boundaries#stage-5), and the ordinary-cost, schedule, forecast, and scenario sections of [Calculation rules](/technical/calculation-rules).
 
-Apply schedule and forecast schemas/RPC, forecast evaluation, and time-driven refresh operations. Analyst runtime and proactive insight detectors remain outside this reading path.
+Apply [Operations](/technical/operations), [Frontend](/technical/frontend), and [Verification](/technical/verification) to the introduced behavior. Later sections do not expand this stage.
 
 ## Completion evidence
 
-Demonstrate a quarterly strata schedule, a changed payment account with effective dates, occurrence confirmation and exclusion, ordinary-cost contributors that add correctly, and a saved scenario compared with its baseline.
+Demonstrate a quarterly bill, an effective payment/account change, an occurrence decision, and ordinary-cost contributors adding to their headline. Compare a scenario against independently calculated baseline values. Verify no double counting of costs and settlements, clear baseline gaps, and preservation of actual records. Future estimates must be visibly distinct from historical balances and known payment dates.
 
-Verify cash-anchor limitations, stale data, card charges versus settlements, separate loan financing costs, variable-account shares, and scenario isolation from history. Record backtests against the simple baseline and label uncertainty according to the evaluation gates. Annual ranges can remain explicitly uncalibrated under the documented policy.
+Preserve earlier stage regressions and report specific unverified external checks. Stop after this stage.
 
 ## Excluded
 
-Analyst conversations, general personal-context memory, open-ended computational investigations, ranked findings, tracked intentions, the general inbox, and import reminders.
+Probabilistic forecasts, model tournaments, calibration/backtesting machinery, cash/debt simulation, analyst conversations, and findings.

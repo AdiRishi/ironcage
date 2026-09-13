@@ -1,42 +1,42 @@
 ---
 title: "4. Explore historical spending"
-description: Explore actual financial history with consistent comparisons, evidence, and saved results.
+description: Compare current financial history and save queries for reuse.
 ---
 
 ## Outcome
 
-The user can compare historical periods, identify contributors, inspect the supporting transactions, and save a useful analysis. A correction updates current results while older answers retain their original basis.
+Compare current financial history and save queries for reuse.
 
-Prerequisite: stage 3 is verified. Reuse its financial measures and interpretations.
+Prerequisite: Stage 3 is verified. Reuse its interpretations and financial arithmetic.
 
 ## User flows and frontend
 
-- Open an overview of actual spending, income, surplus, cash changes, and loan repayment effects with period, accounts, and coverage visible.
-- Compare periods in Trends, drill into categories, merchants, accounts, tags, or personal events, and inspect purchase counts and average payments.
-- Follow a displayed contribution to its evidence while preserving query scope and back-navigation state. Distinguish calculated contributions from booked amounts.
-- Save fixed or relative analyses, choose automatic or manual refresh, and inspect current and historical results. Show pending refresh and preserve the last completed result.
-- Understand partial periods, missing coverage, zero comparison bases, overlapping groups, and unavailable measures through explicit labels and accessible chart alternatives.
+- Open an overview of spending, income, surplus, cash changes, and loan repayment effects with dates, accounts, and coverage visible.
+- Compare periods and inspect category, merchant, account, tag, or personal-event contributors, purchase counts, and average payments.
+- Open contributing records with the same query scope and inspect calculated contributions separately from bank amounts.
+- Save a named query with fixed or relative dates. Reopen or refresh it to calculate from current records.
+- Understand partial periods, missing coverage, zero baselines, and overlapping groups through explicit labels and accessible chart/table views.
 
-The home page becomes the historical overview. Upcoming commitments, findings, and analyst actions arrive in their later stages. Actual spending includes exceptional purchases; ordinary-cost estimates arrive in stage 5.
+The stage is complete only when these flows use real persisted records and work on desktop, mobile, and with a keyboard. Empty, loading, review, and failed states belong to the same implementation.
 
 ## Backend and integration
 
-Add comparison queries, frequency decomposition, contribution queries, immutable result snapshots, saved definitions, analysis jobs, and revision-aware refresh. Reuse stage 3 arithmetic rather than creating calculations in React or chart components.
+Implement current-data queries, comparison arithmetic, contribution queries, and saved definitions. Related totals use a consistent database read. The UI invalidates visible TanStack Query results after changes. A drill-down returns its current headline with its rows. Closed saved views require no computation.
 
-Capture inputs at one database snapshot. Preserve exact totals, coverage, date basis, and supporting credits outside the visible period. Imports and corrections refresh affected analyses. Time-driven refresh resolves relative dates without rewriting historical results. Extend export, removal invalidation, and restore checks to saved definitions and results.
+Store query definitions, not a mandatory archive of every result. Relative dates resolve when viewed; fixed dates stay fixed. Extend export to saved definitions.
 
 ## Reading path
 
-Read historical exploration and saved-analysis behavior in [Trends](/product/trends) and the stage 4 additions in [Workspace](/product/workspace). Use [Stage boundaries](/technical/stage-boundaries#stage-4), the comparison/query/result sections of [Shared contracts](/technical/contracts), [Comparison execution](/technical/calculation-rules#comparison-execution), and comparisons, frequency, and result publication in [Analytics](/technical/analytics).
+Read [Trends](/product/trends), [Workspace](/product/workspace), [Stage boundaries](/technical/stage-boundaries#stage-4), [Comparison execution](/technical/calculation-rules#comparison-execution), [Analytics](/technical/analytics), and [Frontend](/technical/frontend).
 
-Apply the query-state, charts/evidence, and refresh sections in [Frontend](/technical/frontend), plus snapshot, arithmetic, browser, and scheduled-refresh checks in Verification and Operations.
+Apply [Operations](/technical/operations), [Frontend](/technical/frontend), and [Verification](/technical/verification) to the introduced behavior. Later sections do not expand this stage.
 
 ## Completion evidence
 
-Demonstrate a comparison through contributing transactions, a saved analysis refreshing after import and correction, and an older result retaining its calculation basis. Verify matching elapsed dates, zero baselines, missing-account coverage, overlapping tags, and migration of purchases between debit and credit accounts.
+Compare independently known totals and contributors, including matching elapsed dates, zero prior values, missing accounts, overlapping tags, and purchases moving between debit and credit. Show a correction updating an open view and a saved query using new records on its next opening. Check fixed and relative dates across a calendar boundary. Contributions and their displayed headline must agree after intervening edits.
 
-Use independently known counts and amounts for frequency and average-payment comparisons. Exercise fixed/manual and rolling/automatic saved definitions across date changes. Verify that export and restored results retain their evidence and definitions.
+Preserve earlier stage regressions and report specific unverified external checks. Stop after this stage.
 
 ## Excluded
 
-Ordinary costs, recurring schedules, commitments, forecasts, scenarios, analyst actions and conversations, proactive findings, and intentions. Correlation-based explanations and overlapping-service investigations belong to later analyst and insight work.
+Ordinary costs, schedules, forecasts, automatic saved-query refresh, historical snapshot storage, analyst conversations, and findings.

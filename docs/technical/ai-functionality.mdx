@@ -1,169 +1,68 @@
 ---
 title: AI functionality
-description: Model tasks, structured outputs, tool contracts, mutation authority, memory, and durable investigation execution.
+description: Bounded SDK calls, validated suggestions, and human decisions when automation cannot help.
 ---
 
-## Delivery scope
+Stage 2 can use a document model when actual PDFs require it. Stage 3 adds category suggestions. Stage 6 adds the conversational analyst. Stages 1 and 2 record postings without needing classification. [Stage boundaries](/technical/stage-boundaries) owns feature scope.
 
-Stage 2 owns shared model/usage policy, the document role, and its evaluation gate. Stage 3 adds interpretation and category evaluation. Stage 6 adds intent/analyst/summary roles, tools, action authority, runs, memory, computation, and analyst evaluation. Each role registry and schema contains only implemented variants.
+## Models and limits
 
-[Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
+Choose one configured model per task and use the existing AI SDK/provider integration. Keep prompts and output schemas beside their owning behavior. Reuse a helper only for genuinely shared configuration or validation, without creating a general execution framework.
 
-The [AI analyst architecture](/technical/ai-analyst) selects Cloudflare Agents SDK, AIChatAgent, Vercel AI SDK, and AI Gateway. This reference specifies the application behavior those frameworks implement. Prompt wording and model IDs can evolve, but the schemas, authority rules, and evaluation gates are part of the product contract.
+Set finite input/output limits and a bounded tool-step count for the analyst. An ordinary SDK retry for a transient transport error is acceptable. Invalid structured output, exhausted retries, or an unavailable model produces an actionable failure or review item. There is no model failover chain, output-repair conversation, or custom replay accounting.
 
-The shared `@repo/ai` package owns provider execution, schema adaptation, and usage integration. The processor and analyst own their role prompts, product tools, and durable execution transitions. [Monorepo and ownership](/technical/monorepo#shared-packages) defines those interfaces.
-
-## Model roles and policy
-
-The versioned model registry maps each ModelRole to an ordered list of ModelConfigId values. Roles are `document`, `interpretation`, `intent`, `analyst`, and `summary`. Each immutable configuration contains `{id: ModelConfigId, role, provider, modelId, promptVersion, outputSchemaVersion, pricingVersion, maxInputTokens, maxOutputTokens, timeoutMs}`. ModelConfigId is a nonempty string identifying that exact evaluated configuration. Fallback selects the next configuration for the same role, input/output schemas, and evaluation gate. It consumes another provider attempt and records the selected configuration; it cannot switch the task role or substitute a provider silently.
-
-Initial limits are application defaults, not provider limits:
-
-| Role           | Maximum input                                       | Maximum output | Call deadline | Purpose                                                   |
-| -------------- | --------------------------------------------------- | -------------- | ------------- | --------------------------------------------------------- |
-| document       | 16,000 text tokens plus at most four rendered pages | 8,000 tokens   | 90 seconds    | Ambiguous PDF row extraction                              |
-| interpretation | 16,000 tokens and 50 events                         | 4,000 tokens   | 45 seconds    | Merchant and category proposals                           |
-| intent         | 8,000 tokens                                        | 1,000 tokens   | 15 seconds    | Classify direct user intent without financial-source text |
-| analyst        | 32,000 tokens                                       | 4,000 tokens   | 90 seconds    | Tool selection and evidence-backed explanation            |
-| summary        | 16,000 tokens                                       | 2,000 tokens   | 45 seconds    | Conversation compression                                  |
-
-`UsagePolicy` contains `{schemaVersion: 1, version: string, monthlyLimitMicroUsd: MicroUsd, analystRunLimitMicroUsd: MicroUsd, importJobLimitMicroUsd: MicroUsd, maxSteps: number, maxConcurrentModelCalls: number}`. Initial values are `20000000`, `1000000`, `5000000`, 20, and 2 respectively. Limits are editable in settings and apply before new calls. One million micro-USD is US$1. Zero disables spending in that scope.
-
-The import ceiling applies per source-processing job, including its derived interpretation jobs. The API assigns the import's ID as jobs.budget_job_id and copies it to those interpretation jobs. It does not coalesce interpretation work across different budget owners. Reused completed model output has no new charge. A later independently requested interpretation job is its own budget owner under the same limit, and Settings labels it as standalone interpretation. Replays and explicit retries of one job retain its budget owner and unsettled charges. The monthly ceiling covers all owners. Export, backup, and reminder work makes no model calls.
-
-A logical call has one stable callId and at most three numbered provider attempts. Its step key includes the immutable input hash and contextGeneration. A changed prompt after context invalidation is a new logical call and still consumes the same owning execution budget. Each attempt has a distinct attemptId, modelConfigId, model ID, pricing version, reservation, and outcome. ReserveUsage loads rates from that immutable configuration before the executor sends the request. A transport retry, fallback, or output repair consumes an attempt. The shared AI executor owns retries; SDK and Gateway automatic retries and fallbacks are disabled. Completed compatible logical output is reused during Workflow or run replay. Exhausted calls remain exhausted. An explicit retry of the owning job or run can request a new logical call with a new retry identity, subject to the remaining usage ceiling; automatic replay cannot reset the limit.
-
-Before each attempt, the API reserves its worst-case cost from configured token, image, and other applicable rates. Model input limits include rendered-page token estimates. Unknown pricing disables a model until a bounded cost can be calculated. Reservation atomically checks monthly and owning execution limits, including child runs and all unsettled attempts. A response lost after possible provider completion keeps that attempt uncertain. A retry needs a fresh reservation, so two potentially charged requests remain two ledger entries. Known usage settles only its attempt; a request proven not sent releases only its attempt. Month attribution uses the attempt's UTC start time.
-
-Gateway cost estimates may reconcile supported usage, with their source and pricing version recorded. They cannot provide the pre-request budget bound or establish that a lost request was free. All prices and reservations use MicroUsd, independently of financial Minor. Monthly and execution limits are nonnegative; zero disables model spending. maxSteps is 1 through 100 and maxConcurrentModelCalls is 1 through 10. Waiting for user input consumes no model call. [Gateway costs](https://developers.cloudflare.com/ai-gateway/observability/costs/)
+Record model identity, task, time, and available usage. Show provider-reported cost or a labelled estimate. Unknown usage stays unknown. A user-configured usage warning threshold can block new calls after observed usage reaches it, but it is not a guaranteed billing ceiling: delayed reports, unknown charges, and concurrent requests can exceed it. Settings explains this and provides an AI on/off control. A retry may incur another model charge.
 
 ## Document extraction
 
-`DocumentInput` contains `{schemaVersion: 1, sourceId, pages: {page, imageArtifactId, extractedText}[], layout: {accountRole, dateFormat, currency, debitColumn, creditColumn}, expectedAnchors: {openingBalance, closingBalance, debitTotal, creditTotal}}`. Unknown layout fields and anchors are null. The provider adapter reads only the listed artifacts.
+Deterministic parsing is the first path. If a supplied PDF needs model assistance, send only the required document/page content through a supported input format. Return literal transaction fields and page locators through structured output.
 
-`DocumentOutput` contains `{schemaVersion: 1, rows: {page, ordinal, box, dateText, debitText: string | null, creditText: string | null, balanceText: string | null, originalAmountText: string | null, originalCurrencyText: string | null, descriptionText}[], unreadable: {page, box, field, reason}[], excluded: {page, text, reason: "header" | "summary" | "rewards" | "notice"}[]}`.
+Validate dates, exact money, sign conventions, account identity, and reconciliation using the same importer as deterministic extraction. An unsupported or unreliable result leaves the source reviewable. The user can resolve a specific field using the visible source or supply a clearer export. Parser defects still need a code fix; routing an entire supported corpus to review is not completion.
 
-The document prompt has a fixed task: transcribe transaction-table cells, retain their literal formatting, locate each row, and report unreadable cells. It supplies the layout as context and explicitly separates statement text from instructions. It cannot infer missing amounts, reconcile a difference by inventing a row, categorize purchases, or output SQL.
+Choose any extra rendering dependency only after a real supplied page demonstrates the need and the selected model input requires it. The text library and verified layout repairs remain in [Ingestion](/technical/ingestion#pdf-library-selection).
 
-The deterministic parser converts `DocumentOutput` to [`ParsedObservation`](/technical/import-protocol#extraction-schemas). It checks source membership, bounds, dates, amounts, signs, and anchors. A failed check produces review and one optional extraction retry with the specific validation error. That retry is a new logical call with its own attempts, charged to the same import budget. A second failure remains unresolved.
+## Classification
 
-## Interpretation
+Apply transaction-specific user corrections first, then accepted deterministic rules. Conflicting rules leave a review item. A model receives the relevant recorded description, established role, available context, and current category choices. It returns a category suggestion or an explicit need for review, with a short explanation.
 
-`InterpretationInput` contains `{schemaVersion: 1, revision, events: {eventId, version, eventKind, description, amount: Money, merchantCandidates, currentAllocations, evidence: EvidenceRef[]}[], categories: {id, label, parentId}[], acceptedAliases, applicableRules, context: Dto<personal_context>[]}`. Input contains only confirmed relevant context. Full account numbers and unrelated transactions are omitted.
+Use SDK structured output, then validate the category against the current owner-scoped reference data. A valid response cannot overwrite a user correction or alter booked bank fields. Initially present model output as a suggestion with single and bulk acceptance controls. There is no mandatory confidence score or labelling quota before useful suggestions can ship.
 
-```ts
-type InterpretationDecision = {
-  eventId: Id<"event">;
-  expectedVersion: Version;
-  merchant:
-    | { kind: "existing"; merchantId: Id<"merchant"> }
-    | { kind: "proposed"; label: string; service: string | null }
-    | { kind: "unknown" };
-  category:
-    | { kind: "proposed"; categoryId: Id<"category">; confidence: number }
-    | { kind: "unknown"; reason: string };
-  evidence: EvidenceRef[];
-  reason: string;
-  needsReview: boolean;
-};
-```
+The user can categorize directly when the model fails or cannot decide. An established cost remains unclassified and continues to contribute to spending. An unknown financial role remains visibly unresolved instead of being guessed from the category.
 
-`InterpretationOutput` is `{schemaVersion: 1, decisions: InterpretationDecision[]}` with exactly one decision per input event. IDs and evidence must be drawn from the input scope. Confidence is a model score from 0 to 1, not an asserted probability. Amounts, dates, movement roles, personal share, and credit links are not output fields.
-
-Classification precedence is transaction-specific user correction, accepted scoped rule, accepted merchant mapping, then model proposal. Conflicting accepted rules create review. A new merchant remains proposed until user acceptance. Automatic category application can proceed independently while merchant identity remains unknown.
-
-Automatic category application requires an established cost role, an existing category, no conflicting correction, nonempty source evidence, needsReview false, and score at least 0.95. The model/prompt pair must also pass a held-out set of at least 200 labelled events, including at least 100 eligible decisions, with at least 98% category accuracy and 99% amount-weighted accuracy among eligible decisions. Coverage must also reach at least 50% of the labelled established-cost population, reported by category and source profile; abstention cannot satisfy the gate by leaving nearly every event unresolved. Until that gate passes, proposals are reviewable but not automatically applied. High-impact changes to roles, ownership, transfers, refunds, and loan decomposition always use deterministic evidence or explicit user confirmation.
-
-The interpretation prompt names the allowed taxonomy, explains category versus role, preserves merchant service distinctions, and permits unknown. It asks for short source-grounded reasons and never item-level guesses from a store name. Reprocessing accepted events cannot override user decisions.
+Model upgrades use representative real cases and synthetic financial fixtures. Check useful suggestions, incorrect categories, ambiguous cases, and preservation of corrections. Broader automatic application requires evidence that it improves the actual review workload while preserving user control; it is not a stage-three completion requirement.
 
 ## Analyst tools
 
-Each tool has an Effect Schema input and output derived from the RPC schemas. The tool adapter injects caller context and the run's snapshot. A tool result includes `{toolCallId, basis, data, evidence: EvidenceRef[]}`. The model sees structured data and a bounded evidence sample, not an unbounded ledger dump.
+Use AIChatAgent with the AI SDK's ordinary tool loop. Tools read existing API operations for transaction evidence, comparisons, commitments, and deterministic scenarios. Their inputs validate the requested scope. Financial totals always come from those operations.
 
-| Tool                   | Model arguments                                                                           | Execution and output                                                                                                                                                                                                                                             |
-| ---------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `getCoverage`          | `{query: FinancialQuery}`                                                                 | Calls getCoverage for that measure against run basis. Returns `CoverageSummary`.                                                                                                                                                                                 |
-| `findTransactions`     | `{filter: TransactionFilter, cursor: string \| null, limit: number}`                      | Calls listTransactions, maximum 50 rows to the model. Returns page and evidence refs.                                                                                                                                                                            |
-| `compareSpending`      | `{query: FinancialQuery}`                                                                 | Calls queryFinancials. Returns comparison result and result-field references.                                                                                                                                                                                    |
-| `getCommitments`       | `{period, statuses}`                                                                      | Calls listCommitments. Returns schedules and occurrences.                                                                                                                                                                                                        |
-| `forecastCash`         | `{definition: ForecastDefinition}`                                                        | Starts or resolves an analysis job. Returns `{kind: "pending", jobId}` or `{kind: "ready", result: AnalysisResult}`.                                                                                                                                             |
-| `runScenario`          | `{baseline: ForecastDefinition, overrides: ScenarioOverride[]}`                           | Same job-backed result contract as forecastCash.                                                                                                                                                                                                                 |
-| `requestClarification` | `{subject: SubjectRef, issueKind, question, options: ReviewOption[], evidence}`           | Creates or returns the existing open review and pauses the run with reviewId.                                                                                                                                                                                    |
-| `applyCorrection`      | `{eventId, expectedVersion, change: EventChange, reason}`                                 | Calls correctEvent only with matching server-held action authorization. Otherwise calls previewEventChange and returns `{kind: "proposal", previewId, impact}`. Financial-role or allocation-amount changes always require acceptance through acceptEventChange. |
-| `saveInvestigation`    | `{label, question, definition: SavedAnalysisDefinition, refresh: "onChange" \| "manual"}` | Calls saveAnalysis. Returns savedAnalysisId and definition version.                                                                                                                                                                                              |
-| `saveScenario`         | `{label, baseline: SavedForecastDefinition, overrides: ScenarioOverride[]}`               | Calls saveScenario with accepted account shares. Returns scenarioId and version. New or changed shares require a clarification first.                                                                                                                            |
-| `getPersonalContext`   | `{accountIds, merchantIds, period}`                                                       | Calls getPersonalContext with the run basis and returns scoped confirmed context plus contextGeneration. A changed generation triggers the memory refresh policy before another model call.                                                                      |
-| `proposeContext`       | `{kind, text, accountIds, merchantIds, effectivePeriod, evidence}`                        | Creates a proposed context entry for user review. It cannot self-confirm a memory.                                                                                                                                                                               |
-| `runComputation`       | `{question, scope: FinancialQuery}`                                                       | Starts a computation job against the run snapshot. Returns pending job or artifact/result references.                                                                                                                                                            |
-
-A tool requesting data outside the captured scope returns `{kind: "scopeRequired", requestedScope}`. The supervisor expands the snapshot at a single current revision and reruns any affected calculations before continuing. It never disguises a newer live query as part of an older snapshot.
-
-Unknown IDs, evidence outside scope, or invalid result pointers reject the tool call. One schema-repair attempt can correct malformed arguments. Repeated invalid calls terminate the run with a visible failure. Tool exceptions are safe tagged errors, with no SQL or secrets exposed to the model.
+Keep tools narrow enough to answer the product's supported questions. A question the tools cannot answer receives an explanation of the missing capability or evidence. The analyst does not generate arbitrary executable code or dispatch child agents.
 
 ## Mutation authority
 
-The model cannot grant itself authority by setting an `approved` flag. An `ActionAuthorization` is stored by the server with `{ownerId, runId, submissionId, operation, targetIds, payloadHash, expiresAt}`. It is matched by the adapter and never accepted as model-supplied input.
+Financial tools are read-only. An analyst suggestion links to the existing edit/review screen or renders a confirmation card. The user's authenticated acceptance invokes the ordinary version-checked command. Text such as "categorize this as strata" can prepare that choice, but cannot apply it by itself.
 
-A structured user action, such as accepting a correction card, grants authority for its exact payload. A direct textual correction can grant authority after intent extraction identifies an explicit edit and the server resolves every target and value unambiguously. The supported direct text edits are category, merchant, and tags on one selected event. The server checks the extracted text spans and selected ID before recording authorization.
+The server supplies owner identity and permissions. Bank descriptions, document text, saved notes, and model output are untrusted content and cannot authorize a mutation. The UI preserves the existing previews for bulk edits and changes to financial relationships.
 
-Questions, quoted examples, third-party source text, and inferred preferences do not grant authority. Ambiguous instructions produce a proposal. Bulk rules, financial role changes, source removal, and spending-policy changes use a concrete preview and user action. The authorization expires after ten minutes and is consumed by the idempotent command receipt. Retries retrieve that receipt.
+## Conversation execution
 
-`IntentInput` contains `{schemaVersion: 1, text: string, selectedEventId, selectedEventVersion}`. It includes only the original user message and trusted selection identity, with no financial descriptions, retrieved notes, or model-authored context.
+AIChatAgent owns canonical messages, persistence, streaming, reconnects, and stopping an answer. Use SDK capabilities directly. The UI permits one active answer per conversation; another question can be sent after completion or stop. No application submission queue, intent pass, run-step store, or supervisor is required.
 
-`IntentOutput` is `{kind: "question"}`, `{kind: "ambiguous", reason}`, or `{kind: "correction", eventId, field: "category" | "merchant" | "tags", values: {text: string, span: {start, end}}[], directiveSpan: {start, end}}`. Spans use UTF-16 code-unit offsets into the original message, with exclusive ends. Each value text must equal its source span. The server resolves those labels against current owner-scoped category, merchant, or tag data using case-insensitive exact labels and accepted aliases. One label matching multiple entities, a new label, or an absent directive produces a proposal with selectable choices. The model never supplies IDs it was not given. Resolved IDs and the selected entity version form the exact command payload and authorization hash.
+A disconnected client can recover available messages and streaming state through the SDK. A failed answer can require resubmission and may repeat reads or model calls. Display that failure honestly. Financial mutations remain protected by their ordinary command receipts, independently of chat execution.
 
-## Investigation execution
+## Answers and evidence
 
-`Submission` contains `{schemaVersion: 1, conversationId, submissionId, text, selection: {postingIds, query: FinancialQuery | null}}`. Text maximum is 16,000 characters. One conversation processes submissions in accepted order. `acceptRun` assigns a monotonically increasing conversation sequence inside a Postgres transaction using pg_advisory_xact_lock on a stable owner/conversation-derived key, separate from the financial revision lock. Receipt lookup, sequence allocation, and run insertion use that same transaction and connection. The lock releases at commit or rollback. A Durable Object does not replace this boundary because external asynchronous calls can interleave. The Postgres run record and the AIChatAgent message store are linked by conversationId and submissionId.
+Render SDK text and typed tool results. Calculated money, period, account scope, and coverage appear in financial result components with links to the relevant records. Narrative explains those results and distinguishes observations from possible explanations.
 
-`RunState` is a closed union: `queued {position}`, `running {step, completedToolCalls}`, `waitingForReview {reviewIds}`, `waitingForJob {jobId}`, `completed {answerId, resultIds}`, `cancelled {completedResultIds}`, or `failed {error, completedResultIds}`. Every terminal state includes `completedAt: Instant`. AnswerId is the ID of the completed ai_steps row holding the validated final `AnalystOutput`. `RunCheckpoint` contains `{nextStep, snapshotId, completedStepKeys, summaryVersion, contextGeneration, pendingReviewIds, pendingJobIds}`.
+There is no requirement to encode every date or count in a custom claim language. Evaluate numerical explanations against the actual tool results. Old messages keep their displayed calculation time; linked records and a rerun use current data. Chat history is not a replayable financial snapshot archive.
 
-The supervisor records each transition before starting dependent work:
+## Memory
 
-1. Acceptance stores the submission and run before acknowledgment. A repeated submission ID returns the same run.
-2. Scope resolution identifies selected entities and coverage. The captured snapshot contains the required financial records and context.
-3. A model step uses the assembled analyst context. The supervisor persists its structured tool request or final answer.
-4. Each tool executes with a stable step key. Its checkpoint contains the result, command receipt, or reference to a pending job or review.
-5. A tool result, job result, or clarification resumes the run. A validated answer, cancellation, failure, or usage limit ends it.
+Start with explicit user-managed notes and preferences. Account roles, classification rules, and personal events remain in their existing domain records. Load current notes relevant to the question, with supplied account/period scope where useful. Do not infer permanent personal facts from casual conversation.
 
-AIChatAgent owns the canonical conversation protocol and stream persistence. The application supervisor owns run checkpoints and reentry through a Durable Object alarm or completion notification. On restart, completed steps are reused. A started write tool is resolved through its command ID. A started model call with uncertain completion may need another provider request under the existing budget policy.
+A note edit or removal affects future retrieval. To prevent the old fact reappearing from an existing transcript, the edit flow starts a fresh conversation for subsequent analysis and leaves the earlier conversation read-only. Current notes are loaded into that fresh conversation. Explain this before the user confirms the note change. There is no global transcript-generation or historical-answer invalidation subsystem.
 
-`AiStepOutput` is a union of `{kind: "model", role, response: RoleOutput, usageCallId, usageAttemptIds}`, `{kind: "tool", toolName, result: RegisteredToolResult}`, `{kind: "clarification", reviewId}`, and `{kind: "computation", jobId}`. `RoleOutput` is the document, interpretation, intent, summary, or analyst-step output schema. An analyst step is `{kind: "toolCalls", calls: {id, toolName, arguments}[]}` or `{kind: "answer", answer: AnalystOutput}`. Arguments and `RegisteredToolResult` are discriminated unions generated from the registered tools, not arbitrary JSON objects.
+Conversation summaries are optional SDK context management. They cannot replace confirmed domain facts. A fresh conversation does not import an old summary after a note change.
 
-Cancellation persists first, aborts an in-flight model call where supported, and prevents new work. It cannot retract committed financial changes. Completion checks the cancellation flag before publishing a final answer. A disconnected browser only detaches the stream and does not cancel the run.
+## Evaluation
 
-## Answer schema and evidence validation
-
-`AnalystOutput` contains `{schemaVersion: 1, sections: {heading: string, parts: AnswerPart[]}[], followUpQuestions: string[], resultIds: Id<"result">[]}`. `AnswerPart` is text `{kind: "text", text}`, claim `{kind: "claim", claim: Claim}`, chart `{kind: "chart", resultId, seriesPath}`, or evidence `{kind: "evidence", refs: EvidenceRef[]}`.
-
-`Claim` contains `{id, label, resultId, valuePath, evidence: EvidenceRef[], interpretation: "observed" | "calculated" | "inferred"}`. The client renders numerical values from valuePath using the result's units. A model-supplied number is not an official value. Text parts carry explanations. Monetary quantities, percentages, dates, and counts belong in typed claim parts so the validator can compare them with actual tool results.
-
-The answer validator checks result ownership, snapshot compatibility, JSON Pointer existence, chart series shape, and evidence scope. It rejects a complete-sounding answer when the referenced result has unresolved coverage without an accompanying limitation. One repair pass receives the validation findings. Failure leaves the completed tool results visible and marks the answer failed instead of publishing unsupported prose.
-
-The analyst system prompt defines the metric names, instructs coverage inspection before comparative conclusions, requires complete contributor accounting, and separates observed change from causal explanation. It includes current tool schemas and mutation authority rules. Retrieved financial text and context are delimited as evidence, never concatenated into instructions.
-
-## Memory and summary
-
-Confirmed personal context is stored in Postgres and retrieved by intersecting account, merchant, and effective-date scope. Global preferences have empty scope arrays. Direct matches rank before global context, then latest confirmed version. Context is capped at 4,000 tokens per model call. Overflow returns a count and a retrieval continuation rather than silently forgetting that more context exists.
-
-Conversation summaries contain `{schemaVersion: 1, contextGeneration, narrative, openQuestions: {reviewId, question}[], resultIds, contextIds, lastMessageId}`. They summarize completed messages, retain evidence IDs, and cannot create confirmed facts. The supervisor refreshes the summary when selected history exceeds 12,000 tokens, retaining the latest six eligible messages within the input budget and the removal policy below.
-
-Every confirmed context acceptance, correction, or removal increments dataset_heads.context_generation inside the financial command. It records the generation on the context revision and invalidates dependent results. The supervisor reads getDatasetHead to check the current generation before each model call and final publication. Snapshot context and current generation are distinct values. A changed generation discards assembled prompts, stale summaries, and uncommitted model output, captures a current snapshot, and reruns affected read calculations. Committed commands still resolve through their receipts.
-
-Every accepted user message and validated assistant message records contextGeneration, runId, and submissionId in application-owned SDK message metadata. Validated assistant messages also record their answerId. The analyst uses those IDs to export only messages represented in a backup's database snapshot. Automatic prompt assembly includes conversation messages only from the current context generation. Older transcript text remains available in the UI but is not replayed to the model. The user can explicitly restate context in a new message. New summaries use eligible messages and current confirmed facts only, recording contextGeneration. Historical result IDs may be displayed as affected evidence, but their stale explanations are excluded from future prompts. This conservative rule prevents removed facts reentering through unannotated prose. Pending runs refresh at their next checkpoint; a model call already sent cannot be retracted from the provider.
-
-A retained source of a confirmed fact remains inspectable. Removed evidence is identified as unavailable. Contradictory context creates a review item with both versions instead of silently overwriting one.
-
-## Computational investigations
-
-A computation job receives a frozen snapshot, a question, and a pinned runtime image. The runtime uses a basic Cloudflare Container with 1 GiB provisioned memory. Initial job limits are 120 seconds wall time, 100 MiB input, and 20 MiB output. The memory limit is the Container instance limit, including the runner; exhaustion terminates the job and produces a safe failure. Its filesystem is disposable. enableInternet is false and no outbound handlers, allowed hosts, or production bindings are exposed to generated code. Packages come from the pinned runtime image and production credentials are absent. The deployment and isolation tests are defined in Operations.
-
-The calculation produces `{schemaVersion: 1, inputHash, runtimeVersion, scriptArtifactId, tables: {name, columns: {name, type}[], rows}[], claims: {label, table, row, column, evidence: EvidenceRef[]}[], outputArtifactIds}`. Column types are text, minor, decimal, date, or boolean. Rows are arrays of values encoded with those column codecs, with equal row width. The publisher validates table coordinates and constructs `Claim` references after allocating the result ID. Artifact types are allowlisted JSON, CSV, text, and static images, registered with the `script`, `calculation`, and `chart` kinds in the database schema. Executable HTML is not rendered in the financial origin. Official metric totals still come from financial services. Ad hoc results are labelled exploratory and include their calculation artifact.
-
-A run can request at most two child investigations, each with a disjoint question and a share of the parent's remaining budget. The parent joins their evidence through result IDs at the same snapshot. Children have separate internal conversation IDs and a parentRunId, so they cannot block behind the parent in its conversation queue. Their messages stay internal and their result IDs are joined into the parent answer. Children cannot delegate further or receive mutation authority. Repeated successful calculations become saved analysis definitions only through an explicit save action.
-
-## Evaluation gates
-
-The checked suite covers exact monetary transcription, eligible-category accuracy, invalid IDs, wrong-period questions, missing coverage, double-counted repayments, fabricated numerical claims, contradictory context, instruction injection in bank descriptions, unauthorized writes, interruption, and cancellation.
-
-Financial test cases require exact tool values and valid evidence references. No test permits an unapproved financial mutation or a fabricated source. Promotion of a model and prompt version requires every deterministic invariant case to pass and the category gate above to hold. Narrative quality is reviewed separately and cannot compensate for incorrect numbers. Provider calls run only in the bounded live evaluation suite, while ordinary CI replays versioned structured outputs through the real validators and services.
+[Verification](/technical/verification) owns the tests. Use independently known financial results, representative category examples, structured-output failures, unavailable providers, and explicit human review. A live provider check verifies the chosen model/input format. It does not replace deterministic money and authorization tests.

@@ -1,149 +1,51 @@
 ---
 title: Ingestion and reconciliation
-description: Preserve source evidence, identify transactions once, and publish a consistent financial history.
+description: Use parsing libraries, preserve evidence, and record each bank movement once.
 ---
 
-## Delivery scope
-
-Stage 1 implements CSV/OFX extraction, matching, publication, source review, and coverage. Stage 2 adds PDF, full-corpus validation, and source removal. Stage 3 adds interpretation; stages 4, 5, and 7 add refresh consumers. Posting import succeeds independently of all later interpretation and analysis.
-
-[Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
-
-Stage 1 handles every supplied CSV and OFX. Stage 2 extends the same pipeline to every supplied PDF. File identity, transaction identity, and financial relationships are separate decisions. A repeated file is not the same problem as a transfer recorded in two accounts.
-
-[Import and job protocols](/technical/import-protocol) defines the extraction schemas, scoring thresholds, publication payloads, Workflow steps, and recovery states used by this flow.
+Stage 1 supports CSV and OFX. Stage 2 adds PDF and validates the full supplied corpus. Import succeeds independently of interpretation, which begins in stage 3. [Import protocol](/technical/import-protocol) defines normalization, matching, and safe publication.
 
 ## Actual CommBank files
 
-:::note
-The actual CommBank files to import are in `fixtures/commbank/`, relative to the repository root. This local directory contains the supplied CSV exports, OFX exports, PDF statements, and their original README. The entire directory is Git-ignored, so it is absent from a fresh clone.
-:::
+The actual files are in `fixtures/commbank/`, which is Git-ignored and local only. Read `fixtures/README.md` and inspect those files when implementing parser behavior. Preserve the originals and keep private contents out of tracked fixtures, build output, and ordinary logs.
 
-These files are the source corpus for parser development, account mapping, duplicate reconciliation, and coverage validation. Implementation agents inspect the actual file structures and overlapping records when developing those behaviors. Source files remain unchanged, and private contents stay out of tracked fixtures and published outputs.
+The README inside that directory describes the previous application. Its pairing requirements and import order are historical context, not requirements for this implementation. CSV and OFX must each work independently.
 
-`fixtures/README.md` describes the directory contents. The README inside `fixtures/commbank/` describes the previous application. Its import order, pairing requirements, and supported-profile claims are historical context. The current product and technical specifications define the behavior to build.
+The September 2026 corpus contains 26 CSV, 26 OFX, and 47 PDF files, approximately 45 MiB in total. The largest file is approximately 2.6 MiB. These sizes support starting with per-file processing; measure decoded rows and runtime use before selecting resource limits.
 
-## Source handling
+## Parsing libraries
 
-The server verifies file type from content and streams the bytes to a temporary R2 object while computing SHA-256. A completed upload becomes an immutable source object. A unique owner-and-hash constraint identifies an existing source even when its filename changes.
+| Format | Starting point                                                                            | Application responsibility                                                                                                  |
+| ------ | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| CSV    | csv-parse, already used in this repository.                                               | CommBank column meanings, exact amounts, dates, signs, and locators.                                                        |
+| OFX    | Evaluate a maintained parser such as [ofx-js](https://github.com/bradenmacdonald/ofx-js). | Preserve literal values and support the supplied OFX 1.02 SGML, encoding, account metadata, dates, and empty or reused IDs. |
+| PDF    | [unpdf](https://github.com/unjs/unpdf), using its serverless PDF.js build.                | Group positioned text into CommBank statement rows and validate their meaning.                                              |
 
-An upload attempt has its own status and can reference an existing source. The source stores the original filename, content type, size, hash, object key, and accepted time. Filenames are labels, not proof of account identity or coverage.
+A candidate OFX library is not accepted until it handles the actual fixtures without losing exact monetary strings or source evidence. If it needs an adapter, keep that adapter focused on the demonstrated gap. A generic XML parser alone cannot parse SGML with omitted leaf closing tags.
 
-A reupload of removed bytes restores source access under the same identity after verification. Withdrawn records stay withdrawn until the user accepts an undo of the withdrawal. An upload during removalPending can retry after removal completes. The [removal and restoration protocol](/technical/import-protocol#refresh-and-removal) defines version fencing.
+Use the library's normal parser API for files that fit memory. Streaming or another runtime is a response to measured resource limits, not an initial architecture requirement.
 
-The upload endpoint returns a receipt after source registration. A lost response can be retried with the same command identity. A source whose registration failed is reconciled against pending upload records before temporary-object cleanup.
+## PDF library selection
 
-The upload path supports every supplied format assigned to the current stage. Operational byte and page limits are explicit, displayed before upload, and tested against the corpus. Larger files are streamed and processed in bounded chunks.
+The evaluated baseline is unpdf 1.8.1 with bundled PDF.js 6.1.200. The September 2026 comparison covered five PDFs, 25 pages, and 303 manually verified transaction rows. A layout decoder and visually established card-decimal repair matched all transaction dates and signed amounts and all 258 available running balances. Native Python extraction did not improve those results.
 
-## Extraction
+That sample supports the library choice but does not establish full-corpus completion. Check every supplied PDF in stage 2. Keep raw strings and positions, including when applying a verified layout repair. Do not infer missing decimals solely to force a balance to agree.
 
-<Tabs>
-  <Tab title="CSV">
-    The CommBank parser reads four headerless columns in order: posting date in DD/MM/YYYY format,
-    signed decimal amount, description, and balance. These exports contain no stable bank
-    transaction ID. It preserves empty card balances, quoted fields, byte-order marks, and line
-    locations. Parsing is deterministic and does not call a model.
-  </Tab>
-  <Tab title="OFX">
-    The structured adapter reads the export header, account and currency metadata, transaction
-    records, and balance anchors. It supports the supplied OFX 1.02 SGML layout and preserves
-    literal fields and source locations. Parsing does not require a companion CSV or a model call.
-    Transaction IDs are checked for reuse and conflicts before matching.
-  </Tab>
-  <Tab title="PDF text">
-    The processor uses unpdf's serverless PDF.js build to extract page text and positions. Its
-    CommBank layout adapter separates transaction tables from totals, rewards, notices, and repeated
-    page headers. Debit and credit signs follow the statement layout.
-  </Tab>
-  <Tab title="Scanned or ambiguous PDF">
-    A document-processing Container renders only the pages that need visual extraction. A configured
-    vision model proposes structured rows. Page locations, extracted text, and validation results
-    remain attached to each proposal.
-  </Tab>
-</Tabs>
+An unresolved page is shown for user inspection. If actual documents require model extraction, use one supported document-input path and validate its output. Do not require a rendering Container, OCR pipeline, or provider fallback chain in advance. A reproducible decoder defect remains implementation work; a specific unreadable or conflicting fact can require a user decision.
 
-Parser and extraction versions are recorded per observation. An improved parser can reprocess original files without replacing user corrections. Text and visual extraction share the same output contract. The Container rendering build is pinned after a rendering check against the supplied corpus.
+## Upload and recording flow
 
-An observation contains raw fields, normalized candidate fields, a format-specific source locator, extraction version, and validation findings. A schema-valid model output is still a proposal until amount, date, and reconciliation checks pass.
+1. Verify and retain the uploaded bytes. Identify an existing source by owner and hash.
+2. Resolve the account using source metadata or a user choice. A filename or masked suffix alone is insufficient evidence.
+3. Parse the file using the selected library and source profile.
+4. Validate amounts, dates, signs, and supplied balances. Match against current accepted postings using the deterministic protocol.
+5. Atomically publish the file's accepted records, evidence, reviews, coverage, and summary.
+6. Show the transaction list and any specific decisions the user still needs to make.
 
-### PDF library selection
+Coverage distinguishes requested export dates, observed rows, stated intervals, and reconciled history. A matching pair of balance anchors can establish a period with no transactions. Missing records are never represented as zero spending.
 
-The processor owns the PDF text adapter and uses [unpdf](https://github.com/unjs/unpdf). The evaluated baseline is `unpdf@1.8.1`, whose bundled PDF.js engine reports `6.1.200`. The adapter reads positioned text items page by page through `getDocumentProxy` and PDF.js `getTextContent`, with text normalization disabled. The CommBank adapter owns row grouping, column interpretation, and source locators.
+## Human review and repeat actions
 
-The September 2026 comparison covered five supplied PDFs, 25 pages, and 303 manually verified transaction rows. With a layout decoder and a visually established repair of missing card decimal separators, unpdf matched every transaction date and signed amount and all 258 available running balances. Python native extraction did not improve these results, so the selected path does not add a Python extraction or OCR dependency.
+The review UI shows the source row, uncertainty, and candidate choices. It supports confirming an account, resolving source conflicts, matching an existing posting, or declaring a distinct purchase. Reprocessing preserves those decisions. Dismissing an unreadable amount does not make it valid.
 
-Native PDF text can omit decimal separators in card amounts and foreign-currency descriptions. Ambiguous monetary strings use the existing rendered-page document extraction flow. A deterministic repair requires a versioned source profile evaluated against the visible statement layout; matching a statement total alone does not authorize inserting decimal points. Raw extracted strings remain attached to the observation.
-
-The processor pins the library and bundled engine versions with its extractor version. Upgrades require the [extraction evaluation](/technical/verification#extraction-and-interpretation-evaluation). The comparison establishes the text-library choice. Implementation acceptance still requires full-corpus validation, hosted Worker resource checks, and Container rendering checks.
-
-## Establish accounts and intervals
-
-Statement and OFX account identifiers, together with previously confirmed mappings, establish account identity. Masked suffixes can narrow candidates but are not globally unique. A CSV with no account identifier uses its batch mapping and prior evidence. An unresolved mapping creates a concrete review item.
-
-Coverage stores separate facts: the requested export interval, observed transaction dates, statement interval, and reconciled interval. A sparse transaction list alone does not prove missing days. A matching opening balance, closing balance, and set of postings can establish a period with no activity.
-
-## Match observations to transactions
-
-The matcher first restricts candidates to the same account. OFX identifiers are corroborating evidence, never a globally unique deduplication key. Reused identifiers with conflicting values cannot establish a match. It then uses amount, currency, posting date, available balance, identifiers, description tokens, and source order.
-
-Matching follows the identifier, literal-occurrence, and scored paths in the protocol. Two identical rows in one source can represent two real purchases. Complete overlap groups preserve their multiplicity; ambiguous subsets remain reviewable.
-
-Cross-format matching uses a scored candidate graph. One source observation can support one canonical posting. Matching is one-to-one within an overlapping source sequence, with explicit allowances for source date conventions. Competing plausible matches remain unresolved rather than being forced by row order.
-
-The score is a rule score, not a calibrated probability. Versioned thresholds are defined in [Import and job protocols](/technical/import-protocol#duplicate-matching) and evaluated against checked duplicate and non-duplicate examples. Accepted matches retain the evidence that justified them.
-
-<Accordion>
-  <AccordionItem title="Exact repeated upload">
-    The content hash returns the existing source receipt. Completed extraction and enrichment are
-    reused.
-  </AccordionItem>
-  <AccordionItem title="Overlapping exports">
-    Matching observations attach to existing postings. Unmatched occurrences become candidates for
-    new postings, subject to reconciliation.
-  </AccordionItem>
-  <AccordionItem title="Conflicting source values">
-    Different amounts, balances, or identities create a conflict. Neither observation silently
-    overwrites the other. Source evidence and statement reconciliation determine resolution.
-  </AccordionItem>
-</Accordion>
-
-## Reconcile before publication
-
-For a statement interval, opening balance plus signed movements must equal closing balance under the account's sign convention. Statement-specific debit, credit, fee, and interest totals provide additional independent checks.
-
-Missing card balance cells remain missing. A statement supplies anchors when available. Inter-account transfer matching is a later interpretation step and does not delete either bank posting.
-
-An extraction segment with unresolved financial values or duplicate identity is staged outside confirmed totals. Category-only uncertainty does not block publication of an otherwise established expense. Import results disclose accepted and unresolved segments separately.
-
-```mermaid
-stateDiagram-v2
-    [*] --> Uploaded
-    Uploaded --> Extracting
-    Extracting --> Reconciling
-    Reconciling --> Review: conflicting evidence
-    Review --> Reconciling: correction or new evidence
-    Reconciling --> Publishing: established records
-    Publishing --> Completed
-    Extracting --> Failed
-    Reconciling --> Failed
-    Publishing --> Failed
-    Failed --> Extracting: resume unfinished work
-```
-
-The state diagram describes a processing segment. A batch contains independently progressing files and segments. A completed file can still have unresolved category proposals.
-
-## Publish atomically
-
-A Workflow stages extraction and matching against an immutable financial snapshot. The API commits bounded groups of validated postings, observation links, review items, and dispatch records as commands under the [financial command protocol](/technical/financial-model#persistence-and-concurrency). If the input revision changed, matching repeats against current records, and remaining groups are matched against the resulting snapshot before publication.
-
-Unique source-observation constraints and revision checks make simultaneous overlapping imports converge to the same history. Batch summaries derive from committed results, not from attempted insert counts. Extraction, model interpretation, and source-object writes finish outside the financial transaction.
-
-## Enrich and refresh
-
-From stage 3, deterministic financial-role establishment runs before semantic enrichment, following [Financial-role establishment](/technical/import-protocol#financial-role-establishment). Known merchant rules and explicit corrections run before model classification. Only novel or unresolved interpretations require model calls. Accepted amount and date evidence remains separate from semantic proposals.
-
-After posting publication, finalizeExtraction publishes supported statement anchors and source coverage. Stage 4 then refreshes affected period summaries and saved analyses. Stage 5 adds recurring-cost detection, occurrence matches, and forecasts. Stage 7 adds insights and intentions. Stages 1 and 2 complete after posting publication, coverage finalization, and the import summary. [Processor RPC](/technical/rpc#processor-only-rpc) defines their read and publication operations. Jobs include their input revision and calculation version. A late job cannot replace newer results.
-
-The API's durable dispatch table is the source of pending work. Direct Workflow dispatch and steps can repeat. Exhausted dispatch records an actionable job failure. Interpretation or refresh failure does not change a completed posting import back to failed.
-
-The [verification plan](/technical/verification) includes shuffled file order, concurrent overlap, repeated callbacks, and interruption immediately after a database commit.
+A failed file can be retried or uploaded again. Other files complete independently. The importer may repeat parsing, but source and observation identities prevent repeated financial publication. Sources and bank postings remain usable even when categorization is unavailable.

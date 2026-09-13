@@ -1,42 +1,38 @@
 ---
 title: Build one stage
-description: Select a bounded deliverable, build its frontend and backend, verify it, and stop.
+description: Select a deliverable, build its connected frontend and backend, verify it, and stop.
 ---
 
-Start with [Delivery stages](/stages). Unless the task names another stage, the implementation target is [stage 1](/stages/record-transactions). The references describe the eventual product; they do not authorize implementing later stages.
+Start with [Delivery stages](/stages). Stage 1 is the default unless the task names another stage. Inspect the repository to establish what already works; the documentation describes intended behavior, not implementation status.
 
-## Establish the selected scope
+## Establish scope
 
-Read the selected stage's outcome, user flows, backend responsibilities, exclusions, reading path, and completion evidence. Inspect the repository to establish what already works. For a later stage, verify the prerequisites and identify any missing earlier behavior before proceeding. A stage listing is not an implementation status report.
+Read the selected stage's flows, prerequisites, reading path, and completion evidence. Use [Stage boundaries](/technical/stage-boundaries) for shared behavior and [Acceptance scenarios](/product/acceptance) for concrete outcomes. Build a short plan around connected user journeys, including UI, persistence, integration, and verification.
 
-Read the product and technical sections named by that stage. [Stage boundaries](/technical/stage-boundaries) assigns shared records, interfaces, jobs, and controls to their introduction stages. [Product acceptance](/product/acceptance) assigns concrete scenarios. Build a short work plan for that scope with frontend, backend, integration, and verification work attached to each user outcome.
+Later references do not authorize later features. Introduce schema fields and operations with the behavior that needs them. Earlier postings require no future interpretation placeholders.
 
-Stage pages own delivery scope. Product pages own behavior, and technical references own contracts and invariants. Resolve a missing dependency in the owning stage and affected reference before adding dependent behavior. Do not pull an entire later feature into scope because a shared page mentions it.
+## Choose the smallest working implementation
 
-## Apply the architecture
+Use the existing Effect, Alchemy, Worker RPC, and frontend conventions. [Architecture](/technical/architecture) defines the system split and [Monorepo](/technical/monorepo) defines ownership.
 
-Use the existing strong types, Effect service composition, Alchemy infrastructure ownership, and Worker RPC conventions. Read [Architecture](/technical/architecture) for the system split and [Monorepo and ownership](/technical/monorepo) for module and resource ownership. Create only the resources and exports required by the selected stage.
+Look for an existing library or platform feature before adding custom logic. Check installed source and official documentation for APIs. If a library leaves a demonstrated gap, implement the narrow bank or product behavior it lacks. Keep exact financial rules in shared code used by the API and all result consumers.
 
-Implement the stage projections in [Stage boundaries](/technical/stage-boundaries#contract-evolution). Preserve source identity and financial invariants while evolving schemas through explicit migrations. Later fields and behaviors need no placeholder handlers, disabled controls, unused tables, or runtime stage flags.
+A failed action may require retry, reupload, or human review. Preserve accepted data and make repeated financial writes safe. Normal SDK/platform retries are sufficient unless actual use demonstrates otherwise. Do not add a custom recovery path merely because an operation can fail.
 
-For imports, inspect the [actual CommBank files](/technical/ingestion#actual-commbank-files) in `fixtures/commbank/`. Stage 1 validates CSV and OFX; stage 2 expands validation to the full corpus. Preserve private contents outside tracked fixtures and published artifacts.
+For imports, inspect the [actual CommBank files](/technical/ingestion#actual-commbank-files). Stage 1 covers CSV and OFX; stage 2 covers all files. Retain private contents outside tracked fixtures and published artifacts. Measure the corpus before adding concurrency, chunking, or another runtime.
 
-Use the [decision ownership policy](/technical#design-status). Consult matching installed source and official third-party documentation when implementing APIs. Record evaluated policy/model versions on their owning references. Correct a failed evaluation candidate rather than weakening financial invariants.
+## Build the full user journey
 
-## Build the browser experience with the backend
+Connect each flow to real persistence and processing. Show empty, processing, review, failed, and completed states as needed. A user must be able to resolve a specific ambiguity or repeat a failed action from its owning screen.
 
-Each stage is a complete application increment. Connect its real persistence and processing to its user flows. Include navigation, required settings, evidence, review, progress, errors, cancellation and recovery where applicable. Apply [Frontend](/technical/frontend) and [Operations](/technical/operations) for the selected stage.
+Verify critical runtime connections early: authenticated upload, Postgres through Hyperdrive, private evidence access, and safe financial publication in stage 1. Add deployed PDF/model checks only when used, and SDK conversation routing in stage 6. [Operations](/technical/operations) owns private access and managed backups.
 
-Verify the stage's critical runtime integrations early. Stage 1 includes Postgres through Hyperdrive, authenticated storage access, direct outbox dispatch, atomic publication, and recovery after a lost commit response. PDF/model checks arrive in stage 2; analyst namespace routing and conversation continuity arrive in stage 6.
-
-Missing financial facts become specific review items. Continue independent work without inventing personal context. If credentials, a deployment identity, or private files are unavailable, implement and verify available paths with representative fixtures and record the exact external check that remains outstanding.
-
-The written flows specify information and actions. Visual composition and branding remain open to a separate design task. A functional frontend is still required for stage completion.
+Visual composition, colors, and typography remain open to a separate design task. A functional, responsive, keyboard-accessible frontend is still part of this implementation. [Frontend](/technical/frontend) defines query and interaction behavior.
 
 ## Verify and stop
 
-Run [Verification](/technical/verification) for the selected stage and regression checks for earlier behavior. Exercise the connected frontend on desktop, mobile, and with a keyboard. Validate data, source evidence, and recovery through the same operations the user invokes.
+Run [Verification](/technical/verification) for the selected stage and earlier regressions. Demonstrate the browser flow and inspect its stored financial outcome. Use independently known amounts and real input structures.
 
-Stage 1 accounts for every supplied CSV/OFX; stage 2 accounts for every supplied file. Distinguish accepted records, matched observations, and specific unresolved evidence. A parser defect or general review state is not successful ingestion.
+Account for every supplied file within the selected formats. Specific missing or conflicting evidence can remain reviewable. Parser defects or a blanket unresolved state are not completion.
 
-Replace obsolete sample behavior as its stage replacement lands. Update affected references and record completion evidence, policy evaluations, and specific unverified external checks. A completion report names the stage and its remaining work. Stop after the selected stage; later stages require a new task or explicit scope extension.
+Run the required repository and documentation checks for changed files. Report the stage, verified outcomes, and specific external checks still unavailable. Do not claim full completion with a required check outstanding. Stop after the selected stage.

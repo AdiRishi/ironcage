@@ -9,7 +9,7 @@ The design extends the existing Alchemy and Effect application platform. PlanetS
 These pages define the target implementation. Module locations, schemas, routes, and runtime behavior describe the design to build, not a claim of shipped functionality.
 :::
 
-Start with [Delivery stages](/stages) and [Build one stage](/technical/build-spend-management). [Stage boundaries](/technical/stage-boundaries) allocates the interfaces and their staged projections. Read the sections required by the selected stage; later contracts are reference material until their introduction stage.
+Start with [Delivery stages](/stages) and [Build one stage](/technical/build-spend-management). [Stage boundaries](/technical/stage-boundaries) allocates the interfaces and their introduction stages. Read the sections required by the selected stage; later contracts are reference material until their introduction stage.
 
 ## Implementation specifications
 
@@ -20,19 +20,19 @@ These references define application contracts. The architecture pages below expl
     Value types, queries, results, receipts, pagination, and errors.
   </Card>
   <Card title="Database schema" href="/technical/database-schema" icon="database">
-    Tables, columns, foreign keys, uniqueness, indexes, and event membership.
+    Stage-owned records, financial relationships, and required constraints.
   </Card>
   <Card title="RPC specification" href="/technical/rpc" icon="network">
-    Method inputs, outputs, actor permissions, and HTTP boundaries.
+    Operation ownership, actor permissions, and typed transport.
   </Card>
-  <Card title="Import and job protocols" href="/technical/import-protocol" icon="files">
-    Extraction schemas, matching scores, payloads, states, and retries.
+  <Card title="Import protocol" href="/technical/import-protocol" icon="files">
+    Library-based extraction, deterministic matching, and safe publication.
   </Card>
   <Card title="Calculation rules" href="/technical/calculation-rules" icon="calculator">
     Event construction, arithmetic, schedules, forecasts, and detector defaults.
   </Card>
   <Card title="AI functionality" href="/technical/ai-functionality" icon="messages-square">
-    Model schemas, tools, authority, checkpoints, memory, and evaluation gates.
+    Bounded model calls, validated suggestions, read-only tools, and explicit notes.
   </Card>
 </CardGroup>
 
@@ -70,18 +70,12 @@ These references define application contracts. The architecture pages below expl
 
 ## Design status
 
-Cloudflare Workers, PlanetScale Postgres, Hyperdrive, Alchemy, Effect, TanStack Start, shadcn components, Cloudflare Agents SDK, AIChatAgent, Vercel AI SDK, Workflows, Containers, Cloudflare Access, and AI Gateway are selected for the eventual system. Deploy them only at the introduction stages in [Stage boundaries](/technical/stage-boundaries).
+The existing Effect, Alchemy, Cloudflare Worker RPC, TanStack Start, and shadcn platform remains. PlanetScale Postgres and Hyperdrive hold financial records. Use Workflows for background imports and AIChatAgent for stage 6 conversations. Deploy resources only when their stage needs them.
 
-The [application domain](/technical/operations#application-domain) is selected, with Cloudflare Access protecting the production web application.
+Use libraries before custom implementations. [Ingestion](/technical/ingestion#parsing-libraries) records parser choices and actual corpus evidence. The package catalog and lockfile own installed versions. Model IDs, deployment capacity, and any additional document-input dependency are chosen when the owning feature is implemented and validated against its real workload.
 
-PDF text extraction uses unpdf. [PDF library selection](/technical/ingestion#pdf-library-selection) records the evaluated version, processor ownership, corpus evidence, and validation requirements.
+Product pages define the required behavior; stage pages define when it is built. Technical pages preserve exact financial meaning and the smallest implementation needed for those outcomes. Method signatures and exact SQL columns belong to implemented code and migrations, not a parallel catalog of future interfaces.
 
-The data structures and policies in these pages are implementation decisions derived from the [product contract](/product). Their correctness is established through the [acceptance scenarios](/product/acceptance), not by the presence of a framework feature.
+Failures can require user action. They must preserve accepted data and make repeated financial writes safe. Existing SDK retries are acceptable; custom recovery, model failover, or speculative execution frameworks require a demonstrated product need. Human review is the normal outcome for specific uncertain evidence or classification.
 
-The [stage pages](/stages) own delivery scope and stopping points. The [product pages](/product) own required behavior within their assigned stage. Shared contracts, schema, RPC, and protocol pages own the target interfaces and accounting invariants. Architecture pages explain those decisions and link to the authoritative rule rather than redefining it.
-
-Matching, role-marker, categorization, detector, and forecast policies are provisional until their stated evaluation gates pass. The initial version IDs name unshipped candidates, not evidence of successful evaluation. Failed gates require correcting the candidate, recording a new policy version and results, and updating its authoritative page before promotion. They do not permit weakening financial invariants or treating broad unresolved output as completed ingestion.
-
-The remaining implementation selections are model IDs, evaluated literal source-profile markers, the PDF rendering Container build, the maintenance image digest, and exact compatible dependency patch versions. Each selection records its owner, version, and the specified corpus or integration evidence. Deployment credentials and provider resource availability are external checks. An additional unresolved design decision is recorded on its owning reference page with the affected behavior and evidence needed to close it. The package catalog and lockfile remain the source of installed dependency versions.
-
-The technical foundation supplies strong types, Effect services, Alchemy infrastructure, and Cloudflare Worker RPC. These pages describe the financial application built on that foundation.
+Verify actual amounts, source completeness, duplicate identity, and user corrections through [Acceptance scenarios](/product/acceptance). A library choice or valid model schema alone does not prove the financial behavior. A parser defect or blanket unresolved output remains incomplete work.

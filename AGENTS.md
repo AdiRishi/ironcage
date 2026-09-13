@@ -3,14 +3,18 @@
 Before implementing spend management, read `docs/technical/build-spend-management.mdx`.
 Start with the selected stage in `docs/stages/`; stage 1 is the default target.
 Each stage includes frontend, backend, integration, and verification. Stop after
-that stage. `docs/technical/stage-boundaries.mdx` allocates shared contracts and
+that stage. `docs/technical/stage-boundaries.mdx` allocates shared behavior and
 reference sections so later behavior does not expand the task. No prior
 conversation or external working notes are required.
 
+Use existing libraries and platform capabilities before custom mechanisms. Failed
+actions can require retry, reupload, or human review. Preserve accepted financial
+data and make repeated writes safe; exact-step recovery is not a product promise.
+
 Before changing financial schemas or service interfaces, read
 `docs/technical/contracts.mdx`, `docs/technical/database-schema.mdx`, and
-`docs/technical/rpc.mdx`, using the selected stage projections. For processing, calculations, or AI behavior, read the
-corresponding protocol linked from `docs/technical/index.mdx`.
+`docs/technical/rpc.mdx` for the selected stage. For processing, calculations, or
+AI behavior, read the corresponding reference linked from `docs/technical/index.mdx`.
 
 When implementing imports, reconciliation, or financial-data validation, inspect the
 actual CommBank source files in `fixtures/commbank/`. This directory is Git-ignored

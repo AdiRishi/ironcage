@@ -1,115 +1,96 @@
 ---
 title: Acceptance scenarios
-description: Observable outcomes for the complete spend-management experience.
+description: Observable outcomes for each working stage.
 ---
 
-These scenarios make the feature requirements observable. Stage identifies the first required deliverable for that scenario. Earlier scenarios remain regression requirements. Shared import cases apply to CSV/OFX in stage 1 and extend to PDFs in stage 2; model and export cases expand with each implemented role or entity. Examples use fictional values and apply to desktop and mobile where an interaction is involved.
+Each scenario applies from its introduction stage and remains a regression afterward. Imports cover CSV/OFX in stage 1 and extend to PDF in stage 2. Values are fictional. The [stage pages](/stages) supply the complete flows and stopping points.
 
-Read the selected [stage](/stages) and its feature allocations. This page is a requirement index across the seven stages, not an instruction to build the whole product at once.
+## Import and recorded history
 
-## Import and financial history
+| Stage | Scenario                                                        | Required outcome                                                                                     |
+| ----- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 1     | Upload identical bytes with a different filename.               | Existing source identity and no additional postings.                                                 |
+| 1     | Upload overlapping exports in different orders or concurrently. | The same evidence and explicit review decisions produce the same bank history, without false merges. |
+| 1     | Two same-day purchases share merchant and amount.               | Both remain recorded.                                                                                |
+| 1     | Upload standalone CSV or OFX.                                   | Each works independently; account ambiguity asks a specific question.                                |
+| 1     | Reuse or omit an OFX transaction ID.                            | The importer checks other evidence and does not collapse distinct purchases.                         |
+| 1     | A file claims two years but contains two weeks.                 | Coverage reflects the file evidence.                                                                 |
+| 1     | Keep an amount or duplicate identity unresolved.                | The affected row stays outside confirmed totals and remains reviewable.                              |
+| 1     | One file fails in a batch.                                      | Other files complete. The failed file can be retried or reuploaded.                                  |
+| 1     | Publication commits but the response is lost.                   | Repeating the action returns the accepted records without duplicates.                                |
+| 1     | Refresh after processing stopped unexpectedly.                  | Status identifies the stopped work and offers retry.                                                 |
+| 1     | Access evidence without authentication.                         | Access is denied.                                                                                    |
+| 1     | Change an account role with an effective date.                  | Earlier periods retain the earlier role.                                                             |
+| 2     | Import one purchase represented in CSV, OFX, and PDF.           | One posting has the supporting observations after any necessary review.                              |
+| 2     | A PDF field cannot be decoded reliably.                         | Show its page and the specific uncertainty. Never invent a value to pass reconciliation.             |
 
-| Stage | Scenario                                                            | Required outcome                                                                                                  |
-| ----- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| 1     | Upload the same bytes with a different filename                     | One source identity and no added transactions or repeated completed processing.                                   |
-| 1     | Upload overlapping exports in either order                          | The same final history, with each real purchase counted once.                                                     |
-| 2     | Upload CSV, OFX, and PDF files containing one purchase              | One purchase with all supporting source records available.                                                        |
-| 1     | Two real same-day purchases share merchant and amount               | Both purchases remain.                                                                                            |
-| 2     | A statement contains a date or amount that cannot be read reliably  | The affected source is reviewable and is not silently accepted as reconciled.                                     |
-| 1     | One file fails in a multi-file batch                                | Other valid files complete and the failed file can resume.                                                        |
-| 1     | Keep an unreadable amount unresolved                                | The affected records remain outside confirmed totals. Dismissing the question does not turn the amount into zero. |
-| 3     | Import an old statement after correcting a category                 | The correction remains in effect.                                                                                 |
-| 1     | A filename promises two years but contains two weeks                | Coverage reflects the evidence in the file.                                                                       |
-| 3     | Buy $100 on a card and later repay $100                             | Spending is $100. Cash and card balances reflect the settlement.                                                  |
-| 3     | Move $2,000 between owned accounts                                  | Combined income and spending do not increase.                                                                     |
-| 3     | Pay $300 for dinner and receive $200 confirmed reimbursements       | Net personal cost is $100, with all movements available.                                                          |
-| 3     | Pay $3,900 against a loan with $2,800 interest and no other changes | The app distinguishes $3,900 cash outflow, $2,800 cost, and $1,100 principal reduction.                           |
-| 1     | Import an OFX file without its companion CSV                        | The OFX source is processed and retained independently. Missing evidence creates specific review items.           |
-| 1     | Reuse one OFX transaction ID on different dates or amounts          | The importer preserves the distinct observations and does not merge them solely because their IDs match.          |
+## Interpretation and corrections
 
-## Exploration and corrections
+| Stage | Scenario                                                         | Required outcome                                                                     |
+| ----- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| 3     | Interpret history recorded before stage 3.                       | Existing postings gain interpretation without reupload or new posting identity.      |
+| 3     | Classification fails or returns an unknown category.             | The posting remains; the user can categorize directly or through bulk review.        |
+| 3     | Accept a model suggestion, then correct it.                      | The user correction wins over future suggestions and rules.                          |
+| 3     | Import an older overlapping statement after a correction.        | The correction and posting identity survive.                                         |
+| 3     | Buy $100 on a card and repay $100.                               | Spending is $100. Both bank movements remain.                                        |
+| 3     | Move $2000 between owned accounts.                               | Income and spending do not increase. Missing counterpart evidence remains explicit.  |
+| 3     | Pay $300 and receive $200 confirmed reimbursements.              | Net personal cost is $100; available credit cannot be applied twice.                 |
+| 3     | Link a refund in a later month.                                  | Net cost changes in the original purchase period; the credit keeps its posting date. |
+| 3     | Pay $3900 against a loan with $2800 interest in the same period. | Distinguish $3900 cash outflow, $2800 cost, and $1100 net principal reduction.       |
+| 3     | Interest posts August 31 and repayment September 2.              | Each period keeps its actual components. Linking never moves the interest date.      |
+| 3     | Split a cost or preview a broad rule.                            | Allocations conserve the amount and individual exceptions survive.                   |
+| 3     | Accept a stale relationship preview.                             | No change commits; show current impact for another decision.                         |
+| 3     | Undo an interpretation correction.                               | A new correction restores the prior interpretation and preserves source evidence.    |
+| 3     | Rename an existing category.                                     | Identity and transaction links remain intact.                                        |
 
-| Stage | Scenario                                                      | Required outcome                                                                                                                        |
-| ----- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| 4     | Open a chart contributor                                      | Matching transactions preserve the chart's period and filters.                                                                          |
-| 4     | Compare a partial month                                       | The default comparison uses matching elapsed dates. Any missing records appear as a separate coverage limitation.                       |
-| 4     | Purchases migrate from debit to credit                        | Combined spending preserves continuity.                                                                                                 |
-| 4     | Compare $200 delivery from 10 orders with $300 from 12 orders | Counts, average payments of $20 and $25, and the $100 total difference are shown consistently.                                          |
-| 4     | Save a trip spanning bookings and travel dates                | The trip total includes linked advance bookings without adding another copy to overall spending.                                        |
-| 4     | Select two tags attached to the same purchase                 | The filtered total counts the purchase once. A breakdown by tag marks overlapping groups.                                               |
-| 3     | Link a refund received in a later month                       | Net cost changes in the original purchase period. The account credit retains its later posting date.                                    |
-| 4     | Compare against zero prior spending                           | The new absolute amount is shown and percentage change is unavailable.                                                                  |
-| 4     | Apply a transaction correction                                | Affected views mark old results as out of date, then show consistent refreshed results. Historical answers retain their original basis. |
-| 3     | Preview a merchant-wide rule                                  | Matching records and exceptions are visible before the rule is applied.                                                                 |
+## Exploration and planning
 
-## Analyst, commitments, and follow-through
+| Stage | Scenario                                               | Required outcome                                                                                                               |
+| ----- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| 4     | Open a chart contributor after an intervening edit.    | Its current headline and rows agree, with the original query scope retained.                                                   |
+| 4     | Compare a partial month or incomplete account history. | Match elapsed dates and disclose missing coverage separately.                                                                  |
+| 4     | Compare against zero prior spending.                   | Show absolute change; percentage change is unavailable.                                                                        |
+| 4     | Compare $200 from ten purchases with $300 from twelve. | Show counts, $20/$25 averages, and a consistent $100 difference.                                                               |
+| 4     | Select two tags on one purchase.                       | Count it once and label overlapping group breakdowns.                                                                          |
+| 4     | Include trip bookings paid before travel dates.        | Membership includes them without duplicating overall spending.                                                                 |
+| 4     | Purchases shift from debit to credit.                  | Combined purchase trends retain continuity.                                                                                    |
+| 4     | Request a daily average with missing coverage.         | Average is unavailable; known total and requested denominator remain visible.                                                  |
+| 4     | Reopen a saved analysis after import.                  | Run its saved definition against current data. Fixed dates remain; relative dates resolve on opening.                          |
+| 4     | Correct a transaction while viewing results.           | Visible queries refetch, without requiring a background saved-result history.                                                  |
+| 5     | Confirm a quarterly levy.                              | Cash calendar keeps its payment date; ordinary costs allocate its obligation across the applicable period.                     |
+| 5     | Change a commitment amount or account.                 | Future occurrences use the effective change; earlier segments stay intact.                                                     |
+| 5     | Inspect ordinary-cost contributors.                    | Rounded components add to the headline and identify their baseline or schedule evidence.                                       |
+| 5     | Open a cost outlook with insufficient baseline data.   | Overall estimate is unavailable; the commitment calendar remains usable.                                                       |
+| 5     | Compare fewer delivery purchases with more groceries.  | Only explicit scenario changes affect the estimate. Actual records remain unchanged.                                           |
+| 5     | Inspect the cash calendar beside the cost estimate.    | Repayments are cash movements, not additional costs. Historical balances keep their dates; no future bank balance is invented. |
 
-| Stage | Scenario                                            | Required outcome                                                                                            |
-| ----- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 6     | Ask a numerical question                            | The answer agrees with the corresponding chart and links to its evidence.                                   |
-| 6     | Answer a clarification the next day                 | The original question and relevant record return, and the answer is applied once.                           |
-| 6     | Close the browser during an accepted investigation  | Returning restores its progress or result.                                                                  |
-| 6     | Stop an investigation                               | The app records cancellation and retains completed evidence without claiming the whole task finished.       |
-| 6     | Stop after a correction has committed               | The correction remains applied and is reported as completed work. Cancellation does not undo it.            |
-| 6     | Receive an ambiguous textual edit                   | The analyst presents a proposal and leaves the record unchanged until accepted.                             |
-| 5     | Propose a recurring schedule                        | The schedule remains proposed and enters a forecast only through an explicit assumption.                    |
-| 5     | Change a forecast assumption                        | Only the scenario changes. Historical records and baseline assumptions remain intact.                       |
-| 5     | Forecast from data that ends before today           | The gap is labelled estimated, including the starting cash position used.                                   |
-| 5     | Forecast an account with no reliable balance anchor | The cash balance is unavailable. Known schedules remain visible.                                            |
-| 5     | Forecast with insufficient evaluation history       | The range is labelled uncalibrated, or unavailable if the data cannot support it.                           |
-| 5     | A quarterly strata payment is due                   | The cash calendar shows the payment date. Ordinary costs allocate the obligation across its covered period. |
-| 7     | Dismiss an unchanged finding                        | The same finding does not repeatedly return as new.                                                         |
-| 7     | Track reduced delivery spending                     | The follow-up reports the chosen measure and any explicitly tracked substitution costs.                     |
-| 4     | Open a financial chart on mobile or by keyboard     | The result and its evidence remain accessible without hover or color alone.                                 |
+## Analyst and follow-through
 
-## Saved work and personal controls
+| Stage | Scenario                                                    | Required outcome                                                                                                |
+| ----- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 6     | Ask a numerical question.                                   | Answer agrees with API calculations and identifies time, scope, coverage, and evidence.                         |
+| 6     | Request a textual financial edit.                           | Prepare a suggestion; apply only after explicit user acceptance through the normal command.                     |
+| 6     | A source description instructs the analyst to make changes. | Treat it as data, with no mutation authority.                                                                   |
+| 6     | Return to a clarification later.                            | Conversation history retains the question; any proposed edit checks current records.                            |
+| 6     | Close the browser, stop, or encounter provider failure.     | SDK persistence restores available messages; failed work can require a new request.                             |
+| 6     | Submit while another answer runs.                           | Wait for completion or stop before sending another question.                                                    |
+| 6     | Remove a personal note.                                     | Continue in a fresh conversation using current notes; the old transcript remains inspectable but is not reused. |
+| 6     | Access a conversation without authentication.               | Message, stream, and evidence access are denied.                                                                |
+| 7     | Dismiss a finding and run another unchanged scan.           | It stays dismissed and creates no repeated notification.                                                        |
+| 7     | Observe a new change period or correct its evidence.        | Create a genuinely new finding or close the unsupported finding.                                                |
+| 7     | Track reduced delivery costs with selected grocery costs.   | Compare the chosen measures and disclose insufficient evidence without claiming causality.                      |
+| 7     | A scan fails.                                               | Show failure and permit another scan without changing financial history.                                        |
+| 7     | Disable import reminders.                                   | Stop those reminders while retaining other inbox work.                                                          |
 
-| Stage | Scenario                                                                 | Required outcome                                                                                                                                                                                                                  |
-| ----- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 4     | Save an automatically refreshed comparison, then import relevant records | The saved definition remains intact. A new result uses the new data, and the earlier result stays inspectable.                                                                                                                    |
-| 6     | Correct or remove remembered context                                     | Future retrieval uses the current context. Historical answers mark affected assumptions.                                                                                                                                          |
-| 5     | Change a recurring payment amount                                        | Future schedules use the effective change date. Earlier periods retain the prior amount.                                                                                                                                          |
-| 3     | Undo a transaction correction                                            | A new correction restores the previous interpretation without removing the source or change history.                                                                                                                              |
-| 6     | Run an investigation requiring a calculation artifact                    | The result retains its input snapshot, calculation, versions, and evidence so it can be repeated.                                                                                                                                 |
-| 2     | Remove one of two sources supporting a posting                           | The posting remains once, with the surviving source available.                                                                                                                                                                    |
-| 4     | Save a fixed-range analysis with manual refresh                          | New imports preserve its dates and do not refresh it automatically. A manual refresh creates a new result.                                                                                                                        |
-| 2     | Remove the final source for a record                                     | The preview lists dependent records. Retained records show missing-source warnings; withdrawn records leave accepted history. Removed evidence is unavailable. Stage 3 adds financial impact and stage 4 adds dependent analyses. |
-| 2     | Export account data                                                      | The export includes all implemented records and evidence relationships needed for recovery and migration. Each later stage adds its new records; stage 6 adds optional conversations and context.                                 |
-| 3     | Rename a category used by historical transactions                        | Its identity and transaction links remain intact.                                                                                                                                                                                 |
-| 1     | Change an account role with an effective date                            | Earlier periods retain their prior role and later periods use the accepted change.                                                                                                                                                |
-| 7     | Disable import reminders                                                 | The app stops import-reminder notifications while retaining other inbox work.                                                                                                                                                     |
-| 1     | Access a source without authentication                                   | The app denies access to the content.                                                                                                                                                                                             |
-| 2     | Reach the configured AI usage ceiling                                    | AI work stops with completed work preserved and the limiting policy named. Financial records and ordinary views remain accessible.                                                                                                |
+## Data controls and stage completion
 
-## Boundary cases
+| Stage | Scenario                                                          | Required outcome                                                                                       |
+| ----- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 1     | Restore the managed database backup into an isolated environment. | Bank records and corrections are intact; independently retained sources can be accessed or reattached. |
+| 2     | Export implemented financial data.                                | Download identifies its contents and time; a failed export can be requested again.                     |
+| 2     | Remove the last original source file for a posting.               | Keep the posting and extracted evidence, and mark the original unavailable.                            |
+| 2     | Reupload a removed source.                                        | Restore source access without adding transactions or needing withdrawal undo.                          |
+| 2     | A model call reports no usage after failure.                      | Show unknown usage and disclose that retry may incur another charge.                                   |
+| 2     | Disable AI or reach the observed-usage warning threshold.         | Stop new calls according to the displayed policy; ordinary recorded history remains available.         |
 
-| Stage | Scenario                                                            | Required outcome                                                                                                                |
-| ----- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| 1     | Import corroborated overlaps without transaction balances           | Each real posting appears once; missing balances alone do not send all overlaps to review.                                      |
-| 3     | Charge interest August 31 and repay September 2                     | August retains its interest cost, September retains its repayment, and linking never moves the cost date.                       |
-| 4     | Request a daily average with missing records                        | The average is unavailable; the known total and requested calendar-day denominator remain visible.                              |
-| 5     | Forecast spending split between a deposit account and card          | The accepted account shares determine charges, and card settlement changes cash once.                                           |
-| 3     | Accept a correction preview after its records change                | The app preserves the edit, explains the conflict, and requires an updated preview.                                             |
-| 2     | Retry a model request whose charge is uncertain                     | Usage shows both possible charges until resolved; the retry cannot evade the ceiling.                                           |
-| 6     | Remove context and continue the same conversation                   | Historical text stays inspectable, but future prompts exclude the withdrawn context.                                            |
-| 5     | Compare scenarios without reliable cash anchors                     | Cash delta is unavailable; supported cost and explicit credit changes remain visible.                                           |
-| 5     | Move a recurring bill to another payment account                    | Earlier schedule segments keep their account and future occurrences use the accepted effective change.                          |
-| 5     | Allocate an obligation to a service period                          | Ordinary costs follow the covered days while the cash calendar retains the payment date.                                        |
-| 2     | Reupload a removed source                                           | Evidence returns under the same source identity. Withdrawn records return only through an accepted undo with an impact preview. |
-| 4     | Open an automatically refreshed rolling view after its dates change | The view resolves its new range and marks the old result out of date. Fixed-range views retain their dates.                     |
-| 5     | Inspect ordinary-cost contributors                                  | Their rounded amounts add to the headline and label estimates derived from payments or schedules.                               |
-| 3     | Confirm a transfer whose other account history is unavailable       | The transfer does not increase spending or income, and its missing counterpart remains visible.                                 |
-| 3     | Reach an import limit during derived interpretation work            | The whole source-processing budget applies and completed records remain available.                                              |
-
-## Stage transitions and shared controls
-
-| Stage | Scenario                                     | Required outcome                                                                                                             |
-| ----- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| 6     | Access a conversation without authentication | The app denies message, evidence, and reconnect access.                                                                      |
-| 4     | Remove a source supporting a saved result    | The preview identifies affected analyses; retained historical results mark unavailable evidence and current results refresh. |
-| 1     | Restore a backup of imported records         | Canonical IDs, source bytes, evidence links, receipts, and job outcomes reconcile before dispatch resumes.                   |
-| 3     | Interpret history recorded before stage 3    | Existing postings gain interpretation through recoverable jobs without reupload or changed posting identity.                 |
-
-[Contract regression cases](/technical/verification#contract-regression-cases) specifies the corresponding implementation checks.
-
-These scenarios supplement the stage-scoped feature pages. Each stage must also meet its written user flows and completion requirements. Settings, exports, backups, and removal checks cover all entities available at that stage. The [verification design](/technical/verification) maps the contract to automated checks and model evaluations.
+Every stage demonstrates its required flows on desktop, mobile, and with a keyboard. Each later stage extends financial exports to its new records. [Verification](/technical/verification) maps these outcomes to focused implementation checks.

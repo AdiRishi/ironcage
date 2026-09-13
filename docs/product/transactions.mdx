@@ -8,9 +8,9 @@ description: A connected history of purchases, repayments, transfers, refunds, a
 | Stage                               | Behavior introduced                                                                                                                                     |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [1](/stages/record-transactions)    | Bank posting list/detail, original-description search, account/date/amount/currency/import-review filters, source evidence, exact dates and currencies. |
-| [2](/stages/historical-imports)     | PDF source inspection and visible source-removal/withdrawal outcomes.                                                                                   |
+| [2](/stages/historical-imports)     | PDF source inspection and visible original-file availability.                                                                                           |
 | [3](/stages/interpret-transactions) | Financial roles, semantic filters, merchant/category/tag/personal-event context, linking, splits, corrections, previews, rules, and undo.               |
-| [4](/stages/explore-spending)       | Historical spending views, saved results, and refreshed result history after corrections.                                                               |
+| [4](/stages/explore-spending)       | Historical spending views, saved queries, and current results after corrections.                                                                        |
 
 The financial examples, classification, corrections, and relationship sections define stage 3. Basic bank fields and source access already work in stage 1. Financial impact calculations support stage 3 previews; historical exploration and saved results arrive in stage 4.
 
@@ -48,7 +48,7 @@ The user can change a category, merchant, tag, personal-event association, linke
 
 The change history records the prior interpretation, the accepted change, its scope, and its time. Undo restores the prior interpretation through a new correction. It does not erase the original bank evidence.
 
-Linked refunds and reimbursements reduce the original purchase period in the net-cost view. The account view shows each credit on its bank posting date. An earlier saved result remains unchanged; a refreshed result includes the newly linked credit.
+Linked refunds and reimbursements reduce the original purchase period in the net-cost view. The account view shows each credit on its bank posting date. The next calculation includes the newly linked credit. Existing chat messages retain their displayed calculation time.
 
 ## Dates and currencies
 
