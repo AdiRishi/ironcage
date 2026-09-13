@@ -3,8 +3,8 @@ import * as Effect from "effect/Effect";
 
 import { bucketLifecycleRules } from "./cloudflare-config.ts";
 
-// All starter data is disposable, including in prod. Destructive teardown is
-// intentional for D1 and R2; production retention safeguards are not required.
+// Starter data plane. Stage 1 replaces it with Postgres, a retained sources
+// bucket, and a Workflow; see docs/stages/starting-point.mdx.
 export const ArtifactsDatabase = Cloudflare.D1.Database("ArtifactsDatabase", {
   migrations: "../migrations",
 });

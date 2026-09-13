@@ -19,12 +19,25 @@ export default defineConfig({
   navigation: {
     tabs: [
       { label: "Stages", path: "/stages", icon: "list-checks" },
-      { label: "Vision", path: "/vision", icon: "compass" },
       { label: "Product", path: "/product", icon: "panels-top-left" },
       { label: "Technical", path: "/technical", icon: "network" },
+      { label: "Glossary", path: "/glossary", icon: "book-a" },
+      { label: "Vision", path: "/vision", icon: "compass" },
     ],
     sidebar: { display: "group" },
   },
+  redirects: [
+    { from: "/technical/build-spend-management", to: "/stages" },
+    { from: "/technical/stage-boundaries", to: "/stages" },
+    { from: "/technical/monorepo", to: "/technical/architecture" },
+    { from: "/technical/rpc", to: "/technical/architecture" },
+    { from: "/technical/contracts", to: "/technical/financial-model" },
+    { from: "/technical/database-schema", to: "/technical/financial-model" },
+    { from: "/technical/ingestion", to: "/technical/import-protocol" },
+    { from: "/technical/analytics", to: "/technical/calculation-rules" },
+    { from: "/technical/ai-analyst", to: "/technical/ai" },
+    { from: "/technical/ai-functionality", to: "/technical/ai" },
+  ],
   theme: {
     mode: "system",
   },

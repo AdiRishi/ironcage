@@ -1,0 +1,82 @@
+---
+title: "7. Discover changes and track outcomes"
+description: Findings, intentions, an in-app inbox, and import reminders.
+---
+
+## Outcome
+
+The application points out material changes with their evidence, lets the user track a deliberate change against a fixed baseline, and collects findings, reviews, and failures in one inbox.
+
+Prerequisite: stage 6 verified. Detectors use stage 4 queries and stage 5 schedules; the analyst can be asked about a finding.
+
+Also read [Calculation rules](/technical/calculation-rules#detectors) and [Operations](/technical/operations#scheduled-work).
+
+## Milestones
+
+1. **Findings.** The three detectors, the scan command, the Insights screen, and useful or dismissed state. Done when a scan over the corpus produces findings whose evidence checks out and a repeat scan changes nothing.
+2. **Intentions.** Create from a finding or from scratch, review progress, edit, pause, complete. Done when the worked example passes.
+3. **Inbox and reminders.** Inbox entries for findings, review items, and failures. Cron on the processor. Import reminder preference. Export extended. Done when the scheduled run creates no duplicate entries.
+
+## Screens
+
+### Insights
+
+- Findings ranked by amount and persistence, each with what changed, the comparison period, the amount and percentage, and links to the records or schedule. Actions: mark useful, dismiss, add context, ask the analyst, track as intention.
+- Superseded findings are shown as closed with the reason.
+- Run scan now, with the last scan time and any failure with Retry.
+
+### Intentions
+
+- Name, measure, fixed baseline period, start date, optional related measures. Progress shows the baseline, each review period, the included dates, and whether evidence is sufficient. Edit, pause, resume, complete.
+
+### Inbox
+
+- Entries for new findings, open review items, failed imports, exports, and scans, each linking to its owning screen. Read and dismissed state. Unchanged items do not reappear.
+
+### Settings
+
+- Import reminder: interval in days or off. The reminder says the data is stale; it does not claim anything changed.
+- Scan schedule: on or off.
+
+## Data
+
+| Table           | Columns                                                                                                                                                                                                                                                                      |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `findings`      | `id`, `detector`, `subject` jsonb, `period_start`, `period_end`, `amount_minor`, `currency`, `evidence` jsonb, `state` (`open`, `useful`, `dismissed`, `closed`), `context` text nullable, `first_seen`, `last_seen`, `version`. Unique `(detector, subject, period_start)`. |
+| `intentions`    | `id`, `name`, `measure` jsonb, `baseline_start`, `baseline_end`, `start_on`, `related` jsonb, `state` (`active`, `paused`, `complete`), `version`                                                                                                                            |
+| `inbox_entries` | `id`, `kind`, `ref_id`, `identity` text unique, `created_at`, `read_at` nullable, `dismissed_at` nullable                                                                                                                                                                    |
+| `settings`      | adds `reminder_days` nullable, `scan_enabled` boolean                                                                                                                                                                                                                        |
+
+## Operations
+
+| Caller    | Operation                                                                                             | Contract                                                                                                                                                                                                                |
+| --------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web, cron | `runScan({ commandId })`                                                                              | Runs every detector, upserts findings by identity, closes unsupported ones, writes inbox entries by identity, reviews active intentions, and writes a reminder entry when the latest import is older than the interval. |
+| Web       | `listFindings({ state })`, `updateFinding({ commandId, findingId, expectedVersion, state, context })` | Commands for state and context.                                                                                                                                                                                         |
+| Web       | `createIntention`, `updateIntention`, `getIntention`, `listIntentions`                                | Commands for writes. `getIntention` computes progress from current data.                                                                                                                                                |
+| Web       | `listInbox({ cursor })`, `markInbox({ commandId, entryIds, read, dismissed })`                        | Commands for state.                                                                                                                                                                                                     |
+| Processor | Cron trigger                                                                                          | Calls `runScan` with a generated command ID once per schedule.                                                                                                                                                          |
+
+## Worked example
+
+1. A streaming subscription's segment shows $15.99 monthly, and three consecutive occurrences match events of $18.99. The recurring-increase detector creates a finding: subject the commitment, period the first month at $18.99, amount $3.00, 18.8%. The inbox gets one entry.
+2. The user dismisses it. The nightly scan runs; the finding keeps `dismissed` and the inbox is unchanged.
+3. Four months later the amount rises to $21.99. A new finding with the new period is created and a new inbox entry appears.
+4. The user creates an intention "fewer deliveries": measure net personal costs in the delivery category, baseline March to May, start 1 June, related measure groceries. The July review shows delivery down $180 against the baseline monthly mean and groceries up $60, with the included dates, and states that one month is thin evidence.
+5. A scan fails because the database was unreachable. The inbox shows the failure with Retry; findings and history are untouched.
+6. No import for 21 days with a 14 day reminder: the inbox says the data is stale and links to Imports.
+
+## Verification checklist
+
+- A corpus scan produces findings whose amounts and periods are reproducible from Trends.
+- Repeat scans with no new data change no finding and add no inbox entry.
+- A correction that removes a finding's pattern closes it on the next scan.
+- The intention example computes the stated deltas and reports insufficient evidence for a single week.
+- Scan failure leaves financial data untouched and is retryable.
+- Disabling reminders stops reminder entries and nothing else.
+- The cron trigger runs `runScan` in the local runtime and on the live test stage.
+- Screens work at phone width and by keyboard. Stage 1 to 6 checklists pass.
+
+## Not in this stage
+
+Automatic bank feeds, payment execution, email or push notifications, investments, trading, crypto.

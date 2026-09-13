@@ -1,0 +1,92 @@
+---
+title: "4. Explore historical spending"
+description: Compare periods, follow a difference to its records, and save the question.
+---
+
+## Outcome
+
+The user sees where money went in any period, compares it with another, opens the records behind any number, and saves a query to run again later.
+
+Prerequisite: stage 3 verified. Measures come from stage 3 events and allocations.
+
+Also read [Calculation rules](/technical/calculation-rules#comparisons), [Financial model](/technical/financial-model#measures), and [Frontend](/technical/frontend#results-and-charts).
+
+## Milestones
+
+1. **Overview and measures.** The API computes every measure in the measures table for a period. The overview shows them with coverage. Done when the corpus overview for a fully covered month agrees with a hand-computed spreadsheet.
+2. **Comparison and contributors.** Trends compares two periods, breaks the difference down by category, merchant, account, tag, or personal event, and shows frequency and average-payment decomposition. Done when the worked example passes.
+3. **Drill-down.** Selecting a contributor opens its rows with the query in the URL and a fresh headline. Done when a correction made in another tab is reflected on the next open.
+4. **Saved analyses.** Save, list, open, refresh, delete. Export extended. Done when a relative analysis advances on reopening and a fixed one does not.
+
+## Screens
+
+### Overview
+
+- Period selector with presets. Cards for net personal costs, gross costs, income, surplus, cash balance change, and net principal reduction per loan. Each card names its basis, accounts, and coverage; a card with missing coverage says which account or dates are missing.
+- Latest import date and coverage per account.
+
+### Trends
+
+- Choose a measure, a period, a comparison period, alignment, basis, currency, accounts, and filters. All in the URL.
+- Headline: current, previous, absolute delta, relative delta or "new" when the prior is zero.
+- Contributors table and chart by the chosen grouping, ten rows plus remainder for partitioning groups, overlap label for tags and personal events.
+- Frequency view for purchase groups: counts, averages, and the two contributions.
+- Daily average toggle where the measure supports it.
+- Save as analysis.
+
+### Rows
+
+- The records behind a contributor with the same query in the URL, each showing its calculated contribution beside the bank amount, with credits and counterparts noted. Returning restores the Trends view.
+
+### Saved analyses
+
+- List with name and definition summary. Open runs it. Refresh reruns it. Rename and delete.
+
+## Data
+
+| Table            | Columns                                                            |
+| ---------------- | ------------------------------------------------------------------ |
+| `saved_analyses` | `id`, `name`, `query` jsonb, `version`, `created_at`, `updated_at` |
+
+No result storage.
+
+## Operations
+
+| Operation                                                                         | Contract                                                                                                 |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `overview({ period, basis, currency, accounts })`                                 | Every measure with coverage, in one consistent read.                                                     |
+| `compare(query)`                                                                  | Headline for both periods, deltas, coverage, calculation time, and version.                              |
+| `contributors(query, groupBy)`                                                    | Rows with deltas, counts, averages, frequency and average-cost contributions, remainder or overlap flag. |
+| `rows(query, groupKey, cursor)`                                                   | Events in the group with calculated contribution, and the current headline for the group.                |
+| `saveAnalysis`, `listAnalyses`, `getAnalysis`, `renameAnalysis`, `deleteAnalysis` | Commands for writes. `getAnalysis` returns the definition; the UI then calls `compare`.                  |
+
+`compare`, `contributors`, and `rows` for the same query read the same data in one transaction when called together.
+
+## Worked example
+
+Delivery purchases in July: 10 purchases totalling $200, average $20. August: 12 purchases totalling $300, average $25.
+
+- Absolute delta $100, relative change 50%.
+- Frequency contribution `(12 - 10) * (20 + 25) / 2 = $45`.
+- Average-cost contribution `(25 - 20) * (10 + 12) / 2 = $55`.
+- The two sum to $100. The rows view lists the 22 purchases with August's marked as current.
+
+Compare August against a July with zero delivery: absolute delta $300, relative change unavailable, the UI shows "new".
+
+A month in progress on 20 August compares with 1 to 20 July by default. If the card's coverage ends on 15 August, the August headline carries a coverage note naming the card and the missing dates, and the daily average is unavailable.
+
+## Verification checklist
+
+- Overview for a fully covered month matches a hand-computed spreadsheet for every measure.
+- The worked example numbers come out exactly, including largest-remainder rounding when amounts are not whole dollars.
+- Two tags on one purchase count it once; the tag view shows the overlap label and no remainder.
+- A trip's personal event includes bookings paid two months earlier under the spending basis.
+- Purchases moving from the deposit account to the card keep a continuous combined trend.
+- After a correction in another tab, opening a contributor shows a headline that matches its rows.
+- A rolling analysis reopened seven days later shifts by seven days. A fixed one does not.
+- A relative analysis spanning a month boundary resolves correctly in Australia/Sydney on the last day of a month.
+- Screens work at phone width and by keyboard, charts have table views. Stage 1 to 3 checklists pass.
+
+## Not in this stage
+
+Ordinary costs, commitments, forecasts, scenarios, automatic refresh of saved analyses, result history, the analyst, findings.

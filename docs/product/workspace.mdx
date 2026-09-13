@@ -1,54 +1,38 @@
 ---
 title: Workspace
-description: Connected navigation, query context, evidence, and recovery as the application grows.
+description: Navigation, state, and what every screen has in common.
 ---
 
-## Delivery scope
+## What appears when
 
-| Stage                               | Workspace additions                                                                                              |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| [1](/stages/record-transactions)    | Home entry to upload/history; Imports, Transactions, source Review, account/display settings, and import status. |
-| [2](/stages/historical-imports)     | PDF evidence, export/removal flows, and document usage controls.                                                 |
-| [3](/stages/interpret-transactions) | Interpretation detail, semantic review, corrections, and classification controls.                                |
-| [4](/stages/explore-spending)       | Historical overview, Trends, evidence drilldowns, and saved analyses.                                            |
-| [5](/stages/plan-costs)             | Commitments, Forecasts, ordinary costs, scenarios, and upcoming obligations in the overview.                     |
-| [6](/stages/analyst)                | Conversations, contextual analyst actions, investigations, and memory controls.                                  |
-| [7](/stages/follow-through)         | Insights, intentions, inbox, reminders, and overview findings.                                                   |
+| Stage | Screens                                                            |
+| ----- | ------------------------------------------------------------------ |
+| 1     | Home, Imports, Transactions, Review, Settings                      |
+| 2     | Statement pages in detail, Export, source file list                |
+| 3     | Interpretation in detail, interpretation review, categories, rules |
+| 4     | Overview, Trends, rows behind a number, saved analyses             |
+| 5     | Commitments, Forecast, ordinary costs in Trends, scenarios         |
+| 6     | Analyst, notes                                                     |
+| 7     | Insights, intentions, Inbox, reminders                             |
 
-Each addition extends the same application. Earlier stages have working navigation and home behavior without links or placeholders for later capabilities. The latest import date and supported coverage remain visible wherever relevant.
+Navigation shows what exists. There are no disabled menu items or coming-soon screens.
 
-## Navigation
+## State in the URL
 
-The user can reach each implemented destination, inspect its state, and return without losing the relevant selection. Imports explains file processing; Transactions exposes bank history; Review collects specific unresolved evidence or interpretations. Settings holds the controls assigned to the current stage in [Settings and data controls](/product/settings-and-data).
+Filters, periods, comparisons, and selected groups are in the page URL. The back button returns to the previous view. A bookmark reopens the same question against current data.
 
-Stage 4 adds an overview of spending, income, cash changes, and repayment effects for a selected period. Stage 5 adds upcoming commitments and stage 7 adds relevant findings. The navigation arrangement and visual composition are design decisions.
+## Home
 
-## From a chart to an explanation
+Before the first import, Home explains which files to upload and how to get them from NetBank. After it, Home shows the latest import date, coverage per account, and from stage 4 the current month's overview, from stage 5 upcoming commitments, and from stage 7 open findings.
 
-From stage 4, selecting a chart contribution opens its supporting records with period, date basis, filters, and exclusions intact. Each record distinguishes its calculated contribution from the original bank amount. Related credits and counterpart postings remain inspectable. Stage 5 adds ordinary-cost contributions, labelled as estimates with evidence from payments or schedules.
+## From a number to its records
 
-From stage 6, asking the analyst about a selection retains that scope in the conversation. An answer can include comparisons and evidence. Returning from evidence restores the originating query and position.
+Any number can be opened. From stage 4, opening a contributor shows its records with the same period, basis, and filters, and each record shows what it contributed beside what the bank booked. Coming back restores the view. From stage 6, asking the analyst about a selection carries that selection into the conversation.
 
-Date ranges and implemented filters are reflected in the page URL. A bookmarked view restores its query against current data. Saved analyses, introduced in stage 4, retain query definitions and calculate from current data.
+## Pending, failed, and stale
 
-## Screen sizes
+A change shows as pending until the server confirms it. A failed request keeps the user's filters and unsaved input and offers retry. If the record changed under the user's feet, the app shows the current version and asks again rather than overwriting. A view never shows a total from before a change beside rows from after it.
 
-Every stage supports the same required actions on desktop and mobile. Source details, filters, review decisions, and corrections remain accessible as their owning stage introduces them. Resizing or navigating between views preserves the relevant selection.
+## Screen sizes and input
 
-Information never depends on hover alone. Keyboard users can reach controls, evidence, and summaries. Charts have an accessible textual and tabular equivalent from stage 4. Color has accompanying labels or symbols, and transitions respect reduced-motion preferences. Layout, panel arrangement, and control presentation remain open to design.
-
-## Empty, loading, and incomplete states
-
-Before the first import, explain how to add the supported files. Do not show invented financial values. During processing, distinguish accepted uploads from completed imports and restore stored import status after refresh.
-
-From stage 4, an updating result retains the last completed view with its state identified. Incomplete coverage names the missing account or period. Missing information is never zero spending.
-
-A failed request retains selected filters and unsaved input. Repeating a financial write cannot duplicate records or apply a correction twice. Export and analyst retries may start new work. Each owning feature exposes its failures before stage 7 adds inbox aggregation.
-
-## Corrections from any view
-
-Source-review decisions begin in stage 1. Semantic corrections begin in stage 3, default to the selected transaction, and show required impact previews for broader or financial changes. Details retain original source evidence and the current interpretation.
-
-From stage 4, affected results show that refresh is pending until a consistent replacement is available. A view never mixes old and new totals. Stage 6 analyst messages retain their text and calculation time; a new question reads current data.
-
-[Frontend](/technical/frontend) defines state and component ownership. [Stage boundaries](/technical/stage-boundaries) specifies the contracts behind each workspace addition.
+Everything works at phone width and by keyboard. Nothing depends on hover. Every chart has a text summary and a table. Color always has a label. Reduced-motion settings are respected.

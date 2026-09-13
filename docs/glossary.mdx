@@ -1,0 +1,79 @@
+---
+title: Glossary
+description: One meaning per term, used the same way on every page.
+sidebar:
+  icon: book-a
+---
+
+Terms are listed with the stage that introduces them. Pages use these words with these meanings and no others. Where a word could mean two things, the glossary picks one and gives the other thing a different name.
+
+## Sources and records
+
+| Term           | Stage | Meaning                                                                                                                                                                                    |
+| -------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Account        | 1     | A CommBank product with a stable identity. Has an account kind, a label, and a currency.                                                                                                   |
+| Account kind   | 1     | `deposit`, `card`, or `loan`. Fixed for the life of the account. Determines which OFX envelope the account appears in and how balances read.                                               |
+| Source file    | 1     | One uploaded file, identified by the SHA-256 of its bytes. Uploading the same bytes twice yields the same source file.                                                                     |
+| Import         | 1     | One processing run of one source file. Has a status, a summary, and zero or more review items.                                                                                             |
+| Observation    | 1     | One transaction row extracted from a source file, with its locator and literal fields. An observation supports at most one posting.                                                        |
+| Posting        | 1     | One transaction the bank booked on one account. The canonical record. Several observations from different files can support the same posting.                                              |
+| Booked amount  | 1     | The signed amount the bank booked, in minor units. Positive increases the account balance; negative decreases it. Card and loan balances are negative when money is owed.                  |
+| Posted date    | 1     | The date the bank booked the posting. `DTPOSTED` in OFX, the first CSV column.                                                                                                             |
+| Value date     | 1     | The date CommBank attaches as `Value Date:` in a description and as `DTUSER` in OFX. Stored separately. Never promoted to a purchase date by itself.                                       |
+| Purchase date  | 3     | The date a purchase happened, when a source or the user establishes it. Otherwise absent.                                                                                                  |
+| Balance anchor | 1     | A balance with a date that a source states: an OFX `LEDGERBAL`, a CSV running balance, or a statement opening or closing balance.                                                          |
+| Coverage       | 1     | The date interval a source file establishes for one account, and whether its movements reconcile between two balance anchors.                                                              |
+| Source review  | 1     | A question the importer cannot answer from the file alone: which account, what value, whether a row is a duplicate, or whether a changed parser result should replace an accepted posting. |
+| Command        | 1     | A write with a client-generated command ID. The API stores a receipt so a repeated command returns the first result.                                                                       |
+| Receipt        | 1     | The stored input hash and result of a command.                                                                                                                                             |
+| Page evidence  | 2     | The statement page and row an observation came from, for PDF sources.                                                                                                                      |
+| Export         | 2     | A downloadable package of financial records and their evidence relationships.                                                                                                              |
+
+## Interpretation
+
+| Term                  | Stage | Meaning                                                                                                                                                                                              |
+| --------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Financial event       | 3     | One economic event grouping one or two postings: a purchase, a transfer, a loan payment. Has a nonnegative magnitude divided into allocations.                                                       |
+| Financial role        | 3     | How an event affects costs, income, cash, and debt. One of `purchase`, `income`, `transfer`, `cardSettlement`, `borrowing`, `loanPayment`, `refund`, `reimbursement`, `financingCost`, `unresolved`. |
+| Allocation            | 3     | A nonnegative part of an event's magnitude with a role and, for costs, a category. Allocations of one event sum exactly to its magnitude.                                                            |
+| Category              | 3     | The purpose of a cost. Categories form a tree and partition cost allocations.                                                                                                                        |
+| Merchant              | 3     | A business, with aliases that unite its different description wordings.                                                                                                                              |
+| Tag                   | 3     | An extra label on an allocation. Several tags can apply to one allocation.                                                                                                                           |
+| Personal event        | 3     | A named period of life such as a trip. Allocations can be associated with it. Distinct from a financial event.                                                                                       |
+| Credit link           | 3     | An applied amount from a refund or reimbursement allocation to a cost allocation.                                                                                                                    |
+| Movement link         | 3     | The two endpoints of a transfer, settlement, borrowing, or loan payment. An endpoint is an owned account or a confirmed external account.                                                            |
+| Offset relationship   | 3     | A deposit account offsetting a loan, with an effective period.                                                                                                                                       |
+| Correction            | 3     | A user-authored interpretation change with its prior state, scope, and time. Undo is a new correction.                                                                                               |
+| Rule                  | 3     | A user-accepted condition and action applied to matching events, with a scope of past, future, or both.                                                                                              |
+| Interpretation review | 3     | A question the interpreter cannot answer: an unknown role, a rule conflict, or a proposed relationship.                                                                                              |
+
+## Analysis and planning
+
+| Term             | Stage | Meaning                                                                                                                              |
+| ---------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Measure          | 4     | A named financial quantity such as net personal costs or income. [Calculation rules](/technical/calculation-rules) defines each one. |
+| Query            | 4     | A measure, a period, a comparison period, a date basis, a currency, accounts, and filters.                                           |
+| Result           | 4     | One calculation with its resolved query, calculation time, values, coverage, and contributing record references.                     |
+| Saved analysis   | 4     | A named query with a fixed or relative period. Stores the definition, not results.                                                   |
+| Date basis       | 4     | `posted` uses posted dates. `spending` uses purchase dates where established, otherwise posted dates.                                |
+| Commitment       | 5     | A confirmed recurring payment or income, made of one or more schedule segments.                                                      |
+| Schedule segment | 5     | The amount, cadence, account, and effective period of a commitment between two changes.                                              |
+| Occurrence       | 5     | One expected payment of a schedule segment, matched to an event, skipped, or still expected.                                         |
+| Ordinary cost    | 5     | The estimated cost of a normal month: a variable baseline plus time-allocated commitments, with named exclusions.                    |
+| Forecast         | 5     | A deterministic 30 or 90 day cost outlook under stated assumptions.                                                                  |
+| Scenario         | 5     | A saved set of changes to forecast assumptions, compared against the unchanged baseline.                                             |
+| Note             | 6     | An explicit fact the user saved for the analyst, optionally scoped to an account or period.                                          |
+| Conversation     | 6     | One analyst thread, stored by the agent SDK.                                                                                         |
+| Finding          | 7     | A detected change with its detector, subject, comparison period, evidence, and user state.                                           |
+| Intention        | 7     | A tracked change: a measure, a fixed baseline, a start date, and optional related measures.                                          |
+| Inbox entry      | 7     | An in-app notification that links to a finding, a review item, or a failure.                                                         |
+
+## Words to avoid
+
+"Transaction" on its own is ambiguous between a posting and a database transaction. Product pages may say transaction to mean posting because that is what the user sees. Technical pages say posting, and say database transaction in full.
+
+"Role" on its own is ambiguous. Say account kind, financial role, or schedule role.
+
+"Review" on its own is ambiguous. Say source review or interpretation review.
+
+"Event" on its own is ambiguous. Say financial event or personal event.

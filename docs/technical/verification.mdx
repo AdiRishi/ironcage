@@ -1,96 +1,80 @@
 ---
 title: Verification
-description: Verify financial outcomes, safe user retries, and complete stage journeys.
+description: Test layout, the invariants each stage protects, and the regression cases with known answers.
 ---
 
-Verify the selected stage through its [acceptance scenarios](/product/acceptance), then preserve earlier regressions. Name the user-visible regression before adding a test. Test public operations with real in-process collaborators and independently known expected values. Replace only true external seams, such as model providers.
+Each stage page ends with its verification checklist. This page holds the layout and the cross-stage cases.
+
+Test through public operations with real in-process collaborators and independently known expected values. Replace only true external seams: the model provider, and Cloudflare bindings when running outside the local runtime. Before writing a test, name the user-visible regression it catches.
+
+## Layout
+
+| Workspace            | Tool                                 | Covers                                                                     |
+| -------------------- | ------------------------------------ | -------------------------------------------------------------------------- |
+| `packages/finance`   | `@effect/vitest`                     | Money, dates, matching, calculations, with fixture tables of known values. |
+| `packages/contracts` | `@effect/vitest`                     | Schema round-trips and rejection cases.                                    |
+| `workers/processor`  | `@effect/vitest`                     | Parsers on synthetic files and, locally, on the corpus.                    |
+| `workers/api`        | `@effect/vitest` with local Postgres | Publication, commands, concurrency, queries.                               |
+| `apps/web`           | Vitest Browser Mode                  | Components and server function error mapping.                              |
+| `infra`              | `alchemy/Test/Vitest`, Playwright    | Bindings in the local Cloudflare runtime, end-to-end browser flows.        |
+
+Tests live under each workspace's `tests/` mirroring `src/`, with their own `tsconfig.json`. `pnpm test` runs everything locally. `pnpm test:unit` skips infra, as CI does. `pnpm test:infra-live` deploys an isolated stage on Cloudflare.
+
+Corpus-backed tests read `fixtures/commbank/` and skip when it is absent, so CI runs on synthetic fixtures. They report aggregate counts only.
+
+## Database
+
+Concurrency and publication tests run on real Postgres with the production migrations. Cover: two overlapping imports publishing at once, two commands claiming the same remaining credit, a repeated command ID, a stale preview, a failure injected before commit, and a committed write whose response is lost. A read after a commit through Hyperdrive sees the commit.
+
+Migration tests run from empty and from a populated database.
 
 ## Financial invariants
 
-| Introduction | Regression to prevent                                                            |
-| ------------ | -------------------------------------------------------------------------------- |
-| Stage 1      | Reupload or overlapping exports duplicate transactions.                          |
-| Stage 1      | A deduplication key collapses two real identical purchases.                      |
-| Stage 1      | Missing or reused OFX IDs create false matches or reject valid history.          |
-| Stage 1      | Missing rows or balances are silently labelled complete history.                 |
-| Stage 1      | A failed or repeated publication creates partial or duplicate financial records. |
-| Stage 2      | PDF decoding changes dates, decimal placement, signs, or row counts.             |
-| Stage 3      | Splits create or lose money; repeated credit links over-reimburse a cost.        |
-| Stage 3      | Transfers and card settlements count as additional income or spending.           |
-| Stage 3      | Reprocessing or model suggestions overwrite user corrections.                    |
-| Stage 4      | A headline mixes records from before and after a correction.                     |
-| Stage 4      | Contributor totals, counts, and average-payment explanations disagree.           |
-| Stage 5      | A scheduled cost remains in the variable baseline and is counted twice.          |
+| Stage | Regression to prevent                                                         |
+| ----- | ----------------------------------------------------------------------------- |
+| 1     | Reupload or overlapping exports duplicate postings.                           |
+| 1     | Two real identical rows collapse into one posting.                            |
+| 1     | An empty or reused `FITID` causes a false match or rejects valid rows.        |
+| 1     | A file without an opening anchor is labelled reconciled.                      |
+| 1     | A failed or repeated publication leaves partial rows.                         |
+| 2     | PDF decoding shifts a date, a decimal point, a sign, or a row count.          |
+| 3     | A split creates or loses money. A repeated credit link over-applies a credit. |
+| 3     | A transfer or settlement counts as income or spending.                        |
+| 3     | Reprocessing or a suggestion overwrites a correction.                         |
+| 4     | A headline and its rows come from different data.                             |
+| 4     | Contributor totals, counts, and averages disagree with each other.            |
+| 5     | A scheduled payment stays in the variable baseline and is counted twice.      |
+| 7     | An unchanged finding produces a new notification.                             |
 
-Money/date cases cover exact decimal decoding, negatives, supported range, leap days, calendar boundaries, value dates, and timezone handling. Driver encoding preserves BIGINT and DATE without an intermediate floating-point or local-midnight conversion.
+## Regression cases
 
-## Database transactions
+Each case has a known answer that does not come from the implementation.
 
-Use real PostgreSQL and production migrations for transaction and concurrency tests. Mocked SQL and SQLite cannot prove Postgres isolation. Test two overlapping imports, two commands claiming the same remaining credit, repeated command IDs, stale previews, and a committed write whose response is lost.
+| Stage | Case                                                                                                  | Expected                                                                            |
+| ----- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| 1     | OFX row with `FITID` on account A, then the same `FITID` on account B.                                | Two postings. IDs are scoped to the account.                                        |
+| 1     | CSV row with a value-date suffix and its OFX row with `DTUSER`.                                       | One posting, `valueOn` set, description without the suffix, both literals in `raw`. |
+| 1     | `DTASOF` of `20260831140000` with display timezone Australia/Sydney.                                  | Anchor date 31 August. The timezone does not move it.                               |
+| 1     | Two identical rows on one day in file A, then file B with the same two rows.                          | Two postings, four observations.                                                    |
+| 1     | File B with one of two identical rows and no running balance.                                         | One `duplicate` review item listing two candidates.                                 |
+| 1     | A reparse that changes a description on an accepted row.                                              | `source_conflict` review item, posting unchanged.                                   |
+| 3     | Cost 30000, credit 20000 applied, then another 20000.                                                 | Remaining 10000; second application fails with `conflict`.                          |
+| 3     | Interest on 31 August, repayment on 2 September, linked.                                              | August cost 280000, September repayment 390000, interest date unchanged.            |
+| 3     | Split 10000 into 4000, 3500, 2600.                                                                    | Rejected.                                                                           |
+| 4     | January purchase with a February refund linked, spending basis.                                       | January net cost reduced, February account view shows the credit.                   |
+| 4     | Daily average over a month with three uncovered days.                                                 | Average unavailable, total and denominator shown.                                   |
+| 4     | Rolling 30-day saved analysis opened a week later.                                                    | Dates advanced by seven days. A fixed analysis keeps its dates.                     |
+| 5     | The ordinary-cost worked example in [Calculation rules](/technical/calculation-rules#ordinary-costs). | $535.15, components sum exactly.                                                    |
+| 5     | Ordinary cost for a period ending in March, with April data present.                                  | April weeks are not in the baseline.                                                |
+| 5     | Quarterly levy with a service period.                                                                 | Ordinary cost spreads it by days; the cash calendar keeps the payment date.         |
+| 5     | Unmatch an occurrence, rerun matching.                                                                | The event stays unmatched.                                                          |
+| 6     | Message "categorize this as strata".                                                                  | No change until the confirmation card is accepted.                                  |
+| 7     | Dismiss a finding, rerun the scan with no new data.                                                   | Still dismissed, no inbox entry.                                                    |
 
-An injected failure before commit leaves no partial financial rows or receipt. A repeated successful command returns its result once. The same source published through a new action also cannot add records twice. Matching reads current records after acquiring the financial write lock. A correction made during parsing remains authoritative.
+## Browser flows
 
-Related totals read consistent data. Through Hyperdrive, a query after a committed correction must see fresh values. Verify actual hosted roles, TLS, binding behavior, and database access separately from local database tests.
+Playwright covers, from stage 1: upload to transaction detail, a review resolution, retry after a failed file, and refresh during processing. Each later stage adds its screens. Every flow runs at desktop and phone width and once by keyboard only.
 
-Test migrations from empty and previously populated databases when changing schema. Verify the chosen managed backup restore into an isolated environment, including correction preservation and access to independently retained source files. Repeated quarterly drills or a custom cross-store restore suite are not required.
+## Hosted checks
 
-## Extraction and interpretation evaluation
-
-Inspect `fixtures/README.md` and the actual local files in `fixtures/commbank/`. Ordinary CI uses synthetic fixtures and runs without private data. Publish aggregate evaluation results only.
-
-Stage 1 checks every supplied CSV and OFX. Cover headerless CSV, quoted/multiline fields, empty card balances, OFX 1.02 SGML, declared encoding, date-only values, offset-free timestamps, bank/card envelopes, and blank/reused FITIDs. OFX and CSV each work without a companion file.
-
-Stage 2 checks every PDF, including multiline descriptions, repeated headings, rewards rows, foreign money, and visible decimal repairs. Compare row completeness, dates, exact signed amounts, and available balances against source evidence. Validate the chosen library in the hosted runtime.
-
-Run overlapping files in different orders. Report accepted, matched, and unresolved rows, with the reason for each unresolved class. Compare final history after the same explicit review decisions. Fix missing deterministic matches and parser defects. A blanket review result is not successful ingestion; neither is a guessed duplicate merge that lowers the review count.
-
-Stage 3 checks representative category suggestions, conflicting rules, manual single/bulk categorization, invalid model output, and provider failure. Accepted corrections must survive all of them. Use task-relevant examples without mandatory sample quotas or a model confidence score as a correctness gate.
-
-## Analyst evaluation
-
-Use questions with independently verified API results. Check dates, scope, coverage, source links, and whether the narrative agrees with financial tool output. A model judge is not the sole authority for numerical accuracy.
-
-Verify that source text and model output cannot authorize writes. Suggested edits need explicit user acceptance and current version checks. Exercise failed answers, stop, and reconnect using the real SDK integration. After note removal, a fresh conversation must not inherit the withdrawn note through old transcripts or summaries.
-
-## Forecast verification
-
-Check the deterministic baseline, included schedules, one-offs, and scenario differences against independently calculated examples. Missing weeks remain missing. Scheduled costs are excluded from the variable mean before being added once. The cash calendar distinguishes payments from costs.
-
-Changing a scenario preserves historical records and baseline commitments. Verify expected labels for estimates and historical balance dates. Statistical model selection, calibration thresholds, and probabilistic backtesting are outside the implemented forecast contract.
-
-## Runtime and browser coverage
-
-Exercise upload through transaction detail, a specific review decision, retry after failure, and the lost-write-response case. Browser refresh restores truthful import status even if a Workflow failed before writing its summary. Built-in workflow behavior needs integration verification, not a duplicate test suite for a custom execution engine.
-
-Every stage checks desktop, mobile, keyboard navigation, source access, empty states, pending changes, failures, and unavailable data. Use the same public operations as the UI. Model tests use controlled external adapters plus a bounded live check for any selected document/tool format.
-
-## Repository test ownership
-
-Use existing workspace conventions. Effect modules use `@effect/vitest`, React components use Vitest Browser Mode, local Cloudflare integration uses `alchemy/Test/Vitest`, and complete browser flows use Playwright where needed. Tests remain under workspace `tests/`, mirroring `src/`, with separate test TypeScript projects. Infrastructure integration and browser suites stay in `infra/tests/`.
-
-Run `pnpm check`, `pnpm typecheck`, and `pnpm test` before committing. `pnpm test:infra-live` is for isolated hosted checks. Database suites use disposable local Postgres with the same major version and migrations as production. Run `pnpm docs:doctor` and `pnpm docs:build` for documentation changes.
-
-## Contract regression cases
-
-| Stage | Case and expected outcome                                                                                                                                                |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1     | Corroborated account-scoped FITID without balances attaches evidence once; the same ID on another account is independent.                                                |
-| 1     | Empty FITID supplies no identity evidence. Exact overlap with corroboration can still match.                                                                             |
-| 1     | Offset-free OFX ledger timestamp uses GMT; display timezone does not reinterpret it.                                                                                     |
-| 1     | A source-conflict review preserves the accepted bank record while a parser correction is evaluated.                                                                      |
-| 3     | A 30000-minor-unit cost with a 20000 credit leaves 10000. Another 20000 application rejects the excess.                                                                  |
-| 3     | Interest on August 31 stays in August when repayment posts September 2.                                                                                                  |
-| 3     | Unresolved income purpose does not invalidate an otherwise reconciled account movement.                                                                                  |
-| 4     | January purchase evidence can include a February posting or later linked credit without changing their bank dates.                                                       |
-| 4     | Missing source days make a daily average unavailable, without shrinking its denominator.                                                                                 |
-| 4     | A rolling saved query advances on reopening; a fixed query retains its dates.                                                                                            |
-| 5     | Across 13 complete weeks, five with A=$100, five with B=$100, and three with both produce ordinary monthly cost $535.15. Rounded group contributions add to that amount. |
-| 5     | An older ordinary-cost period excludes later history from its baseline.                                                                                                  |
-| 5     | A quarterly service period spreads ordinary cost across covered days, while the cash calendar keeps its payment date.                                                    |
-| 5     | Unmatching an occurrence prevents immediate automatic rematching of that event.                                                                                          |
-| 6     | Text requesting a category change leaves the record untouched until explicit UI acceptance.                                                                              |
-| 7     | Repeated scans preserve dismissal and create no duplicate notification for an unchanged finding.                                                                         |
-
-## Completion evidence
-
-A stage is accepted when its frontend and backend work together, required outcomes have evidence, and earlier behavior remains correct. Report specific outstanding external checks rather than treating local success as proof of hosted behavior. Performance checks use actual input sizes and observed latency before justifying another runtime or more complex processing.
+Local success does not prove hosted behavior. `pnpm test:infra-live` checks bindings, Access, Hyperdrive, R2, and Workflows on a disposable stage. The stage report lists any hosted check that could not run.

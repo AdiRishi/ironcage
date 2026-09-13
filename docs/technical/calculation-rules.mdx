@@ -1,145 +1,176 @@
 ---
 title: Calculation rules
-description: Financial event construction, comparison algorithms, recurring schedules, forecasts, and insight detector defaults.
+description: Event construction, comparisons, ordinary costs, schedules, forecasts, and detectors, with the arithmetic spelled out.
 ---
 
-## Delivery scope
-
-Stages 1 and 2 use exact posting values and source reconciliation, defined in the import protocol. Stage 3 introduces events, allocations, and financial measures. Stage 4 adds comparisons and saved date selections. Stage 5 adds ordinary costs, schedules, and deterministic scenarios. Stage 7 adds finding rules.
-
-[Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
-
-A fully interpreted period can contain unclassified costs, but has no unknown financial roles that could change the selected measure.
-
-These rules implement the metrics in [Financial records and metrics](/technical/financial-model). The financial API and processor use the same functions in `packages/finance/src/`. Implemented calculations record their version with returned results. Money examples are fictional.
+The API and the processor use the same functions in `packages/finance/src/`. Every result records the calculation version that produced it. Money examples are fictional and in minor units unless a dollar sign appears.
 
 ## Financial event construction
 
-An accepted posting records a signed account-balance change. A financial event groups postings representing one economic event. Its nonnegative magnitude is divided into allocations. Cost queries select cost allocations and subtract their linked credits. Bank balances always use postings.
+Stage 3. An accepted posting records a signed balance change. A financial event groups the postings of one economic event, has a nonnegative magnitude, and divides that magnitude into allocations. Cost queries select cost allocations and subtract their credit links. Balance queries use postings only.
 
-| Event                   | Posting membership                                                      | Allocation and reporting account                                                          |
-| ----------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Purchase                | One debit.                                                              | Cost or explicit nonPersonal portions. Reports the charged account.                       |
-| Income                  | One established income credit.                                          | Income. Reports the receiving account.                                                    |
-| Transfer                | One or two evidenced movements between owned endpoints in one currency. | Transfer. Reports the sending account when present, otherwise the receiving account.      |
-| Card settlement         | Deposit debit, card credit, or their matched pair.                      | Transfer. Reports the deposit account when present, otherwise the card.                   |
-| Borrowing               | Loan debit, deposit credit, or their matched pair.                      | Borrowing. Reports the loan.                                                              |
-| Refund or reimbursement | One established credit.                                                 | Refund or reimbursement, with separate cost_credits links. Reports the receiving account. |
-| Financing cost          | One interest or fee debit.                                              | Cost. Reports the charged account.                                                        |
-| Loan payment            | Deposit debit, loan credit, or their matched pair.                      | Transfer. Reports the loan.                                                               |
-| Unresolved              | One posting with an unknown role.                                       | Unresolved. Reports the posting account.                                                  |
+| Event kind                | Posting membership                                            | Allocation role and reporting account                                                              |
+| ------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `purchase`                | One debit.                                                    | `purchase`, optionally with a `nonPersonal` portion. Reports the charged account.                  |
+| `income`                  | One credit.                                                   | `income`. Reports the receiving account.                                                           |
+| `transfer`                | One or two movements between owned endpoints in one currency. | `transfer`. Reports the sending account when present, otherwise the receiving one.                 |
+| `cardSettlement`          | Deposit debit, card credit, or the matched pair.              | `transfer`. Reports the deposit account when present, otherwise the card.                          |
+| `borrowing`               | Loan debit, deposit credit, or the matched pair.              | `borrowing`. Reports the loan.                                                                     |
+| `loanPayment`             | Deposit debit, loan credit, or the matched pair.              | `transfer`. Reports the loan.                                                                      |
+| `refund`, `reimbursement` | One credit.                                                   | `refund` or `reimbursement`, applied to costs through credit links. Reports the receiving account. |
+| `financingCost`           | One interest or fee debit.                                    | `financingCost`. Reports the charged account.                                                      |
+| `unresolved`              | One posting whose role is unknown.                            | `unresolved`. Reports the posting's account.                                                       |
 
-Each event's magnitude is the absolute primary posting amount. Paired transfers, settlements, and repayments use the amount moved once. Interest and fee postings remain separate financing-cost events, even when the bank charges them on a repayment date.
+Magnitude is the absolute amount of the primary posting. A matched pair uses the amount moved once. Interest and fees stay separate financing-cost events even when charged on a repayment date.
 
-Posting-date queries use each event's primary posting date. Spending-date queries use an evidenced purchase date for purchases, otherwise the primary posting date. Credits reduce linked costs on the cost's selected basis. Unlinked credits remain separate unresolved adjustments.
+`MovementLink` is `{ from: Endpoint, to: Endpoint, evidence: ObservationId[] }` where `Endpoint` is `{ kind: "account", accountId }` or `{ kind: "external", label }`. An external endpoint is one the user confirmed they own; it has no balance. Pairing two postings needs equal opposite amounts in one currency plus corroboration: a matching reference in both descriptions, or user confirmation. Amount and date proximity alone produce a proposal, never a link.
+
+A fee association records that a `financingCost` event relates to a purchase, as proposed or confirmed. Both events keep their own amounts and dates and both count.
+
+### Date basis
+
+`posted` uses each event's primary posting date. `spending` uses the purchase date for purchases when established, otherwise the posting date. A credit link reduces the cost in the cost's period on the selected basis; the credit's own posting keeps its date in account views. Unlinked credits appear as separate unresolved adjustments.
 
 ### Loan repayment effects
 
-`principalRepaid` reports the net repayment effect for a loan over the selected posting-date period: confirmed repayments minus interest and fees charged in that period. The display label is **Net principal reduction from repayments**. This is a signed period measure, not an attribution of interest to an individual payment. A negative value is labelled **Financing costs exceed repayments**.
+`netPrincipalReduction` for a loan over a posted-date period is confirmed loan-side repayments minus interest and fees charged in that period. Repayments of 390000 and interest of 280000 give 110000. If interest posts on 31 August and the repayment on 2 September, August has the 280000 cost and September the 390000 repayment. A negative value is labelled "Financing costs exceed repayments".
 
-For repayments of `390000` and interest of `280000` in the same period, the result is `110000`. If interest posts on August 31 and repayment on September 2, August retains the `280000` cost and September retains the `390000` repayment. Linking the settlement never moves the interest date. Repayments use the loan-side credit posting date. The deposit-side debit retains its own date for cash calculations. Multiple repayments add within their own dates. New borrowing, interest refunds, and other balance adjustments are shown separately and reconcile the repayment effect to the actual change in loan balance.
+```ts
+type LoanBreakdown = {
+  accountId: Id<"account">;
+  repayments: Money;
+  interest: Money;
+  fees: Money;
+  newBorrowing: Money;
+  otherAdjustments: Money;
+  netRepaymentEffect: Money | null;
+  balanceChange: Money | null;
+};
+```
 
-A `LoanBreakdown` contains `{accountId, repayments: Money, interest: Money, fees: Money, newBorrowing: Money, otherAdjustments: Money, netRepaymentEffect: Money | null, balanceChange: Money | null}`. OtherAdjustments uses signed balance changes; newBorrowing is a nonnegative magnitude. With complete coverage and balance anchors, `balanceChange = netRepaymentEffect - newBorrowing + otherAdjustments`. Unresolved loan movements or incomplete period coverage make netRepaymentEffect unavailable, with the known components retained. BalanceChange additionally requires both anchors.
+With full coverage and both anchors, `balanceChange = netRepaymentEffect - newBorrowing + otherAdjustments`. Unresolved loan movements or a coverage gap make `netRepaymentEffect` null with the known components still filled. `balanceChange` also needs both anchors.
 
-`MovementEndpoint` is `{kind: "account", accountId}` or `{kind: "externalOwned", label: string}`. ExternalOwned records the user's confirmed ownership of an endpoint outside imported account history. It has no invented balance. `MovementLink` contains `{from: MovementEndpoint, to: MovementEndpoint, evidence: EvidenceRef[]}` and applies only to transfer, cardSettlement, loanPayment, and borrowing events. LoanPayment and borrowing identify the loan with an account endpoint. CardSettlement identifies the card with an account endpoint. Other endpoints must fit the event's account roles.
+### Grouping
 
-Pairing requires confirmed ownership, equal opposite values in one currency, and corroborating references or user confirmation. Date proximity and amount alone produce a proposal. A user can confirm a movement with only one posting through linkMovements and its impact preview. The event then has a known financial role and visibly incomplete counterpart evidence. Cost and income totals exclude that confirmed movement; balances use only actual postings. Loan-period components require the loan-side posting and otherwise disclose missing evidence. Attaching a later counterpart preserves the event ID and allocations. Corrections cannot pull a financing-cost posting into a transfer event.
+Category, merchant, and reporting account partition cost allocations. Tags and personal events overlap; a query selecting several tags counts each allocation once. Purchase count counts distinct purchase event IDs, including fully refunded ones.
 
-`fee_associations` connects a financing-cost event to its purchase as proposed or confirmed evidence. The fee remains a separate cost with its own date and category. An association does not change either amount or add another contribution to a purchase total.
+## Comparisons
 
-Category, merchant, and reporting-account groups partition cost allocations. Tags and personal events can overlap. Filters deduplicate allocation IDs. Gross purchase count counts distinct purchase event IDs, including fully refunded purchases, and excludes income, repayments, and credit events.
+Stage 4. A query is `{ measure, period, comparison, basis, currency, accounts, filters, normalization }`. Filters within one dimension combine with OR, dimensions with AND, and a category selection includes its descendants.
 
-## Comparison execution
+### Periods
 
-### Saved date selections
+Periods are `[start, endExclusive)`. Relative selections support rolling day counts and calendar weeks, months, quarters, and years. Weeks start Monday. A relative selection resolves once per request in the settings timezone. The current calendar period defaults to elapsed alignment: both periods end at the same elapsed day count, with month-end clamping. Full alignment uses whole periods. Fixed dates never move.
 
-A saved analysis retains its metric, filters, comparison, and a fixed or relative period. Relative choices support rolling days and calendar weeks, months, quarters, or years. Weeks begin Monday. Resolve the selection once per request in the selected timezone. Current calendar periods default to matching elapsed dates, with month-end clamping. Fixed dates never move.
+The comparison shift uses the selection's unit. A day-count selection shifts by its day count. A calendar selection must span a whole number of units and shifts by that many. A previous-year shift clamps 29 February to 28 February. Neither alignment fills unobserved days with zero; missing coverage is reported.
 
-A view runs on open or explicit refresh. The result includes the resolved dates and calculation time. Read all contributing records consistently, including linked credits outside the selected posting period. There is no saved-result pointer, automatic refresh job, or requirement to retain immutable input files.
+### Deltas and contributors
 
-Comparisons use inclusive starts and exclusive ends. Previous-period shifts use comparison.unit, independently of chart interval. DayCount shifts by the selected range's day count. Other units require a range contained in one calendar unit or spanning an integral number of calendar units, and shift by that number of units. Previous-year shifts clamp February 29 to February 28 when necessary. Elapsed alignment caps each compared period at matching elapsed calendar days, with month-end clamping. Full alignment uses the complete requested periods. Neither mode fills unobserved days with zero.
+Absolute delta is current minus previous. Relative change is delta over previous only when previous is nonzero; a zero prior gives a null relative change and the UI shows the new amount. A group with complete coverage and no rows contributes zero. A group with missing coverage carries an incomplete flag.
 
-Normalization defaults to `total`. `dailyAverage` is available for grossCosts, netPersonalCosts, income, and surplus. It divides each period's total and each contributor by that period's calendar-day count after elapsed alignment. Daily-average values use `DecimalMoney`, retain exact rational arithmetic until decimal output, and carry unit `perDay`. Any incomplete requested coverage makes that period's daily average unavailable; the result still exposes its known total and coverage. Missing days never shrink the denominator. Frequency decomposition is available only with total normalization.
+Contributor rows sort by absolute delta descending, then by group key. The default shows ten rows plus a remainder equal to the total delta minus the shown rows. Overlapping groups such as tags show no remainder because their rows are not additive.
 
-Absolute delta is current minus previous. Relative change is delta divided by previous only when previous is nonzero. Zero prior values produce null relative change. Categories with no rows but complete coverage contribute zero. Categories with missing coverage carry an incomplete flag.
+Frequency contribution is `(n1 - n0) * (p0 + p1) / 2` and average-cost contribution is `(p1 - p0) * (n0 + n1) / 2`, where `n` is purchase count and `p` is average purchase amount. Intermediate values are exact rationals. Rounded contributions use largest-remainder allocation with a stable key so they sum to the rounded delta. Average amount is unavailable when a period has zero purchases. Frequency decomposition needs total normalization.
 
-Contributor rows sort by absolute delta descending, then stable group key. The default display includes 10 rows. Remainder equals total delta minus the displayed partitioned rows. Negative contributors retain their sign. Overlapping tag/event breakdowns do not produce a misleading additive remainder.
+### Daily average
 
-Frequency contribution is `(n1 - n0) * (p0 + p1) / 2`. Average-cost contribution is `(p1 - p0) * (n0 + n1) / 2`. Both use exact rational intermediate arithmetic. Rounded contributions use largest-remainder allocation, with a stable component key to break ties. Their sum equals the rounded displayed delta. Average amount is unavailable when its period has zero purchases.
+`dailyAverage` applies to gross costs, net personal costs, income, and surplus. It divides each period's total and each contributor by the period's calendar days after alignment, as `DecimalMoney` per day. Any missing coverage inside the period makes its average unavailable while the total and denominator stay visible. Missing days never shrink the denominator.
+
+### Saved analyses
+
+A saved analysis stores a name and a query. Opening it or pressing refresh runs the query against current records. Relative dates resolve at that time; fixed dates stay fixed. Results are not stored.
 
 ## Ordinary costs
 
-The variable baseline is the arithmetic mean weekly net personal cost over the last 13 fully covered and interpreted Monday-to-Monday weeks ending on or before the selected period's endExclusive. Each comparison period and series bucket has its own cutoff. All groups within that estimate use the same account coverage and week set. Category, merchant, tag, and event filters select allocations after the week set is fixed. This makes partitioned group means add to the headline. The monthly conversion is `365.2425 / 12 / 7`.
+Stage 5. The variable baseline is the mean weekly net personal cost over the last 13 fully covered and fully interpreted Monday-to-Monday weeks ending on or before the period's `endExclusive`. Each period or series bucket has its own cutoff. All groups in one estimate share the same week set and account coverage; filters select allocations after the week set is fixed, so group means add to the headline. The monthly conversion factor is `365.2425 / 12 / 7`.
 
-Matched confirmed schedule costs leave the variable observations and enter once as time-allocated obligations. Personal events marked exclude_from_ordinary and explicit query exclusions remove their allocations from this estimate. Actual costs retain those records. `OrdinaryCostBasis` contains `{cutoff: CalendarDate, weeks: Range[], excludedPersonalEventIds, matchedEventIds, sampleStatus: "sufficient" | "limited" | "unavailable"}`. Six or more weeks is sufficient, one through five is limited, and no covered weeks makes the variable baseline unavailable.
-
-Weekly and fortnightly commitments use 52.1775 and 26.08875 occurrences per year. Monthly, quarterly, and annual schedules use 12, 4, and 1. A matched occurrence uses the accepted net cost after exclusions; an unmatched occurrence uses the scheduled expected amount. A commitment occurrence with an explicit service period allocates its cost by actual days in the intersection with the query period, divided by all days in its service period. Convert that period allocation to a monthly equivalent by multiplying by `365.2425 / 12` and dividing by the query period's calendar days. Without service-period evidence, use the cadence equivalent divided by 12, weighted by the fraction of query days in the effective segment. Explicit service-period allocations replace the cadence estimate on those covered days. Cash timing remains the scheduled date. Loan payments and card settlements are excluded; separately specified financing costs can enter as costs.
-
-Each variable allocation contributes its net cost divided by the common week count and multiplied by the monthly conversion. Schedule and occurrence components contribute the amounts above. Keep rational values until the output boundary, round the headline half-even, then assign minor units to components by largest remainder with stable component IDs. Group and drill-down totals sum these same rounded components. They do not recompute or round separate medians or means. Schedule components use the segment's category, merchant, and payment account; absent tags and personal events form an unassigned group. A result with no variable baseline shows known commitments and an unavailable overall estimate.
-
-## Schedule contract and detection
+Events matched to confirmed schedule occurrences leave the variable observations and enter once as commitments. Personal events flagged `excludeFromOrdinary` and explicit exclusions remove their allocations. Actual-spending views keep those records.
 
 ```ts
-type ScheduleDefinition = {
-  schemaVersion: 1;
+type OrdinaryCostBasis = {
+  cutoff: CalendarDate;
+  weeks: Period[];
+  excludedPersonalEventIds: Id<"personalEvent">[];
+  matchedEventIds: Id<"event">[];
+  sampleStatus: "sufficient" | "limited" | "unavailable";
+};
+```
+
+Six or more weeks is sufficient. One to five is limited. Zero makes the variable baseline unavailable; the estimate then shows commitments and an unavailable headline.
+
+Commitments convert to a monthly amount by cadence: weekly `52.1775 / 12`, fortnightly `26.08875 / 12`, monthly 1, quarterly `1 / 3`, annual `1 / 12`. A matched occurrence uses its accepted net cost; an unmatched one uses the scheduled amount. An occurrence with a service period allocates its cost by days of the period inside the query period divided by days of the service period, then converts by `365.2425 / 12` over the query period's days. Without a service period, the cadence amount is weighted by the fraction of query days inside the effective segment. Loan payments and card settlements are excluded; financing costs enter as costs.
+
+Each variable allocation contributes its net cost divided by the week count times the monthly factor. Keep rationals until the output boundary, round the headline half-even, then allocate minor units to components by largest remainder with stable IDs. Group totals sum those rounded components.
+
+Worked example: 13 complete weeks, five weeks with a $100 cost in category A, five with $100 in B, three with both. Weekly mean is `1300 / 13 = $100`. Monthly is `100 * 365.2425 / 12 / 7 = $434.81`. Add a confirmed $100.34 monthly commitment for $535.15. Group contributions are A `800/13 * 4.3479 = $267.57`, B `$267.57`, commitment `$100.34`; largest remainder adjusts one cent so they sum to $535.15.
+
+## Schedules
+
+Stage 5.
+
+```ts
+type ScheduleSegment = {
   role: "cost" | "income" | "cardSettlement" | "loanPayment";
   currency: Currency;
   accountId: Id<"account">;
   counterpartyAccountId: Id<"account"> | null;
   amount:
-    | { kind: "fixed"; minor: Minor }
-    | { kind: "variable"; expectedMinor: Minor; lowerMinor: Minor; upperMinor: Minor };
+    | { kind: "fixed"; minor: bigint }
+    | { kind: "variable"; expectedMinor: bigint; lowerMinor: bigint; upperMinor: bigint };
   cadence: "weekly" | "fortnightly" | "monthly" | "quarterly" | "annual";
   anchorDate: CalendarDate;
   monthEnd: boolean;
   weekendShift: "none" | "previousBusinessDay" | "nextBusinessDay";
-  endDate: CalendarDate | null;
+  effective: Period;
   categoryId: Id<"category"> | null;
+  merchantId: Id<"merchant"> | null;
+};
+
+type Occurrence = {
+  commitmentId: Id<"commitment">;
+  segmentId: Id<"segment">;
+  nominalDate: CalendarDate;
+  scheduledDate: CalendarDate;
+  servicePeriod: Period | null;
+  expected: Money;
+  status: "expected" | "matched" | "skipped";
+  eventId: Id<"event"> | null;
+  excludedEventIds: Id<"event">[];
 };
 ```
 
-`ScheduleOccurrence` is `{commitmentId, segmentId, nominalDate, scheduledDate, servicePeriod: Range | null, expected: Money, status: "expected" | "matched" | "skipped", eventId: Id<"event"> | null}`. An occurrence stores an optional evidenced or user-confirmed servicePeriod independently of the schedule's effective interval. AccountId is the charged or receiving account. CardSettlement and loanPayment schedules use a deposit account and require the receiving card or loan in counterpartyAccountId. Other roles require a null counterparty. These accounts belong to the effective segment, so changing payment accounts preserves past occurrences. Calendar stepping uses the anchor's day or the last day of the destination month. Weekend adjustment uses weekdays only. Public-holiday changes require an evidenced exception or corrected date.
+`cardSettlement` and `loanPayment` segments charge a deposit account and name the card or loan as counterparty. Other roles have a null counterparty. Changing amount or account ends the current segment and starts a new one, so past occurrences keep their segment. Calendar stepping uses the anchor's day of month or the last day when `monthEnd`. Weekend shifts move to the nearest weekday in the chosen direction. Public holidays need an explicit corrected date on the occurrence. Variable amounts require `0 <= lower <= expected <= upper`; estimates use `expected`.
 
-Suggest recurring schedules from repeated merchant/service payments in the same currency and account. Show the supporting dates and amounts so the user can confirm cadence and expected amount. Use straightforward date and amount comparisons; tune tolerances against actual examples rather than requiring statistical promotion gates. A missing payment does not end a confirmed schedule. Accepted changes create a new effective segment.
+Suggestions come from repeated payments with the same merchant, account, and currency at roughly regular intervals. Show the supporting dates and amounts; the user confirms cadence, amount, and effective start. Tune tolerances against the corpus. A missing payment does not end a schedule.
 
 ### Occurrence matching
 
-Occurrence matching uses the effective segment's currency, account, role, and merchant when specified. Cost schedules compare the event's gross cost allocations, income schedules its income allocations, and settlements or repayments its movement magnitude. The event must be active and have the required established role. The posting on the schedule's account supplies the payment date. A missing posting on that account cannot establish a match.
+An automatic match needs a confirmed segment, an event on the segment's account with the role the segment expects, a posted date within three days of `scheduledDate` or seven for annual, and an eligible amount: within the greater of 100 minor units or 5% for fixed amounts, or within `[lower, upper]` for variable. Cost segments compare gross cost allocations, income segments income allocations, settlement and loan segments the movement magnitude. Both sides must have exactly one eligible candidate; otherwise create an interpretation review. One event matches at most one occurrence.
 
-An automatic match requires a confirmed effective segment, a date within three days of scheduledDate, or seven for annual schedules, and an eligible amount. Fixed schedules allow the greater of 100 minor units or 5% of the fixed amount. Variable schedules require the amount to fall between lowerMinor and upperMinor inclusive. Both the occurrence and event must have exactly one eligible candidate. Otherwise the API creates a relationship review. One event can match at most one occurrence. Explicit user matches take precedence and can confirm date or amount exceptions after displaying the evidence, while account, currency, and role checks still apply.
+User matches go through the same version-checked command and can override date or amount tolerance, not account, currency, or role. Unmatching adds the event to `excludedEventIds` so automatic matching does not restore it; an explicit match removes it. Event corrections and segment changes recheck affected matches; an invalid match becomes a review item. Match changes bump the commitment version and visible queries refetch.
 
-The API records automatic matches and user decisions through the same version-checked financial operations. Unmatching records that event in the occurrence's excludedEventIds so automatic matching cannot immediately restore it. An explicit match can remove that exclusion. Event corrections or segment changes recheck affected matches. Invalid matches are removed and become review items before dependent training runs. Match changes update the parent commitment version. Check current occurrence evidence when calculating; a stale or conflicting match requires review before the corresponding payment can be excluded from the variable baseline. Visible query results refetch after the correction.
+## Forecasts
 
-Variable scheduled amounts must satisfy `0 <= lowerMinor <= expectedMinor <= upperMinor`. Estimates use expectedMinor as a fixed amount. The lower and upper values guide matching and display; the estimate does not simulate bill-amount uncertainty. All fixed schedule amounts are nonnegative.
+Stage 5. A forecast is a 30 or 90 day outlook from a start date. Inputs: currency, selected accounts and categories, confirmed schedules, the recent baseline weeks, explicit personal-event exclusions, and one-off assumptions for costs, income, and credits. The result records the inputs, the calculation time, and coverage limits.
 
-## Forecast contract
+1. Variable costs: mean of up to 13 fully covered and interpreted weeks before the start date, with scheduled payments and excluded events removed. Show the week count and dates. Multiply by `horizonDays / 7`.
+2. Add each scheduled cost occurrence inside the horizon once, and each one-off cost once.
+3. Expected income is scheduled income plus explicit income assumptions.
+4. Credits enter only as explicit assumptions and are shown separately.
+5. Projected surplus is income minus costs plus credits, labelled as an estimate.
 
-A forecast is a deterministic cost outlook over 30 or 90 calendar days. Inputs are the start date, currency, selected accounts/categories, confirmed schedules, the selected recent baseline period, explicit exceptional-event exclusions, and any one-off cost, income, or credit assumptions. The result records those inputs, calculation time, and coverage limitations.
+Keep exact values until output and round there. No covered baseline makes the cost estimate unavailable while the commitment calendar still works.
 
-Estimate variable gross costs from the mean of up to 13 recent fully covered and interpreted weeks before the start date. Show the actual week count and period. Remove payments already represented by included schedules and explicit excluded events. Multiply the weekly mean by horizon days divided by seven, then add each included scheduled cost and one-off cost exactly once. Keep exact intermediate amounts and round at the output boundary. No covered baseline means the overall cost estimate is unavailable; the separate commitment calendar remains usable.
+The cash calendar lists dated movements on deposit accounts from confirmed schedules, including settlements and loan payments. It does not project balances, interest, or card cycles. The latest evidenced balance per account is shown with its date as context.
 
-Expected income comes from confirmed schedules and explicit assumptions. Future refunds or reimbursements enter only as explicit credit assumptions. Show them separately from income and projected gross costs. A projected surplus is expected income minus projected costs plus those explicit credits, labelled as an estimate under the supplied assumptions.
+## Scenarios
 
-### Cash timing
+Stage 5. A scenario copies the baseline assumptions and changes category amounts, a segment's amount from a date, or dated one-offs. A substitution such as more groceries after less delivery is another explicit change. Both calculations run on the same inputs in one request and the difference is reported as an estimated change in cost, income, or credits. Saving stores the assumptions; opening recalculates. Nothing in a scenario touches postings, events, or confirmed schedules.
 
-The cash calendar lists confirmed dated movements on deposit accounts. Card settlements and loan repayments appear here but are excluded from cost totals. Card purchases and separately charged interest remain costs. A settlement between two included owned accounts does not create combined income.
+## Detectors
 
-This stage does not predict complete future cash or debt balances. Cost timing differs from cash timing, so neither a spending baseline nor an estimated surplus is labelled cash available. Show the latest evidenced balances with their dates as historical context. Do not fill a gap since the last statement with simulated bank activity. Users can enter known payment dates and amounts without configuring a card-cycle simulator, payment-account shares, or a loan-interest model.
+Stage 7. Start with three deterministic detectors: repeated fees, a material increase in a recurring payment, and a sustained change in a category's cost across complete comparable periods. Each reports the absolute amount and the percentage where the prior is nonzero. Thresholds live beside the detector code and are tuned on the corpus. Rank by amount, then persistence.
 
-## Scenarios and evaluation
+A finding's identity is `(detector, subject, changePeriod)`. A repeat scan updates the same finding and keeps its useful or dismissed state. A new change period creates a new finding. A correction that removes the supporting pattern closes the finding. A detector without enough history produces nothing and, when the user asked for that check, explains what is missing.
 
-A scenario copies the baseline assumptions and changes explicit category amounts, commitment amounts from an effective date, or dated one-offs. Related substitutions are separate user-entered adjustments. Both calculations use the same observed inputs in the request. The difference is an estimated cost, income, or credit change, not a guaranteed cash saving. Saving a scenario stores the assumptions; opening it recalculates from the selected baseline period and current records.
-
-Historical postings, confirmed schedules, and baseline definitions remain unchanged. A scenario does not invent offsets to other categories. Outputs show which assumptions changed and why the estimate may be incomplete.
-
-Verify arithmetic with known fixtures and check representative forecasts against their displayed baseline and schedules. A user can compare an estimate with later actual costs, but model selection, probability intervals, and calibration backtests are not required. Introduce a statistical model only for a demonstrated decision that this estimate cannot support.
-
-## Insight detectors and ranking
-
-Start with deterministic checks for repeated fees, a material recurring payment increase, and sustained category-cost changes. Use complete comparable periods and show both the absolute amount and percentage where meaningful. A higher average purchase is not proof of a price change.
-
-Choose initial materiality thresholds against representative history and keep them beside the detector implementation. Rank by amount and persistence. Avoid a synthetic multi-factor score without an observed ranking problem. A detector with insufficient history produces no finding and explains the missing coverage where the user requested that check.
-
-Identify a finding by detector, subject, and change period. Repeated scans update the same finding and preserve useful/dismissed state. A newly observed change period can create a new finding. Corrections that remove its supporting pattern close the old finding. An unchanged finding does not reopen merely because another scan ran.
-
-An intention stores the selected measure, fixed baseline period, start date, current-period choice, and optional related-cost measure. Each review calculates from current data and reports the included dates. Missing post-start history remains insufficient evidence. Describe observed change without claiming the intention caused it.
+An intention stores a measure, a fixed baseline period, a start date, a current-period choice, and optional related measures. Each review computes both periods from current data and reports the dates included. Missing post-start history is insufficient evidence. The result describes observed change without claiming cause.

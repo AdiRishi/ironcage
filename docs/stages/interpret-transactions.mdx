@@ -1,0 +1,125 @@
+---
+title: "3. Interpret and correct transactions"
+description: Add financial meaning above the recorded postings, with the user in control.
+---
+
+## Outcome
+
+Every posting can carry a financial role, a category, a merchant, tags, and links to related postings. The user corrects anything, previews the effect of broad changes, and undoes through history. A model suggests categories; the user accepts or ignores them.
+
+Prerequisite: stage 2 verified. Existing postings are interpreted in place; nothing is reuploaded.
+
+Also read [Financial model](/technical/financial-model#financial-events), [Calculation rules](/technical/calculation-rules#financial-event-construction), and [AI](/technical/ai#classification).
+
+## Milestones
+
+1. **Events from postings.** Migration, reference data, and an Interpret action that creates one event per posting using the source-marker table below. Done when every corpus posting has an event, unresolved ones are listed, and the detail shows the interpretation beside the bank fields.
+2. **Corrections.** Change role, category, merchant, tags, personal event, and purchase date on one event. Split a purchase. History and undo. Done when the worked examples below pass through the UI.
+3. **Links.** Movement links with proposals for transfers, card settlements, loan payments, and borrowing. Credit links for refunds and reimbursements. Fee associations. Offset relationships and effective-dated account changes. Done when the card, transfer, reimbursement, and mortgage examples show the right measures in the detail preview.
+4. **Rules and suggestions.** Rules with preview and per-event exceptions. Category suggestions from the model with single and bulk acceptance. Export extended. Done when suggestions run over the corpus, corrections survive a rerun, and manual categorization works with the model disabled.
+
+## Source markers
+
+Initial roles come from CommBank description patterns, verified against the corpus and adjusted there. Anything not matched is `unresolved`.
+
+| Account kind | Pattern in description                       | Role                                                     |
+| ------------ | -------------------------------------------- | -------------------------------------------------------- |
+| any          | contains `Card xx` and amount negative       | `purchase`                                               |
+| any          | starts with `Interest` or contains ` Fee`    | `financingCost`                                          |
+| deposit      | starts with `Transfer to` or `Transfer from` | `transfer` proposal, counterpart by amount and reference |
+| loan         | `Repayment/Payment`                          | `loanPayment`, deposit counterpart by amount and date    |
+| loan         | `Money we lent you`                          | `borrowing`                                              |
+| card         | starts with `Payment` and amount positive    | `cardSettlement`, deposit counterpart by amount and date |
+| deposit      | credit with a recurring employer description | `income` after the user confirms the first one           |
+
+A proposal becomes a link only when the counterpart is found with equal opposite amount in one currency and a shared reference, or when the user confirms it.
+
+## Screens
+
+### Transactions
+
+- Filters gain role, category, merchant, tag, personal event, and interpretation review state. Search matches merchant names as well as descriptions.
+- Detail shows the event: role, allocations with category and merchant, tags, personal events, links with their counterpart postings, credits applied, and the correction history. Bank fields stay visible above it.
+- Edit controls: change role, category, merchant, tags, personal event, purchase date; split; link or unlink a movement; apply or remove a credit; associate a fee; undo a correction.
+- A role or link change shows a preview of the effect on costs, income, cash change, and loan measures for the affected period before accepting.
+
+### Review
+
+- Interpretation items: `role` for an unresolved posting with candidate roles, `relationship` for a proposed link, `ruleConflict` for two rules that disagree. Resolving applies the ordinary command.
+
+### Settings
+
+- Categories as a tree with rename, move, and archive. Merchants with aliases. Tags. Personal events with a period and an exclude-from-ordinary flag.
+- Rules: condition, action, scope of past, future, or both. Editing previews affected events and lists exceptions.
+- Accounts gain offset relationships with effective periods, and effective-dated label changes.
+- Classification: enabled or disabled, provider, what is sent, usage, and Suggest categories for uncategorized events.
+
+## Data
+
+| Table                        | Columns                                                                                                                                        |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `categories`                 | `id`, `parent_id` nullable, `name`, `archived` boolean, `version`                                                                              |
+| `merchants`                  | `id`, `name`, `version`                                                                                                                        |
+| `merchant_aliases`           | `merchant_id`, `pattern`, unique `pattern`                                                                                                     |
+| `tags`                       | `id`, `name`, `version`                                                                                                                        |
+| `personal_events`            | `id`, `name`, `start_on`, `end_on`, `exclude_from_ordinary` boolean, `version`                                                                 |
+| `events`                     | `id`, `kind`, `currency`, `magnitude_minor`, `primary_posting_id`, `reporting_account_id`, `purchase_on` nullable, `active` boolean, `version` |
+| `event_postings`             | `event_id`, `posting_id`, unique `posting_id` among active events                                                                              |
+| `allocations`                | `id`, `event_id`, `role`, `amount_minor`, `category_id` nullable, `merchant_id` nullable, `non_personal` boolean                               |
+| `allocation_tags`            | `allocation_id`, `tag_id`                                                                                                                      |
+| `allocation_personal_events` | `allocation_id`, `personal_event_id`                                                                                                           |
+| `credit_links`               | `id`, `credit_allocation_id`, `cost_allocation_id`, `amount_minor`                                                                             |
+| `movement_links`             | `event_id`, `from_endpoint` jsonb, `to_endpoint` jsonb, `evidence` jsonb                                                                       |
+| `fee_associations`           | `fee_event_id`, `purchase_event_id`, `status` (`proposed`, `confirmed`)                                                                        |
+| `offset_relationships`       | `id`, `deposit_account_id`, `loan_account_id`, `start_on`, `end_on` nullable, `version`                                                        |
+| `account_periods`            | `id`, `account_id`, `start_on`, `end_on` nullable, `label`                                                                                     |
+| `corrections`                | `id`, `event_id`, `command_id`, `prior` jsonb, `accepted` jsonb, `scope`, `created_at`                                                         |
+| `rules`                      | `id`, `conditions` jsonb, `action` jsonb, `scope` (`past`, `future`, `both`), `version`                                                        |
+| `rule_exceptions`            | `rule_id`, `event_id`                                                                                                                          |
+| `review_items`               | `kind` gains `role`, `relationship`, `ruleConflict`; `event_ids` uuid[]                                                                        |
+
+Database checks: allocations of an event sum to `magnitude_minor`, enforced in the command transaction; `credit_links.amount_minor` positive and bounded by both remaining amounts, enforced in the command transaction; one active event per posting by a partial unique index.
+
+## Operations
+
+All writes are commands with `commandId` and expected versions.
+
+| Operation                                                                                   | Contract                                                                                                                             |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `interpretPostings({ commandId, scope })`                                                   | Creates events for postings without one. `scope` is all or a list. Never touches existing events.                                    |
+| `getEvent({ eventId })`                                                                     | Event with postings, allocations, links, credits, associations, history, and open review items.                                      |
+| `previewCorrection({ change })`, `applyCorrection({ commandId, change, expectedVersions })` | Single-event changes including role, category, merchant, tags, personal event, purchase date, split. Preview returns measure impact. |
+| `linkMovement`, `unlinkMovement`, `linkCredit`, `unlinkCredit`, `associateFee`              | Commands with preview variants. Conservation and remaining-credit checks run in the transaction.                                     |
+| `undoCorrection({ commandId, correctionId })`                                               | Writes a new correction restoring `prior`.                                                                                           |
+| `previewRule({ rule })`, `saveRule({ commandId, rule, expectedVersion })`                   | Preview lists affected events and current exceptions. Save applies to the chosen scope.                                              |
+| `suggestCategories({ commandId, eventIds })`                                                | Starts a processor run that writes suggestions to a `suggestions` jsonb on the event. Never applies.                                 |
+| `acceptSuggestions({ commandId, eventIds })`                                                | Applies suggestions that are still valid under precedence. Skips corrected events.                                                   |
+| Reference data CRUD                                                                         | Commands for categories, merchants, aliases, tags, personal events, offset relationships, account periods.                           |
+| `requestExport`                                                                             | Includes every table above.                                                                                                          |
+
+## Worked examples
+
+Amounts in dollars, spending on the posted basis.
+
+1. **Card purchase and settlement.** A $100 grocery purchase on the card is a `purchase` event. A $100 payment from the deposit account and the matching credit on the card link as one `cardSettlement` event with magnitude $100 and a transfer allocation. Spending for the period is $100. Cash change on the deposit account is minus $100. Card balance change is zero.
+2. **Transfer with one side.** A $2000 debit "Transfer to" an account not in the corpus. The user confirms an external owned endpoint. The event is a `transfer` with one posting. Income and spending are unchanged; the detail shows the missing counterpart.
+3. **Reimbursement.** A $300 dinner and a later $200 credit from a friend. The user applies $200 of the `reimbursement` allocation to the dinner's cost allocation. Net personal cost is $100. Applying another $200 fails with `conflict`; the detail shows $100 remaining.
+4. **Mortgage.** A $3900 repayment and $2800 interest in September. The repayment is a `loanPayment` event with a transfer allocation; the interest is a `financingCost` event. Costs are $2800. Net principal reduction is $1100. If the interest had posted on 31 August, August would carry the $2800 cost and September the $3900 repayment.
+5. **Split and rule.** A $150 purchase is split into $100 groceries and $50 household. A rule "merchant Woolworths, category groceries, scope both" previews 240 events and lists this split as an exception; saving changes the 239 others.
+6. **Undo.** The user changes a category, then undoes it. History shows both corrections. The event carries the original category and the bank fields never changed.
+
+## Verification checklist
+
+- Interpreting the corpus assigns roles from the marker table; report counts per role and the unresolved list.
+- The six worked examples pass through the browser with the stated measures in the preview and the detail.
+- Splits that do not conserve are rejected. Credit over-application is rejected. Two commands racing for the same remaining credit produce one success and one `conflict`.
+- A rerun of `interpretPostings` and of `suggestCategories` after corrections changes no corrected event.
+- Importing an older overlapping statement after corrections keeps every event and correction.
+- Two conflicting rules produce a `ruleConflict` item and apply nothing to the disputed events.
+- Model unavailable and invalid output both leave manual categorization working.
+- Renaming a category keeps its ID and every allocation.
+- Screens work at phone width and by keyboard. Stage 1 and 2 checklists pass.
+
+## Not in this stage
+
+Comparisons, overview, saved analyses, commitments, forecasts, the analyst, findings.

@@ -1,58 +1,40 @@
 ---
-title: Settings and data controls
-description: Manage accounts, preferences, AI usage, financial exports, and original files.
+title: Settings and data
+description: Accounts, display, AI, exports, source files, retention.
 ---
 
-## Delivery scope
+## What appears when
 
-| Stage                               | Controls introduced                                                                                               |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| [1](/stages/record-transactions)    | Account labels, evidenced roles/effective periods, timezone, currency, private access, and retention disclosures. |
-| [2](/stages/historical-imports)     | Financial data export, original-file removal, and document-provider/usage controls if models are needed.          |
-| [3](/stages/interpret-transactions) | Account relationships, categories, tags, merchant aliases, interpretation rules, and category suggestions.        |
-| [4](/stages/explore-spending)       | Saved query management and export of definitions.                                                                 |
-| [5](/stages/plan-costs)             | Schedules and scenario assumptions.                                                                               |
-| [6](/stages/analyst)                | Explicit personal notes, analyst limits, and conversation access.                                                 |
-| [7](/stages/follow-through)         | Import reminders, inbox preferences, findings, and intentions.                                                    |
+| Stage | Controls                                                                                                     |
+| ----- | ------------------------------------------------------------------------------------------------------------ |
+| 1     | Account labels and kinds, timezone, reporting currency, retention statement                                  |
+| 2     | Export, source file list with removal, document model switch and usage                                       |
+| 3     | Categories, merchants and aliases, tags, personal events, rules, offset relationships, classification switch |
+| 4     | Saved analyses                                                                                               |
+| 5     | Commitments and scenarios are managed on their own screens                                                   |
+| 6     | Notes, analyst limits                                                                                        |
+| 7     | Import reminder, scan schedule                                                                               |
 
-Show controls only when their behavior exists. Financial exports grow with implemented records. Managed backups are an operating requirement, not an application backup management screen.
+## Accounts
 
-## Accounts and classification
+Each account has a label and a kind: deposit, card, or loan. Bank identifiers appear once a file has established them. From stage 3, an offset relationship between a deposit account and the loan can be recorded with the dates it applies, and a label can change from a date.
 
-Account labels do not establish transaction purpose. Account role and relationship changes retain their effective dates. Offset/loan relationships arrive in stage 3.
+## Display
 
-Categories and tags remain editable. Renaming or archiving a referenced category preserves its identity. Accepted merchant aliases can distinguish services. Broad rule changes preview affected records and preserve transaction-specific exceptions. Conflicting rules require a user decision.
+Timezone defaults to Australia/Sydney and currency to AUD. They affect how things are shown and grouped, never what the bank booked. A single-currency view names the currencies it leaves out rather than converting them.
 
-## Display and reminders
+## AI
 
-Default to Australia/Sydney and AUD. Preferences affect subsequent views, not the bank's booked values. A one-currency view identifies excluded currencies without inferred conversion.
-
-From stage 7, an import reminder follows the configured interval and can be disabled. It indicates stale financial data, not a bank connection or a newly observed change.
-
-## AI usage and privacy
-
-Name the configured provider and explain which records or document pages it receives. Gateway routing does not mean inference stays within Cloudflare. Show reported usage, labelled cost estimates, and unknown usage when a failed call provides no report.
-
-The user can disable AI and configure task limits and a usage warning threshold. The threshold can stop new calls after observed usage reaches it, but is not a guaranteed billing ceiling. Delayed reports, unknown charges, or concurrent requests can exceed it. Retrying can incur another charge. Avoid promising an exact spend cap without a separately verified provider capability.
-
-When AI cannot proceed, keep bank records and normal views available. Classification offers direct manual categorization. Document extraction identifies the source needing review or a clearer export.
-
-## Personal notes
-
-Stage 6 provides explicit notes with their supplied account or period scope. Edits and removals change future retrieval. Continue in a fresh conversation after a note change so older transcript text is not silently reused. [Analyst and memory](/product/analyst-and-memory#useful-memory) defines the confirmation and history behavior.
+Settings names the provider, says which records each task sends, and shows usage and cost so far, with unknown usage marked unknown when a failed call reported nothing. AI can be switched off; imports and every screen keep working. A spending warning stops new calls once observed usage reaches it, with the caveat that late reports and calls in flight can push past it.
 
 ## Export
 
-Stage 2 exports implemented financial records and evidence relationships in a documented machine-readable format. Original source files are a selectable addition. Later stages include interpretations, corrections, saved definitions, schedules, scenarios, notes, findings, and intentions as they arrive.
+From stage 2, an export is a download of all financial records and their evidence links, with the original files as an option. It names what it contains and when it was made. If it fails, ask again. It is a data download, not a backup of the whole system.
 
-The download records what it contains and when it was produced. A failed export offers another attempt. Large exports can use the normal background workflow. This is a financial data download, not a synchronized backup of the database, source store, and chat history. Conversation export is not a stage completion requirement.
+## Source files
 
-## Source removal
-
-The confirmation lists affected records and states that only original file bytes will be removed. Accepted transactions, extracted fields, corrections, and evidence relationships remain. Transaction detail marks the original file unavailable; other supporting files remain accessible.
-
-Reuploading the same verified bytes restores source access without adding transactions. A failed removal offers retry and shows the actual availability. Removing financial history or withdrawing transactions is outside this action's scope.
+Each original file can have its bytes removed. The confirmation lists the postings the file supports and says only the original bytes go: postings, extracted rows, and corrections stay. The file shows as unavailable afterward. Uploading the same bytes again restores it without adding anything.
 
 ## Retention
 
-Disclose the actual configured database backup retention and original-file copy arrangement from [Operations](/technical/operations#sources-backups-and-retention). Source and note deletion do not promise immediate erasure from retained backups. Temporary downloads expire according to the configured policy.
+The page states how long database backups are kept and where a second copy of original files lives. Removing a file or a note removes it from the app, not from backups already taken.

@@ -1,44 +1,30 @@
 ---
 title: Insights and follow-through
-description: Discover meaningful changes and evaluate the effects of decisions over time.
+description: Findings, tracked intentions, the inbox.
 ---
 
-## Delivery scope
+Everything here is stage 7.
 
-All behavior on this page belongs to [stage 7](/stages/follow-through). It adds findings, intentions, the general inbox, reminders, and scheduled follow-up to the existing financial and analyst experiences. Earlier stages already show jobs and failures in their owning views.
+## Findings
 
-The Insights view presents findings worth investigating, including gradual cost increases, changed recurring payments, unusual fees, and shifts in purchase frequency. A finding needs evidence and relevance to the user's history.
+Insights lists changes worth a look: a subscription that went up, a fee that keeps appearing, a category that has been rising for months. Each finding says what changed, over which period, by how much, and links to the records or schedule behind it. Findings are ordered by the money involved and how long the change has lasted, so a 200% jump in a $2 item does not outrank a $50 rise in something monthly.
 
-## A useful finding
+The user can mark a finding useful, dismiss it, add context, ask the analyst about it, or track it. A dismissed finding stays dismissed. A genuinely new change creates a new finding. A finding whose evidence disappears after a correction is closed, not left standing.
 
-Each finding states what changed, the comparison period, the amount involved, and the supporting records. It distinguishes a confirmed change from a possible explanation.
+## Intentions
 
-A subscription increase can show the old and new amounts. Repeated fees can show their cumulative cost. An unusual transaction can show why it differs from comparable history. The analyst can investigate potentially overlapping services and costs that tend to occur together. Those explanations cite the supporting schedules or transactions and distinguish association from cause. Payments alone do not prove service usage or whether a subscription is unnecessary.
+Turn a finding, or any idea, into a tracked change: fewer deliveries from 1 June, measured against March to May, with groceries watched alongside. Each review compares the baseline with what has happened since and says which dates it used. One quiet week is called thin evidence. The app describes the change; it does not claim the intention caused it.
 
-Findings are ranked by material amount and persistence. Several observations about the same underlying change are grouped. Tiny changes with large percentages do not automatically outrank substantial costs.
+Intentions can be edited, paused, resumed, and completed without touching any transaction.
 
-## Review flow
+## Inbox
 
-The user can inspect the evidence, ask the analyst to investigate, mark a finding useful, dismiss it, or add context. A dismissed finding stays dismissed. A new change period can create a new finding with its supporting evidence.
+New findings, open questions from the importer or interpreter, failed imports, failed exports, and failed scans arrive in the inbox, each linking to where it can be dealt with. Nothing appears twice for the same unchanged thing.
 
-Adding an explanation can change the interpretation. For example, a visiting family member can explain a temporary increase. The app remembers the relevant period without applying the explanation to unrelated future spending.
+## Scans and reminders
 
-Corrected or newly imported records can invalidate a finding. The app marks it superseded rather than continuing to present it as current.
+Opening Insights runs a scan of current data. A nightly scan does the same. A failed scan is visible and can be rerun. An optional reminder says the data is getting stale when nothing has been imported for a while; it does not claim anything changed.
 
-## Follow a deliberate change
+## Example
 
-The user can turn a finding into a tracked intention, such as reducing delivery orders while protecting social dining. The intention records the chosen measure, comparison period, start date, and relevant context. The user can edit, pause, or complete it without changing the underlying transactions.
-
-Later reviews compare actual outcomes with that baseline. They include related changes, such as higher grocery spending, when the user has chosen to track the combined effect.
-
-The app distinguishes progress from insufficient evidence. A single quiet week does not prove a lasting habit change. It does not assume that a correlation proves the intention caused the outcome.
-
-## Notification behavior
-
-Opening Insights runs a bounded scan of current records. Scheduled scans can run the same operation while the user is offline. A failed scan can be retried from the owning screen.
-
-The default notification channel is the in-app inbox. It lists new findings, failures and questions requiring an answer. Unchanged findings do not produce repeated alerts.
-
-Scheduled reviews can revisit confirmed commitments or tracked intentions. With no new transaction data, the app can remind the user to import records but cannot claim a new spending observation.
-
-The detection and ranking design is in [Analytics and forecasts](/technical/analytics). Background execution is described in [Architecture](/technical/architecture).
+A streaming subscription rises from $15.99 to $18.99 and a finding appears with the two amounts and the month it changed. The user dismisses it. Four months later it rises again and a new finding appears. Separately, the user tracks "fewer deliveries" from June; the July review shows delivery down $180 a month against the baseline and groceries up $60, with one month noted as early days.

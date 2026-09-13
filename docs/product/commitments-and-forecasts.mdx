@@ -1,38 +1,30 @@
 ---
 title: Commitments and forecasts
-description: Manage expected payments and compare transparent estimates of future costs.
+description: Recurring payments, an ordinary month, a cost outlook, scenarios.
 ---
 
-All behavior here belongs to [stage 5](/stages/plan-costs). The stage includes the complete planning UI, saved assumptions, and deterministic calculations. Future estimates remain distinct from actual bank transactions.
+Everything here is stage 5.
 
 ## Recurring payments
 
-The app suggests recurring payments from history and shows the supporting dates and amounts. The user confirms the amount, cadence, payment account, next date, and effective period before a schedule enters the baseline outlook. Mortgage payments, strata, insurance, and subscriptions can each have their own schedule.
+The app suggests recurring payments from history and shows the payments it found. The user confirms the amount, how often, which account pays, the next date, and when the schedule starts. Mortgage, strata, insurance, and subscriptions each get their own schedule.
 
-A quarterly levy remains quarterly in the cash calendar. Its ordinary-cost contribution can be spread across its service period. Changes preserve earlier effective amounts and accounts. The user can inspect or correct a payment's occurrence match. A missing payment alone does not cancel a schedule.
-
-## Historical measures
-
-Income minus personal costs is historical surplus. Cash changes come from evidenced deposit balances. Loan repayment effects distinguish repayments, separately dated interest and fees, borrowing, and other adjustments. These remain separate measures rather than a combined savings score or claim of complete net worth.
+A quarterly levy is paid quarterly in the cash calendar and spread across its three months in the ordinary-cost view. Changing an amount or the paying account from a date keeps the old amount for earlier dates. Each expected payment shows which actual payment matched it; the user can match, unmatch, or skip. A missed payment does not cancel a schedule.
 
 ## Cost outlook
 
-Choose 30 or 90 days. Inspect recent covered weeks, estimated variable spending, confirmed commitments, expected income, and explicit one-offs. Each included scheduled cost appears once, with its historical payments removed from the variable baseline.
+Choose 30 or 90 days. The outlook shows the recent weeks it is based on, the variable estimate from them, each scheduled cost, any one-offs the user adds, expected income, and the projected surplus, all labelled as estimates. A scheduled payment appears once: its past occurrences are taken out of the variable estimate.
 
-Show the baseline dates, actual week count, exclusions, and assumptions. If no covered baseline exists, the overall estimate is unavailable while the separate commitment calendar still works. The app never fills missing bank history with invented transactions.
-
-The outlook shows estimated costs and surplus under those assumptions. It does not present probability ranges or claim a statistically calibrated prediction.
+If there are not enough covered weeks, the estimate says so and the schedule list still works. The app never fills a gap in bank history with made-up activity.
 
 ## Cash calendar
 
-List known scheduled deposit movements, including card settlements and loan repayments. Those movements are distinct from purchase costs and interest. The same card purchase is not counted again as spending when it is repaid.
-
-Show the latest evidenced account balances with their dates as historical context. This stage does not predict future cash or debt balances. An estimated cost reduction is not labelled money available in a bank account. Users can enter known future payment amounts and dates without configuring interest or card-cycle simulation.
+Dated movements on the deposit accounts for the next 90 days, including card payments and loan repayments. These are movements, not costs; the card purchases were already costs when they happened. The latest known balance of each account is shown with its date. The app does not predict future balances, interest, or card cycles.
 
 ## Scenarios
 
-Copy the baseline assumptions and change a category amount, commitment amount, or one-off. Show the estimated cost, income, or credit difference over the same horizon. A reduction in delivery can include an explicit increase in groceries; the app does not invent that substitution.
+Start from the current outlook and change things: less on delivery, more on groceries, a higher insurance premium from March, a one-off in June. Save it. The app shows the difference against the unchanged outlook as an estimated change in costs, income, or credits. History and confirmed schedules stay as they are.
 
-Save the assumptions for reuse. Opening or refreshing the scenario calculates from current records using the selected baseline period. Neither the scenario nor its calculation alters historical transactions or confirmed commitments.
+## Example
 
-[Calculation rules](/technical/calculation-rules#forecast-contract) defines the arithmetic and its limits.
+Strata is $600 a quarter, paid on the first of July. August's ordinary cost carries about $198 of it, spread by days. The cash calendar shows $600 on 1 October and nothing in August. Cutting delivery by $200 a month while adding $80 to groceries shows as $360 less over 90 days.

@@ -1,46 +1,34 @@
 ---
 title: Imports
-description: Upload statements, record bank transactions, and resolve uncertain evidence.
+description: Upload files, see what was recorded, answer the importer's questions.
 ---
 
-Stage 1 supports CommBank CSV and OFX. Stage 2 adds PDF and source-data controls. Stage 3 adds independent interpretation. Importing and recording a transaction never requires its category to be known.
+Stage 1 imports CommBank CSV and OFX. Stage 2 adds PDF statements.
 
-## Upload and record
+## Uploading
 
-Choose files, confirm the account when the source cannot establish it, and inspect per-file progress. The result shows new transactions, matched records, repeated files, and specific unresolved rows. A failed file does not prevent unrelated files from completing.
+Drop one file or many. Each file is handled on its own: a bad file does not hold up the others. When a CSV cannot say which account it belongs to, the app asks before processing; OFX and PDF name their account themselves.
 
-CSV and OFX each work independently. The app retains original files and their extracted rows. Filenames are labels, not evidence of account identity or complete history. From stage 2, PDF rows link to the relevant statement page.
+Each file shows its progress and then a summary: how many rows were read, how many became new postings, how many matched postings already recorded, and how many need a decision. A file that was already imported says so and links to the earlier import, even under a new name.
 
-The transaction list shows accepted bank amounts, dates, descriptions, and accounts. Source evidence remains accessible from each record. A shorter later export does not remove previously accepted history.
+A failed file shows why and offers Retry. If the upload itself was cut short, the app asks for the file again. Refreshing the page shows the same state.
 
-## Repeated data
+## Repeated and overlapping files
 
-The same verified bytes have one source identity even under a different filename. A repeat upload adds no duplicate postings. Overlapping exports can attach more evidence to existing postings. CSV, OFX, and PDF can support the same purchase.
+The same bytes are one file, whatever they are called. Exports whose date windows overlap add evidence to postings that already exist rather than creating new ones. A CSV, an OFX, and a PDF can all support one posting.
 
-Two real purchases with the same date, merchant, and amount remain distinct. Bank transaction IDs are useful only when their account and values agree. Missing or reused IDs do not remove a purchase. Plausible duplicate ambiguity goes to review instead of being silently merged or accepted as another purchase.
+Two real purchases on the same day for the same amount at the same shop stay two postings. When the app cannot tell whether a row is a repeat, it asks rather than guessing either way.
 
-## Review
+## Questions from the importer
 
-A review identifies the source row, uncertainty, and candidate choices. The user can confirm the account, resolve a value against visible evidence, identify an existing posting, or confirm a separate purchase. Accepted decisions survive reprocessing.
+A question shows the source row, what is unclear, and the choices. The user can name the account, accept a decoded value shown beside the original text, point at the posting a row belongs to, say a row is a separate purchase, or keep an accepted posting when a newer read of the file disagrees. Answers stick: reprocessing the file gives the same result.
 
-Uncertain amounts and posting identities remain outside confirmed totals. Dismissing a question does not turn a missing amount into zero. An otherwise valid posting is recorded even when its financial role is unknown. From stage 3, an established cost with an unknown category contributes as unclassified.
-
-Parser defects remain implementation work. Human review is for specific ambiguity or missing evidence, not a substitute for implementing the supported formats.
+Rows with an unresolved question stay out of totals until answered. Dismissing a question does not turn a missing amount into zero.
 
 ## Coverage
 
-Distinguish requested export periods, observed transaction dates, stated coverage, and reconciled intervals. A file named for two years may contain only two weeks. Missing records differ from an evidenced interval with no activity. Balances and supplied statement totals support reconciliation where available.
+For each file and account the app records the dates it covers and whether the balances reconcile. A file that claims two years but holds two weeks covers two weeks. A period with an opening and a closing balance and no rows between them is a real quiet period; a period with no file is missing data.
 
-## Failure and retry
+## Example
 
-A failed action may require the user to retry, reupload, or resolve a specific uncertainty. It leaves accepted history consistent and cannot duplicate records when repeated.
-
-If upload succeeded, retain the source and offer processing again. If bytes were not received completely, ask for reupload. Processing may restart from the beginning; the product does not promise to resume a particular step or avoid every repeated model call.
-
-Refreshing the browser restores the stored import summary or current processing status. A failure remains visible with the next action. Retrying after a lost publication response returns the committed outcome rather than recording the file twice.
-
-## Interpretation after recording
-
-Stage 3 provides a separate action to interpret recorded history, including earlier imports. User corrections and accepted rules take precedence over model suggestions. Failed or uncertain categorization leaves the bank transaction intact and offers manual single or bulk categorization.
-
-[Settings and data controls](/product/settings-and-data) defines export and source removal from stage 2.
+The user drops the August CSV and the August OFX for the spending account. The OFX finishes first and creates 77 postings. The CSV asks for the account, then matches all 77 and creates none. The user drops the same CSV again from a different folder; the app says it was already imported. A September CSV then adds 12 new postings and matches 18 that overlap with August.

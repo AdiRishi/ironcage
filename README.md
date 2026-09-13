@@ -1,29 +1,24 @@
 # Ironcage
 
-Ironcage is a private personal finance platform for one user. It is built in seven stages, starting with transaction uploads and recorded history. Each stage delivers a working frontend and backend before the next adds more behavior.
+Ironcage is a private personal finance application for one user. It is built in seven stages, starting with uploading CommBank exports and recording every posting once. Each stage delivers a working frontend and backend before the next adds more.
 
-Start with [Delivery stages](docs/stages/index.mdx) and [Build one stage](docs/technical/build-spend-management.mdx). Stage 1 is the default implementation target. The documentation preserves the full product plan as stage-scoped references. Investment, stock-trading, and crypto capabilities have a place in the broader vision, but their detailed specifications come later.
+Nothing has shipped yet. The repository is a Cloudflare starter that stage 1 replaces. Start with [Starting point](docs/stages/starting-point.mdx), then [stage 1](docs/stages/record-transactions.mdx).
 
 ## Read the docs
 
-Read the [published documentation](https://adirishi.github.io/ironcage/). To run the [Blume](https://useblume.dev/) site locally, use this command from the repository root:
+The [published documentation](https://adirishi.github.io/ironcage/) is built with [Blume](https://useblume.dev/). To run it locally:
 
 ```sh
 pnpm docs:dev
 ```
 
-Open the local URL printed by Blume. The docs server runs independently of the application and needs no Cloudflare credentials.
-
 - [Delivery stages](docs/stages/index.mdx)
-- [Architecture and ownership](docs/technical/architecture.mdx)
+- [Product](docs/product/index.mdx)
+- [Technical](docs/technical/index.mdx)
+- [Glossary](docs/glossary.mdx)
 - [Vision](docs/vision.mdx)
-- [Product behavior and user flows](docs/product/index.mdx)
-- [Technical design](docs/technical/index.mdx)
-- [Acceptance scenarios](docs/product/acceptance.mdx)
 
-Edit pages in `docs/`. Run `pnpm docs:doctor` to check content and `pnpm docs:build` to generate the static site in `dist/`.
-
-The Documentation workflow builds and validates pull requests that affect the docs. Pushes to `main` publish the site through GitHub Pages.
+Edit pages in `docs/`. Run `pnpm docs:doctor` to check content and `pnpm docs:build` to generate the static site in `dist/`. Pushes to `main` publish the site through GitHub Pages.
 
 ## Common commands
 

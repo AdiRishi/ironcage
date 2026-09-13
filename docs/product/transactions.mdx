@@ -1,65 +1,46 @@
 ---
 title: Transactions
-description: A connected history of purchases, repayments, transfers, refunds, and the context that explains them.
+description: Browse postings, see their sources, correct their meaning.
 ---
 
-## Delivery scope
+Stage 1 shows postings and their sources. Stage 2 adds statement pages. Stage 3 adds meaning: roles, categories, merchants, tags, links, and corrections.
 
-| Stage                               | Behavior introduced                                                                                                                                     |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [1](/stages/record-transactions)    | Bank posting list/detail, original-description search, account/date/amount/currency/import-review filters, source evidence, exact dates and currencies. |
-| [2](/stages/historical-imports)     | PDF source inspection and visible original-file availability.                                                                                           |
-| [3](/stages/interpret-transactions) | Financial roles, semantic filters, merchant/category/tag/personal-event context, linking, splits, corrections, previews, rules, and undo.               |
-| [4](/stages/explore-spending)       | Historical spending views, saved queries, and current results after corrections.                                                                        |
+## The list
 
-The financial examples, classification, corrections, and relationship sections define stage 3. Basic bank fields and source access already work in stage 1. Financial impact calculations support stage 3 previews; historical exploration and saved results arrive in stage 4.
+Every posting from every account in one list, newest first, with filters for account, currency, dates, amount, description text, and open questions. From stage 3, filters also cover role, category, merchant, tag, and personal event, and search matches merchant names.
 
-The transaction list combines the supplied accounts while preserving the account behind each movement. Filters cover dates, amounts, accounts, merchants, categories, tags and personal events, and review status.
+Each row shows the account, the date the bank booked it, the signed amount, and the description as the bank wrote it.
 
-A record detail shows the bank description and booked amount, its dates, the current interpretation, linked movements, and source evidence. Search works with both original descriptions and recognized merchant names.
+## The detail
+
+The bank's fields stay at the top and never change: description, booked amount, posted date, value date if the bank gave one. Below them, every source that supports the posting: the file, the row or page, the literal text, and a link to the original file. A removed original is marked unavailable with a Reupload action.
+
+From stage 3 the detail also shows the interpretation: role, category, merchant, tags, personal events, linked postings, credits applied, and the history of corrections.
 
 ## Money counted once
 
-The examples below describe different views of the same records. They are fictional.
+The spending view and the account view describe the same records differently. Examples are fictional.
 
-| Records                                                            | Spending view         | Account view                                                             |
-| ------------------------------------------------------------------ | --------------------- | ------------------------------------------------------------------------ |
-| $100 grocery purchase on a card, followed by a $100 card repayment | $100 groceries        | Purchase increases card debt. Repayment reduces cash and card debt.      |
-| $2,000 moved between two owned accounts                            | No purchase           | Both account movements remain visible.                                   |
-| $300 dinner with $200 of confirmed reimbursements                  | $100 personal cost    | The original payment and incoming repayments remain visible.             |
-| $120 purchase with a linked $40 refund                             | $80 net purchase cost | Both the payment and refund retain their bank dates.                     |
-| $3,900 mortgage repayment and $2,800 interest in one period        | $2,800 interest cost  | $3,900 cash payment and $1,100 principal reduction are shown separately. |
+| Records                                                     | Spending view             | Account view                                                  |
+| ----------------------------------------------------------- | ------------------------- | ------------------------------------------------------------- |
+| $100 grocery purchase on the card, then a $100 card payment | $100 groceries            | Card debt up $100 then down $100; deposit account down $100.  |
+| $2000 moved between two owned accounts                      | Nothing                   | Both movements visible.                                       |
+| $300 dinner, $200 reimbursed by friends                     | $100 personal cost        | The payment and the two incoming amounts, on their own dates. |
+| $120 purchase, $40 refund a month later                     | $80 in the purchase month | Both on their own dates.                                      |
+| $3900 mortgage repayment, $2800 interest, same month        | $2800 interest            | $3900 out of the deposit account; loan down $1100 net.        |
 
-The app never treats every transfer as internal or every incoming payment as income. A transfer that pays rent is still an expense. A loan drawdown is borrowing. A confirmed movement can retain its known role when the other account's posting is unavailable. The detail shows that missing evidence and can attach a later counterpart without changing spending.
+A transfer is not automatically internal and an incoming amount is not automatically income. Rent paid by transfer is a cost. A loan drawdown is borrowing. When the other side of a movement is not in the records, the user can confirm what it was, and the detail shows that the counterpart is missing.
 
-## Classification with several useful dimensions
+## Corrections
 
-A transaction has a primary financial role and can carry additional context. A dinner can have a dining category, a social tag, a trip association, and a linked partial reimbursement. These descriptions answer different questions without duplicating the money.
+The user can change a role, category, merchant, tags, personal event, or purchase date, split a purchase into parts that add up, link a refund or reimbursement, link the two sides of a movement, or mark a fee as belonging to a purchase. A change that affects costs, income, cash, or debt shows its effect before it is accepted.
 
-Merchant views unite aliases for the same business. Distinct services remain distinguishable, such as rides and food delivery from the same provider. The original wording remains available.
+"Apply to this transaction" is the default. "Apply as a rule" previews every matching record and says which are exceptions that will keep their own setting. History lists every change with its scope and time. Undo adds a new change that restores the old meaning; nothing is erased.
 
-Ordinary retail payments do not reveal the exact items bought. Item-level claims require supporting detail, such as a receipt or the user's explanation. Bank-statement import alone does not supply that detail. It does not invent basket contents from a merchant name.
+## Dates
 
-## Corrections and splits
+The account view uses the date the bank booked. Spending views use the purchase date when the app knows it and the booked date otherwise, and say which. A bank value date is shown but is not treated as the purchase date.
 
-The user can change a category, merchant, tag, personal-event association, linked credit, or transfer interpretation. Changes to financial roles and relationships show their effect on costs, income, cash, and debt before acceptance. A mixed purchase can be split into parts whose amounts equal the original total.
+## Foreign purchases
 
-**Apply to this transaction** is the default. **Apply a rule** previews the matching records and distinguishes historical changes from future automatic classification. A one-off exception remains an exception when a general rule changes.
-
-The change history records the prior interpretation, the accepted change, its scope, and its time. Undo restores the prior interpretation through a new correction. It does not erase the original bank evidence.
-
-Linked refunds and reimbursements reduce the original purchase period in the net-cost view. The account view shows each credit on its bank posting date. The next calculation includes the newly linked credit. Existing chat messages retain their displayed calculation time.
-
-## Dates and currencies
-
-The account view follows the bank posting date. Spending trends use the purchase date when the source reliably supplies it, otherwise the posting date. The selected basis is visible. A bank value date is not automatically described as the purchase date.
-
-Foreign purchases show the booked Australian-dollar amount, any supplied original-currency amount, and associated fees. The app uses the actual booked amount for historical totals. An inferred fee relationship is labelled as an inference until confirmed.
-
-## Unresolved relationships
-
-When a refund or reimbursement arrives, the app proposes a relationship to the original expense. It supports partial credits, several credits against one expense, and a credit shared across several expenses. Linked amounts cannot exceed the eligible cost or available credit. Any excess requires a separate financial role.
-
-An unresolved incoming transfer is not silently treated as salary. An ambiguous duplicate is not silently removed. Relevant views show unresolved amounts and explain how they affect the answer.
-
-The calculation rules are defined in [Financial records and metrics](/technical/financial-model).
+The booked AUD amount is the amount. The original currency amount is shown beside it when the bank supplied one. An international fee is its own posting; the app can associate it with the purchase without merging the amounts.

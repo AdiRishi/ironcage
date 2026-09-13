@@ -1,80 +1,51 @@
 ---
 title: Trends
-description: Explore how spending changes and follow each difference to its contributing records.
+description: Compare periods, follow a difference to its records, save the question.
 ---
 
-## Delivery scope
+Stage 4 delivers comparisons and saved analyses. Stage 5 adds the ordinary-cost view.
 
-| Stage                         | Behavior introduced                                                                                                                       |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| [4](/stages/explore-spending) | Actual-history comparisons, contributors, frequency and average payment, comparable periods, personal-event analysis, and saved analyses. |
-| [5](/stages/plan-costs)       | Ordinary-cost estimates, schedule-based allocations, exclusions, and recurring-commitment comparisons.                                    |
-| [6](/stages/analyst)          | Analyst discussion, evidence-backed on-demand explanations, and exploratory relationships between costs or services.                      |
-| [7](/stages/follow-through)   | Proactive findings and tracked-change outcomes.                                                                                           |
+## Comparing periods
 
-The investigation flow is usable through the UI in stage 4. Its analyst action arrives in stage 6. The ordinary-cost portion of "Actual spending and ordinary costs" belongs to stage 5. Supported questions use the owning stage's capabilities; their presence does not require an analyst in stage 4.
+Pick a measure, a period, and what to compare it with: last month, the same month last year, a custom range, the last 90 days. Break the difference down by category, merchant, account, tag, or personal event. Every row shows its share of the change and links to its records.
 
-Trends is the main place to investigate spending over time. The user can compare weeks, months, quarters, years, rolling periods, or custom ranges. The same comparison can be broken down by category, merchant, account, tag, or personal event.
-
-## Investigation flow
-
-A comparison begins with a difference and remains connected as the user narrows the question.
+Category, merchant, and account rows add up to the difference, with a remainder for the long tail. Tag and personal-event rows overlap and say so; they do not add up and the app does not pretend they do.
 
 <Steps>
-  <Step title="Find the change">
-    A monthly comparison shows which categories contributed to a spending increase.
+  <Step title="Find the change">August is $400 over July. Categories show food up $250.</Step>
+  <Step title="Open a contributor">
+    Food splits into groceries, dining, and delivery with the same two periods.
   </Step>
-  <Step title="Inspect a contributor">
-    Opening food separates groceries, dining, and delivery, with the same periods selected.
+  <Step title="See what changed">
+    Delivery: 10 orders at $20 became 12 at $25. $45 of the increase is more orders, $55 is dearer
+    orders.
   </Step>
-  <Step title="Understand the pattern">
-    Delivery shows order count, average payment, and total cost. The comparison explains which
-    changed.
-  </Step>
-  <Step title="Check the wider effect">
-    Including groceries shows whether reduced delivery was offset by more shopping. The analyst can
-    discuss the selected evidence.
+  <Step title="Check the other side">
+    Groceries fell $60. The user decides whether delivery replaced shopping or added to it.
   </Step>
 </Steps>
 
-Each contributor links to records. Category, merchant, and account contributions add to the displayed difference, including a remainder for grouped small contributors. Tag and personal-event groups can overlap. Those views mark the overlap and do not present their rows as additive parts of the total.
+## Fair comparisons
 
-## Comparable periods
+A month in progress is compared with the same number of days of the other month, and is labelled partial. The user can switch to whole months or to a daily average. If an account's data stops partway through a period, the number says so; a drop caused by missing card data is not a saving.
 
-A month still in progress is labelled as partial. The default comparison covers matching elapsed calendar dates in the comparison month. Missing records appear separately as a coverage limitation. The user can choose full periods or a daily average explicitly. A daily average divides by the selected period's elapsed calendar days. Missing coverage makes that average unavailable while retaining the known total and denominator.
+Percentages appear beside amounts. When the earlier period was zero there is no percentage, just "new". Small samples are labelled small.
 
-The app does not present a decrease as a saving when an account's data is missing. Changing from a debit account to a credit card preserves the combined purchase trend.
+A higher average per purchase is reported as that, not as a price rise. Bank data does not say what was in the basket.
 
-Percentage changes accompany absolute changes. A percentage is unavailable when the prior value is zero. The app shows the new amount instead. Small samples are labelled rather than presented as strong patterns.
+## Actual spending and an ordinary month
 
-## Actual spending and ordinary costs
-
-Actual spending includes exceptional purchases. The ordinary-cost view separately estimates the ongoing cost of normal life. It spreads known annual or quarterly obligations across the periods they cover and lists excluded events.
-
-The user can inspect the variable-cost baseline, its covered weeks, the allocated commitments, and the excluded events. The baseline uses the mean after those exclusions. Its category and account contributions add to the displayed estimate. Changing exclusions affects the ordinary-cost analysis and leaves actual spending intact. A trip remains visible in actual spending even when excluded from the ordinary-cost view. Repeated exceptional purchases are visible as a pattern of their own.
-
-The app can compare periods before and after an event, such as the mortgage beginning. The event gives context. Timing alone does not prove that the event caused every change.
-
-## Supported questions
-
-The explorer and analyst support questions such as these:
-
-- Where did my money go during this period?
-- Which merchants or habits account for the increase?
-- Am I buying more often, or paying more per transaction?
-- What did a trip cost, including bookings paid months earlier?
-- Has my ordinary monthly cost increased, after accounting for unusual expenses?
-- Which commitments are new, and which costs have disappeared?
-- Which recurring services may overlap, and what evidence supports that comparison?
-- Which costs tend to occur together?
-- Did a change I made produce a lasting difference?
-
-A higher average transaction does not prove a price increase. Different products, quantities, or group sizes can change the average. Item-level claims require item-level evidence.
+Actual spending includes everything, holidays and all. From stage 5, the ordinary-cost view estimates what a normal month costs: recent weeks averaged with named exceptions set aside, plus known commitments spread across the periods they cover. The user can see the weeks used, the events excluded, and the commitments included, and change the exclusions without touching actual spending.
 
 ## Saved analyses
 
-Save the filters, comparison, adjustments, and question as a named query. Opening or explicitly refreshing it calculates from current records. A fixed date range stays fixed; a rolling or calendar-relative query resolves its dates when viewed.
+Save the current question with a name. Opening it runs it again on current data. A fixed date range stays fixed. A relative one, such as the last three months, moves with the calendar.
 
-Visible views refetch after corrections and imports. Show the calculation time and preserve the selected filters on failure. There is no background refresh requirement for closed analyses or permanent history of every calculated result.
+## Questions this page answers
 
-Methods and calculation definitions are in [Analytics and forecasts](/technical/analytics).
+- Where did the money go this month?
+- Which merchants explain the increase?
+- More purchases, or dearer ones?
+- What did the trip cost, including flights paid in March?
+- Has an ordinary month got more expensive, setting the trip aside?
+- Which commitments are new and which have stopped?

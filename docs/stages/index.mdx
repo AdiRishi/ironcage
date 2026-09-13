@@ -1,42 +1,42 @@
 ---
 title: Delivery stages
-description: Seven working applications built in sequence, each extending the previous stage.
+description: Seven working applications built in sequence. Each one extends the last.
 ---
 
-Build Ironcage one stage at a time. Every stage includes the frontend, backend, integration, and verification needed for a usable application. Completion is a working browser experience with persisted data and safe user retries, followed by a stopping point.
+Ironcage is built one stage at a time. Each stage delivers a working browser application with its backend, integration, and tests, then stops. Stage 1 is the default target unless a task names another stage. Nothing has shipped yet; the docs describe what to build.
 
-The default implementation target is [stage 1](/stages/record-transactions). This is a scope selection, not a claim that any stage has shipped. A request for a later stage includes verifying its prerequisites. Completing a stage does not authorize starting the next one.
+| Stage                                                                   | Working application                                                            | Prerequisite                             |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------- |
+| [1. Upload and record transactions](/stages/record-transactions)        | Upload CSV and OFX, resolve source reviews, browse postings and their sources. | [Starting point](/stages/starting-point) |
+| [2. Import the full historical corpus](/stages/historical-imports)      | Add PDF statements, cross-format matching, source removal, and exports.        | Stage 1                                  |
+| [3. Interpret and correct transactions](/stages/interpret-transactions) | Financial events, categories, links between postings, corrections, and rules.  | Stage 2                                  |
+| [4. Explore historical spending](/stages/explore-spending)              | Period comparisons, contributors, drill-downs, and saved analyses.             | Stage 3                                  |
+| [5. Plan future costs](/stages/plan-costs)                              | Commitments, ordinary-cost estimates, forecasts, and scenarios.                | Stage 4                                  |
+| [6. Investigate through the analyst](/stages/analyst)                   | A conversational analyst over the same queries, with explicit notes.           | Stage 5                                  |
+| [7. Discover changes and track outcomes](/stages/follow-through)        | Findings, intentions, an in-app inbox, and import reminders.                   | Stage 6                                  |
 
-| Stage                                                                   | Working application                                                                             | Prerequisite                   |
-| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------ |
-| [1. Upload and record transactions](/stages/record-transactions)        | Upload CSV and OFX, resolve import issues, and browse accepted bank records and their sources.  | Existing application platform. |
-| [2. Import the full historical corpus](/stages/historical-imports)      | Add PDF history, cross-format reconciliation, source removal, and user exports.                 | Stage 1.                       |
-| [3. Interpret and correct transactions](/stages/interpret-transactions) | Establish roles and categories, link movements and credits, and preserve corrections and rules. | Stage 2.                       |
-| [4. Explore historical spending](/stages/explore-spending)              | Compare actual spending, inspect contributors, and save queries to run on demand.               | Stage 3.                       |
-| [5. Plan future costs](/stages/plan-costs)                              | Manage commitments, estimate ordinary costs, and compare forecasts and scenarios.               | Stage 4.                       |
-| [6. Investigate through the analyst](/stages/analyst)                   | Ask evidence-backed questions, retain explicit notes, and revisit conversations.                | Stage 5.                       |
-| [7. Discover changes and track outcomes](/stages/follow-through)        | Receive useful findings and follow deliberate changes against a baseline.                       | Stage 6.                       |
+## How to build a stage
 
-## Scope and authority
+1. Read [Starting point](/stages/starting-point) once. Inspect the repository to see what already works; the docs describe intent, not status.
+2. Read the stage page. It owns the milestones, screens, tables, operations, worked examples, and verification for that stage. The "Also read" section lists the two or three reference pages it depends on.
+3. Work through the milestones in order. Each milestone ends with a working browser flow backed by real records. Commit at each one.
+4. Prefer an installed library or a Cloudflare platform feature over custom code. Check the installed source and official documentation before choosing an API. Keep exact money and date rules in shared code that every consumer imports.
+5. Run the stage's verification checklist and the earlier stages' regressions. Run `pnpm check`, `pnpm typecheck`, and `pnpm test`.
+6. Report the stage, what was verified, and which hosted checks are still outstanding. Stop.
 
-Stage pages own delivery scope, prerequisites, and completion. [Product references](/product) own detailed behavior. [Technical references](/technical) own architecture, contracts, and invariants. A reference to a later capability explains the eventual system and does not add that capability to an earlier stage.
+## What every stage delivers
 
-Each behavior has one introduction stage. Later stages extend the same modules and preserve earlier outcomes. [Stage boundaries](/technical/stage-boundaries) assigns shared behavior to its introduction stage. Follow that allocation instead of creating unused tables, dummy results, disabled controls, or jobs without consumers.
-
-Read the selected stage, the [build guide](/technical/build-spend-management), and the reference sections named by that stage. There is no requirement to read or implement the entire reference library before starting. If a dependency is missing from the stage contract, resolve its ownership there and in the affected technical reference before implementing dependent behavior.
-
-## Completion of every stage
-
-Each stage must demonstrate its complete user flows on desktop and mobile, including keyboard access, empty states, loading, failures, retry, and retained progress where applicable. Navigation exposes only working destinations. Required controls, settings, and evidence access arrive with their owning behavior.
-
-The API remains the authority for records and financial calculations. Source evidence, exact money, canonical transaction identity, ownership, and idempotent commands hold from their first use. Managed database backups and independently retained original files protect the first private imports. Financial exports begin in stage 2 and grow with implemented domain records.
-
-Run the checks in [Verification](/technical/verification) for the selected stage and preserve regression evidence for earlier stages. Report the verified stage, evidence, and specific outstanding external checks. An unverified hosted integration remains outstanding, even when the local prototype works.
+- Every flow on the stage page works on desktop and mobile and with a keyboard, with empty, loading, failed, and retry states.
+- Navigation shows only destinations that work. Settings shows only controls whose behavior exists.
+- The API is the only writer of financial records. Exact money, source evidence, posting identity, and command receipts hold from stage 1.
+- A failed action leaves accepted records consistent and can be repeated without duplicating anything. Retry, reupload, or a source review are the recovery paths.
+- Financial exports exist from stage 2 and include each later stage's records.
+- Earlier stages keep working. Their tests keep passing.
 
 ## Written experience contracts
 
-These docs specify actions, information, states, and observable outcomes. Visual branding, colors, typefaces, layout composition, and screen images are intentionally unspecified. A design task can use one stage's flows and its prerequisites to develop a visual proposal. The frontend stack and accessibility requirements remain engineering and product constraints.
+The docs specify actions, information, states, and outcomes. Visual branding, colors, typefaces, and layout composition are open design decisions. A separate design task can take a stage's flows as its brief.
 
-## Longer-term scope
+## Outside the stages
 
-The seven stages define the current spend-management scope. The [vision](/vision) also discusses investment and trading capabilities, which have no implementation stage or contract here.
+The [vision](/vision) mentions investments, trading, and crypto. They have no stage and no contract here.

@@ -1,81 +1,62 @@
 ---
 title: Product
-description: The complete spend-management experience and the behavior that defines it.
+description: What the user sees and can do, page by page.
 ---
 
-Ironcage is a private, responsive web app for one user. It brings supplied financial records into one history, explains spending over time, and supports questions about future commitments and savings.
-
-These pages preserve the detailed spend-management requirements. [Delivery stages](/stages) assigns when each behavior is built, and each feature page identifies its stage ownership. Statements including "can" remain requirements of that owning stage. Examples illustrate those requirements; they do not limit them. Start with a stage reading path rather than implementing this whole index at once.
+Ironcage is a private web app for one person. It turns CommBank exports into one history, explains how spending changes, and helps plan what comes next. These pages describe behavior from the user's side. The [stage pages](/stages) say when each part is built and how; the [glossary](/glossary) defines the words.
 
 <CardGroup cols={2}>
-  <Card title="Workspace" href="/product/workspace" icon="panels-top-left">
-    Connected charts, transactions, and conversations on large and small screens.
-  </Card>
   <Card title="Imports" href="/product/imports" icon="files">
-    All supplied CSV, OFX, and PDF files, repeat uploads, overlaps, and recovery.
+    Upload files, see what was recorded, answer the importer's questions.
   </Card>
   <Card title="Transactions" href="/product/transactions" icon="receipt-text">
-    Purchases, transfers, refunds, debt payments, and personal corrections.
+    Browse postings, see their sources, correct their meaning.
+  </Card>
+  <Card title="Workspace" href="/product/workspace" icon="panels-top-left">
+    Navigation, state, and what every screen has in common.
   </Card>
   <Card title="Trends" href="/product/trends" icon="chart-no-axes-combined">
-    Changes in spending, their contributors, and the cost of an ordinary month.
+    Compare periods, follow a difference to its records, save the question.
   </Card>
   <Card
     title="Commitments and forecasts"
     href="/product/commitments-and-forecasts"
     icon="calendar-days"
   >
-    Expected bills, savings views, scenarios, and forecast uncertainty.
+    Recurring payments, an ordinary month, a cost outlook, scenarios.
   </Card>
   <Card title="Analyst and memory" href="/product/analyst-and-memory" icon="messages-square">
-    Questions, evidence, clarification, and context that survives a conversation.
+    Ask questions, get evidence, keep explicit notes.
   </Card>
   <Card
     title="Insights and follow-through"
     href="/product/insights-and-follow-through"
     icon="lightbulb"
   >
-    Useful discoveries and the results of changes the user chooses to make.
+    Findings, tracked intentions, the inbox.
   </Card>
-  <Card title="Settings and data controls" href="/product/settings-and-data" icon="settings">
-    Account setup, preferences, AI usage, exports, and removal of records or context.
+  <Card title="Settings and data" href="/product/settings-and-data" icon="settings">
+    Accounts, display, AI, exports, source files, retention.
   </Card>
   <Card title="Acceptance scenarios" href="/product/acceptance" icon="list-checks">
-    Observable outcomes that decide whether the product meets this specification.
+    Concrete outcomes, one table per stage group.
   </Card>
 </CardGroup>
 
-## Product-wide behavior
+## Rules that hold everywhere
 
-The same financial question against the same records and assumptions has the same numerical answer in charts, saved analyses, and analyst responses. Each numerical answer states its period, included accounts, measure, calculation time, and data coverage.
+- The same question over the same records gives the same number on every screen and in the analyst. Every number states its period, accounts, measure, basis, calculation time, and coverage.
+- Uploading a file twice changes nothing. Corrections survive later uploads.
+- A failed action can be retried from the screen it happened on. Retrying never duplicates a record.
+- Missing data is shown as missing, never as zero.
+- Any number can be opened to see the records behind it.
 
-Imports can be repeated safely. Corrections survive later uploads. A failed action can require retry, reupload, or a user decision. It leaves accepted history consistent and cannot duplicate records when repeated.
+## Accounts in scope
 
-The user can inspect the transactions behind a number and correct an interpretation. Affected views show that an update is pending until a current result is available. Questions name a specific missing fact and its effect on the answer. Import can proceed while unrelated questions remain unresolved.
+Four CommBank accounts: a spending offset account, a savings offset account, a credit card, and a home loan. Mortgage repayments, strata levies, and the shift of everyday purchases from the deposit account to the card are part of normal analysis.
 
-## Supported financial history
+An account says where money sits, not what a payment was for. A bill paid from savings is still a cost.
 
-The application supports CommBank spending and savings accounts, offset accounts, credit cards, and home loans. Mortgage payments, strata levies, and changes in payment account are part of the required analysis. Account relationships and effective dates come from source evidence or user confirmation.
+## Out of scope
 
-Account labels describe where money sits. They do not determine the purpose of every transaction. An expense paid from a savings account remains an expense.
-
-## Product terms
-
-| Term           | Meaning                                                                                                  |
-| -------------- | -------------------------------------------------------------------------------------------------------- |
-| Transaction    | An accepted bank posting, with its account, amount, dates, and supporting source records.                |
-| Financial role | How a movement affects costs, income, cash, or debt, such as a purchase, transfer, refund, or borrowing. |
-| Category       | The cost classification for a purchase or part of a split purchase.                                      |
-| Tag            | An additional purpose or context label. Several tags can apply to the same cost.                         |
-| Personal event | A trip, life change, or other named event associated with dates and relevant transactions.               |
-| Analysis       | A question and calculation definition, including filters and assumptions, that can be saved for reuse.   |
-| Result         | One calculation with its query, time, assumptions, and coverage.                                         |
-| Investigation  | An analyst conversation that can use several analyses and retain their results and explanations.         |
-
-"Spending" means net personal costs unless a view explicitly selects another measure. [Transactions](/product/transactions) defines how purchases, credits, and repayments affect that measure.
-
-## Scope boundary
-
-Recurring manual file import is the input path. Automatic bank feeds are outside the current scope. The app ingests all supplied records, including older statements, and makes actual coverage visible.
-
-This specification does not include executing payments, placing trades, or managing crypto positions. Those belong to later product definitions. Transfers toward an investment remain visible money movements in the spending history.
+Automatic bank feeds, making payments, investments, trading, and crypto. Transfers toward an investment stay visible as movements.

@@ -1,35 +1,33 @@
 ---
 title: Ironcage
-description: A personal finance application delivered as seven working stages.
+description: A personal finance application built in seven working stages.
 sidebar:
   label: Overview
   icon: house
 ---
 
-Ironcage is a private personal finance application for one user. Start with uploading and recording transactions, then extend the working application through interpretation, analysis, planning, an analyst, and follow-through.
+Ironcage is a private personal finance application for one user. It imports CommBank exports, records every posting once with its evidence, and builds understanding on top: what things mean, how spending changes, what an ordinary month costs, what is coming, and what changed. Nothing has shipped yet. These docs describe what to build.
 
 <CardGroup cols={2}>
+  <Card title="Starting point" href="/stages/starting-point" icon="flag">
+    What the repository contains today and what stage 1 replaces.
+  </Card>
   <Card title="Delivery stages" href="/stages" icon="list-checks">
-    The implementation entry point: seven complete frontend and backend deliverables with clear
-    stopping points.
+    Seven stages. Each page has milestones, screens, tables, operations, examples, and a checklist.
   </Card>
-  <Card title="Architecture" href="/technical/architecture" icon="network">
-    How the web app, financial API, processor, storage, and later analyst divide responsibility.
+  <Card title="Product" href="/product" icon="receipt-text">
+    What the user sees and can do, with examples.
   </Card>
-  <Card title="Product reference" href="/product" icon="receipt-text">
-    Detailed user behavior, allocated to its introduction stage.
-  </Card>
-  <Card title="Technical reference" href="/technical" icon="braces">
-    Shared contracts, processing rules, infrastructure, and verification for each stage.
+  <Card title="Technical" href="/technical" icon="braces">
+    The shared references: architecture, financial model, import protocol, calculations, AI,
+    frontend, operations, verification.
   </Card>
 </CardGroup>
 
 ## How to read these docs
 
-Choose a [stage](/stages) and follow its reading path. [Build one stage](/technical/build-spend-management) explains implementation and completion. Stage 1 is the default target. The references retain the eventual spend-management plan without making it an obligation for every task.
+An implementer reads [Starting point](/stages/starting-point), then the selected stage page, then the reference pages that stage names. Stage 1 is the default. The [glossary](/glossary) fixes the vocabulary.
 
-The [vision](/vision) explains the broader purpose. The docs describe intended behavior, not a claim of shipped functionality. Each stage must produce a working browser experience backed by real records. [Acceptance scenarios](/product/acceptance) identify the stage that introduces each outcome.
+A designer reads the [product pages](/product) and a stage's screens section. Visual design is deliberately unspecified.
 
-Visual branding and screen composition are unspecified. Stage flows provide the written brief for subsequent design work.
-
-All monetary examples are fictional. Private bank statements, identifiers, and transaction histories stay outside this documentation site.
+The [vision](/vision) explains why the application exists.

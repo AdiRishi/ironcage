@@ -1,0 +1,88 @@
+---
+title: "5. Plan future costs"
+description: Confirm commitments, estimate an ordinary month, and compare scenarios.
+---
+
+## Outcome
+
+The user confirms recurring payments, sees what a normal month costs once unusual events are set aside, views a 30 or 90 day outlook, and compares scenarios against it.
+
+Prerequisite: stage 4 verified. Queries, measures, and saved analyses carry over.
+
+Also read [Calculation rules](/technical/calculation-rules#ordinary-costs) for every formula on this page.
+
+## Milestones
+
+1. **Commitments.** Suggest recurring payments from history, confirm them as schedules, match occurrences to events, and show the cash calendar. Done when the corpus's mortgage, strata, insurance, and subscriptions are confirmed and their occurrences match.
+2. **Ordinary costs.** The ordinary-cost view on Trends with its basis, exclusions, and contributors. Done when the worked example in Calculation rules produces $535.15 and the corpus estimate reads sensibly beside actual spending.
+3. **Forecast and scenarios.** The outlook, its assumptions, saved scenarios, and their comparison. Export extended. Done when the scenario example passes.
+
+## Screens
+
+### Commitments
+
+- Suggested schedules with their supporting payments. Confirm with role, amount kind, cadence, anchor date, account, counterparty, and effective start. Dismiss keeps a suggestion hidden.
+- Confirmed commitments with their current segment, next occurrences, and matched payments. Change amount or account from a date, which starts a new segment. End a commitment.
+- Occurrence list per commitment: expected, matched with the event, or skipped. Match manually, unmatch, skip, set a service period, correct a date.
+- Cash calendar: dated movements on deposit accounts for the next 90 days, with settlements and loan payments marked as movements rather than costs. Latest evidenced balance per account with its date.
+
+### Trends
+
+- Ordinary cost view: headline, sample status, the weeks used, excluded personal events, allocated commitments, and contributors by category, merchant, account, tag, or personal event. Toggle exclusions and see the estimate change while actual spending stays.
+
+### Forecast
+
+- Choose 30 or 90 days and a start date. Shows the baseline weeks, variable estimate, each scheduled cost, one-offs, expected income, credits, and the projected surplus, all labelled as estimates. Missing baseline shows an unavailable headline with the schedules still listed.
+- Scenarios: create from the current outlook, change category amounts, a segment's amount from a date, or dated one-offs, save, and see the difference against the baseline. Open a saved scenario to recalculate.
+
+## Data
+
+| Table               | Columns                                                                                                                                                                                                                                                                                                                                             |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `commitments`       | `id`, `name`, `role`, `ended_on` nullable, `version`                                                                                                                                                                                                                                                                                                |
+| `schedule_segments` | `id`, `commitment_id`, `currency`, `account_id`, `counterparty_account_id` nullable, `amount_kind`, `amount_minor` nullable, `expected_minor` nullable, `lower_minor` nullable, `upper_minor` nullable, `cadence`, `anchor_on`, `month_end` boolean, `weekend_shift`, `start_on`, `end_on` nullable, `category_id` nullable, `merchant_id` nullable |
+| `occurrences`       | `id`, `commitment_id`, `segment_id`, `nominal_on`, `scheduled_on`, `service_start` nullable, `service_end` nullable, `expected_minor`, `status`, `event_id` nullable, `excluded_event_ids` uuid[]                                                                                                                                                   |
+| `suggestions`       | `id`, `merchant_id`, `account_id`, `evidence` jsonb, `dismissed` boolean                                                                                                                                                                                                                                                                            |
+| `scenarios`         | `id`, `name`, `horizon_days`, `start_on`, `assumptions` jsonb, `changes` jsonb, `version`                                                                                                                                                                                                                                                           |
+
+Checks: `lower <= expected <= upper` for variable amounts; one `event_id` per occurrence and one occurrence per event by unique index.
+
+## Operations
+
+| Operation                                                                                             | Contract                                                                                   |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `suggestCommitments()`                                                                                | Recomputes suggestions from history, keeping dismissals.                                   |
+| `createCommitment`, `changeSegment`, `endCommitment`                                                  | Commands. `changeSegment` closes the current segment the day before the effective date.    |
+| `listCommitments()`, `getCommitment({ commitmentId })`                                                | With segments, upcoming occurrences, and matches.                                          |
+| `matchOccurrence`, `unmatchOccurrence`, `skipOccurrence`, `setServicePeriod`, `correctOccurrenceDate` | Commands with version checks on the commitment.                                            |
+| `rematchOccurrences({ commandId })`                                                                   | Runs automatic matching over expected occurrences. Also runs after interpretation changes. |
+| `cashCalendar({ from, days })`                                                                        | Dated movements and latest balances.                                                       |
+| `ordinaryCost(query)`                                                                                 | Headline, basis, contributors, and components.                                             |
+| `forecast(input)`                                                                                     | Outlook with every input echoed, coverage, and calculation time.                           |
+| `saveScenario`, `listScenarios`, `getScenario`, `deleteScenario`, `evaluateScenario({ scenarioId })`  | Commands for writes. Evaluate returns baseline, scenario, and difference.                  |
+
+## Worked example
+
+Strata levy: $600 every quarter, paid on the first of July, October, January, and April, service period the following three months.
+
+- The occurrence paid 1 July has service period 1 July to 30 September, 92 days.
+- Ordinary cost for August allocates `600 * 31 / 92 = $202.17` to the query period, then converts to a monthly figure: `202.17 * 365.2425 / 12 / 31 = $198.50`.
+- The cash calendar shows $600 on 1 October, nothing in August.
+- The July payment leaves the variable baseline once matched, so it is not counted twice.
+
+Scenario: the user reduces delivery by $200 a month and adds $80 a month to groceries. The 90 day scenario differs from the baseline by `(200 - 80) * 3 = $360` less in projected costs. Actual history and the confirmed schedules are unchanged.
+
+## Verification checklist
+
+- The $535.15 example and the levy example produce those numbers through the API and the UI.
+- Changing a segment amount from a date preserves earlier occurrences and their matches.
+- Unmatching an occurrence and rerunning automatic matching leaves it unmatched. An explicit match afterward succeeds.
+- A period ending in March uses no April weeks in its baseline.
+- A forecast with fewer than six covered weeks shows limited status; with none, the headline is unavailable and schedules still list.
+- A scenario evaluation changes no posting, event, or segment.
+- Settlements and loan payments appear in the cash calendar and not in cost totals.
+- Screens work at phone width and by keyboard. Stage 1 to 4 checklists pass.
+
+## Not in this stage
+
+Probabilistic forecasts, calibration, future balance simulation, interest modelling, the analyst, findings.

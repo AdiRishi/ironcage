@@ -1,56 +1,50 @@
 ---
-title: Operations and privacy
-description: Private access, managed backups, bounded execution, and useful failure reporting.
+title: Operations
+description: Access, database, backups, retention, and the checks to run before private data goes in.
 ---
 
-Operational requirements arrive with their owning [stage](/technical/stage-boundaries). Stages 1 and 2 need private uploads, a reliable financial database, basic logs, and safe user retries. Stage 6 adds conversation access. Stage 7 adds scheduled in-app reminders.
+## Access
 
-## Application domain and access
+Production runs at `wealth.arishi.dev` under the existing `arishi.dev` zone. The web module in `infra/src/web-application.ts` owns the domain and the Cloudflare Access application. Access allows exactly one identity. Staging gets its own hostname and Access application before it goes live.
 
-The production application uses `wealth.arishi.dev` under the existing `arishi.dev` domain. The web service's Alchemy module owns its routing. Configure the staging hostname, Access login provider, and allowed user identity before that environment goes live.
+The web Worker validates the Access JWT on every request: signature against the team's public keys, issuer, audience, and expiry. [Access token validation](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/). Internal Workers have no public hostname. Mutation handlers also check the request origin.
 
-Cloudflare Access protects the application. The web Worker validates token signature, issuer, audience, and expiry. The same authentication covers downloads, server functions, and analyst HTTP/WebSocket traffic. [Access token validation](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/)
+## Database
 
-The server supplies owner identity. Internal Workers have private bindings and no public domains. Local development can use a local identity only in the local environment. Browser mutation handlers verify origin and authentication. Model output and source text cannot grant authority.
+PlanetScale Postgres, reached from the API through a Hyperdrive binding with query caching disabled. Effect SQL with the existing composition. A database transaction uses one connection for its whole life. Separate application and migration roles, TLS, and secrets in the stack. Local development, CI, and tests use a disposable local Postgres of the same major version with the same migrations.
 
-## Database and runtime
+Production, staging, and test stages have separate databases and buckets. Choose region, size, and plan when provisioning, from the measured workload.
 
-Use PlanetScale Postgres through the API's Hyperdrive binding, with query caching disabled for financial reads. Follow the existing Effect SQL and Alchemy composition. Transactions use one connection for their entire lifetime. Local and CI databases use the same major version and migrations as production.
+## Workflows
 
-Use separate application and migration roles, TLS, and deployment secrets. Production, staging, and tests use separate data stores. Confirm available region, capacity, and cost when provisioning rather than prescribing a production tier before measuring the workload.
+Imports run as `ImportWorkflow` instances with a small number of steps and the platform's retry policy. The processor exposes instance status to the API. Input size and step timeouts are configured from the corpus measurements. Measure the largest file's publication before changing the design.
 
-Imports use Cloudflare Workflows with a few meaningful steps. Use built-in bounded retries for transient errors and a visible failure after exhaustion. User retries may rerun work. Input size, execution time, and model output limits protect actual runtime boundaries. Measure the supplied corpus before adding chunked publication, another execution service, or a PDF rendering runtime.
+## Backups and retention
 
-## Sources, backups, and retention
+Enable PlanetScale's managed backups and point-in-time recovery, and record the retention period. [Back up and restore](https://planetscale.com/docs/postgres/backups). Database backups do not include R2 objects, so keep an independent copy of every original file outside Cloudflare, either the user's own archive or a second bucket. Record where that copy lives.
 
-Keep original source files private in R2 until the user removes them. Preserve extracted bank evidence and accepted corrections in Postgres. Enable managed database backups, configure their retention, and verify one restore into an isolated environment before relying on the app for private records. PlanetScale provides database backups and point-in-time recovery. [Back up and restore](https://planetscale.com/docs/postgres/backups)
+Before the first private import, restore a backup into an isolated stage and confirm postings and review resolutions are present and original files can be retrieved from the independent copy. The settings screen states the retention period and the independent-copy arrangement. Source and note deletion remove data from the live system, not from retained backups, and the screen says so.
 
-Database backups do not contain R2 bytes. Keep an independent copy of original statements, either in the user's source archive or a separate backup location. Before the first private deployment, record the chosen database retention and original-file copy arrangement. Reupload can restore original evidence, but cannot reconstruct lost user corrections, so database backups remain required.
+Temporary export objects expire on a lifecycle rule. Lifecycle rules never touch the sources bucket.
 
-Use the provider's recovery tools and a short operator restore procedure. Application screens need retention disclosures, not a backup management product. Conversation history uses the SDK's storage lifecycle; exact coordinated restoration of chat, financial data, and source files is outside the current product guarantee.
+## Exports
 
-Temporary upload and export files have a configured expiry. Cleanup targets temporary storage only and cannot delete accepted source evidence. Disclose the actual configured retention. Source or note deletion does not claim immediate removal from retained backups.
+From stage 2, an export is a zip containing JSON files per record type plus a manifest naming the format version, included record types, counts, and time. Original files are an optional addition. Large exports run as a Workflow and produce a temporary download. A failed export is requested again.
 
-## Exports and removal
+## Models
 
-Stage 2 provides on-demand financial data export with source files as a selectable addition. The package names its format, included records, and export time. It is a data download, not a synchronized cross-store restore image. Re-export after failure.
-
-Source removal deletes original file bytes and retains accepted transactions, extracted fields, and evidence relationships. The confirmation explains that outcome and identifies affected records. The detail then marks the original file unavailable. Reuploading identical bytes restores its source identity. Deleting financial history is a separate future product decision.
-
-Storage operations target the specific object selected by the action. A stale deletion must not delete a later replacement upload. Keep the source's availability truthful and offer retry if byte deletion fails. No source withdrawal, cascading result refresh, or withdrawal-undo protocol is required.
-
-## Model access and usage
-
-Use the configured model through the existing provider/Gateway integration. Name the provider and disclose what data is sent. Gateway routing does not imply that inference stays within Cloudflare. Send only records needed by the task. Exclude prompts, completions, account identifiers, and private statement contents from routine logs and tracked fixtures.
-
-[AI functionality](/technical/ai-functionality) defines output validation, limits, and human review. Show reported usage or labelled estimates when available. Usage warnings are not an exact billing ceiling. The user can disable model calls while continuing to upload structured data and use recorded history.
+Configured through the AI SDK and the existing provider integration. Settings names the provider and what each task sends. Routing through a gateway does not keep inference inside Cloudflare, and the settings text does not claim it does. [AI](/technical/ai) owns limits, usage records, and the on/off control.
 
 ## Scheduled work
 
-No import recovery or saved-analysis refresh scheduler is required. Saved views calculate on demand. Stage 7 can use a normal scheduled handler for bounded finding scans, intention reviews, and configured import reminders. A failed scan is visible and can be rerun; the next scheduled scan also reads current data. Stable finding and notification identities avoid duplicates.
+Stage 7 adds a cron trigger on the processor that runs the finding scan, intention reviews, and import reminders. Each run reads current data and writes findings by stable identity. Nothing else is scheduled.
 
-## Observability and deployment
+## Observability
 
-Log operation/import IDs, timing, platform execution references, and safe error codes. Owning screens show failed imports and model review states. Ordinary provider logs and database metrics are enough to investigate failures; no general operations console is required.
+Log operation IDs, import IDs, Workflow instance IDs, timings, and error kinds. Never log prompts, completions, descriptions, or account numbers. Workers observability and PlanetScale metrics are the diagnostic tools.
 
-Alchemy owns the resource graph, and service modules own their resources. Versioned migrations create an empty database and upgrade existing records. Use a verified backup and coordinated deployment for a change that cannot preserve old readers. Before private deployment, verify authentication, private evidence access, a repeated import, a lost financial-write response, and the chosen restore procedure. Add analyst routing checks in stage 6.
+## Deployment
+
+Alchemy owns the resource graph. Migrations are versioned SQL under `workers/api/migrations/` and run from an empty database and from a populated one. A migration that old code cannot read ships with a coordinated deploy after a verified backup.
+
+Before the first private deployment, confirm: Access blocks an unauthenticated request, a source download requires the session, a repeated upload creates nothing, a lost command response is recovered by its ID, and the restore drill above has been performed. Stage 6 adds: the analyst WebSocket rejects a request without identity.

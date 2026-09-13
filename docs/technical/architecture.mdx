@@ -1,49 +1,64 @@
 ---
 title: Architecture
-description: A private financial API, library-based imports, and an analyst using the same calculations as the UI.
+description: Four Workers, one database writer, and the ownership rules that keep them apart.
 ---
-
-The application extends the existing React, TanStack Start, Effect, and Alchemy platform. [Delivery stages](/stages) determines which parts exist at each checkpoint. These pages describe the target, not shipped behavior.
 
 ## System split
 
-| Part          | Responsibility                                                                                                               | Introduction |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| Web           | Authentication, upload and review screens, transaction browsing, and later financial views.                                  | Stage 1      |
-| Financial API | Postgres records, evidence access, validation, financial writes, and calculations.                                           | Stage 1      |
-| Processor     | Parse files using libraries and call the API to record validated results. Cloudflare Workflows handles background execution. | Stage 1      |
-| Analyst       | AIChatAgent conversations and tools that call the existing financial API.                                                    | Stage 6      |
+| Part      | Workspace           | Responsibility                                                                                                        | From stage |
+| --------- | ------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Web       | `apps/web`          | Cloudflare Access validation, TanStack Start routes and server functions, query state, UI.                            | 1          |
+| API       | `workers/api`       | Postgres records, R2 sources, matching and publication, commands, calculations, exports.                              | 1          |
+| Processor | `workers/processor` | `ImportWorkflow`: parse one file with a library and call the API to publish. Later, classification and finding scans. | 1          |
+| Analyst   | `workers/analyst`   | `AIChatAgent` Durable Object with read-only tools over the API.                                                       | 6          |
 
 ```mermaid
 flowchart LR
     Browser --> Web
     Web --> API[Financial API]
     Web --> Analyst
-    API --> DB[(Postgres)]
-    API --> Sources[(Private R2 sources)]
+    API --> DB[(PlanetScale Postgres)]
+    API --> Sources[(R2 sources)]
     API --> Processor
     Processor --> API
+    Processor --> Sources
     Analyst --> API
 ```
 
-The API is the only financial database writer. The processor owns extraction, and the analyst owns conversation messages through the SDK. Logical modules stay within their owning workspace until another consumer or runtime requirement justifies extraction. [Monorepo and ownership](/technical/monorepo) defines the existing integration conventions.
+The API is the only Worker that writes financial records and the only one with a database binding. The processor reads R2 and calls the API. The analyst stores conversation messages in its own Durable Object storage through the SDK and reads financial data through the API.
 
-## Prefer libraries and platform capabilities
+## Shared packages
 
-Use csv-parse for CSV syntax and unpdf for PDF text. Evaluate an OFX parser against the supplied SGML files before writing syntax handling. Bank-specific amounts, dates, source identity, and reconciliation remain application logic. Use SDK structured output and agent persistence directly. Add a custom mechanism only when an actual input or user outcome demonstrates a gap in those capabilities.
+| Package              | Contents                                                                                                       |
+| -------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `packages/contracts` | Effect schemas for values and payloads that two workspaces exchange. Branded IDs, Money, filters, results.     |
+| `packages/finance`   | Deterministic money, date, matching, and calculation functions. Imported by the API, the processor, and tests. |
+| `infra`              | The Alchemy stack. One module per service under `infra/src/`, composed by `infra/src/worker-bindings.ts`.      |
 
-## Recording and interpretation
+Parsers live in the processor. SQL lives in the API. UI lives in the web app. A Worker never imports another Worker's internals. Shared packages never import a Worker, a route, or infrastructure. Add a package when two workspaces need the same runtime code, and a Worker when there is a distinct execution or storage requirement.
 
-Stages 1 and 2 record bank postings and source evidence. A posting requires no event, allocation, category, model call, or analyst. Stage 3 adds interpretation records and processes earlier postings without reuploading them. A failed classification leaves the bank record intact and available for manual categorization.
+## RPC chain
 
-## Writes and reads
+1. A Worker's `index.ts` composes its Effect services and returns a handler object.
+2. Its Alchemy Worker class in `infra/src/` picks the exposed methods with `Pick`. The bridge infers argument, success, and tagged failure types for callers.
+3. `infra/src/worker-bindings.ts` gives each Worker its bindings, including service bindings to other Workers.
+4. The web app's server functions validate browser input with the contracts schemas and call the API through the typed binding.
 
-The [financial write protocol](/technical/financial-model#persistence-and-concurrency) protects exact amounts, repeated actions, and concurrent edits. Parsing, model calls, and file transfers finish outside database transactions. The API checks current matching evidence and publishes each file's accepted records and review dispositions in one short transaction.
+Method signatures are defined once, in the implementation. Payload schemas are shared where two sides need them. There is no generated HTTP client and no handwritten interface file.
 
-Ordinary analysis reads current data. A response containing related totals uses a consistent database read so its components agree. TanStack Query invalidation refreshes visible views after changes. Saved analyses store definitions and run when opened or explicitly refreshed. Their date and evidence behavior is defined in [Analytics](/technical/analytics).
+## Boundary rules
 
-## Failure behavior
+- The web Worker validates the Access JWT's signature, issuer, audience, and expiry on every request, including downloads, server functions, and analyst WebSocket upgrades. Local development uses a local identity only when the stage is `dev`.
+- The API and processor have no public routes. Service bindings are the only way in.
+- Responses carry what a screen or tool needs: record fields and evidence references. They never carry storage keys, credentials, or full bank account numbers beyond what the account settings screen shows.
+- Browser input, stored JSON, and model output are validated at the boundary. Inside a Worker, decoded types are trusted.
 
-A failed action may require retry, reupload, or a user decision. It leaves accepted data consistent and cannot duplicate records when repeated. Cloudflare Workflows owns step execution and its built-in bounded retries. Application status records explain the result; they do not implement another workflow engine. A manual rerun may repeat parsing or a model call.
+## Background work
 
-If a task cannot start or finish, show failure with an action to try again. A background interpretation, export, or finding failure never reverses a completed import. [Import protocol](/technical/import-protocol) defines the small amount of application state required for safe publication.
+Cloudflare Workflows runs imports with a few steps and the platform's bounded retries. The API keeps a small import status and the Workflow instance ID; it asks the platform for instance status when the import has no summary yet. There is no application job table. Stage 7 adds a cron trigger on the processor for finding scans and reminders.
+
+A failed step is visible on its owning screen with a retry action that starts new work. A retry may reparse a file or repeat a model call; publication and commands are what make repeats safe.
+
+## Infrastructure ownership
+
+Each service module under `infra/src/` declares the resources that service owns: the API declares Postgres, Hyperdrive, and the sources bucket; the processor declares the Workflow; the analyst declares its Durable Object namespace; the web module declares the site, domain, and Access application. Deployment values and secrets stay in the stack and never enter a runtime bundle. Runtime entry points may import their inferred binding types from `@repo/infra/worker-bindings` as type-only imports.

@@ -1,38 +1,30 @@
 ---
 title: Analyst and memory
-description: Ask financial questions, inspect evidence, and retain explicit personal context.
+description: Ask questions, get evidence, keep explicit notes.
 ---
 
-All behavior here belongs to [stage 6](/stages/analyst). Earlier stages already provide the corresponding financial operations through working screens.
+Everything here is stage 6. The screens already answer these questions; the analyst answers them in conversation.
 
 ## Answers with evidence
 
-Ask a question or attach a transaction/chart selection. The analyst can inspect recorded history, compare periods, explain contributors, and evaluate the existing deterministic scenarios. Numerical answers use the same financial queries as the UI and show calculation time, scope, coverage, and supporting links.
+Ask a question, or ask about a selected posting, chart, or scenario. The analyst uses the same calculations as the screens and shows its numbers with period, accounts, basis, coverage, calculation time, and links to the records. It separates what the records show from what might explain it. Missing card data is a gap, not a drop in spending. When it cannot answer, it says what is missing.
 
-The analyst distinguishes observations from possible explanations. Missing card history is a coverage issue, not evidence of lower spending. If tools or records cannot answer a question, it explains the limitation or asks for the specific missing information.
+## Proposed changes
 
-## Clarification and changes
+The analyst can suggest a correction. It opens the normal edit control or shows a card with the proposed change. Nothing changes until the user accepts, and acceptance goes through the same checks as any other edit. If the record changed in the meantime, the user is asked again.
 
-Clarifications remain in conversation history so the user can return later. A suggested correction opens the existing edit/review control or a confirmation card. Even an unambiguous textual edit waits for that user action before changing financial records. Bulk edits and financial relationships use their existing impact previews.
+Text cannot make changes. A bank description that reads like an instruction is just a description.
 
-If records changed in the meantime, acceptance checks the current versions and asks for an updated decision. The analyst cannot change bank values, categories, or rules merely by producing text.
+## Notes
 
-## Useful memory
+The user can save notes for the analyst, optionally tied to an account or a period: "August has a house guest", "the Kellyville transfers are rent". Notes are the only memory. Account settings, personal events, and rules stay where they are. Nothing said in conversation becomes a fact on its own.
 
-Start with explicit notes the user chooses to save. Notes can have an account or period scope. Account roles, personal events, and classification rules remain editable through their existing controls. Casual conversation does not automatically become a permanent fact.
+Editing or removing a note starts a fresh conversation for what comes next, so the old wording cannot leak back in through the transcript. The old conversation stays readable. The dialog says this before confirming.
 
-The user can edit or remove a note. The confirmation explains that subsequent analysis starts in a fresh conversation using current notes, so an old transcript cannot reintroduce the removed fact. Earlier conversations remain available for inspection but cannot continue with the withdrawn context. Existing financial records and notes remain available in the fresh conversation.
+## Conversations
 
-## Continuing work
+Conversations persist. One answer runs at a time; the user can stop it. Closing the browser and coming back shows what was there. A failed answer can be asked again, which may cost another model call. Old answers keep their text and calculation time; their links open live records.
 
-Show an active answer, completed messages, and clear failures. Only one answer runs at a time in a conversation. The user can stop it before submitting another question.
+## Example
 
-Use the SDK's persistence and reconnect behavior to restore available messages or an ongoing stream. If execution failed, the user can ask again. The answer may restart and incur another model call. The product does not promise recovery from every internal step.
-
-Historical messages keep their text and displayed calculation time. A link to live records or a repeated question uses current data. A chat answer is not a permanent snapshot of the financial database.
-
-## Saving useful work
-
-Use the existing saved-analysis controls to retain a useful query or scenario definition. It runs on open or explicit refresh. There is no requirement for arbitrary generated scripts, child investigations, or replayable computation artifacts.
-
-[AI analyst](/technical/ai-analyst) defines runtime ownership and tool integration.
+From Trends showing dining up in August, the user asks why. The analyst lists the top merchants with the delta and links. The user says the 14 August dinner was for work; the analyst shows a card to mark it non-personal, the user accepts, and the event updates. The user saves a note about the August house guest. Later the user deletes the note and the next question runs in a new conversation without it.

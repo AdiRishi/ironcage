@@ -1,81 +1,37 @@
 ---
 title: Technical
-description: The implementation design for the spend-management product.
+description: The reference pages that stage pages depend on.
 ---
 
-The design extends the existing Alchemy and Effect application platform. PlanetScale Postgres holds financial records, with Cloudflare Hyperdrive connecting the financial API to the database. Financial calculations belong to application services. The AI analyst and web app use those same services.
-
-:::note
-These pages define the target implementation. Module locations, schemas, routes, and runtime behavior describe the design to build, not a claim of shipped functionality.
-:::
-
-Start with [Delivery stages](/stages) and [Build one stage](/technical/build-spend-management). [Stage boundaries](/technical/stage-boundaries) allocates the interfaces and their introduction stages. Read the sections required by the selected stage; later contracts are reference material until their introduction stage.
-
-## Implementation specifications
-
-These references define application contracts. The architecture pages below explain how the parts fit together.
-
-<CardGroup cols={2}>
-  <Card title="Shared contracts" href="/technical/contracts" icon="braces">
-    Value types, queries, results, receipts, pagination, and errors.
-  </Card>
-  <Card title="Database schema" href="/technical/database-schema" icon="database">
-    Stage-owned records, financial relationships, and required constraints.
-  </Card>
-  <Card title="RPC specification" href="/technical/rpc" icon="network">
-    Operation ownership, actor permissions, and typed transport.
-  </Card>
-  <Card title="Import protocol" href="/technical/import-protocol" icon="files">
-    Library-based extraction, deterministic matching, and safe publication.
-  </Card>
-  <Card title="Calculation rules" href="/technical/calculation-rules" icon="calculator">
-    Event construction, arithmetic, schedules, forecasts, and detector defaults.
-  </Card>
-  <Card title="AI functionality" href="/technical/ai-functionality" icon="messages-square">
-    Bounded model calls, validated suggestions, read-only tools, and explicit notes.
-  </Card>
-</CardGroup>
-
-## Architecture and experience
+Stage pages own their tables, operations, screens, and checklists. These pages hold what every stage shares. Read the ones a stage's "Also read" section names.
 
 <CardGroup cols={2}>
   <Card title="Architecture" href="/technical/architecture" icon="network">
-    Runtime ownership and the Cloudflare resource graph.
+    Four Workers, shared packages, the RPC chain, and boundary rules.
   </Card>
-  <Card title="Monorepo and ownership" href="/technical/monorepo" icon="boxes">
-    Package exports, service responsibilities, dependencies, and owned infrastructure.
+  <Card title="Financial model" href="/technical/financial-model" icon="database">
+    Value types, identity, the write protocol, event rules, precedence, and measures.
   </Card>
-  <Card title="Financial records and metrics" href="/technical/financial-model" icon="database">
-    Evidence, transaction identity, corrections, and precise monetary definitions.
+  <Card title="Import protocol" href="/technical/import-protocol" icon="files">
+    CommBank CSV, OFX, and PDF parsing, matching, reconciliation, and publication.
   </Card>
-  <Card title="Ingestion and reconciliation" href="/technical/ingestion" icon="files">
-    File processing, overlap matching, retries, and atomic publication.
+  <Card title="Calculation rules" href="/technical/calculation-rules" icon="calculator">
+    Event construction, comparisons, ordinary costs, schedules, forecasts, detectors.
   </Card>
-  <Card title="Analytics and forecasts" href="/technical/analytics" icon="chart-no-axes-combined">
-    Comparisons, recurring costs, detection methods, and forecast evaluation.
-  </Card>
-  <Card title="AI analyst" href="/technical/ai-analyst" icon="messages-square">
-    Model calls, financial tools, memory, durable conversations, and recovery.
+  <Card title="AI" href="/technical/ai" icon="messages-square">
+    Document extraction, classification, and the analyst.
   </Card>
   <Card title="Frontend" href="/technical/frontend" icon="panels-top-left">
-    TanStack Start, shared query state, shadcn charts, and mobile behavior.
+    Routes, query state, commands, charts, transport, accessibility.
   </Card>
   <Card title="Operations" href="/technical/operations" icon="shield-check">
-    Private access, data retention, model usage, and failure diagnosis.
+    Access, database, backups, retention, deployment checks.
   </Card>
   <Card title="Verification" href="/technical/verification" icon="flask-conical">
-    Financial invariants, model evaluations, runtime recovery, and browser coverage.
+    Test layout, invariants, regression cases with known answers.
   </Card>
 </CardGroup>
 
-## Design status
+## Platform
 
-The existing Effect, Alchemy, Cloudflare Worker RPC, TanStack Start, and shadcn platform remains. PlanetScale Postgres and Hyperdrive hold financial records. Use Workflows for background imports and AIChatAgent for stage 6 conversations. Deploy resources only when their stage needs them.
-
-Use libraries before custom implementations. [Ingestion](/technical/ingestion#parsing-libraries) records parser choices and actual corpus evidence. The package catalog and lockfile own installed versions. Model IDs, deployment capacity, and any additional document-input dependency are chosen when the owning feature is implemented and validated against its real workload.
-
-Product pages define the required behavior; stage pages define when it is built. Technical pages preserve exact financial meaning and the smallest implementation needed for those outcomes. Method signatures and exact SQL columns belong to implemented code and migrations, not a parallel catalog of future interfaces.
-
-Failures can require user action. They must preserve accepted data and make repeated financial writes safe. Existing SDK retries are acceptable; custom recovery, model failover, or speculative execution frameworks require a demonstrated product need. Human review is the normal outcome for specific uncertain evidence or classification.
-
-Verify actual amounts, source completeness, duplicate identity, and user corrections through [Acceptance scenarios](/product/acceptance). A library choice or valid model schema alone does not prove the financial behavior. A parser defect or blanket unresolved output remains incomplete work.
+Effect, Alchemy, Cloudflare Workers, TanStack Start, shadcn. PlanetScale Postgres through Hyperdrive for financial records. R2 for original files. Cloudflare Workflows for imports and exports. `AIChatAgent` for stage 6. Library versions come from the pnpm catalog and lockfile; model IDs are chosen when the feature that uses them is built.

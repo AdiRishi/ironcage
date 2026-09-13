@@ -1,46 +1,50 @@
 ---
 title: Frontend
-description: Connected stage flows using TanStack Start, shared queries, and accessible controls.
+description: Routes, query state, commands, and accessibility for every stage's screens.
 ---
 
-Every [stage](/stages) includes a working frontend. Extend the existing React, TanStack Start, TanStack Router, TanStack Query, Tailwind CSS, and shadcn setup. [Workspace](/product/workspace) owns visible behavior. Branding, typography, colors, and screen composition remain open design decisions.
+The web app is React, TanStack Start, TanStack Router, TanStack Query, Tailwind CSS, and shadcn. Stage pages describe each screen; this page describes the mechanics they share. Branding, colors, typography, and layout composition are open design decisions.
 
-## Routes and state
+## Routes
 
-Stage 1 provides Imports, Transactions, source Review, and account/display settings. Later stages add interpretation controls, historical overview and Trends, Commitments/Forecasts, the analyst, and Insights/inbox in order. Navigation exposes only implemented destinations.
+| Stage | Routes added                                                                                                                |
+| ----- | --------------------------------------------------------------------------------------------------------------------------- |
+| 1     | `/` home, `/imports`, `/transactions`, `/transactions/$id`, `/review`, `/settings`                                          |
+| 2     | `/settings/export`, source removal on transaction detail                                                                    |
+| 3     | Interpretation panel on transaction detail, `/review` gains interpretation items, `/settings/categories`, `/settings/rules` |
+| 4     | `/overview`, `/trends`, `/trends/$analysisId`                                                                               |
+| 5     | `/commitments`, `/forecast`, `/forecast/$scenarioId`                                                                        |
+| 6     | `/analyst`, `/analyst/$conversationId`, `/settings/notes`                                                                   |
+| 7     | `/insights`, `/insights/intentions/$id`, `/inbox`                                                                           |
 
-Route modules own URLs and loaders. Feature modules own server functions, query definitions, and views. Common controls stay in the existing UI directory. Keep implemented filters in validated search parameters so browser back and bookmarked views restore the query.
+Route modules own URLs and loaders. Feature modules under `src/features/` own server functions, query options, and views. Shared controls stay in `src/components/ui`. Navigation lists only routes that exist.
 
-Server functions call the typed financial API with trusted owner context. Shared boundary schemas define money and filters. Query keys contain the operation and its normalized inputs. A global dataset revision is not needed in every key.
+## State
+
+Filters, periods, and comparison choices live in validated search parameters, so the back button and bookmarks restore a view. Query keys are the operation name plus its normalized input. Loaders call `ensureQueryData` so a route renders with data.
+
+Server functions call the API through the typed binding with the verified identity. They validate input with the contracts schemas before calling.
+
+## Commands
+
+A write from the UI generates a `commandId` with `crypto.randomUUID()` when the user confirms, sends it with the expected versions, and shows a pending state until the server responds. On a network failure, the retry button resends the same `commandId`. On `stale`, the form keeps the user's input, shows the current record, and asks again. On success, invalidate the queries the write affects: the record, the lists that contain it, and any open result that reads it.
+
+Bulk edits and relationship changes in stage 3 show a preview first: the affected records, their versions, and the financial impact. Accepting sends those versions. A preview whose records changed comes back `stale` and is rerun.
 
 ## Imports and review
 
-Display per-file upload and processing state, committed counts, and specific unresolved rows. The status read uses stored summaries and platform state where necessary. A failed action offers retry or reupload. Review shows the source and candidate decisions, including declaring a distinct purchase.
+The imports screen polls `getImport` while a file is `processing` and stops when it is not. Counts, failures, and review items come from the server; nothing is inferred client-side. Review items show the literal source text beside each candidate answer.
 
-Transaction detail reads bank postings independently of interpretation. Stage 3 adds semantic fields and single/bulk category acceptance. Manual categorization remains available when a provider fails or declines to suggest a category.
+## Results and charts
 
-## Corrections and refresh
+From stage 4, a result view shows its measure, period, basis, accounts, calculation time, and coverage before its numbers. Charts use the existing shadcn chart components. Every chart has a title, a text summary, and a table view. Chart coordinates may be floats; displayed amounts come from the result's `Money` values. Selecting a contributor navigates to its rows with the same query in the URL, and the rows arrive with a fresh headline so the two agree.
 
-Financial edits send a command ID and expected record versions. Show pending state until the server confirms the write. Retry a lost response with the same command ID. A stale edit preserves user input and displays current records for another decision.
-
-Invalidate the affected visible TanStack Query results after success. Saved analyses store definitions and run on open or refresh. Closed saved views do not need background refresh. An earlier analyst message keeps its displayed time and text; a new query reads current data.
-
-## Charts and evidence
-
-Use existing chart components rather than building a plotting framework. Financial totals come from the API. Display coordinates can use finite numbers, but formatted amounts and evidence tables retain the exact monetary contract.
-
-Each chart has a title, textual summary, and table equivalent. Tooltips are supplementary. Selecting a contributor preserves the query and retrieves its current headline and rows together. Show the calculated contribution separately from the bank amount, including linked credits and counterpart evidence. If data changed, refresh the headline with those rows.
-
-Label estimates, observed amounts, source gaps, and overlapping groups. Stage 5 displays cost estimates and known payment dates without probability bands or simulated balances.
+Estimates are labelled as estimates. Missing coverage is labelled beside the number it affects. Overlapping groups say so.
 
 ## Conversation transport
 
-Stage 6 uses the SDK chat hook and message/tool-result components. The public web Worker authenticates SDK HTTP/WebSocket requests and routes them through the analyst-owned namespace binding. It supplies verified owner metadata on the private hop; browser frames cannot replace it. Verify routing, private access, streaming, reconnect, and stop through that actual binding.
+Stage 6 uses the agent SDK's React hook and message components. The web Worker upgrades the WebSocket after validating the Access session and forwards it over the analyst binding with the identity attached. One answer runs per conversation; the send control is disabled until it finishes or the user stops it. Older messages keep their text and calculation time; links open live records.
 
-Allow one active answer per conversation. A failed answer can be submitted again. Proposed edits use existing controls or confirmation cards, not automatic financial writes from text. Note changes start a fresh conversation with current notes and leave prior conversations inspectable.
+## Accessibility
 
-## Accessibility and settings
-
-Every action works on narrow and wide screens and with a keyboard. Preserve selected filters and useful unsaved input after failure. Restore focus after temporary details or edits close. Announce loading without repeatedly interrupting screen-reader users.
-
-Use pagination or virtualization when measured record counts require it. Amounts, evidence, and correction actions remain accessible without horizontal page overflow. Settings shows implemented controls and provider/retention disclosures, never credentials.
+Every action works at phone width and by keyboard. Focus returns to the triggering control when a dialog closes. Loading is announced once. Color always has a label or symbol beside it. Reduced-motion preferences disable transitions. Tables of amounts and evidence scroll within their container rather than the page. Use pagination or virtualization when the measured row count needs it.

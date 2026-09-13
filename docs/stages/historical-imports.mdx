@@ -1,0 +1,92 @@
+---
+title: "2. Import the full historical corpus"
+description: Extend the importer to PDF statements, then add exports and source removal.
+---
+
+## Outcome
+
+Every file in the corpus is imported: 47 PDF statements reaching back to 2019 join the CSV and OFX history without duplicating a posting. The user can export the data and remove original file bytes.
+
+Prerequisite: stage 1 verified. Posting identity, matching, and source review carry over unchanged.
+
+Also read [Import protocol](/technical/import-protocol#pdf-statements), [Operations](/technical/operations#exports), and [AI](/technical/ai#document-extraction).
+
+## Milestones
+
+1. **PDF parsing.** `unpdf` plus a layout adapter per account kind. Done when every statement in the corpus parses on its own with the printed opening balance plus movements equal to the closing balance, and the row count matches a manual count on three sampled statements.
+2. **Cross-format matching.** Import the whole corpus in filename order and in reverse. Done when both orders produce the same postings, and every `duplicate` review item has a specific explanation.
+3. **Export.** Done when a download contains every table, its manifest is accurate, and a failed export can be requested again.
+4. **Source removal and model settings.** Done when removing a file's bytes keeps its postings, reuploading restores access, and the settings screen shows model usage if a document model was enabled.
+
+## Screens
+
+### Imports
+
+- PDF uploads show page count and per-file state like other formats. A statement that cannot identify its account asks for one.
+- The summary adds pages decoded and pages needing review.
+
+### Transactions
+
+- A posting supported by a statement row shows the statement, page number, and extracted row text. Opening the evidence opens the original PDF at that page in the browser.
+- Detail marks a source whose bytes were removed as unavailable, with a Reupload action.
+
+### Review
+
+- A `duplicate` item from a statement shows the extracted row and the existing postings side by side with their sources.
+- A `value` item for an undecodable page links to the page and lets the user enter the value or leave the row out.
+
+### Settings
+
+- Export: choose whether to include original files, request, see progress, download. Past exports list their time and contents.
+- Document model: enabled or disabled, provider name, what is sent, usage to date, warning threshold.
+- Source files: list with size, availability, and Remove bytes.
+
+## Data
+
+| Table         | Columns                                                                                                                                                      |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `exports`     | `id`, `status`, `include_sources` boolean, `manifest` jsonb nullable, `object_key` nullable, `expires_at` nullable, `failure` jsonb nullable, `requested_at` |
+| `model_usage` | `id`, `task`, `model`, `occurred_at`, `input_tokens` nullable, `output_tokens` nullable, `cost_minor` nullable, `cost_currency` nullable, `status`           |
+| `settings`    | adds `ai_enabled` boolean, `ai_warning_minor` nullable                                                                                                       |
+
+`observations.locator` gains the `pdfRow` shape. `source_coverage` for a statement uses the printed period and both printed balances. No other stage 1 table changes.
+
+## Operations
+
+| Caller    | Operation                                                                                  | Contract                                                                                         |
+| --------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Web       | `POST /uploads`                                                                            | Accepts `application/pdf`. Same response as stage 1.                                             |
+| Web       | `requestExport({ commandId, includeSources })`, `listExports()`, `getExport({ exportId })` | Command creates the export and starts a Workflow. Status `processing`, `ready`, `failed`.        |
+| Web       | `GET /exports/:exportId`                                                                   | Streams the zip while it exists.                                                                 |
+| Web       | `removeSourceBytes({ commandId, sourceFileId })`                                           | Deletes the R2 object, sets `bytes_available` false, returns affected posting count.             |
+| Web       | `listSourceFiles()`                                                                        | Files with size, format, availability, and import status.                                        |
+| Web       | `getModelUsage()`                                                                          | Totals and recent records.                                                                       |
+| Processor | `publishImport`                                                                            | Unchanged. Observations carry `pdfRow` locators and the statement's printed period and balances. |
+| Processor | Document model call                                                                        | Only for a page the adapter cannot decode, only when `ai_enabled`. Writes a `model_usage` row.   |
+
+## Worked example
+
+Account S has postings from 17 August 2024 onward after stage 1. Statement P covers 1 July to 31 December 2024 with printed opening and closing balances and a running balance on every row.
+
+1. Rows dated 1 July to 16 August have no existing posting with their account, date, and amount. They become new postings.
+2. Rows from 17 August onward each find one existing posting with the same date and amount. Descriptions differ in wording, so the group step pairs them by count, and the running balance corroborates each pair. No review items.
+3. Opening balance plus every movement equals the closing balance, so S has reconciled coverage from 1 July 2024 onward.
+4. Card statement Q covers a month entirely inside the card's structured export. On one day the statement shows two purchases of the same amount and the export has two; they match as a group. On another day the statement shows one and the export shows two; that day becomes one `duplicate` review item.
+5. The user exports without sources, downloads a zip, and opens `manifest.json` to see counts per table.
+6. The user removes P's bytes. Its postings stay, its rows stay, and the detail shows the source as unavailable. Reuploading the same PDF restores the download link and creates nothing.
+
+## Verification checklist
+
+- Every statement parses alone with reconciled printed balances. Three sampled statements match a manual row count.
+- The full corpus imports in both orders to identical postings. Report review counts by reason.
+- A card decimal repair is covered by a synthetic fixture that reproduces the layout defect.
+- An undecodable page produces a `value` item and leaves the rest of the file published.
+- If a document model is enabled: an invalid response and a provider failure both leave the page in review, and usage rows are written for each call.
+- Export contents match the database for every table. Retry after a simulated failure produces a complete export.
+- Removal then reupload creates no posting and restores the download. A stale removal request after a reupload deletes nothing.
+- The three screens work at phone width and by keyboard.
+- Stage 1 checklist still passes.
+
+## Not in this stage
+
+Financial events, categories, links, spending analysis, planning, the analyst, findings. Deleting postings or financial history is not a feature at any stage.
