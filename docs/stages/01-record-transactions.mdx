@@ -1,0 +1,44 @@
+---
+title: "1. Upload and record transactions"
+description: Record structured bank exports through a complete upload and transaction-history application.
+---
+
+## Outcome
+
+The user can upload CommBank CSV and OFX exports, establish which account each source belongs to, and browse the accepted transactions. Imports finish independently of an open browser tab. Recorded transactions can have an unknown financial role and no category.
+
+Prerequisite: inspect the existing application and reuse its platform where appropriate. The current starter behavior is not evidence that financial ingestion has been implemented.
+
+## User flows and frontend
+
+- Start from an empty history, create or select an account, and upload one file or a mixed CSV/OFX batch. Show supported formats, limits, and per-file upload progress. Reject PDF imports in this stage and explain the supported formats.
+- Return to Imports to inspect extraction, reconciliation, accepted and matched counts, unresolved records, failures, and retry or cancellation status.
+- Resolve account mappings, duplicate identities, and conflicting source values through evidence-backed choices. Preserve unrelated accepted records when an issue remains unresolved.
+- Search and filter Transactions by posting date, account, booked currency, signed amount, original description, and import-review status. Open a transaction's bank fields, unresolved role, supporting observations, and original file.
+- Change account labels and evidenced account periods, and inspect source coverage and the latest recorded date. Settings includes display preferences, retention disclosures, and operational backup status with a recovery action for failed work.
+
+The home page leads to importing and browsing records. Empty history has no invented balances or spending summaries. Refresh restores accepted upload receipts and job progress. Filters and unsaved review input survive recoverable failures. All flows work on mobile and with a keyboard.
+
+## Backend and integration
+
+Implement the web, financial API, and processor path with authenticated access, Postgres persistence, R2 sources, exact money and dates, versioned extraction, account mapping, and deterministic CSV/OFX normalization. Match overlaps within and across those formats while preserving identical real purchases. Validate supplied balances and disclose the interval the evidence supports.
+
+Publish accepted postings, evidence links, dispositions, and unresolved events atomically. Each posting has one unresolved event and a conserving unresolved allocation. Interpretation is not dispatched in this stage. Missing category or role does not block recording. Unknown amounts or transaction identity remain staged and reviewable.
+
+Include durable dispatch, bounded retries, cancellation, command receipts, concurrent import recovery, and authenticated source access. Establish operational database and portable evidence backups and verify restoration of this stage's records. Backups are an operating requirement; user-requested exports and source removal arrive in stage 2.
+
+## Reading path
+
+Read [Imports](/product/imports), using its stage allocation, and the stage 1 portions of [Transactions](/product/transactions), [Workspace](/product/workspace), and [Settings](/product/settings-and-data). Use [Stage boundaries](/technical/stage-boundaries#stage-1) for the exact schema and RPC scope.
+
+Read [Architecture](/technical/architecture) and [Monorepo](/technical/monorepo) for the web/API/processor responsibilities. Follow [Ingestion](/technical/ingestion) and [Import protocol](/technical/import-protocol) through CSV/OFX extraction, matching, publication, finalization, and recovery. Inspect the actual CSV/OFX files in `fixtures/commbank/`. Apply the stage 1 sections of [Frontend](/technical/frontend), [Operations](/technical/operations), and [Verification](/technical/verification).
+
+## Completion evidence
+
+Demonstrate a browser upload through persisted history and source inspection, including standalone OFX and CSV with user-confirmed account mapping. Reupload renamed bytes, shuffle overlapping exports, and interrupt processing after a commit. The resulting canonical history must agree and contain both genuine identical purchases. Show a failed file recovering while another file completes, a concrete unresolved record being resolved, and progress returning after browser refresh.
+
+Validate every supplied CSV and OFX file, with independently checked amounts, dates, multiplicity, and supported coverage. Verify private access and backup restoration. Record separate outstanding hosted checks if credentials are unavailable.
+
+## Excluded
+
+PDF ingestion, model calls, role establishment, categorization, transfer/refund linking, user exports and source removal, spending summaries, charts, commitments, forecasts, analyst conversations, reminders, and proactive findings. Preserve their planned contracts without implementing their consumers.

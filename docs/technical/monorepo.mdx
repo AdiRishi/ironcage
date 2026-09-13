@@ -3,6 +3,12 @@ title: Monorepo and ownership
 description: Runtime responsibilities, package interfaces, resource ownership, and rules for keeping dependencies explicit.
 ---
 
+## Delivery scope
+
+The layout and exports below describe the eventual ownership. Stage 1 needs web/API/processor and the relevant contracts/finance modules. Shared AI execution arrives in stage 2, analyst runtime in stage 6, and feature modules arrive with their stage. Do not create unused packages, exports, directories, or bindings for future consumers.
+
+[Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
+
 This reference defines the target workspace structure. The [architecture](/technical/architecture) explains the runtime design. The [RPC specification](/technical/rpc) defines the methods that cross between runtimes. Existing starter code moves to this structure as its financial replacements are implemented.
 
 ## Runtime responsibilities

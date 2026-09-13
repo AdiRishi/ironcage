@@ -3,6 +3,20 @@ title: Settings and data controls
 description: Manage account context, display preferences, AI usage, exports, and the removal of financial evidence.
 ---
 
+## Delivery scope
+
+| Stage                               | Controls and behavior introduced                                                                                                            |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| [1](/stages/record-transactions)    | Account labels/types/effective periods, timezone, currency, private access, retention disclosure, and operational backup status/recovery.   |
+| [2](/stages/historical-imports)     | Document provider/privacy and usage controls, user exports, source-removal previews, retention/withdrawal, restoration and withdrawal undo. |
+| [3](/stages/interpret-transactions) | Offset/loan relationships, categories, tags, merchant aliases, classification/role rules, and interpretation usage.                         |
+| [4](/stages/explore-spending)       | Export and removal effects on saved analyses and results.                                                                                   |
+| [5](/stages/plan-costs)             | Export and invalidation coverage for schedules, ordinary costs, forecasts, and scenarios.                                                   |
+| [6](/stages/analyst)                | General personal context, investigation limits, conversation export selection, and conversation retention/restore.                          |
+| [7](/stages/follow-through)         | Import reminders, inbox behavior, and export/restore of findings and intentions.                                                            |
+
+Settings exposes only the controls whose behavior exists. Exports include all records implemented at that stage and grow with later entities. Stage 1 operating backups are automatic and inspectable; user-requested export begins in stage 2. Source-removal previews begin with records and evidence in stage 2, add financial impact in stage 3, and saved-result impact in stage 4.
+
 Settings groups the controls that apply across the application. The product serves one authenticated user. Financial records, source downloads, and conversations are private to that user.
 
 ## Accounts and classification

@@ -3,6 +3,12 @@ title: AI analyst
 description: A persistent conversation runtime that uses financial tools and retains evidence for every analysis.
 ---
 
+## Delivery scope
+
+This runtime belongs to stage 6. Earlier document and category model calls use the shared execution package and processor, without conversation storage or analyst routing. The structured extraction/model-policy discussion links to those earlier owners; it does not make this runtime their dependency.
+
+[Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
+
 The selected stack is Cloudflare Agents SDK, AIChatAgent, and Vercel AI SDK. AI Gateway handles configured model access. Cloudflare Workflows owns explicit import and background-analysis jobs.
 
 AIChatAgent supplies persisted messages and resumable streams. Its React client is `useAgentChat` from `@cloudflare/ai-chat/react`. Vercel AI SDK supplies model calls, typed tools, and structured output. The app uses one canonical conversation protocol rather than combining several chat stores. [Cloudflare chat agents](https://developers.cloudflare.com/agents/communication-channels/chat/chat-agents/)

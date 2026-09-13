@@ -3,6 +3,17 @@ title: Transactions
 description: A connected history of purchases, repayments, transfers, refunds, and the context that explains them.
 ---
 
+## Delivery scope
+
+| Stage                               | Behavior introduced                                                                                                                                     |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [1](/stages/record-transactions)    | Bank posting list/detail, original-description search, account/date/amount/currency/import-review filters, source evidence, exact dates and currencies. |
+| [2](/stages/historical-imports)     | PDF source inspection and visible source-removal/withdrawal outcomes.                                                                                   |
+| [3](/stages/interpret-transactions) | Financial roles, semantic filters, merchant/category/tag/personal-event context, linking, splits, corrections, previews, rules, and undo.               |
+| [4](/stages/explore-spending)       | Historical spending views, saved results, and refreshed result history after corrections.                                                               |
+
+The financial examples, classification, corrections, and relationship sections define stage 3. Basic bank fields and source access already work in stage 1. Financial impact calculations support stage 3 previews; historical exploration and saved results arrive in stage 4.
+
 The transaction list combines the supplied accounts while preserving the account behind each movement. Filters cover dates, amounts, accounts, merchants, categories, tags and personal events, and review status.
 
 A record detail shows the bank description and booked amount, its dates, the current interpretation, linked movements, and source evidence. Search works with both original descriptions and recognized merchant names.

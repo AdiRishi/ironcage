@@ -1,13 +1,15 @@
 # Working in this repository
 
 Before implementing spend management, read `docs/technical/build-spend-management.mdx`.
-It defines the reading path, decision ownership, and completion requirements.
-Use the linked product and technical pages as the project specification. No prior
+Start with the selected stage in `docs/stages/`; stage 1 is the default target.
+Each stage includes frontend, backend, integration, and verification. Stop after
+that stage. `docs/technical/stage-boundaries.mdx` allocates shared contracts and
+reference sections so later behavior does not expand the task. No prior
 conversation or external working notes are required.
 
 Before changing financial schemas or service interfaces, read
 `docs/technical/contracts.mdx`, `docs/technical/database-schema.mdx`, and
-`docs/technical/rpc.mdx`. For processing, calculations, or AI behavior, read the
+`docs/technical/rpc.mdx`, using the selected stage projections. For processing, calculations, or AI behavior, read the
 corresponding protocol linked from `docs/technical/index.mdx`.
 
 When implementing imports, reconciliation, or financial-data validation, inspect the

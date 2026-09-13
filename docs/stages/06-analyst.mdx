@@ -1,0 +1,45 @@
+---
+title: "6. Investigate through the analyst"
+description: Connect a recoverable, evidence-backed analyst to the financial services already available in the UI.
+---
+
+## Outcome
+
+The user can ask questions about recorded history and planning, inspect evidence, retain useful context, and continue an investigation later. Numerical answers agree with the existing financial views.
+
+Prerequisite: stage 5 is verified. Analyst tools call the existing API and calculations.
+
+## User flows and frontend
+
+- Start or reopen a conversation, ask a question, and inspect progress and supporting calculations.
+- Ask about a selected chart contribution or transaction while keeping its scope visible. Return from evidence to the originating view with query state preserved.
+- Answer a specific clarification, accept a proposed change through its required preview, and inspect the resulting correction.
+- Inspect, confirm, correct, and remove scoped personal context. Distinguish confirmed facts from conversation summaries.
+- Save an investigation and its analyses, reconnect after closing the browser, stop accepted work, and retry unfinished work without duplicate submissions or corrections.
+- Inspect exploratory scripts or artifacts with their input basis and limitations. Review model usage, including investigation limits and uncertain charges.
+
+Add the analyst experience and contextual entry actions to working financial views. Its visual arrangement is a design decision. Existing views remain usable during a failed, stopped, or limited investigation.
+
+## Backend and integration
+
+Add the analyst Worker and owner-bound AIChatAgent Durable Object, authenticated namespace routing, SDK transport, durable run records, tools, action authority, clarification, memory selection, and evidence validation. Reuse shared model execution and budget accounting from stage 2.
+
+Implement immutable investigation snapshots, ordered submissions, cancellation and recovery, bounded child investigations, and computational Containers where required by the protocol. Generated computations remain exploratory and cannot replace financial definitions.
+
+Extend portable exports and backups to conversations with the documented snapshot/message-watermark reconciliation. Extend existing Settings with personal-context management and conversation export selection. Include context invalidation and removal in historical-result disclosures.
+
+## Reading path
+
+Read [Analyst and memory](/product/analyst-and-memory), the analyst additions in [Workspace](/product/workspace), and personal-context and conversation controls in [Settings](/product/settings-and-data). Follow [Stage boundaries](/technical/stage-boundaries#stage-6), [AI analyst](/technical/ai-analyst), and analyst tools, authority, execution, answers, memory, computation, and evaluation in [AI functionality](/technical/ai-functionality).
+
+Read the corresponding run/context schemas, analyst RPC, frontend transport, access routing, and conversation backup/recovery requirements.
+
+## Completion evidence
+
+Compare analyst answers with independently verified chart results and follow their evidence. Demonstrate a clarification resumed the next day, conflicting edits, two ordered questions, browser reconnection, cancellation after a committed correction, and context removal followed by another question.
+
+Verify owner-bound routing, action previews, budget recovery, computational isolation, and reproducible retained artifacts. Export and restore conversations with their represented financial snapshot and pending reconciliation records. Record analyst evaluation separately from financial arithmetic tests.
+
+## Excluded
+
+Automatic ranked findings, tracked intentions, the general inbox, scheduled intention reviews, and import reminders. An on-demand analyst can investigate a pattern without creating a proactive finding or claiming an intention was tracked.

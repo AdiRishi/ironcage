@@ -3,6 +3,12 @@ title: Import and job protocols
 description: Extraction payloads, duplicate matching, Workflow steps, checkpoints, retries, and publication rules.
 ---
 
+## Delivery scope
+
+Stage 1 uses CSV/OFX, source review, publication/finalization, import and backup jobs, and durable recovery. Stage 2 adds PDF/document models, user export and source removal. Stage 3 adds role/interpretation/rule jobs; stage 4 analysis/refresh; stage 5 planning refresh; stage 6 computation/conversation exports; stage 7 findings and intentions. Only implemented consumers receive dispatch.
+
+[Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
+
 This reference specifies the processor's contracts. The [ingestion overview](/technical/ingestion) explains the flow, the [RPC catalog](/technical/rpc) defines service methods, and the [database schema](/technical/database-schema) defines persistence.
 
 ## Extraction schemas
@@ -136,7 +142,7 @@ The API verifies that every referenced observation belongs to this extraction, e
 
 The owner revision lock protects publication. The API rechecks existing observation links and required input revision before changing records. If the revision changed, the Workflow obtains a new snapshot and repeats matching. It does not merely substitute a fresh revision number into the old result.
 
-On commit, the API creates unresolved events for new postings, attaches sources, records dispositions, and dispatches interpretation. Interpretation establishes roles through commitRoles before category classification. Unknown roles remain reviewable; an established cost with an unknown category contributes as unclassified.
+On commit, the API creates unresolved events and conserving unresolved allocations for new postings, attaches sources, and records dispositions. Stages 1 and 2 finish recording without dispatching interpretation. From stage 3, publication also dispatches interpretation; that stage schedules the pre-existing unresolved history through the same durable job path. Interpretation establishes roles through commitRoles before category classification. Unknown roles remain reviewable; an established cost with an unknown category contributes as unclassified.
 
 ## Job kinds and inputs
 
@@ -188,7 +194,7 @@ Each import Workflow uses these stable steps:
 
 Workflow parameters and non-stream step results stay below 1 MiB. Extraction steps stage rows through the API and return receipt IDs, counts, and artifact references. Large matching and calculation inputs use artifacts. Streamed step outputs are supported but are not required by this protocol. [Workflow limits](https://developers.cloudflare.com/workflows/reference/limits/)
 
-Interpretation and refresh are separate durable jobs created by committed publication. Their failure does not reverse accepted bank history. Each logical model call and provider attempt is persisted. Workflow replay reuses completed output and never resets the attempt count or budget.
+From stage 3, interpretation is a separate durable job created by committed publication. Refresh begins in stage 4 for saved analyses, extends to planning in stage 5, and to findings and intentions in stage 7. Publication creates no dispatch for a consumer that has not been implemented. Their failure does not reverse accepted bank history. Each logical model call and provider attempt is persisted. Workflow replay reuses completed output and never resets the attempt count or budget.
 
 ## Delivery, retries, and cancellation
 

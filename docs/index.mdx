@@ -1,34 +1,35 @@
 ---
 title: Ironcage
-description: A personal finance platform for understanding where money goes and making informed decisions about it.
+description: A personal finance application delivered as seven working stages.
 sidebar:
   label: Overview
   icon: house
 ---
 
-Ironcage is a private personal finance application for one user. Its current scope is a complete spend-management experience: a coherent financial history, detailed trends, forecasts, and an analyst that remembers useful context.
+Ironcage is a private personal finance application for one user. Start with uploading and recording transactions, then extend the working application through interpretation, analysis, planning, an analyst, and follow-through.
 
 <CardGroup cols={2}>
-  <Card title="Vision" href="/vision" icon="compass">
-    Why Ironcage exists and what better financial understanding makes possible.
+  <Card title="Delivery stages" href="/stages" icon="list-checks">
+    The implementation entry point: seven complete frontend and backend deliverables with clear
+    stopping points.
   </Card>
-  <Card title="Product" href="/product" icon="panels-top-left">
-    The user flows, visible behavior, and outcomes the spend-management app delivers.
+  <Card title="Architecture" href="/technical/architecture" icon="network">
+    How the web app, financial API, processor, storage, and later analyst divide responsibility.
   </Card>
-  <Card title="Design" href="/design" icon="palette">
-    Desktop and mobile screen references, organized by product area.
+  <Card title="Product reference" href="/product" icon="receipt-text">
+    Detailed user behavior, allocated to its introduction stage.
   </Card>
-  <Card title="Technical" href="/technical" icon="network">
-    The architecture and implementation design that support those outcomes.
+  <Card title="Technical reference" href="/technical" icon="braces">
+    Shared contracts, processing rules, infrastructure, and verification for each stage.
   </Card>
 </CardGroup>
 
 ## How to read these docs
 
-The product pages specify intended behavior. The technical pages describe the target implementation, rather than features already shipped. The [acceptance scenarios](/product/acceptance) define observable outcomes for the complete spend-management scope.
+Choose a [stage](/stages) and follow its reading path. [Build one stage](/technical/build-spend-management) explains implementation and completion. Stage 1 is the default target. The references retain the eventual spend-management plan without making it an obligation for every task.
 
-The [design section](/design) contains visual references for the product flows, including corrections, incomplete data, and recovery states.
+The [vision](/vision) explains the broader purpose. The docs describe intended behavior, not a claim of shipped functionality. Each stage must produce a working browser experience backed by real records. [Acceptance scenarios](/product/acceptance) identify the stage that introduces each outcome.
 
-An implementation agent starts with [Build spend management](/technical/build-spend-management). That guide explains how to use this specification, resolve remaining engineering choices, and establish completion without the discovery conversation.
+Visual branding and screen composition are unspecified. Stage flows provide the written brief for subsequent design work.
 
-All monetary examples in these pages are fictional. Bank statements, account identifiers, and transaction histories belong in private application storage, not in this documentation site.
+All monetary examples are fictional. Private bank statements, identifiers, and transaction histories stay outside this documentation site.

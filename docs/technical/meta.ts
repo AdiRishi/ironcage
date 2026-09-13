@@ -6,6 +6,7 @@ export default defineMeta({
   pages: [
     "index",
     "build-spend-management",
+    "stage-boundaries",
     "architecture",
     "monorepo",
     "contracts",

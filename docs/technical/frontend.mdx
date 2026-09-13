@@ -3,11 +3,17 @@ title: Frontend
 description: TanStack Start routes, shared query definitions, shadcn components, and responsive financial interactions.
 ---
 
+## Delivery scope
+
+Every stage includes its complete frontend. Stage 1 starts with imports, bank history, source review, settings, and operational status. Later stages add their own views and extend shared flows. Query state, accessibility, and recovery apply from their first use; chart and analyst requirements apply only when those features arrive.
+
+[Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
+
 The frontend extends the existing TanStack Start application with React, TanStack Router, TanStack Query, Tailwind CSS, and shadcn components. Alchemy continues to supply the Worker bindings and Cloudflare integration.
 
 The [workspace contract](/product/workspace) defines the visible experience. This page defines how the frontend carries that state consistently.
 
-The [screen designs](/design) provide desktop and mobile layout references for these routes, including evidence panels, correction previews, and recovery states.
+The selected [stage](/stages) supplies the written user flows and required states. Visual branding, typography, colors, and layout are open design decisions. No screen image is an implementation requirement.
 
 Server functions call the methods in the [RPC specification](/technical/rpc). Filters, cursors, receipts, tagged failures, and chart payloads use [Shared contracts](/technical/contracts). The frontend does not define a parallel query or monetary schema.
 
@@ -15,20 +21,22 @@ Server functions call the methods in the [RPC specification](/technical/rpc). Fi
 
 The following application routes are planned. These are app URLs, not links to pages in this documentation site.
 
-| App route                      | Feature directory under `apps/web/src/features/` |
-| ------------------------------ | ------------------------------------------------ |
-| `/`                            | `overview/`                                      |
-| `/transactions`                | `transactions/`                                  |
-| `/transactions/$transactionId` | `transactions/`                                  |
-| `/trends`                      | `trends/`                                        |
-| `/commitments`                 | `commitments/`                                   |
-| `/forecasts`                   | `forecasts/`                                     |
-| `/insights`                    | `insights/`                                      |
-| `/analyst`                     | `analyst/`                                       |
-| `/analyst/$conversationId`     | `analyst/`                                       |
-| `/imports`                     | `imports/`                                       |
-| `/review`                      | `review/`                                        |
-| `/settings`                    | `settings/`                                      |
+| App route                      | Feature directory under `apps/web/src/features/` | Introduction                                                                                |
+| ------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `/`                            | Import/history entry, then `overview/`           | Stage 1 entry; stage 4 historical overview; stage 5 upcoming commitments; stage 7 findings. |
+| `/transactions`                | `transactions/`                                  | Stage 1 bank history; stage 3 semantic filters and interpretation.                          |
+| `/transactions/$transactionId` | `transactions/`                                  | Stage 1 bank evidence; stage 2 PDF/removal state; stage 3 interpretation and corrections.   |
+| `/imports`                     | `imports/`                                       | Stage 1 CSV/OFX; stage 2 PDF.                                                               |
+| `/review`                      | `review/`                                        | Stage 1 source issues; stage 3 interpretations; stage 6 context clarification.              |
+| `/settings`                    | `settings/`                                      | Stage 1 accounts/display/operations; additions follow Settings stage ownership.             |
+| `/trends`                      | `trends/`                                        | Stage 4 actual history; stage 5 ordinary costs.                                             |
+| `/commitments`                 | `commitments/`                                   | Stage 5.                                                                                    |
+| `/forecasts`                   | `forecasts/`                                     | Stage 5, including scenarios.                                                               |
+| `/analyst`                     | `analyst/`                                       | Stage 6.                                                                                    |
+| `/analyst/$conversationId`     | `analyst/`                                       | Stage 6.                                                                                    |
+| `/insights`                    | `insights/`                                      | Stage 7, including intentions.                                                              |
+
+Operational status, saved analyses, evidence, exports, and inbox have reachable entry points in their owning stage. Their route nesting is an implementation choice. Do not create later routes or inactive navigation in an earlier stage.
 
 The analyst index lists conversations through listConversations and provides a new-conversation action. That action creates a conversation UUID, navigates to its route, and persists the conversation when its first submission is accepted. Empty conversations have no stored history.
 
@@ -38,7 +46,7 @@ Route modules own URLs, loaders, and HTTP handlers. Feature modules own page com
 
 ## Query state
 
-Search parameters retain PeriodSelection, comparison mode and unit, accounts, category and merchant filters, and selected measures. Saved views retain the selector; calculation requests use its resolved dates. A shared boundary schema validates those values before creating a financial query.
+From stage 1, search parameters retain the implemented posting filters. Stage 3 adds semantic filters. Stage 4 introduces PeriodSelection, comparison mode and unit, and selected financial measures. Saved views retain the selector; calculation requests use its resolved dates. A shared boundary schema validates those values before creating a financial query.
 
 Feature `queries.ts` modules own query keys and options. Route loaders and components use the same definitions. Query keys include the normalized query and applicable data revision, rather than a separately assembled component-specific filter object.
 
@@ -48,7 +56,7 @@ Financial totals come from API results. The client decodes exact monetary values
 
 A mutation carries a command ID and expected subject version. The UI can show a pending state, but official financial values update after the server confirms the commit.
 
-The mutation response includes the new revision and affected query subjects. Query invalidation refreshes visible results and review counts. A stale edit preserves the user's input and displays the current record before another commit.
+The mutation response includes the new revision and affected query subjects. Stage 1 refreshes bank records, reviews, and coverage; stage 3 includes interpretations; stage 4 adds saved-result invalidation. Query invalidation refreshes visible results and review counts. A stale edit preserves the user's input and displays the current record before another commit.
 
 An analyst answer created at an old revision is not silently rewritten. It shows that newer data exists and offers a refresh. Saved-analysis definitions and immutable historical results remain separate objects.
 
@@ -70,12 +78,12 @@ Ordinary reads use bounded RPC deadlines. Conversation streaming and long-runnin
 
 ## Responsive behavior and accessibility
 
-Wide layouts can show the analyst beside a financial view. Mobile layouts use separate routes or full-screen sheets while preserving the query in the URL. Browser back navigation restores the previous view.
+Every stage preserves access to its actions, details, and query state on wide and narrow screens. Layout and control presentation are design decisions. Browser back navigation restores the previous view and selection. Stage 6 adds analyst interactions with the same continuity requirement.
 
-Controls use shadcn buttons, forms, dialogs, sheets, tables, and alerts. Keyboard focus returns to the initiating control after a detail or correction dialog closes. Loading regions announce progress without repeatedly interrupting screen-reader users.
+Use the selected shadcn component library for accessible controls. Keyboard focus returns to the initiating control after a temporary detail or correction interaction closes. Loading regions announce progress without repeatedly interrupting screen-reader users.
 
-Tables use pagination or virtualization when measured record counts require it. Mobile summaries expose the same detail actions. Amounts, source evidence, and correction controls remain available without horizontal page overflow.
+Tables use pagination or virtualization when measured record counts require it. Mobile views expose the same detail actions. Amounts, source evidence, and correction controls remain available without horizontal page overflow.
 
 ## Settings disclosure
 
-Settings uses `getSettings` and `getUsage` for editable policy and recorded usage. Server-only configuration supplies the model provider names and retention disclosures shown to the user. The client receives only those display fields, never provider credentials or deployment secrets. [Settings and data controls](/product/settings-and-data) defines the visible behavior.
+Settings uses `getSettings` from stage 1 and `getUsage` from stage 2. Its schemas and controls follow [Stage boundaries](/technical/stage-boundaries). Server-only configuration supplies the model provider names and retention disclosures shown to the user. The client receives only those display fields, never provider credentials or deployment secrets. [Settings and data controls](/product/settings-and-data) defines the visible behavior.

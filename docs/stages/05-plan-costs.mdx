@@ -1,0 +1,42 @@
+---
+title: "5. Plan future costs"
+description: Add recurring obligations, ordinary-cost estimates, and inspectable forecasts and scenarios.
+---
+
+## Outcome
+
+The user can manage expected payments, understand ordinary costs, and compare future assumptions. Historical transactions remain distinct from schedules and predictions.
+
+Prerequisite: stage 4 is verified. Forecasts and ordinary costs reuse its snapshots, financial measures, and saved-result behavior.
+
+## User flows and frontend
+
+- Inspect detected recurring payments, confirm or revise a commitment, and manage amount, cadence, account, effective dates, service periods, and occurrence matches.
+- See upcoming commitments in the overview and distinguish proposed schedules from confirmed obligations.
+- Compare actual spending with an ordinary-cost estimate. Inspect covered training weeks, excluded personal events, and time-allocated obligations.
+- Choose a forecast horizon, inspect anchors and assumptions, and see known payments alongside estimated variable costs and cash balances.
+- Save and compare scenarios, including an explicit increase elsewhere when reducing one category. Inspect forecast error, uncalibrated intervals, insufficient history, and missing balance anchors.
+
+Use complete Commitments and Forecasts experiences and extend existing Trends, overview, personal-event controls, and saved analyses. The user can perform all planning actions without an analyst.
+
+## Backend and integration
+
+Implement versioned schedules, recurrence detection, occurrence matching and overrides, ordinary-cost allocation, variable baselines, forecast paths, scenario overrides, and evaluation. User-accepted schedules and exclusions retain their scope and effective dates.
+
+Extend analysis definitions and result unions with ordinary-cost, forecast, and scenario behavior. Refresh affected outputs after data, schedule, assumption, or date changes. Recurrence proposals are visible in Commitments; proactive alerts and the general inbox arrive in stage 7. Export, removal impact, and restore include the new entities and saved results.
+
+## Reading path
+
+Read [Commitments and forecasts](/product/commitments-and-forecasts) and ordinary costs and events in [Trends](/product/trends). Use [Stage boundaries](/technical/stage-boundaries#stage-5), [Ordinary costs](/technical/calculation-rules#ordinary-costs), schedule/detection, forecast, and scenario sections in [Calculation rules](/technical/calculation-rules), and their [Analytics](/technical/analytics) explanations.
+
+Apply schedule and forecast schemas/RPC, forecast evaluation, and time-driven refresh operations. Analyst runtime and proactive insight detectors remain outside this reading path.
+
+## Completion evidence
+
+Demonstrate a quarterly strata schedule, a changed payment account with effective dates, occurrence confirmation and exclusion, ordinary-cost contributors that add correctly, and a saved scenario compared with its baseline.
+
+Verify cash-anchor limitations, stale data, card charges versus settlements, separate loan financing costs, variable-account shares, and scenario isolation from history. Record backtests against the simple baseline and label uncertainty according to the evaluation gates. Annual ranges can remain explicitly uncalibrated under the documented policy.
+
+## Excluded
+
+Analyst conversations, general personal-context memory, open-ended computational investigations, ranked findings, tracked intentions, the general inbox, and import reminders.

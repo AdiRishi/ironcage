@@ -1,58 +1,42 @@
 ---
-title: Build spend management
-description: Implement the complete product from this repository's specification.
+title: Build one stage
+description: Select a bounded deliverable, build its frontend and backend, verify it, and stop.
 ---
 
-Use this guide when asked to build Ironcage. The repository contains the project requirements and design. You do not need the discovery conversation or the author's working notes.
+Start with [Delivery stages](/stages). Unless the task names another stage, the implementation target is [stage 1](/stages/record-transactions). The references describe the eventual product; they do not authorize implementing later stages.
 
-## Establish the full scope
+## Establish the selected scope
 
-Read the [vision](/vision), every feature page linked from [Product](/product), and the [acceptance scenarios](/product/acceptance). Then read the [technical design](/technical) and its references.
+Read the selected stage's outcome, user flows, backend responsibilities, exclusions, reading path, and completion evidence. Inspect the repository to establish what already works. For a later stage, verify the prerequisites and identify any missing earlier behavior before proceeding. A stage listing is not an implementation status report.
 
-Create a work plan that accounts for every specified behavior. Link each part to its product contract, implementation owner, and verification evidence. Include settings, review, recovery, and background refresh alongside the main financial views.
+Read the product and technical sections named by that stage. [Stage boundaries](/technical/stage-boundaries) assigns shared records, interfaces, jobs, and controls to their introduction stages. [Product acceptance](/product/acceptance) assigns concrete scenarios. Build a short work plan for that scope with frontend, backend, integration, and verification work attached to each user outcome.
 
-Use acceptance scenarios as concrete examples of the contract. The feature pages also contain requirements. Completion means the whole spend-management scope works together.
+Stage pages own delivery scope. Product pages own behavior, and technical references own contracts and invariants. Resolve a missing dependency in the owning stage and affected reference before adding dependent behavior. Do not pull an entire later feature into scope because a shared page mentions it.
 
-## Apply the design to the repository
+## Apply the architecture
 
-Inspect the existing code and dependency versions before editing. Keep its strong typing, Effect service composition, Alchemy infrastructure ownership, and Worker RPC conventions. Replace sample application behavior with the financial application described in [Architecture](/technical/architecture).
+Use the existing strong types, Effect service composition, Alchemy infrastructure ownership, and Worker RPC conventions. Read [Architecture](/technical/architecture) for the system split and [Monorepo and ownership](/technical/monorepo) for module and resource ownership. Create only the resources and exports required by the selected stage.
 
-Inspect the [actual CommBank files](/technical/ingestion#actual-commbank-files) in `fixtures/commbank/` when developing import and financial-data behavior. Use their contents to verify assumptions about formats, account identifiers, overlaps, and coverage.
+Implement the stage projections in [Stage boundaries](/technical/stage-boundaries#contract-evolution). Preserve source identity and financial invariants while evolving schemas through explicit migrations. Later fields and behaviors need no placeholder handlers, disabled controls, unused tables, or runtime stage flags.
 
-Use [Monorepo and ownership](/technical/monorepo) for workspace responsibilities, package exports, infrastructure ownership, and import rules. Adapt private files when existing shared logic provides a better home. Preserve public contracts and service responsibilities, and record any necessary design change in the affected page.
+For imports, inspect the [actual CommBank files](/technical/ingestion#actual-commbank-files) in `fixtures/commbank/`. Stage 1 validates CSV and OFX; stage 2 expands validation to the full corpus. Preserve private contents outside tracked fixtures and published artifacts.
 
-## Resolve engineering choices
+Use the [decision ownership policy](/technical#design-status). Consult matching installed source and official third-party documentation when implementing APIs. Record evaluated policy/model versions on their owning references. Correct a failed evaluation candidate rather than weakening financial invariants.
 
-Use the selected frameworks and the project-specific policies in these docs. Consult official documentation and matching package source for third-party API usage, supported limits, and integration details.
+## Build the browser experience with the backend
 
-Use the [decision ownership and status](/technical#design-status) policy. Implement the shared contracts, schema, RPC, and processing references together. If implementation evidence exposes a contradiction or missing contract, resolve it on the owning reference page before adding dependent behavior. Product behavior and financial invariants remain the acceptance boundary.
+Each stage is a complete application increment. Connect its real persistence and processing to its user flows. Include navigation, required settings, evidence, review, progress, errors, cancellation and recovery where applicable. Apply [Frontend](/technical/frontend) and [Operations](/technical/operations) for the selected stage.
 
-Choose compatible library versions and model IDs using the documented evaluation gates. Tune versioned thresholds only with recorded evidence, and update the affected specification before changing its contract. Internal function decomposition and framework API syntax remain implementation choices.
+Verify the stage's critical runtime integrations early. Stage 1 includes Postgres through Hyperdrive, authenticated storage access, direct outbox dispatch, atomic publication, and recovery after a lost commit response. PDF/model checks arrive in stage 2; analyst namespace routing and conversation continuity arrive in stage 6.
 
-Verify authenticated analyst namespace routing, direct outbox-to-Workflow dispatch, source extraction, and the Effect Postgres connection through Hyperdrive early. Include atomic financial publication, stable snapshots, and recovery after a lost commit response. Keep the resulting checks with their owning modules.
+Missing financial facts become specific review items. Continue independent work without inventing personal context. If credentials, a deployment identity, or private files are unavailable, implement and verify available paths with representative fixtures and record the exact external check that remains outstanding.
 
-Use concrete review items for missing financial facts. For example, an unknown account relationship remains unresolved until evidence or the user's answer establishes it. Continue implementing the surrounding behavior without inventing personal context.
+The written flows specify information and actions. Visual composition and branding remain open to a separate design task. A functional frontend is still required for stage completion.
 
-If an external credential, deployment identity, or private source is unavailable, implement and verify the available paths with representative fixtures. Record the exact external check that remains. Distinguish that limitation from a completed live integration.
+## Verify and stop
 
-## Connect every product flow
+Run [Verification](/technical/verification) for the selected stage and regression checks for earlier behavior. Exercise the connected frontend on desktop, mobile, and with a keyboard. Validate data, source evidence, and recovery through the same operations the user invokes.
 
-Build in dependency order, with connected behavior at each step:
+Stage 1 accounts for every supplied CSV/OFX; stage 2 accounts for every supplied file. Distinguish accepted records, matched observations, and specific unresolved evidence. A parser defect or general review state is not successful ingestion.
 
-1. Implement the Postgres schema and transaction protocol in the [financial model](/technical/financial-model), then the [ingestion pipeline](/technical/ingestion). Establish canonical history, source evidence, review, corrections, and retry behavior.
-2. Connect the [workspace](/product/workspace) and [transactions](/product/transactions) through the shared financial API. Verify that a correction updates every affected view coherently.
-3. Implement [trends](/product/trends), [commitments and forecasts](/product/commitments-and-forecasts), and saved analyses using the shared [calculation services](/technical/analytics).
-4. Connect the [analyst and memory](/product/analyst-and-memory) to those services through the [agent runtime](/technical/ai-analyst). Include clarification, reconnection, cancellation, and reproducible computational investigations.
-5. Complete [insights and follow-through](/product/insights-and-follow-through), settings, exports, and source removal. Verify refresh and invalidation after new records, corrections, and context changes.
-
-Apply the [frontend requirements](/technical/frontend) and [operating policy](/technical/operations) throughout this work. The sequence resolves dependencies. All steps belong to the requested product.
-
-## Establish completion
-
-Run the checks defined in [Verification](/technical/verification). Map each product requirement to working behavior and evidence. Record model evaluation results, forecast comparisons, and any remaining external checks with enough context to repeat them.
-
-Account for every supplied CSV, OFX, and PDF file during private-corpus validation. Distinguish accepted records, matched observations, and specific unresolved evidence. Fix parser or reconciliation defects rather than treating a general review state as successful ingestion.
-
-Exercise the connected experience on desktop and mobile. Verify imports through evidence-backed answers, corrections through refreshed results, and interruptions through truthful recovery states. Verify access and restoration using the operating policy.
-
-Replace obsolete sample routes and behavior as their product replacements land. Update documentation that no longer matches the implemented design. Finish with a completion report that identifies the verified scope, evidence locations, and any work still outstanding.
+Replace obsolete sample behavior as its stage replacement lands. Update affected references and record completion evidence, policy evaluations, and specific unverified external checks. A completion report names the stage and its remaining work. Stop after the selected stage; later stages require a new task or explicit scope extension.

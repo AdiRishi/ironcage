@@ -3,6 +3,12 @@ title: Calculation rules
 description: Financial event construction, comparison algorithms, recurring schedules, forecasts, and insight detector defaults.
 ---
 
+## Delivery scope
+
+Stage 1 uses unresolved-event conservation only. Stage 3 owns established event construction, relationships, and financial measures needed by previews. Stage 4 adds comparison execution and saved date selections. Stage 5 owns ordinary costs, schedules, forecasts, and scenarios. Stage 7 owns insight detectors. Computation definitions are introduced in stage 6.
+
+[Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
+
 These rules implement the metrics in [Financial records and metrics](/technical/financial-model). The financial API and processor use the same functions in `packages/finance/src/`. `finance-v2` identifies these rules in stored results. Money examples are fictional.
 
 ## Financial event construction

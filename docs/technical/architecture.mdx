@@ -3,6 +3,12 @@ title: Architecture
 description: Shared financial services, explicit background jobs, and a persistent analyst on Cloudflare.
 ---
 
+## Delivery scope
+
+Stage 1 builds web/API/processor, financial storage, evidence, dispatch, and backups. Stage 2 adds document extraction infrastructure; stages 3 through 5 add interpretation and financial analysis; stage 6 adds the analyst and computation; stage 7 adds proactive work. The graph below describes the eventual system. Instantiate only the selected stage's resources.
+
+[Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
+
 Ironcage needs consistent answers across several entry points. A chart, an import-triggered insight, and a conversation can ask the same financial question. Their calculations therefore share one application layer and one set of financial definitions.
 
 The [RPC specification](/technical/rpc) defines service boundaries at method level. The [database schema](/technical/database-schema) and [shared contracts](/technical/contracts) define stored and transported values. [Import and job protocols](/technical/import-protocol) defines durable execution between runtimes.

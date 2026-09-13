@@ -3,6 +3,17 @@ title: Imports
 description: Add the full financial history, repeat an upload safely, and resolve only the records that need attention.
 ---
 
+## Delivery scope
+
+| Stage                               | Behavior introduced                                                                                                                           |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| [1](/stages/record-transactions)    | CSV/OFX uploads, account mapping, parsing, overlaps, source evidence and coverage, source review, progress, retries, and unresolved postings. |
+| [2](/stages/historical-imports)     | PDF and cross-format history, document-model recovery, user export and source removal.                                                        |
+| [3](/stages/interpret-transactions) | Role and category interpretation, relationship questions, retained semantic corrections, and interpretation progress.                         |
+| [4](/stages/explore-spending)       | Overview and saved-analysis refresh from accepted history.                                                                                    |
+
+Before stage 3, import ends with accepted postings and unresolved events; it does not schedule interpretation or require category review. Stage 1 advertises and accepts CSV/OFX only. The full-format requirements below apply from stage 2. Later derived work never changes a completed posting import back to failed.
+
 Imports accept batches of CommBank CSV and OFX exports and PDF statements. A batch can mix accounts, formats, periods, and files uploaded before. Older records are included rather than discarded because they fall outside the recent export window. CSV and OFX files can arrive separately or together. Import order and filename pairing do not determine correctness.
 
 ## Import flow

@@ -9,7 +9,7 @@ The design extends the existing Alchemy and Effect application platform. PlanetS
 These pages define the target implementation. Module locations, schemas, routes, and runtime behavior describe the design to build, not a claim of shipped functionality.
 :::
 
-To implement the product, start with [Build spend management](/technical/build-spend-management). The guide connects these references to the work and its completion criteria.
+Start with [Delivery stages](/stages) and [Build one stage](/technical/build-spend-management). [Stage boundaries](/technical/stage-boundaries) allocates the interfaces and their staged projections. Read the sections required by the selected stage; later contracts are reference material until their introduction stage.
 
 ## Implementation specifications
 
@@ -70,7 +70,7 @@ These references define application contracts. The architecture pages below expl
 
 ## Design status
 
-Cloudflare Workers, PlanetScale Postgres, Hyperdrive, Alchemy, Effect, TanStack Start, shadcn components, Cloudflare Agents SDK, AIChatAgent, Vercel AI SDK, Workflows, Containers, Cloudflare Access, and AI Gateway are selected.
+Cloudflare Workers, PlanetScale Postgres, Hyperdrive, Alchemy, Effect, TanStack Start, shadcn components, Cloudflare Agents SDK, AIChatAgent, Vercel AI SDK, Workflows, Containers, Cloudflare Access, and AI Gateway are selected for the eventual system. Deploy them only at the introduction stages in [Stage boundaries](/technical/stage-boundaries).
 
 The [application domain](/technical/operations#application-domain) is selected, with Cloudflare Access protecting the production web application.
 
@@ -78,7 +78,7 @@ PDF text extraction uses unpdf. [PDF library selection](/technical/ingestion#pdf
 
 The data structures and policies in these pages are implementation decisions derived from the [product contract](/product). Their correctness is established through the [acceptance scenarios](/product/acceptance), not by the presence of a framework feature.
 
-The [product pages](/product) own required behavior. Shared contracts, schema, RPC, and protocol pages own the target interfaces and accounting invariants. Architecture pages explain those decisions and link to the authoritative rule rather than redefining it.
+The [stage pages](/stages) own delivery scope and stopping points. The [product pages](/product) own required behavior within their assigned stage. Shared contracts, schema, RPC, and protocol pages own the target interfaces and accounting invariants. Architecture pages explain those decisions and link to the authoritative rule rather than redefining it.
 
 Matching, role-marker, categorization, detector, and forecast policies are provisional until their stated evaluation gates pass. The initial version IDs name unshipped candidates, not evidence of successful evaluation. Failed gates require correcting the candidate, recording a new policy version and results, and updating its authoritative page before promotion. They do not permit weakening financial invariants or treating broad unresolved output as completed ingestion.
 

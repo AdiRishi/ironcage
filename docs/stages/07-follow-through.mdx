@@ -1,0 +1,42 @@
+---
+title: "7. Discover changes and track outcomes"
+description: Complete spend management with useful findings, tracked intentions, and a durable inbox.
+---
+
+## Outcome
+
+The user receives evidence-backed findings and can follow a deliberate change against a chosen baseline. New imports and corrections update findings and progress without repeatedly announcing unchanged information.
+
+Prerequisite: stage 6 is verified. Reuse its financial analysis, schedules, context, and investigation flows.
+
+## User flows and frontend
+
+- Inspect ranked findings, open their records, ask the analyst to investigate, add context, mark useful, or dismiss.
+- Understand superseded or reopened findings through the specific new evidence that changed them.
+- Turn a finding into a tracked intention with a measure, baseline, start date, and context. Edit, pause, complete, and review its progress, including explicit substitution costs.
+- Use the in-app inbox for findings, completed work, failures, and questions. Follow each item to its existing owning view.
+- Configure import reminders and review follow-up outcomes. Distinguish a request for newer data from a newly observed financial change.
+
+Extend the overview with relevant findings and add complete Insights and intention experiences. Existing job failures and reviews remain accessible through their owning screens as well as the inbox.
+
+## Backend and integration
+
+Implement versioned insight detectors, materiality and ranking, grouping, dismissal/reopening rules, intentions, and inbox delivery. Refresh affected findings and intention results after imports, corrections, context changes, and scheduled reviews.
+
+Preserve accepted user state. Coalesce repeated refresh and notifications. Time-driven work cannot invent new spending observations. Update exports, source/context invalidation, backup manifests, and restore verification for findings, intentions, and inbox state.
+
+## Reading path
+
+Read [Insights and follow-through](/product/insights-and-follow-through), final overview additions in [Workspace](/product/workspace), and reminder controls in [Settings](/product/settings-and-data). Use [Stage boundaries](/technical/stage-boundaries#stage-7), [Change detection and insight ranking](/technical/analytics#change-detection-and-insight-ranking), [Insight detectors and ranking](/technical/calculation-rules#insight-detectors-and-ranking), and the associated schema, RPC, refresh, and scheduled-work requirements.
+
+Review the full [acceptance allocation](/product/acceptance) to verify cumulative coverage. Earlier stages retain their recorded evidence and regression checks.
+
+## Completion evidence
+
+Demonstrate a material finding with supporting records, dismissal that survives unchanged refresh, reopening after qualifying new evidence, and supersession after a correction. Track reduced delivery spending with an explicitly selected grocery substitution measure and disclose insufficient evidence.
+
+Verify inbox navigation, notification deduplication, import-reminder preferences, and scheduled work when no new data exists. Restore all new state without replaying completed notifications. Account for the complete spend-management requirements across the seven stage completion records.
+
+## Excluded
+
+Automatic bank feeds, payment execution, investment/trading/crypto systems, and external notification channels beyond the specified in-app behavior. Those need separate product decisions.

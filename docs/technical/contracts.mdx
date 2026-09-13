@@ -3,6 +3,12 @@ title: Shared contracts
 description: Exact value types, query shapes, command receipts, and result envelopes used across the application.
 ---
 
+## Delivery scope
+
+Stage 1 uses exact values, owner/job context, live pagination, posting filters, source evidence/coverage, commands, and failures. Stage 2 adds document usage; stage 3 interpretation and preview measures; stage 4 comparison queries/results; stage 5 planning results; stage 6 analyst/context/computation; stage 7 findings. Apply the explicit field and union projections before implementing the eventual shapes below.
+
+[Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
+
 This reference defines the application boundary schemas. The implementation owns them in `packages/contracts/src/finance/`, using Effect Schema with inferred TypeScript types. SQL adapters, Worker RPC, browser server functions, and AI JSON Schema adapters derive their contracts from these definitions.
 
 The shapes below describe encoded values. Decoded money uses `bigint`. Fields are required unless marked optional. Nullable fields use `null`, not a missing property. Object schemas reject unknown fields at external boundaries. All contracts carry `schemaVersion: 1` at their persisted or transported root.

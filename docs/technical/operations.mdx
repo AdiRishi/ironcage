@@ -3,6 +3,12 @@ title: Operations
 description: Private access, durable financial data, bounded model usage, and actionable failure records.
 ---
 
+## Delivery scope
+
+Stage 1 owns authentication, database/evidence storage, import limits, dispatch recovery, safe diagnostics, operating backups, and restore verification. Stage 2 adds PDF/model limits, user export/removal, and AI disclosures; stage 3 interpretation usage; stage 4 saved-analysis refresh; stage 5 planning refresh; stage 6 conversation/computation operations; stage 7 inbox/reminders/follow-up. Operating backups cover implemented data from stage 1.
+
+[Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
+
 This page defines the target operating policy for private financial records, model calls, and persistent investigations.
 
 ## Application domain
@@ -41,7 +47,7 @@ New test and development branches start empty and receive the versioned migratio
 
 ## Scheduled work
 
-The API Worker owns these scheduled triggers and records durable jobs before dispatch. Scheduled handlers use server-configured owner identity, not browser-supplied caller context. The processor executes the jobs through its existing Workflows.
+The API Worker owns these scheduled triggers and records durable jobs before dispatch. Dispatch recovery and both backup schedules begin in stage 1, covering the implemented records and evidence. Saved-analysis calendar refresh begins in stage 4, commitment/forecast refresh in stage 5, and intention reviews and import reminders in stage 7. Earlier stages have no scheduled dispatch for later consumers. Conversation export is added to portable backups in stage 6. Scheduled handlers use server-configured owner identity, not browser-supplied caller context. The processor executes the jobs through its existing Workflows.
 
 | Trigger         | API action                                                                                                                              | Duplicate prevention                                                                               |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
@@ -61,7 +67,7 @@ Production destruction requires an explicit destructive operation, with backup v
 
 The API schedules a daily logical database backup at 02:00 UTC, retained for 30 days. It keeps the provider's automatic backups as well. Daily portable exports at 03:00 UTC include Postgres records, conversation messages and attachments, and a manifest of required R2 objects. Daily exports are retained for 30 days; the first successful export of each UTC month is retained for 12 months. Referenced source and artifact bytes are copied into a separate backup bucket and retained until the last referring backup expires. The export manifest records its database snapshot revision, context generation, and a message-sequence watermark per conversation. Conversation exports include the canonical prefix represented by accepted runs in that database snapshot; incomplete run/message pairs are retained as pending reconciliation records. Referenced R2 objects are pinned against cleanup until their backup copies are verified. Hash verification precedes publication of the backup manifest. A removed live source can therefore remain in backups for up to 12 months, which Settings discloses.
 
-The recovery target for a complete database, evidence, and conversation restore is at most 24 hours of lost work and restoration within one working day. A missed or failed daily export creates an operational inbox failure. A quarterly isolated restore drill checks the target and records elapsed time. Provider-only point-in-time recovery can recover newer database state, but is not presented as a complete cross-store restore without matching evidence and conversation checkpoints.
+The recovery target for a complete database, evidence, and conversation restore is at most 24 hours of lost work and restoration within one working day. A missed or failed daily export creates a visible operational failure with job status and retry from stage 1. Stage 7 also delivers that failure to the inbox. A quarterly isolated restore drill checks the target and records elapsed time. Provider-only point-in-time recovery can recover newer database state, but is not presented as a complete cross-store restore without matching evidence and conversation checkpoints.
 
 PlanetScale backups provide database recovery. Scheduled logical exports to a separate R2 backup location provide an additional portable copy. A backup manifest identifies schema version, financial revision, referenced source objects, and creation time. Database backups do not include the corresponding R2 files. The backup job verifies that each referenced object is retained. [PlanetScale backup and restore](https://planetscale.com/docs/postgres/backups)
 
@@ -69,7 +75,7 @@ The API owns a maintenance Container in infra/src/api. It runs a fixed pg_dump c
 
 The 03:00 portable export uses the application export protocol to capture canonical records and conversation watermarks together. It does not claim that the independent 02:00 pg_dump and later conversations share a database snapshot. Backup and migration credentials are separate from the ordinary API connection.
 
-The processor calls the analyst-owned exportConversation operation through its private export binding. The analyst verifies the prepared export scope through the API and exports the represented canonical prefix through the SDK message interface. It records incomplete pairs for restore reconciliation and returns an artifact owned by the requesting job. A Postgres backup alone does not include this Durable Object history.
+From stage 6, the processor calls the analyst-owned exportConversation operation through its private export binding. The analyst verifies the prepared export scope through the API and exports the represented canonical prefix through the SDK message interface. It records incomplete pairs for restore reconciliation and returns an artifact owned by the requesting job. A Postgres backup alone does not include this Durable Object history.
 
 A restore targets an isolated database branch and stage. Verification checks balances, corrections, source links, command receipts, saved-analysis references, and conversation exports. Dispatch remains paused until reconciliation identifies which jobs or external deliveries already completed. The restored stage does not automatically resend every pending outbox record.
 
@@ -103,11 +109,11 @@ Structured events carry import ID, source ID, job ID, conversation ID, command I
 
 Operational views identify queued jobs with no progress, repeated extraction failures, unreconciled sources, stale analyses, failed publications, and model usage. Database metrics include pool waits, transaction duration, lock timeouts, rolled-back commands, and dispatch lease expiry. Financial completeness is derived from source coverage, not from the absence of logged errors.
 
-An incident can be traced from an inbox failure to its job and source evidence through authenticated application views. Logs provide the path to investigate without becoming another copy of the bank history.
+An incident can be traced from the owning operational view to its job and source evidence through authenticated application views. Stage 7 adds the inbox entry point. Logs provide the path to investigate without becoming another copy of the bank history.
 
 ## Deployment checks
 
-Alchemy plans and deploys the complete financial resource graph. Development, staging, production, and isolated test stages use separate storage and runtime identities. A deployment preserves stable resource identities.
+Alchemy plans and deploys the resource graph required by the selected delivery stage. Development, staging, production, and isolated test stages use separate storage and runtime identities. A deployment preserves stable resource identities.
 
 Versioned Postgres migrations in `workers/api/migrations/` run once through the deployment process before dependent code receives traffic. A migration lock prevents concurrent schema changes. The runtime role cannot alter the schema. The same migration files create a fresh database and upgrade an existing one.
 
@@ -115,4 +121,4 @@ Schema changes are applied explicitly to each stage. PlanetScale Postgres branch
 
 The production plan is reviewed before application. A schema change that cannot preserve old readers uses a coordinated deployment and a verified backup. Model and detector versions are promoted independently of financial data migrations.
 
-Before private-data deployment, access checks include direct API attempts, source downloads, conversation reconnects, and stage isolation. Recovery checks include an interrupted commit and restoration from the chosen backup mechanism.
+Before private-data deployment, access checks cover direct API attempts, source downloads, and environment isolation. Conversation reconnect checks join that gate in stage 6. Recovery checks include an interrupted commit and restoration from the chosen backup mechanism.

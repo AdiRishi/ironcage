@@ -3,6 +3,12 @@ title: Database schema
 description: Postgres tables, columns, identities, constraints, and indexes for financial and application state.
 ---
 
+## Delivery scope
+
+Tables and foreign keys are introduced according to the stage allocation. Stage 1 records sources and postings with unresolved events and allocations. Later relations arrive through migrations when their behavior exists. The full schema below is not a requirement to create every table in stage 1.
+
+[Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
+
 This is the target schema for migrations under `workers/api/migrations/`. Names in this page are SQL names. The [shared contracts](/technical/contracts) define encoded values and the [financial model](/technical/financial-model) defines accounting meaning.
 
 ## Conventions

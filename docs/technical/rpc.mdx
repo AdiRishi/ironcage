@@ -3,6 +3,12 @@ title: RPC specification
 description: Financial API methods, request and response schemas, mutation rules, and browser transport boundaries.
 ---
 
+## Delivery scope
+
+Implement only methods and payload variants assigned to the selected stage. Shared methods grow through the explicit projections, including transaction detail, settings, previews, overview, refresh, and export. The eventual signatures below do not require empty results or unimplemented handlers for future behavior.
+
+[Stage boundaries](/technical/stage-boundaries) owns the precise allocation and contract evolution. [Delivery stages](/stages) defines the frontend and backend completion requirements.
+
 The financial API exports the methods below through the starter's native Worker RPC adapter, except the explicitly identified content streams. Each RPC takes `{context: CallerContext, input: Input}` and returns an Effect success value or a tagged failure. The adapter derives the callable client from the server implementation. Content streams use private service-binding HTTP handlers with the same ownership rules.
 
 `CallerContext`, `Command`, `CommandReceipt`, `Page`, `FinancialQuery`, and failures are defined in [Shared contracts](/technical/contracts). Browser server functions and AI tools omit context from their public arguments and supply it from trusted execution state.
@@ -812,7 +818,7 @@ RegisterArtifact returns the private PUT path. Browser downloads use the authent
 | `/api/artifacts/:artifactId/content` | GET                                                          | Authenticated artifact stream.                                                                                                                                                                     |
 | `/api/analyst/:conversationId/*`     | SDK HTTP, streaming, and WebSocket protocol                  | Authenticated routing to the owner-bound AIChatAgent through its cross-script Durable Object namespace binding. SDK message frames are not replaced by a custom chat protocol.                     |
 
-Financial screen reads and commands use typed TanStack Start server functions that call the RPC methods. The upload path expires after one hour before upload begins. Limits are 100 files per batch, 33,554,432 bytes per file, displayed as 32 MiB, and 500 PDF pages per file. Larger limits require configuration and resource validation, not silent truncation. The importer must accommodate every supplied file.
+Financial screen reads and commands use typed TanStack Start server functions that call the RPC methods. The upload path expires after one hour before upload begins. Limits are 100 files per batch, 33,554,432 bytes per file, displayed as 32 MiB, and 500 PDF pages per file. Larger limits require configuration and resource validation, not silent truncation. Stage 1 must accommodate every supplied CSV/OFX; stage 2 adds every supplied PDF.
 
 Browser mutations validate origin and session before forwarding. The web Worker owns the HTTP and WebSocket ingress and binds directly to the analyst-owned Durable Object namespace. The analyst Worker exports the class and owns migrations; no intermediate analyst HTTP proxy is deployed. Routing translates the app path to the SDK route and exposes only the analyst namespace. Deployment tests cover authentication, owner-derived instance names, upgrades, streaming, and reconnects. Each conversation identity is derived from the authenticated owner and its conversation UUID. A browser cannot route itself to another owner's Durable Object by changing the URL.
 

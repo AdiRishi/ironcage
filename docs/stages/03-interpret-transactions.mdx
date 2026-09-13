@@ -1,0 +1,45 @@
+---
+title: "3. Interpret and correct transactions"
+description: Turn accepted postings into financial interpretations that the user can inspect and correct.
+---
+
+## Outcome
+
+The user can understand and correct what each transaction means. Financial roles, categories, merchants, linked movements, and credits sit above the accepted bank postings. Reimports preserve user decisions.
+
+Prerequisite: stage 2 is verified. Interpret the existing history without asking the user to upload it again.
+
+## User flows and frontend
+
+- Inspect a transaction's role, merchant, category, allocations, tags, personal-event associations, and evidence alongside the original bank fields.
+- Establish purchases, income, financing costs, transfers, card settlements, borrowing, and loan repayments from evidence or explicit confirmation. Show missing counterpart evidence without inventing a posting.
+- Link partial refunds and reimbursements, including several credits and shared credits. Inspect personal cost separately from the bank amount.
+- Change one interpretation, split a purchase, inspect correction history, and undo through a new correction. Preview affected financial measures before accepting role, relationship, or allocation-amount changes.
+- Preview and apply historical or future rules while retaining individual exceptions. Manage categories, tags, merchants and aliases, personal events, and account relationships in their existing owning views.
+- Filter and search history using the newly available interpretations. Resolve role, category, and relationship questions, and track background interpretation progress and failures.
+
+These are complete transaction and correction experiences. They do not require a trends dashboard or conversation. Ordinary-cost exclusions on personal events arrive in stage 5.
+
+## Backend and integration
+
+Add deterministic role establishment, known rules, and evaluated model classification in that order. Category classification applies only after a role is established. Unknown categories use unclassified costs; unknown roles remain excluded from cost and income measures with their impact disclosed.
+
+Introduce interpretation jobs after posting publication and a durable backfill of pre-existing unresolved events when this stage is installed. Reuse observations, posting IDs, and corrections. Backfill and retries must be idempotent and visible through job status; no reparsing or reupload is required solely to categorize history.
+
+Implement event construction, conservation, movement and credit relationships, corrections, previews, rule application, and revision-aware publication. Implement the exact financial measures needed by transaction details and impact previews now. Stage 4 builds historical exploration on those same calculations. Expand source-removal previews to financial impact and export/restore coverage to all new records.
+
+## Reading path
+
+Read [Transactions](/product/transactions), classification and account controls in [Settings](/product/settings-and-data), and interpretation portions of [Imports](/product/imports). Use [Stage boundaries](/technical/stage-boundaries#stage-3), [Financial records](/technical/financial-model), [Financial event construction](/technical/calculation-rules#financial-event-construction), [role establishment](/technical/import-protocol#financial-role-establishment), and [Interpretation](/technical/ai-functionality#interpretation).
+
+Read the corresponding schema tables, mutation/preview RPC, and classification evaluation gates. Preserve source-backed parsing and matching behavior from stages 1 and 2.
+
+## Completion evidence
+
+Demonstrate the documented card repayment, internal transfer, partial reimbursement, refund, and mortgage examples through transaction details and previews. Show unknown roles separately from unclassified costs. Verify conserving splits, credit limits, effective account relationships, correction undo, and historical rule previews that preserve exceptions.
+
+Categorize records imported before this stage, then upload overlapping older statements. Posting identities and accepted corrections must remain intact. Exercise model failure and usage ceilings without losing accepted history. Verify classification evaluation and export/restore of interpretations.
+
+## Excluded
+
+Historical comparison screens, saved analyses, ordinary-cost estimates, schedules, forecasts, analyst conversations, and proactive findings. Financial arithmetic used in previews belongs here; its exploration UI belongs to stage 4.

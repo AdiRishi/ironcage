@@ -1,8 +1,8 @@
 # Ironcage
 
-Ironcage is a private personal finance platform for one user. Its current product scope is complete spend management: a connected financial history, detailed trends, forecasts, and an analyst that retains useful context.
+Ironcage is a private personal finance platform for one user. It is built in seven stages, starting with transaction uploads and recorded history. Each stage delivers a working frontend and backend before the next adds more behavior.
 
-The documentation defines the product and target implementation. Investment, stock-trading, and crypto capabilities have a place in the broader vision, but their detailed specifications come later.
+Start with [Delivery stages](docs/stages/index.mdx) and [Build one stage](docs/technical/build-spend-management.mdx). Stage 1 is the default implementation target. The documentation preserves the full product plan as stage-scoped references. Investment, stock-trading, and crypto capabilities have a place in the broader vision, but their detailed specifications come later.
 
 ## Read the docs
 
@@ -14,6 +14,8 @@ pnpm docs:dev
 
 Open the local URL printed by Blume. The docs server runs independently of the application and needs no Cloudflare credentials.
 
+- [Delivery stages](docs/stages/index.mdx)
+- [Architecture and ownership](docs/technical/architecture.mdx)
 - [Vision](docs/vision.mdx)
 - [Product behavior and user flows](docs/product/index.mdx)
 - [Technical design](docs/technical/index.mdx)
