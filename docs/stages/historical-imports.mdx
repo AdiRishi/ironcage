@@ -39,7 +39,7 @@ Also read [Import protocol](/technical/import-protocol#pdf-statements), [Operati
 
 - Export: choose whether to include original files, request, see progress, download. Past exports list their time and contents.
 - Document model: enabled or disabled, provider name, what is sent, usage to date, warning threshold.
-- Source files: list with size, availability, and Remove bytes.
+- Source files: list with size, availability, and Remove bytes. A failed removal shows an error and offers Retry using the same command ID and input.
 
 ## Data
 
@@ -49,20 +49,20 @@ Also read [Import protocol](/technical/import-protocol#pdf-statements), [Operati
 | `model_usage` | `id`, `task`, `model`, `occurred_at`, `input_tokens` nullable, `output_tokens` nullable, `cost_minor` nullable, `cost_currency` nullable, `status`           |
 | `settings`    | adds `ai_enabled` boolean, `ai_warning_minor` nullable                                                                                                       |
 
-Changes to stage 1 tables: `imports.format` gains `pdf`; `observations.locator` gains the `pdfRow` shape; `source_coverage` for a statement uses the printed period and both printed balances. `source_files` is unchanged, since removal only flips `bytes_available` and a reupload rewrites `object_key`.
+Changes to stage 1 tables: `imports.format` gains `pdf`; `observations.locator` gains the `pdfRow` shape; `source_coverage` for a statement uses the printed period and both printed balances. No columns are added to `source_files`: removal changes `bytes_available` and `version`, and reupload also replaces `object_key`. A removal receipt stores `{ sourceFileId, objectKey, affectedPostingCount }` in `command_receipts.result`, preserving the deletion key across reuploads.
 
 ## Operations
 
-| Caller    | Operation                                                                                  | Contract                                                                                         |
-| --------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| Web       | `POST /uploads`                                                                            | Accepts `application/pdf`. Same response as stage 1.                                             |
-| Web       | `requestExport({ commandId, includeSources })`, `listExports()`, `getExport({ exportId })` | Command creates the export and starts a Workflow. Status `processing`, `ready`, `failed`.        |
-| Web       | `GET /exports/:exportId`                                                                   | Streams the zip while it exists.                                                                 |
-| Web       | `removeSourceBytes({ commandId, sourceFileId })`                                           | Deletes the R2 object, sets `bytes_available` false, returns affected posting count.             |
-| Web       | `listSourceFiles()`                                                                        | Files with size, format, availability, and import status.                                        |
-| Web       | `getModelUsage()`                                                                          | Totals and recent records.                                                                       |
-| Processor | `publishImport`                                                                            | Unchanged. Observations carry `pdfRow` locators and the statement's printed period and balances. |
-| Processor | Document model call                                                                        | Only for a page the adapter cannot decode, only when `ai_enabled`. Writes a `model_usage` row.   |
+| Caller    | Operation                                                                                  | Contract                                                                                                                                                        |
+| --------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web       | `POST /uploads`                                                                            | Accepts `application/pdf`. Same response as stage 1.                                                                                                            |
+| Web       | `requestExport({ commandId, includeSources })`, `listExports()`, `getExport({ exportId })` | Command creates the export and starts a Workflow. Status `processing`, `ready`, `failed`.                                                                       |
+| Web       | `GET /exports/:exportId`                                                                   | Streams the zip while it exists.                                                                                                                                |
+| Web       | `removeSourceBytes({ commandId, sourceFileId, expectedVersion })`                          | Commits unavailability and a receipt with the deletion key, then deletes that R2 object. Returns affected posting count. Repeats delete only the receipt's key. |
+| Web       | `listSourceFiles()`                                                                        | Files with size, format, availability, version, and import status.                                                                                              |
+| Web       | `getModelUsage()`                                                                          | Totals and recent records.                                                                                                                                      |
+| Processor | `publishImport`                                                                            | Unchanged. Observations carry `pdfRow` locators and the statement's printed period and balances.                                                                |
+| Processor | Document model call                                                                        | Only for a page the adapter cannot decode, only when `ai_enabled`. Writes a `model_usage` row.                                                                  |
 
 ## Worked example
 
@@ -83,7 +83,8 @@ Account S has postings from 17 August 2024 onward after stage 1. Statement P cov
 - An undecodable page produces a `value` item and leaves the rest of the file published.
 - If a document model is enabled: an invalid response and a provider failure both leave the page in review, and usage rows are written for each call.
 - Export contents match the database for every table. Retry after a simulated failure produces a complete export.
-- Removal then reupload creates no posting and restores the download. A stale removal request after a reupload deletes nothing.
+- Removal then reupload creates no posting and restores the download. A new removal command with a stale version deletes nothing.
+- An R2 deletion failure offers manual retry. After reupload, repeating the original command deletes only the old key saved in its receipt; the replacement stays downloadable. Repeating a successful removal also leaves the replacement intact.
 - The three screens work at phone width and by keyboard.
 - Stage 1 checklist still passes.
 

@@ -137,7 +137,7 @@ Account S is a deposit account. File A is its OFX for 17 to 31 August. File B is
 5. **Upload A while B is still processing.** Publication takes the write lock, so the second file's matching sees the first file's committed postings or waits for them. No duplicates either way.
 6. **A future export changes a description.** The parser produces a candidate that differs from the accepted posting an earlier observation of the same file supports. The importer creates a `source_conflict` review item and leaves the posting unchanged until the user chooses.
 7. **The publication response is lost.** The Workflow's `publishImport` call times out after the commit. The platform retries the step with the same import, parser version, and observations. The API finds the publication receipt before looking at the import's status, which is already `complete`, and returns the stored summary. Nothing is written twice.
-8. **A parser fix, then retry.** A bug in the value-date suffix handling is fixed and the parser version bumped. Retrying file C produces observations with different candidates, so the receipt key differs and a new publication runs. Rows whose candidates still equal their postings reuse their links at matching step 1. Rows whose candidates changed become `source_conflict` review items; no posting is altered or duplicated.
+8. **A parser fix, then retry.** File D overlaps C but fails parsing a value-date suffix. D is `failed` and publishes no observations or postings. After the parser fix and version bump, the user selects Retry on D. A new Workflow parses the stored bytes with the updated parser. Matching reuses the postings already supported by C and creates only D's new postings. C stays `complete`.
 
 ## Verification checklist
 
@@ -146,6 +146,7 @@ Run these before calling the stage done. [Verification](/technical/verification)
 - Every CSV and every OFX in the corpus imports alone. Row counts match the file. Adjacent running balances reconcile in every deposit and loan CSV. Each OFX closing anchor equals the newest running balance of its CSV pair.
 - The whole corpus imports in filename order and in reverse order to the same set of postings. Every CSV row matches its OFX pair's posting at step 3, and the deposit accounts also match at step 2. The CSV and OFX corpus produces zero review items; report any that appear with their reason.
 - Two identical same-day rows in one file produce two postings. Reuploading that file produces no more.
+- Two same-day, same-amount rows with the same description but different running balances match their counterparts by balance, even when the second file reverses their order. Conflicting balances leave the rows in review.
 - Renamed identical bytes are recognized. A file with one bad row fails visibly while a sibling completes, and retry succeeds after the parser fix.
 - `publishImport` called twice with the same observations returns the same summary and writes nothing the second time. A failure injected before commit leaves no postings, no observations, no receipt.
 - A `resolveReview` whose response is lost can be repeated with the same command ID and returns the first result. A stale `expectedVersion` changes nothing.
