@@ -49,7 +49,7 @@ Also read [Import protocol](/technical/import-protocol#pdf-statements), [Operati
 | `model_usage` | `id`, `task`, `model`, `occurred_at`, `input_tokens` nullable, `output_tokens` nullable, `cost_minor` nullable, `cost_currency` nullable, `status`           |
 | `settings`    | adds `ai_enabled` boolean, `ai_warning_minor` nullable                                                                                                       |
 
-`observations.locator` gains the `pdfRow` shape. `source_coverage` for a statement uses the printed period and both printed balances. No other stage 1 table changes.
+Changes to stage 1 tables: `imports.format` gains `pdf`; `observations.locator` gains the `pdfRow` shape; `source_coverage` for a statement uses the printed period and both printed balances. `source_files` is unchanged, since removal only flips `bytes_available` and a reupload rewrites `object_key`.
 
 ## Operations
 
@@ -71,7 +71,7 @@ Account S has postings from 17 August 2024 onward after stage 1. Statement P cov
 1. Rows dated 1 July to 16 August have no existing posting with their account, date, and amount. They become new postings.
 2. Rows from 17 August onward each find one existing posting with the same date and amount. Descriptions differ in wording, so the group step pairs them by count, and the running balance corroborates each pair. No review items.
 3. Opening balance plus every movement equals the closing balance, so S has reconciled coverage from 1 July 2024 onward.
-4. Card statement Q covers a month entirely inside the card's structured export. On one day the statement shows two purchases of the same amount and the export has two; they match as a group. On another day the statement shows one and the export shows two; that day becomes one `duplicate` review item.
+4. Card statement Q covers a month entirely inside the card's structured export. Card rows have no running balance, so only descriptions can corroborate. On one day the statement shows two purchases of the same amount at the same shop and the export has two; the rows on each side are indistinguishable, so they match as a group. On another day the statement shows two purchases of the same amount at different shops; the statement wording differs from the export wording, the rows are distinguishable, and the day becomes one `duplicate` review item where the user pairs them by shop. On a third day the statement shows one and the export shows two; that day is also a `duplicate` review item.
 5. The user exports without sources, downloads a zip, and opens `manifest.json` to see counts per table.
 6. The user removes P's bytes. Its postings stay, its rows stay, and the detail shows the source as unavailable. Reuploading the same PDF restores the download link and creates nothing.
 

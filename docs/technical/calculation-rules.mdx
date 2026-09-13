@@ -102,7 +102,7 @@ Commitments convert to a monthly amount by cadence: weekly `52.1775 / 12`, fortn
 
 Each variable allocation contributes its net cost divided by the week count times the monthly factor. Keep rationals until the output boundary, round the headline half-even, then allocate minor units to components by largest remainder with stable IDs. Group totals sum those rounded components.
 
-Worked example: 13 complete weeks, five weeks with a $100 cost in category A, five with $100 in B, three with both. Weekly mean is `1300 / 13 = $100`. Monthly is `100 * 365.2425 / 12 / 7 = $434.81`. Add a confirmed $100.34 monthly commitment for $535.15. Group contributions are A `800/13 * 4.3479 = $267.57`, B `$267.57`, commitment `$100.34`; largest remainder adjusts one cent so they sum to $535.15.
+Worked example: 13 complete weeks with no commitments. Five weeks have a $100 cost in category A, five have $100 in B, and three have both, so the weeks total $1,600. The weekly mean is `1600 / 13 = $123.0769`. Monthly is `123.0769 * 365.2425 / 12 / 7 = $535.15`. Category A contributes `800 / 13 * 4.348125 = $267.5769` and B the same. Rounding to cents gives $267.57 each, one cent short, so largest remainder assigns the cent to the first stable ID: A $267.58, B $267.57, total $535.15.
 
 ## Schedules
 

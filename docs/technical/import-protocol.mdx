@@ -17,7 +17,7 @@ Files fit in memory; the corpus's largest file is 2.6 MiB. Use the library's nor
 
 ## Flow
 
-1. The API hashes the upload, stores the bytes in R2 under the hash, and finds or creates the source file. An existing source returns its latest import without new work.
+1. The API hashes the upload, stores the bytes in R2 under `sources/<sha256>/<uploadId>` with a fresh upload ID, and finds or creates the source file. An existing source with its bytes available returns its latest import without new work.
 2. The API creates the import in `processing` and starts an `ImportWorkflow` instance with the import ID.
 3. The Workflow reads the bytes, parses them with the source profile for the format, and produces observations plus statement metadata.
 4. The Workflow calls `publishImport`. The API resolves the account, matches observations against current postings, reconciles balances, and commits postings, coverage, review items, and the summary in one transaction.
@@ -96,7 +96,7 @@ For each observation `O` of file `F`, in file order:
 2. **Bank ID.** If `O.bankId` is present, find postings on the same account supported by an observation with the same `bankId`. Exactly one with equal amount and posted date is a match with method `bankId`. One with a different amount or date is a `value` review item. None continues to step 3.
 3. **Group.** Let `G` be the observations of `F` with `O`'s match key that are still unmatched in this run, and `E` the existing postings with that key on the account not yet matched by an observation of `F` in this run.
    - `E` empty: every member of `G` becomes a new posting. Method `new`.
-   - `|E| = |G|`: match pairwise. Pair equal normalized descriptions first, then equal running balances, then the remainder in file order. Method `group`. Two identical coffees in both files match as two postings.
+   - `|E| = |G|`: pair equal normalized descriptions first, then equal running balances. If rows remain on both sides, pair them in file order only when the remaining rows are indistinguishable from one another within `G` and within `E`, meaning equal normalized descriptions on each side; two identical coffees in both files match as two postings and either pairing is correct. Remaining rows that are distinguishable become one `duplicate` review item, because an equal count proves how many postings exist but not which row supports which. Method `group`.
    - Otherwise: pair a member of `G` with a member of `E` only when they are the single pair in `G × E` that shares a normalized description or a running balance. Method `corroborated`. Whatever remains on both sides becomes one `duplicate` review item listing the rows and the postings. The user matches specific pairs or declares distinct postings.
 
 Record `match_method` and `match_evidence` on every observation. A user decision from a review item is method `user` and wins over every automatic step on reruns.
@@ -116,12 +116,14 @@ A file with anchors that do not reconcile publishes nothing and creates a `value
 
 ## Publication transaction
 
-1. Take the write lock. Load the import and confirm it is `processing`. Check the receipt; a repeat returns the stored summary.
+1. Take the write lock. Derive the publication command ID from the import ID, the parser version, and a hash of the observation set, and look up its receipt. A repeat returns the stored summary whatever the import's status is now. Otherwise confirm the import is `processing`.
 2. Resolve the account: from the OFX envelope, from the upload's `accountId`, or by creating an `account` review item when neither exists.
 3. Upsert observations by `(source_file_id, locator_key)`.
 4. Run matching. Collect new postings, links, and review items.
 5. Reconcile and compute the coverage row.
 6. Insert postings, set `posting_id`, `match_method`, and `match_evidence` on observations, upsert coverage, insert review items, write the summary, set the status, and write the receipt. Commit.
+
+The receipt key includes the parser version and the observation set, so a retry after a parser fix is a new publication rather than a conflict. Step 3 and matching step 1 are what make that new publication safe. A republish triggered by `resolveReview` runs under that command's own receipt, not the publication receipt.
 
 Every row's disposition is in one transaction: accepted rows are committed together with the review items for the uncertain ones. A technical failure rolls the whole file back. Other files in the same upload are independent. No network call happens inside the transaction. Measure the transaction on the largest corpus file before considering anything more complicated.
 
@@ -150,4 +152,6 @@ Statement history before the structured exports becomes new postings. Statement 
 
 ## Source removal
 
-Stage 2. Removal deletes the R2 object and sets `bytes_available` false. Postings, observations, coverage, and review history stay. The confirmation lists the postings the file supports and says only the original bytes go. Reuploading identical bytes restores the object and flips the flag; matching step 1 reuses every link, so no posting is created. A deletion targets the object key stored on the source file, so a later replacement upload is never deleted by a stale request.
+Stage 2. Removal is a command carrying the source file's expected version. Inside the transaction it checks the version, sets `bytes_available` false, records the current `object_key` as pending deletion, and bumps the version. The R2 delete runs after commit against that recorded key. Postings, observations, coverage, and review history stay. The confirmation lists the postings the file supports and says only the original bytes go.
+
+Reuploading identical bytes writes a new object under a new upload ID, points `object_key` at it, sets `bytes_available` true, and bumps the version; matching step 1 reuses every link, so no posting is created. A stale removal request fails its version check, and a delete already in flight targets the old key, so the replacement is never removed. If the R2 delete fails, `bytes_available` is already false and the orphaned key is retried by the next removal or a cleanup pass.

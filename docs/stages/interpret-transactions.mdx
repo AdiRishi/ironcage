@@ -56,27 +56,27 @@ A proposal becomes a link only when the counterpart is found with equal opposite
 
 ## Data
 
-| Table                        | Columns                                                                                                                                        |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `categories`                 | `id`, `parent_id` nullable, `name`, `archived` boolean, `version`                                                                              |
-| `merchants`                  | `id`, `name`, `version`                                                                                                                        |
-| `merchant_aliases`           | `merchant_id`, `pattern`, unique `pattern`                                                                                                     |
-| `tags`                       | `id`, `name`, `version`                                                                                                                        |
-| `personal_events`            | `id`, `name`, `start_on`, `end_on`, `exclude_from_ordinary` boolean, `version`                                                                 |
-| `events`                     | `id`, `kind`, `currency`, `magnitude_minor`, `primary_posting_id`, `reporting_account_id`, `purchase_on` nullable, `active` boolean, `version` |
-| `event_postings`             | `event_id`, `posting_id`, unique `posting_id` among active events                                                                              |
-| `allocations`                | `id`, `event_id`, `role`, `amount_minor`, `category_id` nullable, `merchant_id` nullable, `non_personal` boolean                               |
-| `allocation_tags`            | `allocation_id`, `tag_id`                                                                                                                      |
-| `allocation_personal_events` | `allocation_id`, `personal_event_id`                                                                                                           |
-| `credit_links`               | `id`, `credit_allocation_id`, `cost_allocation_id`, `amount_minor`                                                                             |
-| `movement_links`             | `event_id`, `from_endpoint` jsonb, `to_endpoint` jsonb, `evidence` jsonb                                                                       |
-| `fee_associations`           | `fee_event_id`, `purchase_event_id`, `status` (`proposed`, `confirmed`)                                                                        |
-| `offset_relationships`       | `id`, `deposit_account_id`, `loan_account_id`, `start_on`, `end_on` nullable, `version`                                                        |
-| `account_periods`            | `id`, `account_id`, `start_on`, `end_on` nullable, `label`                                                                                     |
-| `corrections`                | `id`, `event_id`, `command_id`, `prior` jsonb, `accepted` jsonb, `scope`, `created_at`                                                         |
-| `rules`                      | `id`, `conditions` jsonb, `action` jsonb, `scope` (`past`, `future`, `both`), `version`                                                        |
-| `rule_exceptions`            | `rule_id`, `event_id`                                                                                                                          |
-| `review_items`               | `kind` gains `role`, `relationship`, `ruleConflict`; `event_ids` uuid[]                                                                        |
+| Table                        | Columns                                                                                                                                                                     |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `categories`                 | `id`, `parent_id` nullable, `name`, `archived` boolean, `version`                                                                                                           |
+| `merchants`                  | `id`, `name`, `version`                                                                                                                                                     |
+| `merchant_aliases`           | `merchant_id`, `pattern`, unique `pattern`                                                                                                                                  |
+| `tags`                       | `id`, `name`, `version`                                                                                                                                                     |
+| `personal_events`            | `id`, `name`, `start_on`, `end_on`, `exclude_from_ordinary` boolean, `version`                                                                                              |
+| `events`                     | `id`, `kind`, `currency`, `magnitude_minor`, `primary_posting_id`, `reporting_account_id`, `purchase_on` nullable, `active` boolean, `suggestion` jsonb nullable, `version` |
+| `event_postings`             | `event_id`, `posting_id`, unique `posting_id` among active events                                                                                                           |
+| `allocations`                | `id`, `event_id`, `role`, `amount_minor`, `category_id` nullable, `merchant_id` nullable, `non_personal` boolean                                                            |
+| `allocation_tags`            | `allocation_id`, `tag_id`                                                                                                                                                   |
+| `allocation_personal_events` | `allocation_id`, `personal_event_id`                                                                                                                                        |
+| `credit_links`               | `id`, `credit_allocation_id`, `cost_allocation_id`, `amount_minor`                                                                                                          |
+| `movement_links`             | `event_id`, `from_endpoint` jsonb, `to_endpoint` jsonb, `evidence` jsonb                                                                                                    |
+| `fee_associations`           | `fee_event_id`, `purchase_event_id`, `status` (`proposed`, `confirmed`)                                                                                                     |
+| `offset_relationships`       | `id`, `deposit_account_id`, `loan_account_id`, `start_on`, `end_on` nullable, `version`                                                                                     |
+| `account_periods`            | `id`, `account_id`, `start_on`, `end_on` nullable, `label`                                                                                                                  |
+| `corrections`                | `id`, `event_id`, `command_id`, `prior` jsonb, `accepted` jsonb, `scope`, `created_at`                                                                                      |
+| `rules`                      | `id`, `conditions` jsonb, `action` jsonb, `scope` (`past`, `future`, `both`), `version`                                                                                     |
+| `rule_exceptions`            | `rule_id`, `event_id`                                                                                                                                                       |
+| `review_items`               | `kind` gains `role`, `relationship`, `ruleConflict`; `event_ids` uuid[]                                                                                                     |
 
 Database checks: allocations of an event sum to `magnitude_minor`, enforced in the command transaction; `credit_links.amount_minor` positive and bounded by both remaining amounts, enforced in the command transaction; one active event per posting by a partial unique index.
 
@@ -92,7 +92,7 @@ All writes are commands with `commandId` and expected versions.
 | `linkMovement`, `unlinkMovement`, `linkCredit`, `unlinkCredit`, `associateFee`              | Commands with preview variants. Conservation and remaining-credit checks run in the transaction.                                     |
 | `undoCorrection({ commandId, correctionId })`                                               | Writes a new correction restoring `prior`.                                                                                           |
 | `previewRule({ rule })`, `saveRule({ commandId, rule, expectedVersion })`                   | Preview lists affected events and current exceptions. Save applies to the chosen scope.                                              |
-| `suggestCategories({ commandId, eventIds })`                                                | Starts a processor run that writes suggestions to a `suggestions` jsonb on the event. Never applies.                                 |
+| `suggestCategories({ commandId, eventIds })`                                                | Starts a processor run that writes each result to `events.suggestion`. Never applies.                                                |
 | `acceptSuggestions({ commandId, eventIds })`                                                | Applies suggestions that are still valid under precedence. Skips corrected events.                                                   |
 | Reference data CRUD                                                                         | Commands for categories, merchants, aliases, tags, personal events, offset relationships, account periods.                           |
 | `requestExport`                                                                             | Includes every table above.                                                                                                          |
