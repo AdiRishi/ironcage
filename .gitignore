@@ -19,3 +19,4 @@ playwright-report/
 !.dev.vars.example
 .DS_Store
 /fixtures/commbank/
+.blume-verify/
