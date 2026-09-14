@@ -57,9 +57,14 @@ export function UploadFiles() {
           const result = Schema.decodeUnknownSync(UploadResult)(await response.json());
           update(
             result.existing ? "existing" : "uploaded",
-            result.existing ? "Already imported" : "Uploaded",
+            result.existing ? "Original available. Records already imported." : "Uploaded",
           );
-          await client.invalidateQueries({ queryKey: ["imports"] });
+          await client.invalidateQueries({
+            predicate: (query) =>
+              ["imports", "accounts", "postings", "posting", "reviews", "sourceFiles"].includes(
+                String(query.queryKey[0]),
+              ),
+          });
         } catch {
           update("failed", "Upload did not finish. Choose the file again to retry.");
         }

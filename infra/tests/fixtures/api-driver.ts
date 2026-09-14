@@ -1,4 +1,5 @@
 import {
+  RemoveSourceBytes,
   RequestExport,
   ExportInput,
   CreateAccount,
@@ -23,6 +24,29 @@ export default class ApiDriver extends Cloudflare.Worker<ApiDriver>()(
   Effect.gen(function* () {
     const api = yield* Cloudflare.Workers.bindWorker(Api);
     const routes = Layer.mergeAll(
+      HttpRouter.add(
+        "GET",
+        "/source-files",
+        api.listSourceFiles().pipe(Effect.map(HttpServerResponse.jsonUnsafe), Effect.orDie),
+      ),
+      HttpRouter.add(
+        "POST",
+        "/remove-source",
+        Effect.gen(function* () {
+          const input = yield* HttpServerRequest.schemaBodyJson(RemoveSourceBytes);
+          return HttpServerResponse.jsonUnsafe(yield* api.removeSourceBytes(input));
+        }).pipe(
+          Effect.catchTag("FinanceError", (error) =>
+            Effect.succeed(
+              HttpServerResponse.jsonUnsafe(
+                { kind: error.kind, message: error.message },
+                { status: 409 },
+              ),
+            ),
+          ),
+          Effect.orDie,
+        ),
+      ),
       HttpRouter.add(
         "POST",
         "/exports",

@@ -152,7 +152,7 @@ Statement history before the structured exports becomes new postings. Statement 
 
 ## Source removal
 
-Stage 2. `removeSourceBytes` carries `commandId`, `sourceFileId`, and `expectedVersion`. Inside the transaction it checks the version, sets `bytes_available` false, and bumps the version. The command receipt's `result` stores `{ sourceFileId, objectKey, affectedPostingCount }`, capturing the current `object_key`. Postings, observations, coverage, and review history stay. The confirmation lists the postings the file supports and says only the original bytes go.
+Stage 2. `removeSourceBytes` carries `commandId`, `sourceFileId`, and `expectedVersion`. Inside the transaction it checks the version, sets `bytes_available` false, and bumps the version. The command receipt's `result` stores `{ sourceFileId, objectKey, affectedPostingCount }`, capturing the current `object_key`. Postings, observations, coverage, and review history stay. The confirmation lists the postings the file supports and says only the original bytes go. Existing exports keep any included originals until their seven-day expiry, and retained backups and independent archives are unaffected.
 
 After the transaction, the handler deletes the receipt's `objectKey` from R2 and returns the affected posting count. A repeated command with the same input reads its receipt before checking the version and attempts that same delete again. An already absent object counts as success. A storage failure returns `unavailable`; the UI offers Retry with the same command ID and input. The receipt preserves the deletion key without a new table or a scheduled cleanup job.
 

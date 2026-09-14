@@ -4,8 +4,10 @@ import { CreateAccountDialog } from "@/features/accounts/create-account";
 import { EditAccountDialog } from "@/features/accounts/edit-account";
 import { accountsQueryOptions } from "@/features/accounts/queries";
 import { ExportsSection } from "@/features/exports/section";
+import { SourceFilesSection } from "@/features/sources/section";
 
 import { DisplaySettings } from "./display-settings";
+import { ModelUsageSection } from "./model-usage";
 import { settingsQueryOptions, retentionQueryOptions } from "./queries";
 
 export function SettingsPage() {
@@ -59,6 +61,8 @@ export function SettingsPage() {
         <DisplaySettings settings={settings} />
       </section>
       <ExportsSection timezone={settings.timezone} />
+      <ModelUsageSection />
+      <SourceFilesSection />
       <section className="space-y-3 rounded-lg border p-5 sm:p-6">
         <h2 className="text-xl font-semibold">Backups and original files</h2>
         <p className="text-sm text-muted-foreground">{retention.database}</p>

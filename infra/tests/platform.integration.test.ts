@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { URL } from "node:url";
 
 import {
+  SourceFile,
   ExportRecord,
   ExportManifest,
   Account,
@@ -341,6 +342,7 @@ test(
       "command_receipts",
       "exports",
       "imports",
+      "model_usage",
       "observations",
       "postings",
       "review_items",
@@ -367,4 +369,78 @@ test(
     );
   }),
   { timeout: 120_000 },
+);
+
+test(
+  "removing and reuploading original bytes preserves postings and old commands cannot remove the replacement",
+  Effect.gen(function* () {
+    const { url, apiUrl } = yield* stack;
+    const files = yield* HttpClient.get(`${url}/source-files`).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(SourceFile))),
+    );
+    const file = files.find((source) => source.fileName === "transactions.csv");
+    if (!file) return yield* Effect.die("Missing synthetic CSV");
+    const input = {
+      commandId: crypto.randomUUID(),
+      sourceFileId: file.id,
+      expectedVersion: file.version,
+    };
+    const before = yield* HttpClient.post(`${url}/transactions`, {
+      body: HttpBody.jsonUnsafe({ filter: { importId: file.importId } }),
+    }).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(PostingPage)),
+    );
+    const removed = yield* HttpClient.post(`${url}/remove-source`, {
+      body: HttpBody.jsonUnsafe(input),
+    }).pipe(Effect.flatMap((response) => response.json));
+    expect(removed).toEqual({ sourceFileId: file.id, affectedPostingCount: 3 });
+    expect((yield* HttpClient.get(`${apiUrl}/sources/${file.id}`)).status).toBe(404);
+    const imports = yield* HttpClient.get(`${url}/imports`).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Import))),
+    );
+    const accountId = imports.find((item) => item.id === file.importId)?.accountId;
+    if (!accountId) return yield* Effect.die("Missing synthetic account");
+    const csv =
+      "02/09/2026,-4.50,Coffee,100.00\n02/09/2026,-4.50,Coffee,104.50\n01/09/2026,+109.00,Deposit,109.00\n";
+    const body = new FormData();
+    body.set("accountId", accountId);
+    body.set("file", new Blob([csv], { type: "text/csv" }), "restored.csv");
+    const restored = yield* HttpClient.post(`${apiUrl}/uploads`, {
+      body: HttpBody.formData(body),
+    }).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
+    );
+    expect(restored).toEqual({ sourceFileId: file.id, importId: file.importId, existing: true });
+    expect(
+      yield* HttpClient.get(`${apiUrl}/sources/${file.id}`).pipe(
+        Effect.flatMap((response) => response.text),
+      ),
+    ).toBe(csv);
+    expect(
+      yield* HttpClient.post(`${url}/remove-source`, { body: HttpBody.jsonUnsafe(input) }).pipe(
+        Effect.flatMap((response) => response.json),
+      ),
+    ).toEqual(removed);
+    const stale = yield* HttpClient.post(`${url}/remove-source`, {
+      body: HttpBody.jsonUnsafe({ ...input, commandId: crypto.randomUUID() }),
+    });
+    expect(stale.status).toBe(409);
+    expect(yield* stale.json).toMatchObject({ kind: "stale" });
+    expect(
+      yield* HttpClient.get(`${apiUrl}/sources/${file.id}`).pipe(
+        Effect.flatMap((response) => response.text),
+      ),
+    ).toBe(csv);
+    const after = yield* HttpClient.post(`${url}/transactions`, {
+      body: HttpBody.jsonUnsafe({ filter: { importId: file.importId } }),
+    }).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(PostingPage)),
+    );
+    expect(after).toEqual(before);
+  }),
 );

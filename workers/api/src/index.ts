@@ -14,12 +14,17 @@ import { Imports } from "./imports/operations.ts";
 import { Publication } from "./imports/publication.ts";
 import { ImportRepository } from "./imports/repository.ts";
 import { Uploads } from "./imports/uploads.ts";
+import { Models } from "./models/usage.ts";
 import { ExportJobs, TemporaryExports, ImportJobs, Sources } from "./platform/services.ts";
 import { Postings } from "./postings/service.ts";
 import { Reviews } from "./review/service.ts";
 import { Settings } from "./settings/service.ts";
+import { SourceFiles } from "./sources/service.ts";
 
 export type ApiOperations = {
+  listSourceFiles: SourceFiles["Service"]["list"];
+  removeSourceBytes: SourceFiles["Service"]["remove"];
+  getModelUsage: Models["Service"]["get"];
   requestExport: Exports["Service"]["request"];
   listExports: Exports["Service"]["list"];
   getExport: Exports["Service"]["get"];
@@ -49,6 +54,8 @@ export const api = Effect.fn("Api.initialize")(function* (
   const services = Layer.mergeAll(
     Accounts.layer,
     Exports.layer,
+    SourceFiles.layer,
+    Models.layer,
     Reviews.layer,
     Postings.layer,
     Uploads.layer,
@@ -75,6 +82,8 @@ export const api = Effect.fn("Api.initialize")(function* (
       ]),
     );
   return yield* Effect.gen(function* () {
+    const sourceFiles = yield* SourceFiles;
+    const models = yield* Models;
     const exports = yield* Exports;
     const settings = yield* Settings;
     const reviews = yield* Reviews;
@@ -88,6 +97,9 @@ export const api = Effect.fn("Api.initialize")(function* (
       Layer.mergeAll(importHttpRoutes, exportHttpRoutes),
     );
     const operations = {
+      listSourceFiles: sourceFiles.list,
+      removeSourceBytes: sourceFiles.remove,
+      getModelUsage: models.get,
       requestExport: exports.request,
       listExports: exports.list,
       getExport: exports.get,
