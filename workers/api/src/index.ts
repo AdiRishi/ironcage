@@ -12,8 +12,11 @@ import { ImportRepository } from "./imports/repository.ts";
 import { Uploads } from "./imports/uploads.ts";
 import { ImportJobs, Sources } from "./platform/services.ts";
 import { Postings } from "./postings/service.ts";
+import { Reviews } from "./review/service.ts";
 
 export type ApiOperations = {
+  listReviewItems: Reviews["Service"]["list"];
+  resolveReview: Reviews["Service"]["resolve"];
   listAccounts: Accounts["Service"]["list"];
   createAccount: Accounts["Service"]["create"];
   updateAccount: Accounts["Service"]["update"];
@@ -29,7 +32,8 @@ export type ApiOperations = {
 export const api = Effect.fn("Api.initialize")(function* (
   bindings: Effect.Success<ReturnType<typeof apiBindings>>,
 ) {
-  const services = Layer.mergeAll(Accounts.layer, Publication.layer, Postings.layer, Uploads.layer)
+  const services = Layer.mergeAll(Accounts.layer, Reviews.layer, Postings.layer, Uploads.layer)
+    .pipe(Layer.provideMerge(Publication.layer))
     .pipe(Layer.provideMerge(ImportRepository.layer))
     .pipe(
       Layer.provide([Commands.layer, AccountResolution.layer]),
@@ -44,6 +48,7 @@ export const api = Effect.fn("Api.initialize")(function* (
       ]),
     );
   return yield* Effect.gen(function* () {
+    const reviews = yield* Reviews;
     const accounts = yield* Accounts;
     const postings = yield* Postings;
     const imports = yield* ImportRepository;
@@ -51,6 +56,8 @@ export const api = Effect.fn("Api.initialize")(function* (
     const uploads = yield* Uploads;
     const fetch = yield* HttpRouter.toHttpEffect(importHttpRoutes);
     const operations = {
+      listReviewItems: reviews.list,
+      resolveReview: reviews.resolve,
       listAccounts: accounts.list,
       createAccount: accounts.create,
       updateAccount: accounts.update,

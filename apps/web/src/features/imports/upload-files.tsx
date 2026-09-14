@@ -70,16 +70,20 @@ export function UploadFiles() {
     <section className="rounded-lg border bg-card p-6">
       <div className="mb-5 flex flex-wrap items-end gap-3">
         <div className="space-y-2">
-          <Label htmlFor="upload-account">Account for CSV files</Label>
+          <Label htmlFor="upload-account">Account for these files</Label>
           <Select
             value={accountId}
             onValueChange={setAccountId}
-            items={accounts.map((account) => ({ value: account.id, label: account.label }))}
+            items={[
+              { value: null, label: "Use the file’s bank identity" },
+              ...accounts.map((account) => ({ value: account.id, label: account.label })),
+            ]}
           >
             <SelectTrigger id="upload-account" className="min-w-60">
-              <SelectValue placeholder="Choose an account" />
+              <SelectValue placeholder="Use the file’s bank identity" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value={null}>Use the file’s bank identity</SelectItem>
               {accounts.map((account) => (
                 <SelectItem key={account.id} value={account.id}>
                   {account.label}
@@ -90,6 +94,10 @@ export function UploadFiles() {
         </div>
         <CreateAccountDialog />
       </div>
+      <p className="mb-5 text-sm text-muted-foreground">
+        Choose an account for CSV. OFX can identify its account automatically; select an account you
+        added manually to connect it.
+      </p>
       <div
         className={`rounded-md border-2 border-dashed p-8 text-center ${dragging ? "border-primary bg-accent" : "border-border"}`}
         onDragOver={(event) => {

@@ -3,11 +3,11 @@ import { FinanceError, CommandId } from "@repo/contracts/finance";
 import { Context, Crypto, Effect, Encoding, Layer, Schema } from "effect";
 import type { SqlError } from "effect/unstable/sql";
 
-interface Command<A> {
+interface Command<A, R> {
   readonly commandId: typeof CommandId.Type;
   readonly input: Schema.Json;
   readonly result: Schema.Codec<A, Schema.Json>;
-  readonly execute: Effect.Effect<A, FinanceError | SqlError.SqlError | Schema.SchemaError>;
+  readonly execute: Effect.Effect<A, FinanceError | SqlError.SqlError | Schema.SchemaError, R>;
 }
 const Receipt = Schema.Struct({ inputHash: Schema.String, result: Schema.Json });
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Json));
@@ -28,7 +28,7 @@ export const databaseUnavailable = () =>
 export class Commands extends Context.Service<
   Commands,
   {
-    readonly run: <A>(command: Command<A>) => Effect.Effect<A, FinanceError>;
+    readonly run: <A, R>(command: Command<A, R>) => Effect.Effect<A, FinanceError, R>;
   }
 >()("@repo/api/database/Commands") {
   static readonly layer = Layer.effect(
@@ -37,7 +37,7 @@ export class Commands extends Context.Service<
       const sql = yield* PgClient.PgClient;
       const crypto = yield* Crypto.Crypto;
       const run = Effect.fn("Commands.run")(
-        function* <A>(command: Command<A>) {
+        function* <A, R>(command: Command<A, R>) {
           const hash = yield* fingerprint(command.input).pipe(
             Effect.provideService(Crypto.Crypto, crypto),
           );

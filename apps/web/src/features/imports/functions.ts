@@ -8,5 +8,5 @@ export const listImports = createServerFn({ method: "GET" }).handler(() =>
   callApiRpc((client) => client.listImports()),
 );
 export const getImport = createServerFn({ method: "GET" })
-  .inputValidator(Schema.toStandardSchemaV1(ImportInput))
+  .validator(Schema.toStandardSchemaV1(ImportInput))
   .handler(({ data }) => callApiRpc((client) => client.getImport(data)));

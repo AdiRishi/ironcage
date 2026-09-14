@@ -4,6 +4,7 @@ import { parse } from "csv-parse/sync";
 import { Effect, Schema } from "effect";
 
 import { parseDescription } from "./description.ts";
+import { decodeCandidate, issue } from "./observation.ts";
 
 const CsvRows = Schema.Array(
   Schema.Tuple([Schema.String, Schema.String, Schema.String, Schema.String]),
@@ -22,26 +23,40 @@ export const parseCsv = Effect.fn("parseCsv")(function* (bytes: Uint8Array, curr
   const observations = yield* Effect.forEach(
     rows,
     Effect.fn(function* ([date, amount, description, balance], index) {
-      const postedOn = yield* parseBankDate(date);
-      const money = yield* parseMoney(amount, currency);
-      const fields = yield* parseDescription(description);
+      const decoded = yield* decodeCandidate(
+        Effect.gen(function* () {
+          const postedOn = yield* parseBankDate(date).pipe(
+            Effect.mapError(issue("unreadableDate", date)),
+          );
+          const money = yield* parseMoney(amount, currency).pipe(
+            Effect.mapError(issue("unreadableAmount", amount)),
+          );
+          const fields = yield* parseDescription(description).pipe(
+            Effect.mapError(issue("unsupportedLayout", description)),
+          );
+          return {
+            postedOn,
+            ...fields,
+            amount: money,
+            balance: balance
+              ? yield* parseMoney(balance, currency).pipe(
+                  Effect.mapError(issue("unreadableAmount", balance)),
+                )
+              : null,
+            bankId: null,
+          };
+        }),
+      );
       return {
         locatorKey: `csvLine:${index + 1}`,
         locator: { kind: "csvLine" as const, line: index + 1 },
         raw: { date, amount, description, balance },
-        candidate: {
-          postedOn,
-          ...fields,
-          amount: money,
-          balance: balance ? yield* parseMoney(balance, currency) : null,
-          bankId: null,
-        },
-        issue: null,
+        ...decoded,
       };
     }),
   );
   return {
-    parserVersion: "commbank-csv-1",
+    parserVersion: "commbank-csv-2",
     account: null,
     observations,
     statement: {

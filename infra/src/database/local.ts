@@ -1,3 +1,5 @@
+import { fileURLToPath, URL } from "node:url";
+
 import { Exec } from "alchemy/Command";
 import * as Docker from "alchemy/Docker";
 import * as Output from "alchemy/Output";
@@ -24,6 +26,7 @@ export const localPostgres = Effect.gen(function* () {
   );
   yield* Exec("MigratePostgres", {
     command: "node src/database/migrate.ts",
+    cwd: fileURLToPath(new URL("../../", import.meta.url)),
     env: {
       DATABASE_URL: Output.map(port, (value) =>
         Redacted.make(`postgres://ironcage:local-development@127.0.0.1:${value}/ironcage`),

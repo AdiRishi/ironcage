@@ -28,13 +28,18 @@ it.effect("keeps identical bank rows separate and preserves literal source field
     });
   }),
 );
-it.effect("rejects the entire structured file when a required row value is invalid", () =>
+it.effect("retains an unreadable date for review while decoding the other rows", () =>
   Effect.gen(function* () {
-    expect(
-      (yield* Effect.flip(
-        parseCsv(new TextEncoder().encode("31/02/2026,-5.00,Coffee,95.00"), "AUD"),
-      )).kind,
-    ).toBe("invalid");
+    const parsed = yield* parseCsv(
+      new TextEncoder().encode("31/02/2026,-5.00,Coffee,95.00\n01/02/2026,100.00,Deposit,100.00"),
+      "AUD",
+    );
+    expect(parsed.observations[0]).toMatchObject({
+      candidate: null,
+      raw: { date: "31/02/2026" },
+      issue: { code: "unreadableDate", literal: "31/02/2026" },
+    });
+    expect(parsed.observations[1]?.candidate?.amount.minor).toBe(10000n);
   }),
 );
 it.effect("does not invent balances for a card export", () =>

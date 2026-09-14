@@ -9,8 +9,8 @@ export const listAccounts = createServerFn({ method: "GET" }).handler(() =>
 );
 
 export const createAccount = createServerFn({ method: "POST" })
-  .inputValidator(Schema.toStandardSchemaV1(CreateAccount))
+  .validator(Schema.toStandardSchemaV1(CreateAccount))
   .handler(({ data }) => callApiRpc((client) => client.createAccount(data)));
 export const updateAccount = createServerFn({ method: "POST" })
-  .inputValidator(Schema.toStandardSchemaV1(UpdateAccount))
+  .validator(Schema.toStandardSchemaV1(UpdateAccount))
   .handler(({ data }) => callApiRpc((client) => client.updateAccount(data)));

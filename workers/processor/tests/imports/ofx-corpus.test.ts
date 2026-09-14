@@ -27,17 +27,17 @@ describe.skipIf(!existsSync(directory))("private OFX corpus", () => {
               row.candidate !== null &&
               other !== undefined &&
               other !== null &&
-              row.candidate.postedOn === other.postedOn &&
-              row.candidate.amount.minor === other.amount.minor &&
-              row.candidate.description === other.description &&
-              row.candidate.valueOn === other.valueOn
+              row.candidate?.postedOn === other.postedOn &&
+              row.candidate?.amount.minor === other.amount.minor &&
+              row.candidate?.description === other.description &&
+              row.candidate?.valueOn === other.valueOn
             );
           });
           expect(sameRows).toBe(true);
           const newestBalance = csv.observations[0]?.candidate?.balance;
           if (newestBalance && parsed.statement.closing.money.minor !== newestBalance.minor)
             differingBalances++;
-          const newestDate = parsed.observations[0]?.candidate.postedOn;
+          const newestDate = parsed.observations[0]?.candidate?.postedOn;
           expect(newestDate !== undefined && parsed.statement.closing.on > newestDate).toBe(true);
           identities.add(`${parsed.account.bankId}/${parsed.account.accountNumber}`);
           count += parsed.observations.length;
