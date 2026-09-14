@@ -20,6 +20,7 @@ export default defineConfig({
     tabs: [
       { label: "Stages", path: "/stages", icon: "list-checks" },
       { label: "Product", path: "/product", icon: "panels-top-left" },
+      { label: "Design", path: "/design", icon: "palette" },
       { label: "Technical", path: "/technical", icon: "network" },
       { label: "Glossary", path: "/glossary", icon: "book-a" },
       { label: "Vision", path: "/vision", icon: "compass" },
