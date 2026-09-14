@@ -1,7 +1,13 @@
-import { type RecordCursor } from "@repo/contracts/finance";
-import { infiniteQueryOptions } from "@tanstack/react-query";
+import { type ImportId, type RecordCursor } from "@repo/contracts/finance";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
-import { listImports } from "./functions";
+import { getImport, listImports } from "./functions";
+export const importQueryOptions = (importId: typeof ImportId.Type) =>
+  queryOptions({
+    queryKey: ["imports", importId],
+    queryFn: () => getImport({ data: { importId } }),
+    refetchInterval: (query) => (query.state.data?.status === "processing" ? 1500 : false),
+  });
 export const importsQueryOptions = () =>
   infiniteQueryOptions({
     queryKey: ["imports"],

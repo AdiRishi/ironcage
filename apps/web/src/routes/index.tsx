@@ -15,7 +15,9 @@ function Home() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight">Start with your bank history.</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          {accounts.length === 0 ? "Start with your bank history." : "Your bank history"}
+        </h1>
         <p className="mt-3 text-muted-foreground">
           Your accounts and their supporting bank records, together.
         </p>

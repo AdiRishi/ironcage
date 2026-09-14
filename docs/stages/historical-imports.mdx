@@ -136,6 +136,17 @@ the same PDF at desktop and 390-pixel phone width. Keyboard removal returns
 focus to the retained-transaction result message. Reupload refreshes source
 availability and keeps the same import.
 
+After the restore drill, all 99 files were uploaded through the development
+application's upload API and native Workflows in filename order. The retained
+development database contains four accounts, 9,224 postings, 15,334 observations,
+72 reconciled coverage records, and no open reviews. A full export includes all
+12 tables and 99 original files; every table count and original SHA-256 hash
+matches the database and corpus. The ZIP is 50,411,033 bytes.
+
+Browser transaction rows for sampled statements 33, 34, and 43 match the source
+dates and exact signed amounts, with 1, 9, and 3 rows respectively. Verification
+compared hashes of those values without logging private transaction rows.
+
 The managed restore drill in stage 1 passed. Hosted Access and application
 binding verification remain blocked by the Cloudflare credential's missing
 Access Apps and Policies Edit permission.

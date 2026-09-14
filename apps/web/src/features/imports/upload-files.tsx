@@ -1,5 +1,6 @@
-import { AccountId, UploadResult } from "@repo/contracts/finance";
+import { AccountId, type ImportId, UploadResult } from "@repo/contracts/finance";
 import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Schema } from "effect";
 import { UploadCloud } from "lucide-react";
 import { useState } from "react";
@@ -17,11 +18,12 @@ import {
 import { CreateAccountDialog } from "@/features/accounts/create-account";
 import { accountsQueryOptions } from "@/features/accounts/queries";
 
-type UploadState = {
+type UploadProgress =
+  | { status: "uploading" | "failed"; message: string }
+  | { status: "uploaded" | "existing"; message: string; importId: typeof ImportId.Type };
+type UploadState = UploadProgress & {
   id: string;
   fileName: string;
-  status: "uploading" | "uploaded" | "existing" | "failed";
-  message: string;
 };
 const UploadFailure = Schema.Struct({ message: Schema.String });
 export function UploadFiles() {
@@ -39,9 +41,11 @@ export function UploadFiles() {
           ...current,
           { id, fileName: file.name, status: "uploading", message: "Uploading…" },
         ]);
-        function update(status: UploadState["status"], message: string) {
+        function update(progress: UploadProgress) {
           setUploads((current) =>
-            current.map((item) => (item.id === id ? { ...item, status, message } : item)),
+            current.map((item) =>
+              item.id === id ? { id, fileName: file.name, ...progress } : item,
+            ),
           );
         }
         try {
@@ -51,14 +55,15 @@ export function UploadFiles() {
           const response = await fetch("/uploads", { method: "POST", body });
           if (!response.ok) {
             const failure = Schema.decodeUnknownSync(UploadFailure)(await response.json());
-            update("failed", failure.message);
+            update({ status: "failed", message: failure.message });
             return;
           }
           const result = Schema.decodeUnknownSync(UploadResult)(await response.json());
-          update(
-            result.existing ? "existing" : "uploaded",
-            result.existing ? "Original available. Records already imported." : "Uploaded",
-          );
+          update({
+            status: result.existing ? "existing" : "uploaded",
+            message: result.existing ? "Original available. Records already imported." : "Uploaded",
+            importId: result.importId,
+          });
           await client.invalidateQueries({
             predicate: (query) =>
               ["imports", "accounts", "postings", "posting", "reviews", "sourceFiles"].includes(
@@ -66,7 +71,10 @@ export function UploadFiles() {
               ),
           });
         } catch {
-          update("failed", "Upload did not finish. Choose the file again to retry.");
+          update({
+            status: "failed",
+            message: "Upload did not finish. Choose the file again to retry.",
+          });
         }
       }),
     );
@@ -144,6 +152,15 @@ export function UploadFiles() {
                 className={item.status === "failed" ? "text-destructive" : "text-muted-foreground"}
               >
                 {item.message}
+                {(item.status === "uploaded" || item.status === "existing") && (
+                  <Link
+                    to="/imports/$importId"
+                    params={{ importId: item.importId }}
+                    className="ml-3 text-primary underline underline-offset-4"
+                  >
+                    View import
+                  </Link>
+                )}
               </span>
             </div>
           ))}
