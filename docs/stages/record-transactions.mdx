@@ -173,6 +173,11 @@ filters and pagination, resolved review history, and display settings. Browser
 checks have exercised an unreadable date correction, failed-file retry, account
 editing, and timezone persistence.
 
+Each successful or repeated upload links to its import detail page, including
+imports beyond the currently loaded history. The page retains its identity on
+refresh and shows the same status, retry controls, and transaction links as the
+history list.
+
 Hosted verification remains incomplete. The deployment created the PlanetScale
 database and private storage bindings, but Cloudflare rejected creation of the
 Access application with HTTP 403. The Alchemy credential needs Access Apps and

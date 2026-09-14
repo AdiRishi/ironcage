@@ -2,7 +2,30 @@
 
 Ironcage is a private personal finance application for one user. It is built in seven stages, starting with uploading CommBank exports and recording every posting once. Each stage delivers a working frontend and backend before the next adds more.
 
-Nothing has shipped yet. The repository is a Cloudflare starter that stage 1 replaces. Start with [Starting point](docs/stages/starting-point.mdx), then [stage 1](docs/stages/record-transactions.mdx).
+Stages 1 and 2 implement CSV, OFX, and PDF imports, cross-format matching, source
+review, transaction history, exports, and original-file removal. The API owns
+Postgres writes, the processor runs Cloudflare Workflows, and the TanStack Start
+frontend uses shadcn/ui. Exact money, dates, and matching rules live in shared
+packages.
+
+The [stage 1](docs/stages/record-transactions.mdx) and
+[stage 2](docs/stages/historical-imports.mdx) pages record verification evidence.
+Local corpus verification and a managed PlanetScale restore have passed. Hosted
+verification is pending a Cloudflare credential with Access Apps and Policies
+Edit permission. Private data has only been imported locally.
+
+## Run the application
+
+Use Node 24, pnpm, and a running Docker engine. Install dependencies with
+`pnpm install`, then run `pnpm dev`. Alchemy creates persistent local Postgres
+storage, applies migrations, and starts the Workers and web app. Open the
+`websiteUrl` printed by the stack.
+
+Hosted configuration is documented in [Operations](docs/technical/operations.mdx)
+and `infra/.env.example`. Alchemy profiles hold provider credentials. Complete
+the Access and backup checks before importing private data into a hosted stage.
+The private corpus stays in the ignored `fixtures/commbank/` directory; CI uses
+synthetic fixtures.
 
 ## Read the docs
 
