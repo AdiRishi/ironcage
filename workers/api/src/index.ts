@@ -7,17 +7,24 @@ import { HttpRouter } from "effect/unstable/http";
 import { AccountResolution } from "./accounts/resolution.ts";
 import { Accounts } from "./accounts/service.ts";
 import { Commands } from "./database/commands.ts";
+import { exportHttpRoutes } from "./exports/http.ts";
+import { Exports } from "./exports/service.ts";
 import { importHttpRoutes } from "./imports/http.ts";
 import { Imports } from "./imports/operations.ts";
 import { Publication } from "./imports/publication.ts";
 import { ImportRepository } from "./imports/repository.ts";
 import { Uploads } from "./imports/uploads.ts";
-import { ImportJobs, Sources } from "./platform/services.ts";
+import { ExportJobs, TemporaryExports, ImportJobs, Sources } from "./platform/services.ts";
 import { Postings } from "./postings/service.ts";
 import { Reviews } from "./review/service.ts";
 import { Settings } from "./settings/service.ts";
 
 export type ApiOperations = {
+  requestExport: Exports["Service"]["request"];
+  listExports: Exports["Service"]["list"];
+  getExport: Exports["Service"]["get"];
+  generateExport: Exports["Service"]["generate"];
+  failExport: Exports["Service"]["fail"];
   getRetention: () => Effect.Effect<typeof Retention.Type>;
   getSettings: Settings["Service"]["get"];
   updateSettings: Settings["Service"]["update"];
@@ -41,6 +48,7 @@ export const api = Effect.fn("Api.initialize")(function* (
 ) {
   const services = Layer.mergeAll(
     Accounts.layer,
+    Exports.layer,
     Reviews.layer,
     Postings.layer,
     Uploads.layer,
@@ -55,6 +63,11 @@ export const api = Effect.fn("Api.initialize")(function* (
         bindings.database,
         BrowserCrypto.layer,
         Layer.succeed(Sources, bindings.sources),
+        Layer.succeed(TemporaryExports, bindings.exports),
+        Layer.succeed(ExportJobs, {
+          start: bindings.processor.startExport,
+          status: bindings.processor.getExportInstance,
+        }),
         Layer.succeed(ImportJobs, {
           start: bindings.processor.startImport,
           status: bindings.processor.getImportInstance,
@@ -62,6 +75,7 @@ export const api = Effect.fn("Api.initialize")(function* (
       ]),
     );
   return yield* Effect.gen(function* () {
+    const exports = yield* Exports;
     const settings = yield* Settings;
     const reviews = yield* Reviews;
     const accounts = yield* Accounts;
@@ -70,8 +84,15 @@ export const api = Effect.fn("Api.initialize")(function* (
     const repository = yield* ImportRepository;
     const publication = yield* Publication;
     const uploads = yield* Uploads;
-    const fetch = yield* HttpRouter.toHttpEffect(importHttpRoutes);
+    const fetch = yield* HttpRouter.toHttpEffect(
+      Layer.mergeAll(importHttpRoutes, exportHttpRoutes),
+    );
     const operations = {
+      requestExport: exports.request,
+      listExports: exports.list,
+      getExport: exports.get,
+      generateExport: exports.generate,
+      failExport: exports.fail,
       getRetention: () => Effect.succeed(bindings.retention),
       getSettings: settings.get,
       updateSettings: settings.update,
@@ -89,6 +110,12 @@ export const api = Effect.fn("Api.initialize")(function* (
       failImport: repository.fail,
       publishImport: publication.publish,
     } satisfies ApiOperations;
-    return { ...operations, fetch: fetch.pipe(Effect.provideService(Uploads, uploads)) };
+    return {
+      ...operations,
+      fetch: fetch.pipe(
+        Effect.provideService(Uploads, uploads),
+        Effect.provideService(Exports, exports),
+      ),
+    };
   }).pipe(Effect.provide(services));
 });

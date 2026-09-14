@@ -49,6 +49,7 @@
     "@playwright/test": "catalog:",
     "@repo/tsconfig": "workspace:*",
     "@types/pg": "catalog:",
+    "fflate": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

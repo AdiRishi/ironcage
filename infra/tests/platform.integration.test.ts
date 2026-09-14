@@ -1,11 +1,19 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { URL } from "node:url";
 
-import { Account, Import, PostingPage, UploadResult } from "@repo/contracts/finance";
+import {
+  ExportRecord,
+  ExportManifest,
+  Account,
+  Import,
+  PostingPage,
+  UploadResult,
+} from "@repo/contracts/finance";
 import * as Alchemy from "alchemy";
 import * as Test from "alchemy/Test/Vitest";
 import { Effect, Schedule, Schema } from "effect";
 import { HttpBody, HttpClient } from "effect/unstable/http";
+import { unzipSync } from "fflate";
 import { expect } from "vitest";
 
 import { providers } from "../src/providers.ts";
@@ -286,6 +294,77 @@ test.skipIf(!existsSync(corpusDirectory))(
       (completed?.summary?.newPostings ?? 0) + (completed?.summary?.matchedPostings ?? 0),
     ).toBe(867);
     expect(completed?.summary?.pages?.needingReview).toEqual([]);
+  }),
+  { timeout: 120_000 },
+);
+
+test(
+  "a repeated export request produces one complete ZIP with a counted manifest and original files",
+  Effect.gen(function* () {
+    const { url, apiUrl } = yield* stack;
+    yield* waitForWorker(url);
+    const input = { commandId: crypto.randomUUID(), includeSources: true };
+    const requested = yield* HttpClient.post(`${url}/exports`, {
+      body: HttpBody.jsonUnsafe(input),
+    }).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(ExportRecord)),
+    );
+    const repeated = yield* HttpClient.post(`${url}/exports`, {
+      body: HttpBody.jsonUnsafe(input),
+    }).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(ExportRecord)),
+    );
+    expect(repeated.id).toBe(requested.id);
+    const completed = yield* HttpClient.get(`${url}/exports/${requested.id}`).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(ExportRecord)),
+      Effect.repeat({
+        schedule: Schedule.spaced("300 millis"),
+        while: (record) => record.status === "processing",
+      }),
+      Effect.timeout("60 seconds"),
+    );
+    expect(completed.status).toBe("ready");
+    const response = yield* HttpClient.get(`${apiUrl}/exports/${requested.id}`);
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toBe("application/zip");
+    const archive = unzipSync(new Uint8Array(yield* response.arrayBuffer));
+    const manifest = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(ExportManifest))(
+      new TextDecoder().decode(archive["manifest.json"]),
+    );
+    expect(manifest).toEqual(completed.manifest);
+    expect(manifest.tables.map((table) => table.name)).toEqual([
+      "__alchemy_migrations",
+      "accounts",
+      "command_receipts",
+      "exports",
+      "imports",
+      "observations",
+      "postings",
+      "review_items",
+      "settings",
+      "source_coverage",
+      "source_files",
+    ]);
+    for (const table of manifest.tables) {
+      const rows = yield* Schema.decodeUnknownEffect(
+        Schema.fromJsonString(Schema.Array(Schema.Unknown)),
+      )(new TextDecoder().decode(archive[table.path]));
+      expect(rows.length).toBe(table.count);
+    }
+    for (const source of manifest.sources) {
+      expect(source.path !== null).toBe(source.bytesAvailable);
+      if (source.path) expect(archive[source.path]?.length).toBeGreaterThan(0);
+    }
+    expect(Object.keys(archive).length).toBe(
+      1 + manifest.tables.length + manifest.sources.filter((source) => source.path).length,
+    );
+    const csv = manifest.sources.find((source) => source.fileName === "transactions.csv");
+    expect(csv?.path && new TextDecoder().decode(archive[csv.path])).toBe(
+      "02/09/2026,-4.50,Coffee,100.00\n02/09/2026,-4.50,Coffee,104.50\n01/09/2026,+109.00,Deposit,109.00\n",
+    );
   }),
   { timeout: 120_000 },
 );

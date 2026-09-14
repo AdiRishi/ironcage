@@ -119,5 +119,11 @@ and an unreadable page that leaves readable pages published. The local native
 Workflow imports the largest 867-row statement without storing its oversized
 parse result as a checkpoint.
 
-Exports and source removal remain to be implemented. Hosted Access and the
-managed restore drill listed in stage 1 remain unverified.
+Exports include every database table and optional available originals. A native
+Workflow test downloads the ZIP, checks every manifest count, and compares
+synthetic original bytes. A database test preserves the amount
+`9007199254740993` and its calendar date. Repeated requests retain their export
+ID; a failed Workflow start remains visible and a new command starts new work.
+
+Source removal remains to be implemented. Hosted Access and the managed restore
+drill listed in stage 1 remain unverified.

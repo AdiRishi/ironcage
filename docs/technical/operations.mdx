@@ -31,6 +31,19 @@ Temporary export objects expire on a lifecycle rule. Lifecycle rules never touch
 
 From stage 2, an export is a zip containing JSON files per record type plus a manifest naming the format version, included record types, counts, and time. Original files are an optional addition. Large exports run as a Workflow and produce a temporary download. A failed export is requested again.
 
+The API takes one repeatable-read snapshot of every public base table, including
+command receipts and migrations. BIGINT and NUMERIC columns are decimal strings;
+dates and UTC instants retain their database meaning. `manifest.json` records the
+snapshot time and each table's count. The export's own row reflects its state at
+that time, before generation finished. Available originals use source IDs as ZIP
+paths, with filenames recorded in the manifest.
+
+`ExportWorkflow` calls the API to stream a compressed ZIP into multipart R2
+uploads using a 5 MiB buffer. The separate temporary exports bucket expires
+objects after seven days, and the API stops downloads at their recorded expiry.
+Missing original bytes cause the export to fail visibly. Request a new export
+after addressing the source availability.
+
 ## Models
 
 Configured through the AI SDK and the existing provider integration. Settings names the provider and what each task sends. Routing through a gateway does not keep inference inside Cloudflare, and the settings text does not claim it does. [AI](/technical/ai) owns limits, usage records, and the on/off control.

@@ -1,6 +1,7 @@
 import * as Cloudflare from "alchemy/Cloudflare";
 import { Effect } from "effect";
 
+import { runExport } from "../../workers/processor/src/exports/workflow.ts";
 import { runImport } from "../../workers/processor/src/imports/workflow.ts";
 import { processor } from "../../workers/processor/src/index.ts";
 import { Api, financialStorage } from "./api.ts";
@@ -17,9 +18,19 @@ export class ImportWorkflow extends Cloudflare.Workflow<ImportWorkflow>()(
   }).pipe(Effect.provide(Cloudflare.R2.ReadBucketBinding)),
 ) {}
 
+export class ExportWorkflow extends Cloudflare.Workflow<ExportWorkflow>()(
+  "ExportWorkflow",
+  Effect.gen(function* () {
+    return runExport(yield* Cloudflare.Workers.bindWorker(Api));
+  }),
+) {}
+
 export class Processor extends Cloudflare.Worker<
   Processor,
-  Pick<Effect.Success<ReturnType<typeof processor>>, "getImportInstance" | "startImport">
+  Pick<
+    Effect.Success<ReturnType<typeof processor>>,
+    "getImportInstance" | "startImport" | "startExport" | "getExportInstance"
+  >
 >()("ProcessorWorker") {}
 
 export default Processor.make(

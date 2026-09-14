@@ -14,6 +14,7 @@ import { Route as ImportsRouteImport } from './routes/imports'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as UploadsRouteImport } from './routes/uploads'
+import { Route as ExportsExportIdRouteImport } from './routes/exports/$exportId'
 import { Route as SourcesSourceFileIdRouteImport } from './routes/sources/$sourceFileId'
 import { Route as TransactionsIndexRouteImport } from './routes/transactions/index'
 import { Route as TransactionsIdRouteImport } from './routes/transactions/$id'
@@ -43,6 +44,11 @@ const UploadsRoute = UploadsRouteImport.update({
   path: '/uploads',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExportsExportIdRoute = ExportsExportIdRouteImport.update({
+  id: '/exports/$exportId',
+  path: '/exports/$exportId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SourcesSourceFileIdRoute = SourcesSourceFileIdRouteImport.update({
   id: '/sources/$sourceFileId',
   path: '/sources/$sourceFileId',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/uploads': typeof UploadsRoute
+  '/exports/$exportId': typeof ExportsExportIdRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
   '/transactions/': typeof TransactionsIndexRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/uploads': typeof UploadsRoute
+  '/exports/$exportId': typeof ExportsExportIdRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
   '/transactions': typeof TransactionsIndexRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/uploads': typeof UploadsRoute
+  '/exports/$exportId': typeof ExportsExportIdRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
   '/transactions/': typeof TransactionsIndexRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/review'
     | '/settings'
     | '/uploads'
+    | '/exports/$exportId'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
     | '/transactions/'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/review'
     | '/settings'
     | '/uploads'
+    | '/exports/$exportId'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
     | '/transactions'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/review'
     | '/settings'
     | '/uploads'
+    | '/exports/$exportId'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
     | '/transactions/'
@@ -129,6 +141,7 @@ export interface RootRouteChildren {
   ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
   UploadsRoute: typeof UploadsRoute
+  ExportsExportIdRoute: typeof ExportsExportIdRoute
   SourcesSourceFileIdRoute: typeof SourcesSourceFileIdRoute
   TransactionsIdRoute: typeof TransactionsIdRoute
   TransactionsIndexRoute: typeof TransactionsIndexRoute
@@ -171,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UploadsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/exports/$exportId': {
+      id: '/exports/$exportId'
+      path: '/exports/$exportId'
+      fullPath: '/exports/$exportId'
+      preLoaderRoute: typeof ExportsExportIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sources/$sourceFileId': {
       id: '/sources/$sourceFileId'
       path: '/sources/$sourceFileId'
@@ -201,6 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,
   UploadsRoute: UploadsRoute,
+  ExportsExportIdRoute: ExportsExportIdRoute,
   SourcesSourceFileIdRoute: SourcesSourceFileIdRoute,
   TransactionsIdRoute: TransactionsIdRoute,
   TransactionsIndexRoute: TransactionsIndexRoute,

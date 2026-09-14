@@ -6,7 +6,7 @@ import { Effect } from "effect";
 import type { Api, financialStorage } from "./api.ts";
 import { retentionPolicy } from "./database/retention.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
-import { ImportWorkflow, Processor } from "./processor.ts";
+import { ExportWorkflow, ImportWorkflow, Processor } from "./processor.ts";
 
 export const apiBindings = Effect.fn("ApplicationPlatform.ApiBindings")(function* (
   storage: Effect.Success<typeof financialStorage>,
@@ -17,13 +17,14 @@ export const apiBindings = Effect.fn("ApplicationPlatform.ApiBindings")(function
   return {
     retention: yield* retentionPolicy,
     sources,
+    exports: yield* Cloudflare.R2.ReadWriteBucket(storage.exports),
     processor,
     database: PostgresLayer({ url: connection.connectionString }),
   };
 });
 export const processorBindings = Effect.fn("ApplicationPlatform.ProcessorBindings")(function* () {
   const imports = yield* ImportWorkflow;
-  return { imports };
+  return { imports, exports: yield* ExportWorkflow };
 });
 export const websiteBindings = (
   environment: DeploymentConfig["environment"],

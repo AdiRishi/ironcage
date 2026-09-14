@@ -14,6 +14,7 @@ export const financialStorage = Effect.gen(function* () {
     return {
       database: yield* Cloudflare.Hyperdrive.Connection.ref("RecordsConnection"),
       sources: yield* Cloudflare.R2.Bucket.ref("Sources"),
+      exports: yield* Cloudflare.R2.Bucket.ref("TemporaryExports"),
     };
   }
   const { dev } = yield* AlchemyContext;
@@ -41,7 +42,18 @@ export const financialStorage = Effect.gen(function* () {
   const sources = yield* Cloudflare.R2.Bucket("Sources", {
     forceDestroy: stage.startsWith("test-"),
   });
-  return { database, sources };
+  const exports = yield* Cloudflare.R2.Bucket("TemporaryExports", {
+    forceDestroy: true,
+    lifecycleRules: [
+      {
+        id: "expire-exports",
+        enabled: true,
+        prefix: "",
+        deleteObjectsTransition: { condition: { type: "Age", maxAge: 7 * 86400 } },
+      },
+    ],
+  });
+  return { database, sources, exports };
 });
 
 export class Api extends Cloudflare.Worker<Api, ApiOperations>()("ApiWorker") {}

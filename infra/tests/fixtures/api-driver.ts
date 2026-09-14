@@ -1,4 +1,6 @@
 import {
+  RequestExport,
+  ExportInput,
   CreateAccount,
   ListPostings,
   PostingInput,
@@ -21,6 +23,22 @@ export default class ApiDriver extends Cloudflare.Worker<ApiDriver>()(
   Effect.gen(function* () {
     const api = yield* Cloudflare.Workers.bindWorker(Api);
     const routes = Layer.mergeAll(
+      HttpRouter.add(
+        "POST",
+        "/exports",
+        Effect.gen(function* () {
+          const input = yield* HttpServerRequest.schemaBodyJson(RequestExport);
+          return HttpServerResponse.jsonUnsafe(yield* api.requestExport(input));
+        }).pipe(Effect.orDie),
+      ),
+      HttpRouter.add(
+        "GET",
+        "/exports/:exportId",
+        Effect.gen(function* () {
+          const input = yield* HttpRouter.schemaPathParams(ExportInput);
+          return HttpServerResponse.jsonUnsafe(yield* api.getExport(input));
+        }).pipe(Effect.orDie),
+      ),
       HttpRouter.add(
         "GET",
         "/",
