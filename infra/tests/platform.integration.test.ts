@@ -11,34 +11,61 @@ import {
   UploadResult,
 } from "@repo/contracts/finance";
 import * as Alchemy from "alchemy";
+import * as Output from "alchemy/Output";
 import * as Test from "alchemy/Test/Vitest";
 import { Effect, Schedule, Schema } from "effect";
-import { HttpBody, HttpClient } from "effect/unstable/http";
+import { FetchHttpClient, HttpBody, HttpClient } from "effect/unstable/http";
 import { unzipSync } from "fflate";
-import { expect } from "vitest";
+import { expect, inject } from "vitest";
 
+import { deploymentConfig } from "../src/deployment-config.ts";
 import { providers } from "../src/providers.ts";
+import { webApplication } from "../src/web-application.ts";
 import { workerGraph } from "../src/workers.ts";
 import Driver from "./fixtures/api-driver.ts";
 import { waitForWorker } from "./support/worker-readiness.ts";
 
 const platformProviders = providers();
+const live = inject("live");
 const Stack = Alchemy.Stack(
   "RecordsPlatformTest",
   { providers: platformProviders, state: Alchemy.localState() },
   Effect.gen(function* () {
-    const { api } = yield* workerGraph;
+    const workers = yield* workerGraph;
     const driver = yield* Driver;
-    return { url: driver.url.as<string>(), apiUrl: api.url.as<string>() };
+    const web = live ? yield* webApplication(yield* deploymentConfig(), workers) : undefined;
+    return {
+      url: driver.url.as<string>(),
+      apiUrl: Output.map(driver.url, (url) => `${url}/http`),
+      webUrl: web?.url,
+    };
   }),
 );
 const { test, beforeAll, afterAll, deploy, destroy } = Test.make({
   providers: platformProviders,
   stage: `test-${crypto.randomUUID().slice(0, 8)}`,
-  dev: true,
+  dev: !live,
 });
 const stack = beforeAll(deploy(Stack), { timeout: 600_000 });
 afterAll(destroy(Stack), { timeout: 600_000 });
+
+test.skipIf(!live)(
+  "Access rejects unauthenticated application, source, and export requests",
+  Effect.gen(function* () {
+    const { webUrl } = yield* stack;
+    if (!webUrl) return yield* Effect.die("Missing hosted application URL");
+    for (const path of [
+      "/",
+      `/sources/${crypto.randomUUID()}`,
+      `/exports/${crypto.randomUUID()}`,
+    ]) {
+      const response = yield* HttpClient.get(`${webUrl}${path}`);
+      yield* response.text;
+      expect(response.status).toBe(302);
+      expect(new URL(response.headers.location ?? "").hostname).toBe("arishi.cloudflareaccess.com");
+    }
+  }).pipe(Effect.provideService(FetchHttpClient.RequestInit, { redirect: "manual" })),
+);
 
 test(
   "the private API reads the migrated accounts table through Hyperdrive",
@@ -125,7 +152,7 @@ test(
 );
 
 const corpusDirectory = new URL("../../fixtures/commbank/", import.meta.url);
-test.skipIf(!existsSync(corpusDirectory))(
+test.skipIf(live || !existsSync(corpusDirectory))(
   "every private CSV imports independently with the source row count",
   Effect.gen(function* () {
     const { url, apiUrl } = yield* stack;
@@ -175,7 +202,7 @@ test.skipIf(!existsSync(corpusDirectory))(
   { timeout: 180_000 },
 );
 
-test.skipIf(!existsSync(corpusDirectory))(
+test.skipIf(live || !existsSync(corpusDirectory))(
   "overlapping private OFX exports identify four accounts without duplicate postings",
   Effect.gen(function* () {
     const { url, apiUrl } = yield* stack;
@@ -262,7 +289,7 @@ test(
   { timeout: 120_000 },
 );
 
-test.skipIf(!existsSync(corpusDirectory))(
+test.skipIf(live || !existsSync(corpusDirectory))(
   "a PDF larger than the Workflow checkpoint limit publishes all 867 transactions",
   Effect.gen(function* () {
     const { url, apiUrl } = yield* stack;

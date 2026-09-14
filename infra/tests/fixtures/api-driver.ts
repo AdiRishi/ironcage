@@ -10,7 +10,12 @@ import {
 } from "@repo/contracts/finance";
 import * as Cloudflare from "alchemy/Cloudflare";
 import { Effect, Layer, Schema } from "effect";
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+import {
+  HttpClientRequest,
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "effect/unstable/http";
 
 import { Api } from "../../src/api.ts";
 import { workerCompatibility } from "../../src/cloudflare-config.ts";
@@ -23,7 +28,23 @@ export default class ApiDriver extends Cloudflare.Worker<ApiDriver>()(
   },
   Effect.gen(function* () {
     const api = yield* Cloudflare.Workers.bindWorker(Api);
+    const fetchApi = yield* Cloudflare.Workers.Fetch(yield* Api);
     const routes = Layer.mergeAll(
+      HttpRouter.add(
+        "*",
+        "/http/*",
+        Effect.gen(function* () {
+          const incoming = yield* HttpServerRequest.HttpServerRequest;
+          const request = HttpClientRequest.fromWeb(yield* HttpServerRequest.toWeb(incoming));
+          const response = yield* fetchApi(
+            HttpClientRequest.setUrl(request, `http://api${incoming.url.slice(5)}`),
+          );
+          return HttpServerResponse.stream(response.stream, {
+            status: response.status,
+            headers: response.headers,
+          });
+        }).pipe(Effect.orDie),
+      ),
       HttpRouter.add(
         "GET",
         "/source-files",
@@ -106,5 +127,5 @@ export default class ApiDriver extends Cloudflare.Worker<ApiDriver>()(
       ),
     );
     return { fetch: yield* HttpRouter.toHttpEffect(routes) };
-  }),
+  }).pipe(Effect.provide(Cloudflare.Workers.FetchBinding)),
 ) {}
