@@ -5,14 +5,18 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit -p tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tests"
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tests",
+    "test": "vitest run"
   },
   "dependencies": {
     "@effect/platform-browser": "catalog:",
     "@repo/contracts": "workspace:*",
+    "@repo/finance": "workspace:*",
     "alchemy": "catalog:",
     "csv-parse": "catalog:",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "ofx-js": "catalog:",
+    "unpdf": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",

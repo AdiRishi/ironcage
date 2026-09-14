@@ -6,7 +6,16 @@ import { Effect } from "effect";
 
 import { runApiRequest } from "./api-request";
 
-type ApiMethods = Pick<Api, "listAccounts">;
+type ApiMethods = Pick<
+  Api,
+  | "listAccounts"
+  | "createAccount"
+  | "updateAccount"
+  | "listPostings"
+  | "getPosting"
+  | "listImports"
+  | "getImport"
+>;
 
 // The remote Worker supplies RuntimeContext; only results and failures cross the binding.
 type ApiClient = {

@@ -1,7 +1,11 @@
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { URL } from "node:url";
+
+import { Account, Import, PostingPage, UploadResult } from "@repo/contracts/finance";
 import * as Alchemy from "alchemy";
 import * as Test from "alchemy/Test/Vitest";
-import { Effect } from "effect";
-import { HttpClient } from "effect/unstable/http";
+import { Effect, Schedule, Schema } from "effect";
+import { HttpBody, HttpClient } from "effect/unstable/http";
 import { expect } from "vitest";
 
 import { providers } from "../src/providers.ts";
@@ -14,9 +18,9 @@ const Stack = Alchemy.Stack(
   "RecordsPlatformTest",
   { providers: platformProviders, state: Alchemy.localState() },
   Effect.gen(function* () {
-    yield* workerGraph;
+    const { api } = yield* workerGraph;
     const driver = yield* Driver;
-    return { url: driver.url.as<string>() };
+    return { url: driver.url.as<string>(), apiUrl: api.url.as<string>() };
   }),
 );
 const { test, beforeAll, afterAll, deploy, destroy } = Test.make({
@@ -36,4 +40,128 @@ test(
     expect(response.status).toBe(200);
     expect(yield* response.json).toEqual([]);
   }),
+);
+
+test(
+  "a CSV upload publishes exact amounts once and retains its original bytes",
+  Effect.gen(function* () {
+    const { url, apiUrl } = yield* stack;
+    yield* waitForWorker(url);
+    const command = {
+      commandId: crypto.randomUUID(),
+      label: "Daily account",
+      kind: "deposit",
+      currency: "AUD",
+    };
+    const account = yield* HttpClient.post(`${url}/accounts`, {
+      body: HttpBody.jsonUnsafe(command),
+    }).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(Account)),
+    );
+    const repeated = yield* HttpClient.post(`${url}/accounts`, {
+      body: HttpBody.jsonUnsafe(command),
+    }).pipe(Effect.flatMap((response) => response.json));
+    expect(repeated).toEqual(account);
+    const csv =
+      "02/09/2026,-4.50,Coffee,100.00\n02/09/2026,-4.50,Coffee,104.50\n01/09/2026,+109.00,Deposit,109.00\n";
+    const body = new FormData();
+    body.set("accountId", account.id);
+    body.set("file", new Blob([csv], { type: "text/csv" }), "transactions.csv");
+    const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
+      body: HttpBody.formData(body),
+    }).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
+    );
+    const completed = yield* HttpClient.get(`${url}/imports`).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Import))),
+      Effect.map((imports) => imports.find((item) => item.id === upload.importId)),
+      Effect.repeat({
+        schedule: Schedule.spaced("300 millis"),
+        while: (item) => item?.status === "processing",
+      }),
+      Effect.timeout("30 seconds"),
+    );
+    expect(completed?.status).toBe("complete");
+    expect(completed?.summary).toEqual({
+      observations: 3,
+      newPostings: 3,
+      matchedPostings: 0,
+      reviewItems: 0,
+    });
+    const duplicate = yield* HttpClient.post(`${apiUrl}/uploads`, {
+      body: HttpBody.formData(body),
+    }).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
+    );
+    expect(duplicate).toEqual({ ...upload, existing: true });
+    const postings = yield* HttpClient.post(`${url}/transactions`, {
+      body: HttpBody.jsonUnsafe({ filter: { accountId: account.id } }),
+    }).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(PostingPage)),
+    );
+    expect(
+      postings.rows.map((row) => row.amount.minor).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+    ).toEqual([-450n, -450n, 10900n]);
+    const source = yield* HttpClient.get(`${apiUrl}/sources/${upload.sourceFileId}`).pipe(
+      Effect.flatMap((response) => response.text),
+    );
+    expect(source).toBe(csv);
+  }),
+  { timeout: 60_000 },
+);
+
+const corpusDirectory = new URL("../../fixtures/commbank/", import.meta.url);
+test.skipIf(!existsSync(corpusDirectory))(
+  "every private CSV imports independently with the source row count",
+  Effect.gen(function* () {
+    const { url, apiUrl } = yield* stack;
+    const files = readdirSync(corpusDirectory).filter((name) => name.endsWith(".csv"));
+    let observations = 0;
+    for (const [index, file] of files.entries()) {
+      const account = yield* HttpClient.post(`${url}/accounts`, {
+        body: HttpBody.jsonUnsafe({
+          commandId: crypto.randomUUID(),
+          label: `CSV verification ${index + 1}`,
+          kind: "deposit",
+          currency: "AUD",
+        }),
+      }).pipe(
+        Effect.flatMap((response) => response.json),
+        Effect.flatMap(Schema.decodeUnknownEffect(Account)),
+      );
+      const bytes = new Uint8Array(readFileSync(new URL(file, corpusDirectory)));
+      const expectedRows = new TextDecoder().decode(bytes).trimEnd().split("\n").length;
+      const body = new FormData();
+      body.set("accountId", account.id);
+      body.set("file", new Blob([bytes], { type: "text/csv" }), `corpus-${index + 1}.csv`);
+      const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
+        body: HttpBody.formData(body),
+      }).pipe(
+        Effect.flatMap((response) => response.json),
+        Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
+      );
+      const completed = yield* HttpClient.get(`${url}/imports`).pipe(
+        Effect.flatMap((response) => response.json),
+        Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Import))),
+        Effect.map((imports) => imports.find((item) => item.id === upload.importId)),
+        Effect.repeat({
+          schedule: Schedule.spaced("100 millis"),
+          while: (item) => item?.status === "processing",
+        }),
+        Effect.timeout("30 seconds"),
+      );
+      expect(completed?.status).toBe("complete");
+      expect(completed?.summary?.observations).toBe(expectedRows);
+      expect(completed?.summary?.newPostings).toBe(expectedRows);
+      observations += completed?.summary?.observations ?? 0;
+    }
+    expect(files).toHaveLength(26);
+    expect(observations).toBe(3031);
+  }),
+  { timeout: 180_000 },
 );
