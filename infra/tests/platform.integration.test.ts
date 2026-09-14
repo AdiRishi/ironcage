@@ -211,3 +211,81 @@ test.skipIf(!existsSync(corpusDirectory))(
   }),
   { timeout: 180_000 },
 );
+
+test(
+  "PDF uploads publish through the native Workflow and open as original statement pages",
+  Effect.gen(function* () {
+    const { url, apiUrl } = yield* stack;
+    for (const name of ["deposit", "card", "loan"]) {
+      const bytes = new Uint8Array(
+        readFileSync(
+          new URL(`../../workers/processor/tests/fixtures/${name}.pdf`, import.meta.url),
+        ),
+      );
+      const body = new FormData();
+      body.set("file", new Blob([bytes], { type: "application/pdf" }), `${name}.pdf`);
+      const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
+        body: HttpBody.formData(body),
+      }).pipe(
+        Effect.flatMap((response) => response.json),
+        Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
+      );
+      const completed = yield* HttpClient.get(`${url}/imports`).pipe(
+        Effect.flatMap((response) => response.json),
+        Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Import))),
+        Effect.map((imports) => imports.find((item) => item.id === upload.importId)),
+        Effect.repeat({
+          schedule: Schedule.spaced("100 millis"),
+          while: (item) => item?.status === "processing",
+        }),
+        Effect.timeout("30 seconds"),
+      );
+      expect(completed?.status).toBe("complete");
+      expect(completed?.summary?.newPostings).toBe(2);
+      expect(completed?.summary?.pages?.needingReview).toEqual([]);
+      const original = yield* HttpClient.get(`${apiUrl}/sources/${upload.sourceFileId}`);
+      expect(original.headers["content-type"]).toBe("application/pdf");
+      expect(original.headers["content-disposition"]?.startsWith("inline;")).toBe(true);
+      const downloaded = yield* original.arrayBuffer;
+      expect(new Uint8Array(downloaded)).toEqual(bytes);
+    }
+  }),
+  { timeout: 120_000 },
+);
+
+test.skipIf(!existsSync(corpusDirectory))(
+  "a PDF larger than the Workflow checkpoint limit publishes all 867 transactions",
+  Effect.gen(function* () {
+    const { url, apiUrl } = yield* stack;
+    const name = readdirSync(corpusDirectory)
+      .filter((name) => name.endsWith(".pdf"))
+      .sort()[11];
+    if (!name) return yield* Effect.die("Expected the large corpus statement.");
+    const bytes = new Uint8Array(readFileSync(new URL(name, corpusDirectory)));
+    const body = new FormData();
+    body.set("file", new Blob([bytes], { type: "application/pdf" }), "large-statement.pdf");
+    const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
+      body: HttpBody.formData(body),
+    }).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
+    );
+    const completed = yield* HttpClient.get(`${url}/imports`).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Import))),
+      Effect.map((imports) => imports.find((item) => item.id === upload.importId)),
+      Effect.repeat({
+        schedule: Schedule.spaced("100 millis"),
+        while: (item) => item?.status === "processing",
+      }),
+      Effect.timeout("60 seconds"),
+    );
+    expect(completed?.status).toBe("complete");
+    expect(completed?.summary?.observations).toBe(867);
+    expect(
+      (completed?.summary?.newPostings ?? 0) + (completed?.summary?.matchedPostings ?? 0),
+    ).toBe(867);
+    expect(completed?.summary?.pages?.needingReview).toEqual([]);
+  }),
+  { timeout: 120_000 },
+);

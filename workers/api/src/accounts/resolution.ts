@@ -27,10 +27,17 @@ export class AccountResolution extends Context.Service<
         }: Parameters<AccountResolution["Service"]["resolve"]>[0]) {
           if (identity) {
             const existing =
-              yield* sql`SELECT ${fields} FROM accounts WHERE bank_id IS NOT DISTINCT FROM ${identity.bankId} AND account_number = ${identity.accountNumber}`.pipe(
+              yield* sql`SELECT ${fields} FROM accounts WHERE account_number = ${identity.accountNumber} AND (bank_id IS NOT DISTINCT FROM ${identity.bankId} OR (kind = ${identity.kind} AND (bank_id IS NULL OR ${identity.bankId}::text IS NULL)))`.pipe(
                 Effect.flatMap(decode),
               );
-            const known = existing[0];
+            const selected = existing.find((account) => account.id === accountId);
+            if (existing.length > 1 && !selected)
+              return yield* new FinanceError({
+                kind: "conflict",
+                message:
+                  "The statement omits a bank identifier and more than one account has this account number.",
+              });
+            let known = selected ?? existing[0];
             if (known) {
               if (
                 known.currency !== identity.currency ||
@@ -41,6 +48,13 @@ export class AccountResolution extends Context.Service<
                   kind: "conflict",
                   message: "The bank identity does not agree with the selected account.",
                 });
+              if (known.bankId === null && identity.bankId !== null) {
+                const [identified] =
+                  yield* sql`UPDATE accounts SET bank_id = ${identity.bankId}, version = version + 1, updated_at = now() WHERE id = ${known.id} RETURNING ${fields}`.pipe(
+                    Effect.flatMap(Schema.decodeUnknownEffect(Schema.Tuple([Account]))),
+                  );
+                known = identified;
+              }
               return known;
             }
           }

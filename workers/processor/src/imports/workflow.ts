@@ -1,11 +1,12 @@
-import { FinanceError, ImportJob, ParsedFile } from "@repo/contracts/finance";
+import { FinanceError, ImportJob } from "@repo/contracts/finance";
 import type { Api } from "@repo/infra/api";
 import { Workflows } from "alchemy/Cloudflare";
 import type { ReadBucketClient } from "alchemy/Cloudflare/R2";
-import { Effect, Schema } from "effect";
+import { Effect } from "effect";
 
 import { parseCsv } from "./csv.ts";
 import { parseOfx } from "./ofx.ts";
+import { parsePdf } from "./pdf/index.ts";
 
 export const runImport = (
   api: Pick<Api, "getImportSource" | "publishImport" | "failImport">,
@@ -13,8 +14,8 @@ export const runImport = (
 ) =>
   Effect.fn("ImportWorkflow.run")(
     function* (input: typeof ImportJob.Type) {
-      const parsed = yield* Workflows.task(
-        "parse",
+      return yield* Workflows.task(
+        "import",
         Effect.gen(function* () {
           const source = yield* api.getImportSource(input);
           if (!source.bytesAvailable)
@@ -32,16 +33,10 @@ export const runImport = (
           const result =
             source.format === "csv"
               ? yield* parseCsv(bytes, source.currency)
-              : yield* parseOfx(bytes);
-          return yield* Schema.encodeEffect(ParsedFile)(result);
-        }).pipe(Effect.orDie),
-        { timeout: "1 minute", retries: { limit: 2, delay: "2 seconds", backoff: "exponential" } },
-      );
-      return yield* Workflows.task(
-        "publish",
-        Effect.gen(function* () {
-          const file = yield* Schema.decodeUnknownEffect(ParsedFile)(parsed);
-          return yield* api.publishImport({ importId: input.importId, ...file });
+              : source.format === "ofx"
+                ? yield* parseOfx(bytes)
+                : yield* parsePdf(bytes);
+          return yield* api.publishImport({ importId: input.importId, ...result });
         }).pipe(Effect.orDie),
         { timeout: "1 minute", retries: { limit: 2, delay: "2 seconds", backoff: "exponential" } },
       );

@@ -44,12 +44,15 @@ export const PostingPage = Schema.Struct({
   nextCursor: Schema.NullOr(PostingCursor),
 });
 export const PostingInput = Schema.Struct({ postingId: PostingId });
-export const Evidence = Schema.Struct({
-  id: ObservationId,
+export const SourceReference = Schema.Struct({
   sourceFileId: SourceFileId,
   fileName: Schema.String,
   bytesAvailable: Schema.Boolean,
   locator: Locator,
+});
+export const Evidence = Schema.Struct({
+  id: ObservationId,
+  ...SourceReference.fields,
   raw: Schema.Record(Schema.String, Schema.String),
   candidate: Schema.NullOr(Candidate),
   matchMethod: Schema.NullOr(Schema.String),

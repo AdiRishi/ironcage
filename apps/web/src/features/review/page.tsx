@@ -245,15 +245,30 @@ function RowChoice({
   return (
     <article className="space-y-4 rounded-md bg-secondary/50 p-4">
       <h3 className="font-medium">{locator}</h3>
-      <dl className="grid gap-3 text-sm sm:grid-cols-[140px_1fr]">
-        {Object.entries(row.raw).map(([key, value]) => (
-          <div key={key} className="contents">
-            <dt className="text-muted-foreground">{key}</dt>
-            <dd className="min-w-0 font-mono break-words whitespace-pre-wrap">
-              {value || "Empty"}
-            </dd>
-          </div>
+      {row.locator.kind === "pdfRow" &&
+        (review.bytesAvailable ? (
+          <a
+            className="text-sm text-primary underline"
+            href={`/sources/${review.sourceFileId}#page=${row.locator.page}`}
+          >
+            Open statement page {row.locator.page}
+          </a>
+        ) : (
+          <Link to="/imports" className="text-sm text-primary underline">
+            Original bytes removed. Reupload the statement.
+          </Link>
         ))}
+      <dl className="grid gap-3 text-sm sm:grid-cols-[140px_1fr]">
+        {Object.entries(row.raw)
+          .filter(([key]) => key !== "positions")
+          .map(([key, value]) => (
+            <div key={key} className="contents">
+              <dt className="text-muted-foreground">{key}</dt>
+              <dd className="min-w-0 font-mono break-words whitespace-pre-wrap">
+                {value || "Empty"}
+              </dd>
+            </div>
+          ))}
       </dl>
       {row.candidate && (
         <p className="text-sm">
@@ -293,6 +308,22 @@ function RowChoice({
               >
                 {posting.postedOn} · {formatMoney(posting.amount)} · {posting.description}
               </Link>
+              <div className="w-full space-y-1 text-xs">
+                {posting.sources.map((source) =>
+                  source.bytesAvailable ? (
+                    <a
+                      key={source.sourceFileId}
+                      className="block text-primary underline"
+                      href={`/sources/${source.sourceFileId}${source.locator.kind === "pdfRow" ? `#page=${source.locator.page}` : ""}`}
+                    >
+                      {source.fileName}
+                      {source.locator.kind === "pdfRow" ? ` · Page ${source.locator.page}` : ""}
+                    </a>
+                  ) : (
+                    <p key={source.sourceFileId}>{source.fileName} · Original bytes removed</p>
+                  ),
+                )}
+              </div>
               <Button
                 variant="outline"
                 disabled={disabled || !row.candidate}

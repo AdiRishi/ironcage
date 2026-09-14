@@ -71,6 +71,12 @@ export function ImportsPage() {
                       {item.summary.matchedPostings} matched · {item.summary.reviewItems} to review
                     </p>
                   )}
+                  {item.summary?.pages && (
+                    <p className="text-sm text-muted-foreground">
+                      {item.summary.pages.decoded} pages decoded ·{" "}
+                      {item.summary.pages.needingReview.length} pages needing review
+                    </p>
+                  )}
                   {item.failure && (
                     <p role="alert" className="text-sm text-destructive">
                       {item.failure.message}

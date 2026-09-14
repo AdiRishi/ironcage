@@ -54,11 +54,13 @@ export class Uploads extends Context.Service<
             ? "csv"
             : input.fileName.toLowerCase().endsWith(".ofx")
               ? "ofx"
-              : null;
+              : input.fileName.toLowerCase().endsWith(".pdf")
+                ? "pdf"
+                : null;
           if (!format)
             return yield* new FinanceError({
               kind: "invalid",
-              message: "Choose a CSV or OFX file.",
+              message: "Choose a CSV, OFX or PDF file.",
             });
           if (format === "csv" && !input.accountId)
             return yield* new FinanceError({
