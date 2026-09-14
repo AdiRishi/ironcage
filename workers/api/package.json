@@ -15,6 +15,7 @@
     "@repo/finance": "workspace:*",
     "alchemy": "catalog:",
     "effect": "catalog:",
+    "fflate": "catalog:",
     "uuid": "catalog:"
   },
   "devDependencies": {

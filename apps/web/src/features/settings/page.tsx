@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { CreateAccountDialog } from "@/features/accounts/create-account";
 import { EditAccountDialog } from "@/features/accounts/edit-account";
 import { accountsQueryOptions } from "@/features/accounts/queries";
+import { ExportsSection } from "@/features/exports/section";
 
 import { DisplaySettings } from "./display-settings";
 import { settingsQueryOptions, retentionQueryOptions } from "./queries";
@@ -57,6 +58,7 @@ export function SettingsPage() {
         <h2 className="text-xl font-semibold">Display</h2>
         <DisplaySettings settings={settings} />
       </section>
+      <ExportsSection timezone={settings.timezone} />
       <section className="space-y-3 rounded-lg border p-5 sm:p-6">
         <h2 className="text-xl font-semibold">Backups and original files</h2>
         <p className="text-sm text-muted-foreground">{retention.database}</p>
