@@ -8,9 +8,9 @@
       "types": "./src/app.ts",
       "default": "./src/app.ts"
     },
-    "./artifacts": {
-      "types": "./src/artifacts.ts",
-      "default": "./src/artifacts.ts"
+    "./finance": {
+      "types": "./src/finance.ts",
+      "default": "./src/finance.ts"
     }
   },
   "scripts": {

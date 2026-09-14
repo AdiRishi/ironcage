@@ -1,15 +1,52 @@
+import { Stack } from "alchemy";
+import { AlchemyContext } from "alchemy/AlchemyContext";
 import * as Cloudflare from "alchemy/Cloudflare";
+import * as Planetscale from "alchemy/Planetscale";
 import { Effect } from "effect";
 
 import { api } from "../../workers/api/src/index.ts";
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
-import { dataPlane } from "./data-plane.ts";
-import { deploymentConfig } from "./deployment-config.ts";
+import { localPostgres } from "./database/local.ts";
 import { apiBindings } from "./worker-bindings.ts";
+
+export const financialStorage = Effect.gen(function* () {
+  if (globalThis.__ALCHEMY_RUNTIME__) {
+    return {
+      database: yield* Cloudflare.Hyperdrive.Connection.ref("RecordsConnection"),
+      sources: yield* Cloudflare.R2.Bucket.ref("Sources"),
+    };
+  }
+  const { dev } = yield* AlchemyContext;
+  const origin = dev
+    ? yield* localPostgres
+    : yield* Effect.gen(function* () {
+        const database = yield* Planetscale.PostgresDatabase("Records", {
+          clusterSize: "PS_10",
+          majorVersion: "17",
+          region: { slug: "ap-southeast" },
+          migrations: "../workers/api/migrations",
+        });
+        const role = yield* Planetscale.PostgresRole("ApplicationRole", {
+          database,
+          inheritedRoles: ["pg_read_all_data", "pg_write_all_data"],
+        });
+        return role.origin;
+      });
+  const database = yield* Cloudflare.Hyperdrive.Connection("RecordsConnection", {
+    origin,
+    dev: origin,
+    caching: { disabled: true },
+  });
+  const { stage } = yield* Stack;
+  const sources = yield* Cloudflare.R2.Bucket("Sources", {
+    forceDestroy: stage.startsWith("test-"),
+  });
+  return { database, sources };
+});
 
 export class Api extends Cloudflare.Worker<
   Api,
-  Pick<Effect.Success<ReturnType<typeof api>>, "fetch" | "getArtifact" | "listArtifacts">
+  Pick<Effect.Success<ReturnType<typeof api>>, "listAccounts">
 >()("ApiWorker") {}
 
 export default Api.make(
@@ -20,22 +57,10 @@ export default Api.make(
     observability: workerObservability,
   },
   Effect.gen(function* () {
-    const config = yield* deploymentConfig();
-    const data = yield* dataPlane;
-    const bindings = yield* apiBindings(data);
-    const runtime = yield* api(bindings, config.environment);
-    yield* Cloudflare.Workers.cron("* * * * *", () => runtime.dispatch);
-    return {
-      fetch: runtime.fetch,
-      getArtifact: runtime.getArtifact,
-      listArtifacts: runtime.listArtifacts,
-    };
+    const storage = yield* financialStorage;
+    const bindings = yield* apiBindings(storage);
+    return yield* api(bindings);
   }).pipe(
-    Effect.provide([
-      Cloudflare.Workers.CronEventSourceLive,
-      Cloudflare.R2.ReadWriteBucketBinding,
-      Cloudflare.D1.QueryDatabaseBinding,
-      Cloudflare.Queues.WriteQueueBinding,
-    ]),
+    Effect.provide([Cloudflare.Hyperdrive.ConnectBinding, Cloudflare.R2.ReadWriteBucketBinding]),
   ),
 );

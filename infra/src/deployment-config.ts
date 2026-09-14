@@ -12,8 +12,11 @@ interface StagePolicy {
 
 const stages = {
   dev: { environment: "local", web: { workersDev: true, domain: null } },
-  staging: { environment: "staging", web: { workersDev: true, domain: null } },
-  prod: { environment: "production", web: { workersDev: true, domain: null } },
+  staging: {
+    environment: "staging",
+    web: { workersDev: false, domain: "wealth-staging.arishi.dev" },
+  },
+  prod: { environment: "production", web: { workersDev: false, domain: "wealth.arishi.dev" } },
 } as const;
 
 const TestStage = Schema.TemplateLiteral([

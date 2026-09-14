@@ -1,6 +1,14 @@
 import { Schema } from "effect";
 
-const AppErrorCode = Schema.Literals(["invalid_request", "not_found", "unavailable", "internal"]);
+const AppErrorCode = Schema.Literals([
+  "invalid",
+  "notFound",
+  "stale",
+  "conflict",
+  "needsReview",
+  "unavailable",
+  "internal",
+]);
 
 export class AppRequestError extends Error {
   readonly code: typeof AppErrorCode.Type;

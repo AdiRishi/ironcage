@@ -4,6 +4,7 @@ import * as Effect from "effect/Effect";
 
 import { deploymentConfig } from "./src/deployment-config.ts";
 import { project } from "./src/project.ts";
+import { providers } from "./src/providers.ts";
 import { webApplication } from "./src/web-application.ts";
 import { workerGraph } from "./src/workers.ts";
 
@@ -24,7 +25,7 @@ export const Infrastructure = Effect.gen(function* () {
 export default Alchemy.Stack(
   project.stackName,
   {
-    providers: Cloudflare.providers(),
+    providers: providers(),
     state: Cloudflare.state(),
   },
   Infrastructure,

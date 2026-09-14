@@ -1,14 +1,22 @@
 import * as Cloudflare from "alchemy/Cloudflare";
-import { Effect, Stream } from "effect";
+import { Effect } from "effect";
 
 import { processor } from "../../workers/processor/src/index.ts";
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
-import { dataPlane } from "./data-plane.ts";
 import { processorBindings } from "./worker-bindings.ts";
+
+export class ImportWorkflow extends Cloudflare.Workflow<ImportWorkflow>()(
+  "ImportWorkflow",
+  Effect.succeed(
+    Effect.fn("ImportWorkflow.run")(function* ({ importId }: { importId: string }) {
+      return yield* Cloudflare.Workflows.task("identify-import", Effect.succeed({ importId }));
+    }),
+  ),
+) {}
 
 export class Processor extends Cloudflare.Worker<
   Processor,
-  Pick<Effect.Success<ReturnType<typeof processor>>, "getProcessingState">
+  Pick<Effect.Success<ReturnType<typeof processor>>, "getImportInstance">
 >()("ProcessorWorker") {}
 
 export default Processor.make(
@@ -19,29 +27,7 @@ export default Processor.make(
     observability: workerObservability,
   },
   Effect.gen(function* () {
-    const data = yield* dataPlane;
-    const bindings = yield* processorBindings(data);
-    const runtime = yield* processor(bindings);
-
-    yield* Cloudflare.Queues.consumeQueueMessages(
-      data.profileJobs,
-      {
-        batchSize: 1,
-        maxRetries: 3,
-        deadLetterQueue: data.deadLetters.queueName,
-      },
-      (messages) => Stream.runForEach(messages, runtime.process),
-    );
-    yield* Cloudflare.Queues.consumeQueueMessages(data.deadLetters, { batchSize: 1 }, (messages) =>
-      Stream.runForEach(messages, runtime.exhaust),
-    );
-
-    return { getProcessingState: runtime.getProcessingState };
-  }).pipe(
-    Effect.provide([
-      Cloudflare.Queues.EventSourceLive,
-      Cloudflare.R2.ReadBucketBinding,
-      Cloudflare.D1.QueryDatabaseBinding,
-    ]),
-  ),
+    const bindings = yield* processorBindings();
+    return yield* processor(bindings);
+  }),
 );

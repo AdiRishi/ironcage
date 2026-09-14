@@ -1,5 +1,6 @@
+import { AlchemyContext } from "alchemy/AlchemyContext";
 import * as Cloudflare from "alchemy/Cloudflare";
-import * as Effect from "effect/Effect";
+import { Config, Effect } from "effect";
 
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
@@ -10,12 +11,25 @@ export const webApplication = Effect.fn("ApplicationPlatform.WebApplication")(fu
   config: DeploymentConfig,
   workers: Workers,
 ) {
-  const web = yield* Cloudflare.Website.Vite("WebApplication", {
+  const { dev } = yield* AlchemyContext;
+  const access = dev
+    ? undefined
+    : yield* Cloudflare.Access.Application("PrivateApplication", {
+        type: "self_hosted",
+        domain: Effect.succeed(config.web.domain ?? undefined),
+        policies: [
+          { decision: "allow", include: [{ email: yield* Config.string("ACCESS_EMAIL") }] },
+        ],
+        sessionDuration: "24h",
+      });
+  const issuer = dev ? "" : yield* Config.string("ACCESS_ISSUER");
+  return yield* Cloudflare.Website.Vite("WebApplication", {
     rootDir: "../apps/web",
     main: "src/worker.ts",
     compatibility: workerCompatibility,
     workersDev: config.web.workersDev,
     domain: config.web.domain,
+    access: Effect.succeed(access),
     observability: workerObservability,
     memo: {
       include: [
@@ -26,8 +40,6 @@ export const webApplication = Effect.fn("ApplicationPlatform.WebApplication")(fu
       ],
       lockfile: true,
     },
-    env: websiteBindings(config.environment, workers.api),
+    env: websiteBindings(config.environment, workers.api, { issuer, audience: access?.aud ?? "" }),
   });
-
-  return web;
 });

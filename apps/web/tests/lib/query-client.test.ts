@@ -3,7 +3,7 @@ import { expect, test } from "vitest";
 
 import { createQueryClient } from "@/lib/query-client";
 
-test.each(["not_found", "invalid_request", "internal"] as const)(
+test.each(["notFound", "invalid", "internal"] as const)(
   "%s stops instead of retrying into a later result",
   async (code) => {
     const client = createQueryClient();
