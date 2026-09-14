@@ -7,7 +7,7 @@ export const Route = createFileRoute("/imports")({
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(accountsQueryOptions()),
-      context.queryClient.ensureQueryData(importsQueryOptions()),
+      context.queryClient.ensureInfiniteQueryData(importsQueryOptions()),
     ]);
   },
   component: ImportsPage,

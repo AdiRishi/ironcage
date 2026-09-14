@@ -45,9 +45,9 @@ export class Postings extends Context.Service<
           predicates.push(
             sql`EXISTS (SELECT 1 FROM observations o WHERE o.posting_id = p.id AND o.import_id = ${filter.importId})`,
           );
-        if (filter.needsReview)
+        if (filter.needsReview !== undefined)
           predicates.push(
-            sql`EXISTS (SELECT 1 FROM observations o JOIN review_items r ON o.id = ANY(r.observation_ids) WHERE o.posting_id = p.id AND r.resolved_at IS NULL)`,
+            sql`EXISTS (SELECT 1 FROM review_items r WHERE r.resolved_at IS NULL AND (r.candidates ? p.id::text OR EXISTS (SELECT 1 FROM observations o WHERE o.id = ANY(r.observation_ids) AND o.posting_id = p.id))) = ${filter.needsReview}`,
           );
         if (cursor)
           predicates.push(

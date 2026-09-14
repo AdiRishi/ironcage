@@ -10,12 +10,12 @@ interface Command<A, R> {
   readonly execute: Effect.Effect<A, FinanceError | SqlError.SqlError | Schema.SchemaError, R>;
 }
 const Receipt = Schema.Struct({ inputHash: Schema.String, result: Schema.Json });
-const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Json));
+const encodeJson = Schema.encodeEffect(Schema.fromJsonString(Schema.Json));
 
 export const fingerprint = Effect.fn("fingerprint")(function* (value: Schema.Json) {
   const crypto = yield* Crypto.Crypto;
   return Encoding.encodeHex(
-    yield* crypto.digest("SHA-256", new TextEncoder().encode(encodeJson(value))),
+    yield* crypto.digest("SHA-256", new TextEncoder().encode(yield* encodeJson(value))),
   );
 });
 

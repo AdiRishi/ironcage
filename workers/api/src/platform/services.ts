@@ -15,6 +15,6 @@ export class ImportJobs extends Context.Service<
     }) => Effect.Effect<void, FinanceError, RuntimeContext>;
     readonly status: (input: {
       instanceId: string;
-    }) => Effect.Effect<string, FinanceError, RuntimeContext>;
+    }) => Effect.Effect<{ status: string; failure: string | null }, FinanceError, RuntimeContext>;
   }
 >()("@repo/api/platform/ImportJobs") {}

@@ -5,6 +5,8 @@ import {
   AccountKind,
   CalendarDate,
   Currency,
+  CommandId,
+  RecordCursor,
   ImportId,
   Money,
   SourceFileId,
@@ -121,3 +123,16 @@ export const UploadInput = Schema.Struct({
   bytes: Schema.Uint8Array,
 });
 export type UploadInput = typeof UploadInput.Type;
+
+export const ImportJob = Schema.Struct({ importId: ImportId, instanceId: Schema.String });
+export const RetryImport = Schema.Struct({
+  commandId: CommandId,
+  importId: ImportId,
+  expectedVersion: Version,
+});
+export const FailImport = Schema.Struct({
+  ...ImportJob.fields,
+  failure: Schema.Struct({ message: Schema.String }),
+});
+
+export const ListImports = Schema.Struct({ cursor: Schema.optionalKey(RecordCursor) });

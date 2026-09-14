@@ -1,5 +1,5 @@
 import { AppRequestError } from "@repo/contracts/app";
-import { CommandId, CreateAccount } from "@repo/contracts/finance";
+import { type Account, CommandId, UpdateAccount } from "@repo/contracts/finance";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Schema, Struct } from "effect";
@@ -24,31 +24,41 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { createAccount } from "./functions";
+import { updateAccount } from "./functions";
 
-const Fields = Schema.Struct(Struct.omit(CreateAccount.fields, ["commandId"]));
-const defaults: typeof Fields.Type = { label: "", kind: "deposit", currency: "AUD" };
-export function CreateAccountDialog() {
+const Fields = Schema.Struct(Struct.pick(UpdateAccount.fields, ["label", "kind"]));
+const kinds = { deposit: "Deposit", card: "Credit card", loan: "Loan" };
+export function EditAccountDialog({ account }: { account: Account }) {
   const [open, setOpen] = useState(false);
   const client = useQueryClient();
   const mutation = useMutation({
-    mutationFn: (data: typeof CreateAccount.Type) => createAccount({ data }),
+    mutationFn: (data: typeof UpdateAccount.Type) => updateAccount({ data }),
     onSuccess: async () => {
-      await client.invalidateQueries({ queryKey: ["accounts"] });
+      await client.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "accounts" ||
+          query.queryKey[0] === "postings" ||
+          query.queryKey[0] === "posting",
+      });
       setOpen(false);
     },
   });
   const uncertain =
     mutation.error instanceof AppRequestError && mutation.error.code === "unavailable";
   const form = useForm({
-    defaultValues: defaults,
+    defaultValues: { label: account.label, kind: account.kind },
     validators: { onSubmit: Schema.toStandardSchemaV1(Fields) },
     onSubmit: async ({ value }) => {
       await mutation
         .mutateAsync(
           uncertain && mutation.variables
             ? mutation.variables
-            : { ...value, commandId: CommandId.make(crypto.randomUUID()) },
+            : {
+                ...value,
+                accountId: account.id,
+                commandId: CommandId.make(crypto.randomUUID()),
+                expectedVersion: account.version,
+              },
         )
         .catch(() => undefined);
     },
@@ -58,17 +68,21 @@ export function CreateAccountDialog() {
       open={open}
       onOpenChange={(value) => {
         if (value && !uncertain) {
-          form.reset();
+          form.reset({ label: account.label, kind: account.kind });
           mutation.reset();
         }
         setOpen(value);
       }}
     >
-      <DialogTrigger render={<Button variant="outline" />}>Add account</DialogTrigger>
+      <DialogTrigger render={<Button variant="outline" size="sm" />}>
+        Edit<span className="sr-only"> {account.label}</span>
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add an account</DialogTitle>
-          <DialogDescription>Choose this account when importing its CSV exports.</DialogDescription>
+          <DialogTitle>Edit account</DialogTitle>
+          <DialogDescription>
+            Bank identifiers stay attached to the original source evidence.
+          </DialogDescription>
         </DialogHeader>
         <form
           className="space-y-5"
@@ -81,13 +95,11 @@ export function CreateAccountDialog() {
             <form.Field name="label">
               {(field) => (
                 <div className="space-y-2">
-                  <Label htmlFor={field.name}>Account name</Label>
+                  <Label htmlFor="account-label">Account name</Label>
                   <Input
-                    id={field.name}
+                    id="account-label"
                     value={field.state.value}
                     onChange={(event) => field.handleChange(event.target.value)}
-                    onBlur={field.handleBlur}
-                    placeholder="Everyday account"
                     required
                     maxLength={100}
                   />
@@ -97,14 +109,16 @@ export function CreateAccountDialog() {
             <form.Field name="kind">
               {(field) => (
                 <div className="space-y-2">
-                  <Label htmlFor={field.name}>Account type</Label>
+                  <Label htmlFor="account-kind">Account type</Label>
                   <Select
+                    items={kinds}
+                    disabled={account.accountNumber !== null}
                     value={field.state.value}
                     onValueChange={(value) => {
                       if (value) field.handleChange(value);
                     }}
                   >
-                    <SelectTrigger id={field.name}>
+                    <SelectTrigger id="account-kind">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -116,33 +130,32 @@ export function CreateAccountDialog() {
                 </div>
               )}
             </form.Field>
-            <form.Field name="currency">
-              {(field) => (
-                <div className="space-y-2">
-                  <Label htmlFor={field.name}>Currency</Label>
-                  <Input
-                    id={field.name}
-                    value={field.state.value}
-                    onChange={(event) => field.handleChange(event.target.value.toUpperCase())}
-                    required
-                    pattern="[A-Z]{3}"
-                    maxLength={3}
-                  />
-                </div>
-              )}
-            </form.Field>
+            {account.accountNumber && (
+              <p className="text-sm text-muted-foreground">
+                Bank {account.bankId ?? "not supplied"} · Account {account.accountNumber} ·{" "}
+                {account.currency}
+              </p>
+            )}
           </fieldset>
-          {mutation.isError && (
+          {mutation.error && (
             <div role="alert" className="space-y-2 text-sm text-destructive">
               <p>{mutation.error.message}</p>
+              {!uncertain && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    mutation.reset();
+                    client.invalidateQueries({ queryKey: ["accounts"] }).catch(reportError);
+                  }}
+                >
+                  Refresh account
+                </Button>
+              )}
             </div>
           )}
           <Button type="submit" disabled={mutation.isPending}>
-            {mutation.isPending
-              ? "Adding account…"
-              : uncertain
-                ? "Retry add account"
-                : "Add account"}
+            {mutation.isPending ? "Saving…" : uncertain ? "Retry save" : "Save account"}
           </Button>
         </form>
       </DialogContent>

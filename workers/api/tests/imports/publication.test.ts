@@ -1,60 +1,22 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { URL } from "node:url";
 
-import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { PgClient } from "@effect/sql-pg";
 import { CommandId, FinanceError, ImportSummary, ResolveReview } from "@repo/contracts/finance";
-import * as Alchemy from "alchemy";
-import * as Test from "alchemy/Test/Vitest";
-import { Effect, Layer, Redacted, Schema } from "effect";
+import { Console, Duration, Effect, Schema } from "effect";
 import { expect } from "vitest";
 
-import { localPostgres } from "../../../../infra/src/database/local.ts";
-import { localDatabaseProviders } from "../../../../infra/src/database/providers.ts";
 import { parseCsv } from "../../../processor/src/imports/csv.ts";
 import { parseOfx } from "../../../processor/src/imports/ofx.ts";
-import { AccountResolution } from "../../src/accounts/resolution.ts";
 import { Accounts } from "../../src/accounts/service.ts";
 import { Commands } from "../../src/database/commands.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { Reviews } from "../../src/review/service.ts";
+import { applicationTest } from "../support/application.ts";
 import { account, parsed, reset, source } from "../support/fixtures.ts";
 
-const databaseProviders = localDatabaseProviders;
-const Stack = Alchemy.Stack(
-  "PublicationTest",
-  { providers: databaseProviders, state: Alchemy.localState() },
-  Effect.gen(function* () {
-    const database = yield* localPostgres;
-    return { port: database.port };
-  }),
-);
-const { test, beforeAll, afterAll, deploy, destroy } = Test.make({
-  providers: databaseProviders,
-  stage: `test-${crypto.randomUUID().slice(0, 8)}`,
-  dev: true,
-});
-const stack = beforeAll(deploy(Stack), { timeout: 600_000 });
-afterAll(destroy(Stack), { timeout: 600_000 });
-const database = Layer.unwrap(
-  Effect.map(stack, ({ port }) =>
-    PgClient.layer({
-      host: "127.0.0.1",
-      port,
-      username: "ironcage",
-      database: "ironcage",
-      password: Redacted.make("local-development"),
-    }),
-  ),
-);
-const services = Layer.mergeAll(Accounts.layer, Postings.layer, Reviews.layer).pipe(
-  Layer.provideMerge(Publication.layer),
-  Layer.provideMerge(Commands.layer),
-  Layer.provide(AccountResolution.layer),
-  Layer.provideMerge(database),
-  Layer.provide(NodeCrypto.layer),
-);
+const { test, services } = applicationTest();
 
 test(
   "concurrent overlapping files keep both identical transactions and attach four source rows",
@@ -116,6 +78,11 @@ test(
       matchedPostings: 0,
       reviewItems: 1,
     });
+    const postingsForReview = yield* Postings;
+    expect((yield* postingsForReview.list({ filter: { needsReview: true } })).rows).toHaveLength(2);
+    expect((yield* postingsForReview.list({ filter: { needsReview: false } })).rows).toHaveLength(
+      0,
+    );
     const reviews = yield* Reviews;
     const [review] = yield* reviews.list();
     expect(review?.kind).toBe("duplicate");
@@ -233,13 +200,18 @@ test.skipIf(!existsSync(corpusDirectory))(
     const files = readdirSync(corpusDirectory).filter((name) => name.endsWith(".ofx"));
     const publication = yield* Publication;
     let observed = 0;
+    let largest = { observations: 0, milliseconds: 0 };
     for (const file of files) {
       yield* reset;
       const bytes = new Uint8Array(readFileSync(new URL(file, corpusDirectory)));
       const expected = new TextDecoder("windows-1252").decode(bytes).split("<STMTTRN>").length - 1;
       const parsedFile = yield* parseOfx(bytes);
       const upload = yield* source(null, "ofx");
-      const summary = yield* publication.publish({ ...parsedFile, importId: upload.importId });
+      const [duration, summary] = yield* Effect.timed(
+        publication.publish({ ...parsedFile, importId: upload.importId }),
+      );
+      if (expected > largest.observations)
+        largest = { observations: expected, milliseconds: Duration.toMillis(duration) };
       expect(summary).toEqual({
         observations: expected,
         newPostings: expected,
@@ -250,6 +222,7 @@ test.skipIf(!existsSync(corpusDirectory))(
     }
     expect(files).toHaveLength(26);
     expect(observed).toBe(3031);
+    yield* Console.info("Largest structured import publication", largest);
   }).pipe(Effect.provide(services)),
   { timeout: 120_000 },
 );
