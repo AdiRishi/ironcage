@@ -93,3 +93,31 @@ Account S has postings from 17 August 2024 onward after stage 1. Statement P cov
 ## Not in this stage
 
 Financial events, categories, links, spending analysis, planning, the analyst, findings. Deleting postings or financial history is not a feature at any stage.
+
+## Import verification evidence
+
+All 47 PDFs reconcile independently: 9,159 nonzero transaction rows and 113 dated
+notices. Manual counts on PDF ordinals 33, 34, and 43 in filename order found
+1 deposit transaction, 9 card transactions, and 3 loan transactions respectively.
+Opening and closing rows and zero-amount notices are excluded from those counts.
+
+All 99 files produce 9,224 postings and 15,334 observations in both filename
+orders, with 72 reconciled source coverage records. The equality check compares
+account identity, booked date, currency, amount, and multiplicity. Display wording
+can come from a different first source; each source's wording remains attached.
+
+Filename order leaves no review items. Reverse order leaves six `duplicate`
+items on OFX imports, each concerning two rows and two existing postings at one
+booked date and amount. OFX supplies no running balance for those rows, and its
+wording cannot uniquely pair them with the already accepted statement evidence.
+They concern six distinct match keys. No `value`, `account`, or `source_conflict`
+items remain. Later CSV evidence is available beside the candidates for review.
+
+Synthetic PDFs cover the card decimal text-layer defect, year boundaries,
+four-digit merchant prefixes, large deposit debits, loan signs, waived fees,
+and an unreadable page that leaves readable pages published. The local native
+Workflow imports the largest 867-row statement without storing its oversized
+parse result as a checkpoint.
+
+Exports and source removal remain to be implemented. Hosted Access and the
+managed restore drill listed in stage 1 remain unverified.
