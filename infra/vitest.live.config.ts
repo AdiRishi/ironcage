@@ -13,6 +13,7 @@ export default defineConfig({
     // registration order so destroy(Stack) runs before the harness closes.
     sequence: { hooks: "list" },
     provide: { live: true },
-    include: ["tests/alchemy.run.integration.test.ts"],
+    fileParallelism: false,
+    include: ["tests/**/*.live.test.ts", "tests/platform.integration.test.ts"],
   },
 });

@@ -170,6 +170,9 @@ catalogs:
     '@cloudflare/workers-types':
       specifier: 5.20260911.1
       version: 5.20260911.1
+    '@distilled.cloud/planetscale':
+      specifier: 1.0.0-rc.8
+      version: 1.0.0-rc.8
     '@effect/sql-pg':
       specifier: 4.0.0-rc.112
       version: 4.0.0-rc.112
@@ -505,6 +508,9 @@ importers:
 
   infra:
     dependencies:
+      '@distilled.cloud/planetscale':
+        specifier: 'catalog:'
+        version: 1.0.0-rc.8(effect@4.0.0-rc.112)
       '@effect/platform-node':
         specifier: 4.0.0-rc.112
         version: 4.0.0-rc.112(effect@4.0.0-rc.112)(redis@6.2.1)

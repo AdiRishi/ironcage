@@ -35,6 +35,7 @@
     "plan:staging": "alchemy plan --stage staging"
   },
   "dependencies": {
+    "@distilled.cloud/planetscale": "catalog:",
     "@effect/platform-node": "catalog:",
     "@effect/sql-pg": "catalog:",
     "@repo/contracts": "workspace:*",

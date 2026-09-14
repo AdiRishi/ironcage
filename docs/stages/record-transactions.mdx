@@ -176,5 +176,12 @@ editing, and timezone persistence.
 Hosted verification remains incomplete. The deployment created the PlanetScale
 database and private storage bindings, but Cloudflare rejected creation of the
 Access application with HTTP 403. The Alchemy credential needs Access Apps and
-Policies Edit. Access checks and the managed backup restore drill remain required
-before this stage can be called verified.
+Policies Edit. Hosted Access and application binding checks remain required before
+this stage can be called verified.
+
+On 15 September 2026, an isolated PlanetScale Postgres 17 database was backed up
+and restored into a separate branch. The restored database retained two synthetic
+postings with exact amounts and dates, including a corrected date, and the saved
+review resolution. The source hash matched the independent archived original.
+The temporary database and branch were deleted after verification. The production
+database's required backup policies run every 12 hours with two-day retention.

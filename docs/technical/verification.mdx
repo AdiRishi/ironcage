@@ -78,3 +78,16 @@ Playwright covers, from stage 1: upload to transaction detail, a review resoluti
 ## Hosted checks
 
 Local success does not prove hosted behavior. `pnpm test:infra-live` checks bindings, Access, Hyperdrive, R2, and Workflows on a disposable stage. The stage report lists any hosted check that could not run.
+
+The platform suite runs the same synthetic upload, command replay, PDF, export,
+and source-removal checks locally and when hosted. Its driver reaches the private
+API through a service binding. Private corpus cases run only locally. The hosted
+suite also checks that application, source, and export requests without a session
+redirect to Access. Each test stage is destroyed after the suite.
+
+The separate managed restore suite creates a temporary PlanetScale database,
+applies production migrations and a synthetic resolved-review fixture, takes a
+backup, and restores it into an independent branch. It checks the exact postings,
+saved resolution, and the original file's hash against the independent archive,
+then deletes the temporary resources. Run only that drill with
+`pnpm --filter @repo/infra test:live tests/database-restore.live.test.ts`.
