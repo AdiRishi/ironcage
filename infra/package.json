@@ -19,10 +19,6 @@
     "./api": {
       "types": "./src/api.ts",
       "default": "./src/api.ts"
-    },
-    "./profile-session": {
-      "types": "./src/profile-session.ts",
-      "default": "./src/profile-session.ts"
     }
   },
   "scripts": {
@@ -40,9 +36,11 @@
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",
+    "@effect/sql-pg": "catalog:",
     "@repo/contracts": "workspace:*",
     "alchemy": "catalog:",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "pg": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",
@@ -50,6 +48,7 @@
     "@effect/vitest": "catalog:",
     "@playwright/test": "catalog:",
     "@repo/tsconfig": "workspace:*",
+    "@types/pg": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
