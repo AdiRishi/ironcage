@@ -1,6 +1,8 @@
 import { PgClient } from "@effect/sql-pg";
 import {
   ImportId,
+  ListReviewItems,
+  ReviewItemId,
   ObservationId,
   Posting,
   PostingId,
@@ -18,12 +20,23 @@ export interface PendingQuestion {
   readonly observationIds: ReadonlyArray<typeof ObservationId.Type>;
   readonly postingIds: ReadonlyArray<typeof PostingId.Type>;
 }
-export const readReviews = Effect.fn("readReviews")(function* () {
+export const readReviews = Effect.fn("readReviews")(function* (
+  input: typeof ListReviewItems.Type & { reviewItemId?: typeof ReviewItemId.Type } = {},
+) {
   const sql = yield* PgClient.PgClient;
+  const predicates = [
+    input.open === false ? sql`r.resolved_at IS NOT NULL` : sql`r.resolved_at IS NULL`,
+  ];
+  if (input.importId) predicates.push(sql`r.import_id = ${input.importId}`);
+  if (input.reviewItemId) predicates.push(sql`r.id = ${input.reviewItemId}`);
+  if (input.cursor)
+    predicates.push(
+      sql`(r.created_at, r.id) > (${input.cursor.createdAt}::timestamptz, ${input.cursor.id}::uuid)`,
+    );
   const items =
-    yield* sql`SELECT r.id, r.import_id AS "importId", s.file_name AS "fileName", r.kind, r.question, r.version, to_char(r.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt", r.candidates AS "postingIds",
+    yield* sql`SELECT r.id, r.import_id AS "importId", s.file_name AS "fileName", r.kind, r.question, r.version, to_char(r.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "createdAt", r.candidates AS "postingIds", r.resolution, to_char(r.resolved_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "resolvedAt",
     COALESCE((SELECT jsonb_agg(jsonb_build_object('id', o.id, 'locator', o.locator, 'raw', o.raw, 'candidate', o.parsed_candidate, 'acceptedCandidate', CASE WHEN o.posting_id IS NULL THEN NULL ELSE o.candidate END, 'postingId', o.posting_id) ORDER BY array_position(r.observation_ids, o.id)) FROM observations o WHERE o.id = ANY(r.observation_ids)), '[]'::jsonb) AS observations
-    FROM review_items r JOIN imports i ON i.id = r.import_id JOIN source_files s ON s.id = i.source_file_id WHERE r.resolved_at IS NULL ORDER BY r.created_at, r.id`.pipe(
+    FROM review_items r JOIN imports i ON i.id = r.import_id JOIN source_files s ON s.id = i.source_file_id WHERE ${sql.and(predicates)} ORDER BY r.created_at, r.id LIMIT 100`.pipe(
       Effect.flatMap(
         Schema.decodeUnknownEffect(
           Schema.Array(

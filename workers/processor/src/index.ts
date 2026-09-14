@@ -6,7 +6,7 @@ export const processor = (bindings: Effect.Success<ReturnType<typeof processorBi
   Effect.succeed({
     startImport: Effect.fn("Processor.startImport")(
       function* ({ importId, instanceId }: { importId: typeof ImportId.Type; instanceId: string }) {
-        yield* bindings.imports.create({ id: instanceId, params: { importId } });
+        yield* bindings.imports.createBatch([{ id: instanceId, params: { importId, instanceId } }]);
       },
       Effect.catchCause(() =>
         Effect.fail(
@@ -20,7 +20,8 @@ export const processor = (bindings: Effect.Success<ReturnType<typeof processorBi
     getImportInstance: Effect.fn("Processor.getImportInstance")(
       function* ({ instanceId }: { instanceId: string }) {
         const instance = yield* bindings.imports.get(instanceId);
-        return (yield* instance.status()).status;
+        const result = yield* instance.status();
+        return { status: result.status, failure: result.error?.message ?? null };
       },
       Effect.catchCause(() =>
         Effect.fail(

@@ -1,6 +1,8 @@
 import { type QueryClient } from "@tanstack/react-query";
 import { HeadContent, Link, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
-import { House, LockKeyhole, Upload, List, ClipboardCheck } from "lucide-react";
+import { House, LockKeyhole, Upload, List, ClipboardCheck, Settings } from "lucide-react";
+
+import { RouteError } from "@/components/route-error";
 
 import appCss from "@/global-styles/tailwind.css?url";
 
@@ -18,6 +20,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [{ rel: "stylesheet", href: appCss }],
   }),
   shellComponent: RootDocument,
+  errorComponent: RouteError,
 });
 
 function RootDocument({ children }: { readonly children: React.ReactNode }) {
@@ -71,6 +74,14 @@ function RootDocument({ children }: { readonly children: React.ReactNode }) {
               >
                 <ClipboardCheck className="size-5" />
                 Review
+              </Link>
+              <Link
+                to="/settings"
+                className="flex items-center gap-3 rounded-md px-3 py-2"
+                activeProps={{ className: "bg-accent text-primary" }}
+              >
+                <Settings className="size-5" />
+                Settings
               </Link>
             </nav>
             <p className="mt-auto hidden pt-10 text-xs text-muted-foreground md:block">

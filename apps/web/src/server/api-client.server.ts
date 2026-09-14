@@ -17,6 +17,10 @@ type ApiMethods = Pick<
   | "getPosting"
   | "listImports"
   | "getImport"
+  | "retryImport"
+  | "getSettings"
+  | "getRetention"
+  | "updateSettings"
 >;
 
 // The remote Worker supplies RuntimeContext; only results and failures cross the binding.

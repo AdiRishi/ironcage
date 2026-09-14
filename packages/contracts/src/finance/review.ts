@@ -9,6 +9,7 @@ import {
   ObservationId,
   PostingId,
   ReviewItemId,
+  RecordCursor,
   Version,
 } from "./values.ts";
 
@@ -46,6 +47,15 @@ export const ReviewObservation = Schema.Struct({
   acceptedCandidate: Schema.NullOr(Candidate),
   postingId: Schema.NullOr(PostingId),
 });
+export const ReviewResolution = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("account"), accountId: AccountId }),
+  Schema.Struct({
+    kind: Schema.Literal("observations"),
+    decisions: Schema.NonEmptyArray(
+      Schema.Struct({ observationId: ObservationId, decision: ObservationDecision }),
+    ),
+  }),
+]);
 export const ReviewItem = Schema.Struct({
   id: ReviewItemId,
   importId: ImportId,
@@ -56,19 +66,18 @@ export const ReviewItem = Schema.Struct({
   candidates: Schema.Array(Posting),
   version: Version,
   createdAt: Schema.String,
+  resolvedAt: Schema.NullOr(Schema.String),
+  resolution: Schema.NullOr(ReviewResolution),
 });
 export type ReviewItem = typeof ReviewItem.Type;
 export const ResolveReview = Schema.Struct({
   commandId: CommandId,
   reviewItemId: ReviewItemId,
   expectedVersion: Version,
-  resolution: Schema.Union([
-    Schema.Struct({ kind: Schema.Literal("account"), accountId: AccountId }),
-    Schema.Struct({
-      kind: Schema.Literal("observations"),
-      decisions: Schema.NonEmptyArray(
-        Schema.Struct({ observationId: ObservationId, decision: ObservationDecision }),
-      ),
-    }),
-  ]),
+  resolution: ReviewResolution,
+});
+export const ListReviewItems = Schema.Struct({
+  open: Schema.optionalKey(Schema.Boolean),
+  importId: Schema.optionalKey(ImportId),
+  cursor: Schema.optionalKey(RecordCursor),
 });

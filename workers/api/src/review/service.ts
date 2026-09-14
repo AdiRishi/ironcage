@@ -1,6 +1,7 @@
 import { PgClient } from "@effect/sql-pg";
 import {
   AccountId,
+  BankAccount,
   Candidate,
   SourceFileId,
   FinanceError,
@@ -9,9 +10,11 @@ import {
   PostingId,
   ResolveReview,
   ReviewItem,
+  ListReviewItems,
 } from "@repo/contracts/finance";
 import { Context, Effect, Layer, Schema } from "effect";
 
+import { AccountResolution } from "../accounts/resolution.ts";
 import { Commands, databaseUnavailable } from "../database/commands.ts";
 import { readMatchingPostings } from "../imports/matching.ts";
 import { effectiveCandidate, readObservations } from "../imports/observations.ts";
@@ -22,7 +25,9 @@ const invalid = (message: string) => new FinanceError({ kind: "invalid", message
 export class Reviews extends Context.Service<
   Reviews,
   {
-    readonly list: () => Effect.Effect<ReadonlyArray<ReviewItem>, FinanceError>;
+    readonly list: (
+      input?: typeof ListReviewItems.Type,
+    ) => Effect.Effect<ReadonlyArray<ReviewItem>, FinanceError>;
     readonly resolve: (
       input: typeof ResolveReview.Type,
     ) => Effect.Effect<ImportSummary, FinanceError>;
@@ -33,9 +38,10 @@ export class Reviews extends Context.Service<
     Effect.gen(function* () {
       const sql = yield* PgClient.PgClient;
       const commands = yield* Commands;
+      const accounts = yield* AccountResolution;
       const publication = yield* Publication;
-      const list = Effect.fn("Reviews.list")(() =>
-        readReviews().pipe(
+      const list = Effect.fn("Reviews.list")((input: typeof ListReviewItems.Type = {}) =>
+        readReviews(input).pipe(
           Effect.provideService(PgClient.PgClient, sql),
           Effect.mapError(databaseUnavailable),
         ),
@@ -49,7 +55,7 @@ export class Reviews extends Context.Service<
           input: encoded,
           result: Schema.toCodecJson(ImportSummary),
           execute: Effect.gen(function* () {
-            const reviews = yield* readReviews();
+            const reviews = yield* readReviews({ reviewItemId: input.reviewItemId });
             const review = reviews.find((item) => item.id === input.reviewItemId);
             if (!review)
               return yield* new FinanceError({
@@ -65,6 +71,29 @@ export class Reviews extends Context.Service<
             if (resolution.kind === "account") {
               if (review.kind !== "account")
                 return yield* invalid("This review does not ask for an account.");
+              const [source] =
+                yield* sql`SELECT bank_account AS identity, source_file_id AS "sourceFileId" FROM imports WHERE id = ${review.importId}`.pipe(
+                  Effect.flatMap(
+                    Schema.decodeUnknownEffect(
+                      Schema.Tuple([
+                        Schema.Struct({
+                          identity: Schema.NullOr(BankAccount),
+                          sourceFileId: SourceFileId,
+                        }),
+                      ]),
+                    ),
+                  ),
+                );
+              const selected = yield* accounts.resolve({
+                accountId: resolution.accountId,
+                identity: source.identity,
+              });
+              const conflicts =
+                yield* sql`SELECT 1 FROM observations o JOIN postings p ON p.id = o.posting_id WHERE o.source_file_id = ${source.sourceFileId} AND p.account_id <> ${selected.id} LIMIT 1`;
+              if (conflicts.length > 0)
+                return yield* invalid(
+                  "This source already supports transactions in another account.",
+                );
               yield* sql`UPDATE imports SET account_id = ${resolution.accountId} WHERE id = ${review.importId}`;
             } else {
               if (review.kind === "account")

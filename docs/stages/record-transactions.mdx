@@ -149,7 +149,7 @@ Run these before calling the stage done. [Verification](/technical/verification)
 - The whole corpus imports in filename order and in reverse order to the same set of postings. Every CSV row matches its OFX pair's posting at step 3, and the deposit accounts also match at step 2. The CSV and OFX corpus produces zero review items; report any that appear with their reason.
 - Two identical same-day rows in one file produce two postings. Reuploading that file produces no more.
 - Two same-day, same-amount rows with the same description but different running balances match their counterparts by balance, even when the second file reverses their order. Conflicting balances leave the rows in review.
-- Renamed identical bytes are recognized. A file with one bad row fails visibly while a sibling completes, and retry succeeds after the parser fix.
+- Renamed identical bytes are recognized. A malformed file fails visibly while a sibling completes, and retry succeeds after the parser fix. An unreadable row value creates a review item while the other decoded rows publish.
 - `publishImport` called twice with the same observations returns the same summary and writes nothing the second time. A failure injected before commit leaves no postings, no observations, no receipt.
 - A `resolveReview` whose response is lost can be repeated with the same command ID and returns the first result. A stale `expectedVersion` changes nothing.
 - Money and date decoding: exact minor units, negatives, leap days, no `number` conversion, `DATE` round-trips without timezone shift, offset-free `DTASOF` reads as GMT.
@@ -160,3 +160,21 @@ Run these before calling the stage done. [Verification](/technical/verification)
 ## Not in this stage
 
 PDF, exports, source removal, any model call, financial events and categories, links between postings, spending analysis, planning, the analyst, findings. Offset relationships and effective-dated account changes arrive in stage 3.
+
+## Implementation evidence
+
+The local structured corpus imports in both orders to 2,919 postings supported by
+6,062 observations, with no open review items. The largest structured file has
+197 rows; its publication transaction measured 39 ms on local Postgres.
+
+Local verification covers command replay, stale versions, atomic publication,
+workflow retry, interrupted workflow reporting, account editing, transaction
+filters and pagination, resolved review history, and display settings. Browser
+checks have exercised an unreadable date correction, failed-file retry, account
+editing, and timezone persistence.
+
+Hosted verification remains incomplete. The deployment created the PlanetScale
+database and private storage bindings, but Cloudflare rejected creation of the
+Access application with HTTP 403. The Alchemy credential needs Access Apps and
+Policies Edit. Access checks and the managed backup restore drill remain required
+before this stage can be called verified.

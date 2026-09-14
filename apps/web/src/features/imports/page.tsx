@@ -1,10 +1,13 @@
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery, useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { settingsQueryOptions } from "@/features/settings/queries";
 
 import { importsQueryOptions } from "./queries";
+import { RetryImportButton } from "./retry-import";
 import { UploadFiles } from "./upload-files";
 const statuses = {
   processing: "Processing",
@@ -13,8 +16,10 @@ const statuses = {
   failed: "Failed",
 };
 export function ImportsPage() {
-  const { data: imports } = useSuspenseQuery(importsQueryOptions());
+  const history = useSuspenseInfiniteQuery(importsQueryOptions());
+  const imports = history.data.pages.flat();
   const client = useQueryClient();
+  const { data: settings } = useSuspenseQuery(settingsQueryOptions());
   const completedVersions = imports
     .filter((item) => item.status !== "processing")
     .map((item) => `${item.id}:${item.version}`)
@@ -53,7 +58,12 @@ export function ImportsPage() {
                 <div className="min-w-0 space-y-2">
                   <p className="font-medium break-all">{item.fileName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {item.format.toUpperCase()} · {item.createdAt.slice(0, 10)}
+                    {item.format.toUpperCase()} ·{" "}
+                    {new Intl.DateTimeFormat("en-AU", {
+                      timeZone: settings.timezone,
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    }).format(new Date(item.createdAt))}
                   </p>
                   {item.summary && (
                     <p className="text-sm text-muted-foreground">
@@ -66,6 +76,7 @@ export function ImportsPage() {
                       {item.failure.message}
                     </p>
                   )}
+                  {item.status === "failed" && <RetryImportButton item={item} />}
                   {item.status === "needs_review" && (
                     <Link
                       to="/review"
@@ -91,6 +102,18 @@ export function ImportsPage() {
               </li>
             ))}
           </ul>
+        )}
+        {history.hasNextPage && (
+          <Button
+            className="mt-4"
+            variant="outline"
+            disabled={history.isFetchingNextPage}
+            onClick={() => {
+              history.fetchNextPage().catch(reportError);
+            }}
+          >
+            Load older imports
+          </Button>
         )}
       </section>
     </div>

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ImportsRouteImport } from './routes/imports'
 import { Route as ReviewRouteImport } from './routes/review'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as UploadsRouteImport } from './routes/uploads'
 import { Route as SourcesSourceFileIdRouteImport } from './routes/sources/$sourceFileId'
 import { Route as TransactionsIndexRouteImport } from './routes/transactions/index'
@@ -30,6 +31,11 @@ const ImportsRoute = ImportsRouteImport.update({
 const ReviewRoute = ReviewRouteImport.update({
   id: '/review',
   path: '/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UploadsRoute = UploadsRouteImport.update({
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/imports': typeof ImportsRoute
   '/review': typeof ReviewRoute
+  '/settings': typeof SettingsRoute
   '/uploads': typeof UploadsRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/imports': typeof ImportsRoute
   '/review': typeof ReviewRoute
+  '/settings': typeof SettingsRoute
   '/uploads': typeof UploadsRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/imports': typeof ImportsRoute
   '/review': typeof ReviewRoute
+  '/settings': typeof SettingsRoute
   '/uploads': typeof UploadsRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/imports'
     | '/review'
+    | '/settings'
     | '/uploads'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/imports'
     | '/review'
+    | '/settings'
     | '/uploads'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/imports'
     | '/review'
+    | '/settings'
     | '/uploads'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ImportsRoute: typeof ImportsRoute
   ReviewRoute: typeof ReviewRoute
+  SettingsRoute: typeof SettingsRoute
   UploadsRoute: typeof UploadsRoute
   SourcesSourceFileIdRoute: typeof SourcesSourceFileIdRoute
   TransactionsIdRoute: typeof TransactionsIdRoute
@@ -142,6 +155,13 @@ declare module '@tanstack/react-router' {
       path: '/review'
       fullPath: '/review'
       preLoaderRoute: typeof ReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/uploads': {
@@ -179,6 +199,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ImportsRoute: ImportsRoute,
   ReviewRoute: ReviewRoute,
+  SettingsRoute: SettingsRoute,
   UploadsRoute: UploadsRoute,
   SourcesSourceFileIdRoute: SourcesSourceFileIdRoute,
   TransactionsIdRoute: TransactionsIdRoute,

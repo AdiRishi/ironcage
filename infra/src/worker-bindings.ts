@@ -4,6 +4,7 @@ import { PostgresLayer } from "alchemy/SQL/Postgres";
 import { Effect } from "effect";
 
 import type { Api, financialStorage } from "./api.ts";
+import { retentionPolicy } from "./database/retention.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
 import { ImportWorkflow, Processor } from "./processor.ts";
 
@@ -13,7 +14,12 @@ export const apiBindings = Effect.fn("ApplicationPlatform.ApiBindings")(function
   const connection = yield* Cloudflare.Hyperdrive.Connect(storage.database);
   const sources = yield* Cloudflare.R2.ReadWriteBucket(storage.sources);
   const processor = yield* Cloudflare.Workers.bindWorker(Processor);
-  return { sources, processor, database: PostgresLayer({ url: connection.connectionString }) };
+  return {
+    retention: yield* retentionPolicy,
+    sources,
+    processor,
+    database: PostgresLayer({ url: connection.connectionString }),
+  };
 });
 export const processorBindings = Effect.fn("ApplicationPlatform.ProcessorBindings")(function* () {
   const imports = yield* ImportWorkflow;

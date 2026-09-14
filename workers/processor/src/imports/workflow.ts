@@ -1,4 +1,4 @@
-import { FinanceError, ImportInput, ParsedFile } from "@repo/contracts/finance";
+import { FinanceError, ImportJob, ParsedFile } from "@repo/contracts/finance";
 import type { Api } from "@repo/infra/api";
 import { Workflows } from "alchemy/Cloudflare";
 import type { ReadBucketClient } from "alchemy/Cloudflare/R2";
@@ -12,7 +12,7 @@ export const runImport = (
   sources: ReadBucketClient,
 ) =>
   Effect.fn("ImportWorkflow.run")(
-    function* (input: typeof ImportInput.Type) {
+    function* (input: typeof ImportJob.Type) {
       const parsed = yield* Workflows.task(
         "parse",
         Effect.gen(function* () {

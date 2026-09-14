@@ -36,3 +36,10 @@ export class FinanceError extends Schema.TaggedError<FinanceError>()("FinanceErr
   kind: Schema.Literals(["invalid", "notFound", "stale", "conflict", "needsReview", "unavailable"]),
   message: Schema.String,
 }) {}
+
+export const RecordCursor = Schema.Struct({
+  createdAt: Schema.String.check(
+    Schema.isPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3,6}Z$/),
+  ),
+  id: Schema.String.check(Schema.isUUID()),
+});
