@@ -13,6 +13,13 @@ import {
   Version,
 } from "./values.ts";
 
+export const SourceFormat = Schema.Literals(["csv", "ofx", "pdf"]);
+export const DocumentPages = Schema.Struct({
+  count: Schema.Int,
+  decoded: Schema.Int,
+  needingReview: Schema.Array(Schema.Int),
+});
+
 export const Locator = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("csvLine"), line: Schema.Int }),
   Schema.Struct({
@@ -72,6 +79,7 @@ export const Statement = Schema.Struct({
   creditTotal: Schema.NullOr(Money),
   raw: Schema.Record(Schema.String, Schema.String),
   order: Schema.Literals(["ascending", "descending"]),
+  pages: Schema.optionalKey(DocumentPages),
 });
 export type Statement = typeof Statement.Type;
 export const ParsedFile = Schema.Struct({
@@ -87,6 +95,7 @@ export const ImportSummary = Schema.Struct({
   newPostings: Schema.Int,
   matchedPostings: Schema.Int,
   reviewItems: Schema.Int,
+  pages: Schema.optionalKey(DocumentPages),
 });
 export type ImportSummary = typeof ImportSummary.Type;
 export const Import = Schema.Struct({
@@ -94,7 +103,7 @@ export const Import = Schema.Struct({
   sourceFileId: SourceFileId,
   accountId: Schema.NullOr(AccountId),
   fileName: Schema.String,
-  format: Schema.Literals(["csv", "ofx"]),
+  format: SourceFormat,
   status: Schema.Literals(["processing", "needs_review", "complete", "failed"]),
   summary: Schema.NullOr(ImportSummary),
   failure: Schema.NullOr(Schema.Struct({ message: Schema.String })),
@@ -112,7 +121,7 @@ export const SourceFileInput = Schema.Struct({ sourceFileId: SourceFileId });
 export const ImportSource = Schema.Struct({
   importId: ImportId,
   objectKey: Schema.String,
-  format: Schema.Literals(["csv", "ofx"]),
+  format: SourceFormat,
   currency: Currency,
   bytesAvailable: Schema.Boolean,
 });

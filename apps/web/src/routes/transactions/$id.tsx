@@ -54,22 +54,29 @@ function TransactionDetail() {
               </div>
               {item.bytesAvailable ? (
                 <a
-                  href={`/sources/${item.sourceFileId}`}
+                  href={`/sources/${item.sourceFileId}${item.locator.kind === "pdfRow" ? `#page=${item.locator.page}` : ""}`}
                   className="text-sm text-primary underline underline-offset-4"
                 >
-                  Download original
+                  {item.locator.kind === "pdfRow" ? "Open statement page" : "Download original"}
                 </a>
               ) : (
-                <span className="text-sm text-muted-foreground">Original bytes removed</span>
+                <div className="text-sm text-muted-foreground">
+                  Original bytes removed.{" "}
+                  <Link to="/imports" className="text-primary underline">
+                    Reupload
+                  </Link>
+                </div>
               )}
             </div>
             <dl className="space-y-3 text-sm">
-              {Object.entries(item.raw).map(([key, value]) => (
-                <div key={key} className="grid gap-1 sm:grid-cols-[120px_1fr]">
-                  <dt className="text-muted-foreground">{key}</dt>
-                  <dd className="break-words whitespace-pre-wrap">{value || "Empty"}</dd>
-                </div>
-              ))}
+              {Object.entries(item.raw)
+                .filter(([key]) => key !== "positions")
+                .map(([key, value]) => (
+                  <div key={key} className="grid gap-1 sm:grid-cols-[120px_1fr]">
+                    <dt className="text-muted-foreground">{key}</dt>
+                    <dd className="break-words whitespace-pre-wrap">{value || "Empty"}</dd>
+                  </div>
+                ))}
             </dl>
           </article>
         ))}

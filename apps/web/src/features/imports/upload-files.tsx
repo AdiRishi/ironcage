@@ -95,8 +95,8 @@ export function UploadFiles() {
         <CreateAccountDialog />
       </div>
       <p className="mb-5 text-sm text-muted-foreground">
-        Choose an account for CSV. OFX can identify its account automatically; select an account you
-        added manually to connect it.
+        Choose an account for CSV. OFX and PDF can identify its account automatically; select an
+        account you added manually to connect it.
       </p>
       <div
         className={`rounded-md border-2 border-dashed p-8 text-center ${dragging ? "border-primary bg-accent" : "border-border"}`}
@@ -114,13 +114,13 @@ export function UploadFiles() {
         <UploadCloud className="mx-auto mb-4 size-8 text-primary" />
         <h2 className="text-lg font-medium">Drop your bank exports here</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          CommBank CSV and OFX. Up to 10 MB per file.
+          CommBank CSV, OFX and PDF. Up to 10 MB per file.
         </p>
         <Label className="mx-auto mt-5 flex max-w-sm flex-col gap-2">
           <span className="sr-only">Choose bank files</span>
           <Input
             type="file"
-            accept=".csv,.ofx"
+            accept=".csv,.ofx,.pdf"
             multiple
             onChange={(event) => {
               const files = event.target.files;

@@ -5,6 +5,7 @@ import {
   CommandId,
   ImportId,
   type ParsedFile,
+  type SourceFormat,
   SourceFileId,
 } from "@repo/contracts/finance";
 import { Effect } from "effect";
@@ -26,7 +27,7 @@ export const account = Effect.fn("fixtureAccount")(function* () {
 });
 export const source = Effect.fn("fixtureSource")(function* (
   accountId: typeof AccountId.Type | null,
-  format: "csv" | "ofx" = "csv",
+  format: typeof SourceFormat.Type = "csv",
 ) {
   const sql = yield* PgClient.PgClient;
   const sourceFileId = SourceFileId.make(crypto.randomUUID());

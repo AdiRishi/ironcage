@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 
 import { Candidate, Locator } from "./imports.ts";
-import { Posting } from "./postings.ts";
+import { Posting, SourceReference } from "./postings.ts";
 import {
   AccountId,
   CommandId,
@@ -10,6 +10,7 @@ import {
   PostingId,
   ReviewItemId,
   RecordCursor,
+  SourceFileId,
   Version,
 } from "./values.ts";
 
@@ -56,14 +57,20 @@ export const ReviewResolution = Schema.Union([
     ),
   }),
 ]);
+export const ReviewCandidate = Schema.Struct({
+  ...Posting.fields,
+  sources: Schema.Array(SourceReference),
+});
 export const ReviewItem = Schema.Struct({
   id: ReviewItemId,
   importId: ImportId,
   fileName: Schema.String,
+  sourceFileId: SourceFileId,
+  bytesAvailable: Schema.Boolean,
   kind: ReviewKind,
   question: ReviewQuestion,
   observations: Schema.Array(ReviewObservation),
-  candidates: Schema.Array(Posting),
+  candidates: Schema.Array(ReviewCandidate),
   version: Version,
   createdAt: Schema.String,
   resolvedAt: Schema.NullOr(Schema.String),

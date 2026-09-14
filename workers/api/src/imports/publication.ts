@@ -32,8 +32,6 @@ const questionMessages = {
     "This reading differs from the accepted source row. Keep the accepted values or correct them explicitly.",
   changedBankId:
     "This bank transaction ID already supports a different value or another row in this file.",
-  ambiguousGroup:
-    "These rows could describe existing transactions. Choose a match for each row or confirm that it is distinct.",
   conflictingBalances: "The date and amount match, but the supplied running balances disagree.",
 };
 
@@ -160,7 +158,13 @@ export class Publication extends Context.Service<
               for (const question of result.questions)
                 questions.push({
                   kind: question.kind,
-                  question: { reason: question.reason, message: questionMessages[question.reason] },
+                  question: {
+                    reason: question.reason,
+                    message:
+                      question.reason === "ambiguousGroup"
+                        ? `${question.observationIds.length} source rows and ${question.postingIds.length} existing transactions share a booked date and amount. Their descriptions and running balances do not establish a unique pairing.`
+                        : questionMessages[question.reason],
+                  },
                   observationIds: question.observationIds,
                   postingIds: question.postingIds,
                 });
@@ -182,7 +186,29 @@ export class Publication extends Context.Service<
                 ),
               ),
             );
-          const summary = { observations: rows.length, ...counts, reviewItems: questions.length };
+          let summary: ImportSummary = {
+            observations: rows.length,
+            ...counts,
+            reviewItems: questions.length,
+          };
+          if (source.statement.pages)
+            summary = {
+              ...summary,
+              pages: {
+                count: source.statement.pages.count,
+                decoded: source.statement.pages.decoded,
+                needingReview: [
+                  ...new Set(
+                    rows
+                      .filter(
+                        (row) =>
+                          row.issue && row.decision?.kind !== "omit" && !effectiveCandidate(row),
+                      )
+                      .flatMap((row) => (row.locator.kind === "pdfRow" ? [row.locator.page] : [])),
+                  ),
+                ],
+              },
+            };
           yield* sql`UPDATE imports SET account_id = ${account?.id ?? source.accountId}, status = ${questions.length > 0 ? "needs_review" : "complete"}, summary = ${sql.json(summary)}, failure = NULL, version = version + 1, updated_at = now() WHERE id = ${importId}`;
           return summary;
         },

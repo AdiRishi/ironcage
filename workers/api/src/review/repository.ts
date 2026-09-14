@@ -4,7 +4,7 @@ import {
   ListReviewItems,
   ReviewItemId,
   ObservationId,
-  Posting,
+  ReviewCandidate,
   PostingId,
   ReviewItem,
   ReviewKind,
@@ -34,7 +34,7 @@ export const readReviews = Effect.fn("readReviews")(function* (
       sql`(r.created_at, r.id) > (${input.cursor.createdAt}::timestamptz, ${input.cursor.id}::uuid)`,
     );
   const items =
-    yield* sql`SELECT r.id, r.import_id AS "importId", s.file_name AS "fileName", r.kind, r.question, r.version, to_char(r.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "createdAt", r.candidates AS "postingIds", r.resolution, to_char(r.resolved_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "resolvedAt",
+    yield* sql`SELECT r.id, r.import_id AS "importId", s.file_name AS "fileName", s.id AS "sourceFileId", s.bytes_available AS "bytesAvailable", r.kind, r.question, r.version, to_char(r.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "createdAt", r.candidates AS "postingIds", r.resolution, to_char(r.resolved_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "resolvedAt",
     COALESCE((SELECT jsonb_agg(jsonb_build_object('id', o.id, 'locator', o.locator, 'raw', o.raw, 'candidate', o.parsed_candidate, 'acceptedCandidate', CASE WHEN o.posting_id IS NULL THEN NULL ELSE o.candidate END, 'postingId', o.posting_id) ORDER BY array_position(r.observation_ids, o.id)) FROM observations o WHERE o.id = ANY(r.observation_ids)), '[]'::jsonb) AS observations
     FROM review_items r JOIN imports i ON i.id = r.import_id JOIN source_files s ON s.id = i.source_file_id WHERE ${sql.and(predicates)} ORDER BY r.created_at, r.id LIMIT 100`.pipe(
       Effect.flatMap(
@@ -54,8 +54,8 @@ export const readReviews = Effect.fn("readReviews")(function* (
       const candidates =
         postingIds.length === 0
           ? []
-          : yield* sql`SELECT ${postingFields(sql)} FROM postings p JOIN accounts a ON a.id = p.account_id WHERE ${sql.in("p.id", postingIds)} ORDER BY p.posted_on, p.id`.pipe(
-              Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Posting))),
+          : yield* sql`SELECT ${postingFields(sql)}, COALESCE((SELECT jsonb_agg(jsonb_build_object('sourceFileId', s.id, 'fileName', s.file_name, 'bytesAvailable', s.bytes_available, 'locator', o.locator) ORDER BY s.uploaded_at) FROM observations o JOIN source_files s ON s.id = o.source_file_id WHERE o.posting_id = p.id), '[]'::jsonb) AS sources FROM postings p JOIN accounts a ON a.id = p.account_id WHERE ${sql.in("p.id", postingIds)} ORDER BY p.posted_on, p.id`.pipe(
+              Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(ReviewCandidate))),
             );
       return { ...item, candidates };
     }),

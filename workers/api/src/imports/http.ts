@@ -61,8 +61,10 @@ const download = Effect.gen(function* () {
   const { fileName, object } = yield* Uploads.use((uploads) => uploads.download(input));
   return HttpServerResponse.stream(object.body, {
     headers: {
-      "content-type": "application/octet-stream",
-      "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+      "content-type": fileName.toLowerCase().endsWith(".pdf")
+        ? "application/pdf"
+        : "application/octet-stream",
+      "content-disposition": `${fileName.toLowerCase().endsWith(".pdf") ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(fileName)}`,
       "cache-control": "private, no-store",
     },
   });

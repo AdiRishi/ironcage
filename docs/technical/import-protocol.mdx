@@ -23,7 +23,7 @@ Files fit in memory; the corpus's largest file is 2.6 MiB. Use the library's nor
 4. The Workflow calls `publishImport`. The API resolves the account, matches observations against current postings, reconciles balances, and commits postings, coverage, review items, and the summary in one transaction.
 5. The UI shows the summary and any review items. Resolving an item reruns step 4 for that import.
 
-Steps 1 to 3 run outside any database transaction. Step 4 is one transaction under the write lock. A Workflow that fails in step 3 or 4 reports `failed`; retry starts a new instance on the same bytes.
+Steps 1 to 3 run outside any database transaction. Step 4 is one transaction under the write lock. Parsing and the publication RPC share one durable Workflow step, which checkpoints only the summary. The largest decoded PDF, including positioned source text, exceeds Cloudflare’s 1 MiB non-stream step-result limit. Publication receipts make repeating that step safe without a separate parsed-file store. A Workflow that fails in step 3 or 4 reports `failed`; retry starts a new instance on the same bytes.
 
 ## Observations
 
@@ -71,7 +71,7 @@ OFX 1.02 SGML. The header block declares `ENCODING:USASCII` and `CHARSET:1252`; 
 | card         | `CREDITCARDMSGSRSV1` | `CCSTMTTRNRS` / `CCSTMTRS`                     | `CCACCTFROM` with `ACCTID`                                   |
 | loan         | `BANKMSGSRSV1`       | `STMTTRNRS`, opens `CCSTMTRS`, closes `STMTRS` | `BANKACCTFROM` with `ACCTTYPE` `CREDITLINE`                  |
 
-Account identity is `(BANKID, ACCTID)` for deposit and loan and `(null, ACCTID)` for card. The first import of an unknown identity creates the account with the kind implied by the table. The `ofx-js` 1.1.1 evaluation parses 24 of 26 files unchanged. Close empty `FITID` leaves before parsing, and normalize the loan's opening `CCSTMTRS` to `STMTRS` when `ACCTTYPE` is `CREDITLINE`. With those two adapters, the library parses all 26 files.
+Account identity is `(BANKID, ACCTID)` for deposit and loan and `(null, ACCTID)` for card. A loan PDF omits the BSB. Its account number can resolve an existing account of the same kind only when the match is unique, or when the user explicitly chooses it. If the PDF arrives first, the later OFX envelope adds the BSB to that account. Conflicting identifiers never replace an established identity. The first import of an unknown identity creates the account with the kind implied by the table. The `ofx-js` 1.1.1 evaluation parses 24 of 26 files unchanged. Close empty `FITID` leaves before parsing, and normalize the loan's opening `CCSTMTRS` to `STMTRS` when `ACCTTYPE` is `CREDITLINE`. With those two adapters, the library parses all 26 files.
 
 - Each `STMTTRN` is one observation. `TRNAMT` converts exactly. `DTPOSTED` is eight digits and is a calendar date. `DTUSER` populates `valueOn` when it differs from `DTPOSTED`.
 - `MEMO` is the description, with the same value-date suffix rule as CSV. `NAME` is absent in the corpus; if present, join `NAME` and `MEMO` with a space, omitting a duplicate.
@@ -142,7 +142,7 @@ Resolving applies the decision to the observations, then reruns steps 4 to 6 of 
 
 Stage 2. Use `unpdf` to get positioned text, then a CommBank layout adapter per account kind groups text into transaction rows and separates them from headings, reward summaries, totals, and notices. Locators are page and row with the bounding box.
 
-The September 2026 evaluation of five statements, 25 pages, and 303 manually checked rows matched every date and signed amount and all 258 printed running balances after one visually verified repair for card rows whose decimal point the text layer drops. Keep the raw strings and positions when applying a repair. A repair is a documented rule for a known layout defect, never an inference that makes a total balance.
+The September 2026 evaluation of five statements, 25 pages, and 303 manually checked rows matched every date and signed amount and all 258 printed running balances after one visually verified repair for card rows whose decimal point the text layer drops. The full corpus has 9,159 nonzero transaction rows across 47 PDFs. Every statement reconciles both printed balances, every supplied running balance, and printed debit and credit totals. Another 113 dated rows are zero-amount or rate and interest notices. Keep the raw strings and positions when applying a repair. The deposit adapter separates amount columns by their right edges and ignores standalone debit-marker glyphs that the text layer maps to punctuation. A four-digit merchant prefix after a day and month stays in the description; transaction rows do not print a year. Year inference uses the printed statement period. A repair is a documented rule for a known layout defect, never an inference that makes a total balance.
 
 The import retains parsed `statement` and `bank_account` JSON alongside its observations so review can rerun publication without a network call. Statement metadata carries the printed period, opening and closing balances, and debit and credit totals. Statements also print zero-amount notice rows, such as a fee waived; keep them in `raw` and do not turn them into postings.
 
