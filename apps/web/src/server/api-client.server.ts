@@ -8,6 +8,9 @@ import { runApiRequest } from "./api-request";
 
 type ApiMethods = Pick<
   Api,
+  | "listSourceFiles"
+  | "removeSourceBytes"
+  | "getModelUsage"
   | "listExports"
   | "requestExport"
   | "listReviewItems"

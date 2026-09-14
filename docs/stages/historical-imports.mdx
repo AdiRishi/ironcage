@@ -125,5 +125,15 @@ synthetic original bytes. A database test preserves the amount
 `9007199254740993` and its calendar date. Repeated requests retain their export
 ID; a failed Workflow start remains visible and a new command starts new work.
 
-Source removal remains to be implemented. Hosted Access and the managed restore
-drill listed in stage 1 remain unverified.
+Source removal and reupload pass through the native bindings without changing
+postings. An injected R2 deletion failure leaves the command recoverable. Retrying
+after replacement deletes only the receipt's old key; stale new commands delete
+nothing. Settings reports model calls disabled with no provider configured.
+No statement required a model.
+
+Browser checks cover requesting an export, removing a statement, and restoring
+the same PDF at desktop and 390-pixel phone width. Keyboard removal returns
+focus to the retained-transaction result message. Reupload refreshes source
+availability and keeps the same import.
+
+Hosted Access and the managed restore drill listed in stage 1 remain unverified.

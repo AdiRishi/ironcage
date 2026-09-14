@@ -17,6 +17,13 @@ Logs carry operation IDs and timings, never prompts, completions, or statement t
 
 Stage 2. The parser runs first. When a page cannot be decoded, and the user has enabled document models, send that page through the SDK's document input and ask for structured output of transaction rows with page locators. The result goes through the same candidate validation, reconciliation, and matching as parser output. A response that fails validation leaves the page in `value` review with the page shown. Any extra rendering dependency is added only when a real page needs it.
 
+All 47 stage 2 statements decode without a model. No document provider is
+configured and model calls are disabled. Settings reports that no pages leave
+the application, zero calls, and no warning threshold. The usage schema keeps
+unknown reports distinct from zero and sums costs by currency. An enable control
+and provider integration belong with the first document that requires a model,
+so there is no switch that silently does nothing.
+
 ## Classification
 
 Stage 3. Input: the posting description, the established financial role, the account kind, the merchant if known, and the current category tree. Output: a category ID or an explicit "needs review", with a one-line reason, as structured output validated against the current categories.

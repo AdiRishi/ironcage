@@ -1,0 +1,75 @@
+import { PgClient } from "@effect/sql-pg";
+import {
+  FinanceError,
+  RemoveSourceBytes,
+  SourceFile,
+  SourceRemoval,
+} from "@repo/contracts/finance";
+import { Context, Effect, Layer, Schema } from "effect";
+
+import { Commands, databaseUnavailable } from "../database/commands.ts";
+import { Sources } from "../platform/services.ts";
+
+const RemovalReceipt = Schema.Struct({ ...SourceRemoval.fields, objectKey: Schema.String });
+const StoredSource = Schema.Struct({
+  version: Schema.Int,
+  objectKey: Schema.String,
+  postingCount: Schema.Int,
+});
+const make = Effect.gen(function* () {
+  const sql = yield* PgClient.PgClient;
+  const sources = yield* Sources;
+  const commands = yield* Commands;
+  const list = Effect.fn("SourceFiles.list")(function* () {
+    return yield* sql`SELECT s.id, s.file_name AS "fileName", s.byte_size::text AS "byteSize", s.bytes_available AS "bytesAvailable", s.version, i.id AS "importId", i.format, i.status, (SELECT count(DISTINCT posting_id)::integer FROM observations WHERE source_file_id = s.id) AS "postingCount" FROM source_files s JOIN imports i ON i.source_file_id = s.id ORDER BY s.uploaded_at DESC, s.id DESC`.pipe(
+      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(SourceFile))),
+      Effect.mapError(databaseUnavailable),
+    );
+  });
+  const remove = Effect.fn("SourceFiles.remove")(function* (input: typeof RemoveSourceBytes.Type) {
+    const receipt = yield* commands.run({
+      commandId: input.commandId,
+      input: { operation: "removeSourceBytes", ...input },
+      result: Schema.toCodecJson(RemovalReceipt),
+      execute: Effect.gen(function* () {
+        const rows =
+          yield* sql`SELECT version, object_key AS "objectKey", (SELECT count(DISTINCT posting_id)::integer FROM observations WHERE source_file_id = s.id) AS "postingCount" FROM source_files s WHERE id = ${input.sourceFileId}`.pipe(
+            Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(StoredSource))),
+          );
+        const source = rows[0];
+        if (!source)
+          return yield* new FinanceError({ kind: "notFound", message: "Source file not found." });
+        if (source.version !== input.expectedVersion)
+          return yield* new FinanceError({
+            kind: "stale",
+            message: "This file changed. Refresh before removing its bytes.",
+          });
+        yield* sql`UPDATE source_files SET bytes_available = false, version = version + 1 WHERE id = ${input.sourceFileId}`;
+        return {
+          sourceFileId: input.sourceFileId,
+          objectKey: source.objectKey,
+          affectedPostingCount: source.postingCount,
+        };
+      }),
+    });
+    yield* sources.delete(receipt.objectKey).pipe(
+      Effect.mapError(
+        () =>
+          new FinanceError({
+            kind: "unavailable",
+            message: "The original bytes could not be removed. Retry this removal.",
+          }),
+      ),
+    );
+    return {
+      sourceFileId: receipt.sourceFileId,
+      affectedPostingCount: receipt.affectedPostingCount,
+    };
+  });
+  return { list, remove };
+});
+export class SourceFiles extends Context.Service<SourceFiles, Effect.Success<typeof make>>()(
+  "@repo/api/SourceFiles",
+) {
+  static readonly layer = Layer.effect(SourceFiles, make);
+}
