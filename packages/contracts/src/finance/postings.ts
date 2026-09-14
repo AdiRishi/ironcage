@@ -24,20 +24,20 @@ export const Posting = Schema.Struct({
 });
 export type Posting = typeof Posting.Type;
 export const PostingFilter = Schema.Struct({
-  accountId: Schema.optional(AccountId),
-  currency: Schema.optional(Currency),
-  from: Schema.optional(CalendarDate),
-  to: Schema.optional(CalendarDate),
-  minimum: Schema.optional(Schema.String.check(Schema.isPattern(/^-?\d+$/))),
-  maximum: Schema.optional(Schema.String.check(Schema.isPattern(/^-?\d+$/))),
-  description: Schema.optional(Schema.String),
-  needsReview: Schema.optional(Schema.Boolean),
-  importId: Schema.optional(ImportId),
+  accountId: Schema.optionalKey(AccountId),
+  currency: Schema.optionalKey(Currency),
+  from: Schema.optionalKey(CalendarDate),
+  to: Schema.optionalKey(CalendarDate),
+  minimum: Schema.optionalKey(Schema.String.check(Schema.isPattern(/^-?\d+$/))),
+  maximum: Schema.optionalKey(Schema.String.check(Schema.isPattern(/^-?\d+$/))),
+  description: Schema.optionalKey(Schema.String),
+  needsReview: Schema.optionalKey(Schema.Boolean),
+  importId: Schema.optionalKey(ImportId),
 });
 export const PostingCursor = Schema.Struct({ postedOn: CalendarDate, id: PostingId });
 export const ListPostings = Schema.Struct({
   filter: PostingFilter,
-  cursor: Schema.optional(PostingCursor),
+  cursor: Schema.optionalKey(PostingCursor),
 });
 export const PostingPage = Schema.Struct({
   rows: Schema.Array(Posting),

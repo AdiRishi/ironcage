@@ -57,7 +57,7 @@ export function UploadFiles() {
           const result = Schema.decodeUnknownSync(UploadResult)(await response.json());
           update(
             result.existing ? "existing" : "uploaded",
-            result.existing ? "Already imported" : "Uploaded. Processing below.",
+            result.existing ? "Already imported" : "Uploaded",
           );
           await client.invalidateQueries({ queryKey: ["imports"] });
         } catch {

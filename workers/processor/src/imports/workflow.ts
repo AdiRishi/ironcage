@@ -5,6 +5,7 @@ import type { ReadBucketClient } from "alchemy/Cloudflare/R2";
 import { Effect, Schema } from "effect";
 
 import { parseCsv } from "./csv.ts";
+import { parseOfx } from "./ofx.ts";
 
 export const runImport = (
   api: Pick<Api, "getImportSource" | "publishImport" | "failImport">,
@@ -28,12 +29,10 @@ export const runImport = (
               message: "The original file could not be read.",
             });
           const bytes = yield* object.bytes();
-          if (source.format !== "csv")
-            return yield* new FinanceError({
-              kind: "invalid",
-              message: "This file format is not supported by the installed parser.",
-            });
-          const result = yield* parseCsv(bytes, source.currency);
+          const result =
+            source.format === "csv"
+              ? yield* parseCsv(bytes, source.currency)
+              : yield* parseOfx(bytes);
           return yield* Schema.encodeEffect(ParsedFile)(result);
         }).pipe(Effect.orDie),
         { timeout: "1 minute", retries: { limit: 2, delay: "2 seconds", backoff: "exponential" } },

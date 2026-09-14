@@ -22,7 +22,7 @@ export const Locator = Schema.Union([
     kind: Schema.Literal("pdfRow"),
     page: Schema.Int,
     row: Schema.Int,
-    bbox: Schema.optional(
+    bbox: Schema.optionalKey(
       Schema.Tuple([Schema.Finite, Schema.Finite, Schema.Finite, Schema.Finite]),
     ),
   }),
@@ -56,7 +56,7 @@ export const ParsedObservation = Schema.Struct({
 export type ParsedObservation = typeof ParsedObservation.Type;
 export const BankAccount = Schema.Struct({
   bankId: Schema.NullOr(Schema.String),
-  accountNumber: Schema.String,
+  accountNumber: Schema.NonEmptyString,
   kind: AccountKind,
   currency: Currency,
 });
