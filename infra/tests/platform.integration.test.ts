@@ -165,3 +165,47 @@ test.skipIf(!existsSync(corpusDirectory))(
   }),
   { timeout: 180_000 },
 );
+
+test.skipIf(!existsSync(corpusDirectory))(
+  "every private OFX imports independently and identifies four bank accounts",
+  Effect.gen(function* () {
+    const { url, apiUrl } = yield* stack;
+    const files = readdirSync(corpusDirectory).filter((name) => name.endsWith(".ofx"));
+    let observations = 0;
+    for (const [index, file] of files.entries()) {
+      const bytes = new Uint8Array(readFileSync(new URL(file, corpusDirectory)));
+      const expectedRows =
+        new TextDecoder("windows-1252").decode(bytes).split("<STMTTRN>").length - 1;
+      const body = new FormData();
+      body.set("file", new Blob([bytes], { type: "application/x-ofx" }), `corpus-${index + 1}.ofx`);
+      const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
+        body: HttpBody.formData(body),
+      }).pipe(
+        Effect.flatMap((response) => response.json),
+        Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
+      );
+      const completed = yield* HttpClient.get(`${url}/imports`).pipe(
+        Effect.flatMap((response) => response.json),
+        Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Import))),
+        Effect.map((imports) => imports.find((item) => item.id === upload.importId)),
+        Effect.repeat({
+          schedule: Schedule.spaced("100 millis"),
+          while: (item) => item?.status === "processing",
+        }),
+        Effect.timeout("30 seconds"),
+      );
+      expect(completed?.status).toBe("complete");
+      expect(completed?.summary?.observations).toBe(expectedRows);
+      expect(completed?.summary?.newPostings).toBe(expectedRows);
+      observations += completed?.summary?.observations ?? 0;
+    }
+    const accounts = yield* HttpClient.get(url).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Account))),
+    );
+    expect(accounts.filter((account) => account.accountNumber !== null).length).toBe(4);
+    expect(files).toHaveLength(26);
+    expect(observations).toBe(3031);
+  }),
+  { timeout: 180_000 },
+);

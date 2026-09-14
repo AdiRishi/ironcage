@@ -1,5 +1,6 @@
 import { PgClient } from "@effect/sql-pg";
 import {
+  AccountId,
   CommandId,
   FinanceError,
   ImportSummary,
@@ -10,11 +11,12 @@ import { reconcile } from "@repo/finance";
 import { Context, Crypto, Effect, Layer, Schema } from "effect";
 import { v5 } from "uuid";
 
+import { AccountResolution } from "../accounts/resolution.ts";
 import { Commands, databaseUnavailable, fingerprint } from "../database/commands.ts";
 
 const PublicationSource = Schema.Struct({
   sourceFileId: Schema.String,
-  accountId: Schema.NullOr(Schema.String),
+  accountId: Schema.NullOr(AccountId),
   status: Schema.String,
 });
 export class Publication extends Context.Service<
@@ -30,11 +32,12 @@ export class Publication extends Context.Service<
     Effect.gen(function* () {
       const sql = yield* PgClient.PgClient;
       const commands = yield* Commands;
+      const accounts = yield* AccountResolution;
       const crypto = yield* Crypto.Crypto;
       const publish = Effect.fn("Publication.publish")(function* (
         input: typeof PublishImport.Type,
       ) {
-        const encoded = yield* Schema.encodeEffect(Schema.toCodecJson(PublishImport))(input).pipe(
+        const encoded = yield* Schema.encodeEffect(PublishImport)(input).pipe(
           Effect.mapError(databaseUnavailable),
         );
         const hash = yield* fingerprint(encoded).pipe(
@@ -61,11 +64,10 @@ export class Publication extends Context.Service<
                 kind: "conflict",
                 message: "This import is not processing.",
               });
-            if (!source.accountId)
-              return yield* new FinanceError({
-                kind: "invalid",
-                message: "Choose an account before importing a CSV.",
-              });
+            const account = yield* accounts.resolve({
+              accountId: source.accountId,
+              identity: input.account,
+            });
             const coverage = reconcile(input);
             if (coverage.issues.length > 0)
               return yield* new FinanceError({
@@ -91,7 +93,7 @@ export class Publication extends Context.Service<
                 return {
                   posting: {
                     id: postingId,
-                    account_id: source.accountId,
+                    account_id: account.id,
                     currency: candidate.amount.currency,
                     amount_minor: candidate.amount.minor,
                     posted_on: candidate.postedOn,
@@ -125,7 +127,7 @@ export class Publication extends Context.Service<
               yield* sql`INSERT INTO source_coverage ${sql.insert({
                 id,
                 source_file_id: source.sourceFileId,
-                account_id: source.accountId,
+                account_id: account.id,
                 stated_start: input.statement.statedStart,
                 stated_end: input.statement.statedEnd,
                 observed_start: coverage.observedStart,
@@ -143,7 +145,7 @@ export class Publication extends Context.Service<
               matchedPostings: 0,
               reviewItems: 0,
             };
-            yield* sql`UPDATE imports SET status = 'complete', summary = ${sql.json(summary)}, parser_version = ${input.parserVersion}, failure = NULL, version = version + 1, updated_at = now() WHERE id = ${input.importId}`;
+            yield* sql`UPDATE imports SET account_id = ${account.id}, statement = ${sql.json(encoded.statement)}, bank_account = ${sql.json(encoded.account)}, status = 'complete', summary = ${sql.json(summary)}, parser_version = ${input.parserVersion}, failure = NULL, version = version + 1, updated_at = now() WHERE id = ${input.importId}`;
             return summary;
           }),
         });

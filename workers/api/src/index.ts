@@ -3,6 +3,7 @@ import type { apiBindings } from "@repo/infra/worker-bindings";
 import { Effect, Layer } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 
+import { AccountResolution } from "./accounts/resolution.ts";
 import { Accounts } from "./accounts/service.ts";
 import { Commands } from "./database/commands.ts";
 import { importHttpRoutes } from "./imports/http.ts";
@@ -31,7 +32,7 @@ export const api = Effect.fn("Api.initialize")(function* (
   const services = Layer.mergeAll(Accounts.layer, Publication.layer, Postings.layer, Uploads.layer)
     .pipe(Layer.provideMerge(ImportRepository.layer))
     .pipe(
-      Layer.provide(Commands.layer),
+      Layer.provide([Commands.layer, AccountResolution.layer]),
       Layer.provide([
         bindings.database,
         BrowserCrypto.layer,

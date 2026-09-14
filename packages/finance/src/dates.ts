@@ -1,5 +1,5 @@
 import { CalendarDate, FinanceError } from "@repo/contracts/finance";
-import { Effect, Schema } from "effect";
+import { DateTime, Effect, Schema } from "effect";
 
 export const parseCalendarDate = Effect.fn("parseCalendarDate")(function* (text: string) {
   return yield* Schema.decodeUnknownEffect(CalendarDate)(text).pipe(
@@ -11,3 +11,6 @@ export const parseBankDate = Effect.fn("parseBankDate")(function* (text: string)
     return yield* new FinanceError({ kind: "invalid", message: "Expected DD/MM/YYYY." });
   return yield* parseCalendarDate(`${text.slice(6)}-${text.slice(3, 5)}-${text.slice(0, 2)}`);
 });
+
+export const nextCalendarDate = (on: typeof CalendarDate.Type) =>
+  CalendarDate.make(DateTime.formatIsoDateUtc(DateTime.add(DateTime.makeUnsafe(on), { days: 1 })));

@@ -1,5 +1,6 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 import { Badge } from "@/components/ui/badge";
 
@@ -13,6 +14,22 @@ const statuses = {
 };
 export function ImportsPage() {
   const { data: imports } = useSuspenseQuery(importsQueryOptions());
+  const client = useQueryClient();
+  const completedVersions = imports
+    .filter((item) => item.status !== "processing")
+    .map((item) => `${item.id}:${item.version}`)
+    .join("/");
+  useEffect(() => {
+    if (completedVersions)
+      client
+        .invalidateQueries({
+          predicate: (query) =>
+            query.queryKey[0] === "accounts" ||
+            query.queryKey[0] === "postings" ||
+            query.queryKey[0] === "posting",
+        })
+        .catch(reportError);
+  }, [client, completedVersions]);
   return (
     <div className="space-y-8">
       <header>
