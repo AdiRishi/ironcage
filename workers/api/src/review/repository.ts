@@ -1,0 +1,63 @@
+import { PgClient } from "@effect/sql-pg";
+import {
+  ImportId,
+  ObservationId,
+  Posting,
+  PostingId,
+  ReviewItem,
+  ReviewKind,
+  ReviewQuestion,
+} from "@repo/contracts/finance";
+import { Crypto, Effect, Schema, Struct } from "effect";
+
+import { postingFields } from "../postings/fields.ts";
+
+export interface PendingQuestion {
+  readonly kind: typeof ReviewKind.Type;
+  readonly question: typeof ReviewQuestion.Type;
+  readonly observationIds: ReadonlyArray<typeof ObservationId.Type>;
+  readonly postingIds: ReadonlyArray<typeof PostingId.Type>;
+}
+export const readReviews = Effect.fn("readReviews")(function* () {
+  const sql = yield* PgClient.PgClient;
+  const items =
+    yield* sql`SELECT r.id, r.import_id AS "importId", s.file_name AS "fileName", r.kind, r.question, r.version, to_char(r.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt", r.candidates AS "postingIds",
+    COALESCE((SELECT jsonb_agg(jsonb_build_object('id', o.id, 'locator', o.locator, 'raw', o.raw, 'candidate', o.parsed_candidate, 'acceptedCandidate', CASE WHEN o.posting_id IS NULL THEN NULL ELSE o.candidate END, 'postingId', o.posting_id) ORDER BY array_position(r.observation_ids, o.id)) FROM observations o WHERE o.id = ANY(r.observation_ids)), '[]'::jsonb) AS observations
+    FROM review_items r JOIN imports i ON i.id = r.import_id JOIN source_files s ON s.id = i.source_file_id WHERE r.resolved_at IS NULL ORDER BY r.created_at, r.id`.pipe(
+      Effect.flatMap(
+        Schema.decodeUnknownEffect(
+          Schema.Array(
+            Schema.Struct({
+              ...Struct.omit(ReviewItem.fields, ["candidates"]),
+              postingIds: Schema.Array(PostingId),
+            }),
+          ),
+        ),
+      ),
+    );
+  return yield* Effect.forEach(
+    items,
+    Effect.fn(function* ({ postingIds, ...item }) {
+      const candidates =
+        postingIds.length === 0
+          ? []
+          : yield* sql`SELECT ${postingFields(sql)} FROM postings p JOIN accounts a ON a.id = p.account_id WHERE ${sql.in("p.id", postingIds)} ORDER BY p.posted_on, p.id`.pipe(
+              Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Posting))),
+            );
+      return { ...item, candidates };
+    }),
+  );
+});
+
+export const replaceQuestions = Effect.fn("replaceQuestions")(function* (
+  importId: typeof ImportId.Type,
+  questions: ReadonlyArray<PendingQuestion>,
+) {
+  const sql = yield* PgClient.PgClient;
+  const crypto = yield* Crypto.Crypto;
+  yield* sql`DELETE FROM review_items WHERE import_id = ${importId} AND resolved_at IS NULL`;
+  for (const item of questions) {
+    const id = yield* crypto.randomUUIDv4;
+    yield* sql`INSERT INTO review_items (id, import_id, kind, observation_ids, question, candidates) VALUES (${id}, ${importId}, ${item.kind}, ARRAY(SELECT value::uuid FROM jsonb_array_elements_text(${sql.json({ ids: item.observationIds })}::jsonb->'ids')), ${sql.json(item.question)}, ${sql.json({ ids: item.postingIds })}::jsonb->'ids')`;
+  }
+});

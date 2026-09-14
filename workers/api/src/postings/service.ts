@@ -10,6 +10,7 @@ import {
 import { Context, Effect, Layer, Schema } from "effect";
 
 import { databaseUnavailable } from "../database/commands.ts";
+import { postingFields } from "./fields.ts";
 
 export class Postings extends Context.Service<
   Postings,
@@ -26,9 +27,7 @@ export class Postings extends Context.Service<
     Postings,
     Effect.gen(function* () {
       const sql = yield* PgClient.PgClient;
-      const fields = sql`p.id, p.account_id AS "accountId", a.label AS "accountLabel", p.posted_on::text AS "postedOn", p.value_on::text AS "valueOn", p.description,
-      jsonb_build_object('currency', p.currency, 'minor', p.amount_minor::text) AS amount,
-      CASE WHEN p.original_currency IS NULL THEN NULL ELSE jsonb_build_object('currency', p.original_currency, 'minor', p.original_amount_minor::text) END AS "originalMoney"`;
+      const fields = postingFields(sql);
       const list = Effect.fn("Postings.list")(function* ({
         filter,
         cursor,

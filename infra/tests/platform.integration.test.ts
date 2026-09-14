@@ -167,7 +167,7 @@ test.skipIf(!existsSync(corpusDirectory))(
 );
 
 test.skipIf(!existsSync(corpusDirectory))(
-  "every private OFX imports independently and identifies four bank accounts",
+  "overlapping private OFX exports identify four accounts without duplicate postings",
   Effect.gen(function* () {
     const { url, apiUrl } = yield* stack;
     const files = readdirSync(corpusDirectory).filter((name) => name.endsWith(".ofx"));
@@ -196,7 +196,9 @@ test.skipIf(!existsSync(corpusDirectory))(
       );
       expect(completed?.status).toBe("complete");
       expect(completed?.summary?.observations).toBe(expectedRows);
-      expect(completed?.summary?.newPostings).toBe(expectedRows);
+      expect(
+        (completed?.summary?.newPostings ?? 0) + (completed?.summary?.matchedPostings ?? 0),
+      ).toBe(expectedRows);
       observations += completed?.summary?.observations ?? 0;
     }
     const accounts = yield* HttpClient.get(url).pipe(

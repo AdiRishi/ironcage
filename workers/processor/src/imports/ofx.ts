@@ -10,6 +10,7 @@ import { Effect, Schema } from "effect";
 import { parseSync } from "ofx-js";
 
 import { parseDescription } from "./description.ts";
+import { decodeCandidate, issue } from "./observation.ts";
 
 const Fields = Schema.Record(Schema.String, Schema.String);
 const Transaction = Schema.Struct({
@@ -103,35 +104,39 @@ export const parseOfx = Effect.fn("parseOfx")(function* (bytes: Uint8Array) {
   const observations = yield* Effect.forEach(
     rows,
     Effect.fn(function* (raw, index) {
-      const row = yield* Schema.decodeUnknownEffect(Transaction)(raw).pipe(
-        Effect.mapError(
-          () =>
-            new FinanceError({
-              kind: "invalid",
-              message: "The OFX transaction is missing required fields.",
-            }),
-        ),
-      );
-      const postedOn = yield* date(row.DTPOSTED);
-      const userDate = row.DTUSER ? yield* date(row.DTUSER) : null;
-      const name = decodeEntities(row.NAME ?? "").trim();
-      const memo = decodeEntities(row.MEMO ?? "").trim();
-      const description = yield* parseDescription(
-        name && name !== memo ? `${name} ${memo}` : memo || name,
+      const decoded = yield* decodeCandidate(
+        Effect.gen(function* () {
+          const row = yield* Schema.decodeUnknownEffect(Transaction)(raw).pipe(
+            Effect.mapError(issue("unsupportedLayout", "Required OFX transaction fields")),
+          );
+          const postedOn = yield* date(row.DTPOSTED).pipe(
+            Effect.mapError(issue("unreadableDate", row.DTPOSTED)),
+          );
+          const userDate = row.DTUSER
+            ? yield* date(row.DTUSER).pipe(Effect.mapError(issue("unreadableDate", row.DTUSER)))
+            : null;
+          const name = decodeEntities(row.NAME ?? "").trim();
+          const memo = decodeEntities(row.MEMO ?? "").trim();
+          const description = yield* parseDescription(
+            name && name !== memo ? `${name} ${memo}` : memo || name,
+          ).pipe(Effect.mapError(issue("unsupportedLayout", row.MEMO ?? row.NAME ?? "")));
+          return {
+            postedOn,
+            ...description,
+            valueOn: userDate && userDate !== postedOn ? userDate : description.valueOn,
+            amount: yield* parseMoney(row.TRNAMT, account.currency).pipe(
+              Effect.mapError(issue("unreadableAmount", row.TRNAMT)),
+            ),
+            balance: null,
+            bankId: row.FITID?.trim() || null,
+          };
+        }),
       );
       return {
         locatorKey: `ofxTransaction:1:${index + 1}`,
         locator: { kind: "ofxTransaction" as const, statement: 1, ordinal: index + 1 },
         raw,
-        candidate: {
-          postedOn,
-          ...description,
-          valueOn: userDate && userDate !== postedOn ? userDate : description.valueOn,
-          amount: yield* parseMoney(row.TRNAMT, account.currency),
-          balance: null,
-          bankId: row.FITID?.trim() || null,
-        },
-        issue: null,
+        ...decoded,
       };
     }),
   );
@@ -146,7 +151,7 @@ export const parseOfx = Effect.fn("parseOfx")(function* (bytes: Uint8Array) {
     LEDGERBAL_DTASOF: statement.LEDGERBAL.DTASOF,
   };
   return {
-    parserVersion: "commbank-ofx-1",
+    parserVersion: "commbank-ofx-2",
     account,
     observations,
     statement: {

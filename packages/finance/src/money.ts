@@ -38,3 +38,10 @@ export function formatMoney({ minor, currency }: Money) {
     exponent === 0 ? "" : `.${(absolute % scale).toString().padStart(exponent, "0")}`;
   return `${minor < 0n ? "−" : ""}${whole}${fraction} ${currency}`;
 }
+
+export function formatDecimal({ minor, currency }: Money) {
+  const exponent = currencyExponent(currency);
+  const scale = 10n ** BigInt(exponent);
+  const absolute = minor < 0n ? -minor : minor;
+  return `${minor < 0n ? "-" : ""}${absolute / scale}${exponent === 0 ? "" : `.${(absolute % scale).toString().padStart(exponent, "0")}`}`;
+}

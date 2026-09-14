@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit -p tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tests",
+    "test": "vitest run"
   },
   "dependencies": {
     "@effect/platform-browser": "catalog:",
@@ -18,9 +19,12 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",
+    "@effect/platform-node": "catalog:",
+    "@effect/vitest": "catalog:",
     "@repo/infra": "workspace:*",
     "@repo/tsconfig": "workspace:*",
     "@types/node": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

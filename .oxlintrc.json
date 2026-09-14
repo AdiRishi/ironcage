@@ -97,7 +97,7 @@
   },
   "overrides": [
     {
-      "files": ["infra/tests/**/*.test.ts"],
+      "files": ["infra/tests/**/*.test.ts", "workers/api/tests/**/*.test.ts"],
       "rules": {
         "vitest/no-standalone-expect": [
           "error",

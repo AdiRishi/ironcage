@@ -1,29 +1,50 @@
 import { PgClient } from "@effect/sql-pg";
 import {
   AccountId,
+  BankAccount,
   CommandId,
   FinanceError,
+  ImportId,
   ImportSummary,
-  ParsedObservation,
   PublishImport,
+  SourceFileId,
+  Statement,
 } from "@repo/contracts/finance";
-import { reconcile } from "@repo/finance";
+import { matchObservations, reconcile, type MatchingObservation } from "@repo/finance";
 import { Context, Crypto, Effect, Layer, Schema } from "effect";
 import { v5 } from "uuid";
 
 import { AccountResolution } from "../accounts/resolution.ts";
 import { Commands, databaseUnavailable, fingerprint } from "../database/commands.ts";
+import { replaceQuestions, type PendingQuestion } from "../review/repository.ts";
+import { applyAssignments, readMatchingPostings } from "./matching.ts";
+import { effectiveCandidate, readObservations, saveObservations } from "./observations.ts";
 
 const PublicationSource = Schema.Struct({
-  sourceFileId: Schema.String,
+  sourceFileId: SourceFileId,
   accountId: Schema.NullOr(AccountId),
   status: Schema.String,
+  statement: Statement,
+  account: Schema.NullOr(BankAccount),
 });
+const questionMessages = {
+  changedSource:
+    "This reading differs from the accepted source row. Keep the accepted values or correct them explicitly.",
+  changedBankId:
+    "This bank transaction ID already supports a different value or another row in this file.",
+  ambiguousGroup:
+    "These rows could describe existing transactions. Choose a match for each row or confirm that it is distinct.",
+  conflictingBalances: "The date and amount match, but the supplied running balances disagree.",
+};
+
 export class Publication extends Context.Service<
   Publication,
   {
     readonly publish: (
       input: typeof PublishImport.Type,
+    ) => Effect.Effect<ImportSummary, FinanceError>;
+    readonly republish: (
+      importId: typeof ImportId.Type,
     ) => Effect.Effect<ImportSummary, FinanceError>;
   }
 >()("@repo/api/imports/Publication") {
@@ -34,6 +55,144 @@ export class Publication extends Context.Service<
       const commands = yield* Commands;
       const accounts = yield* AccountResolution;
       const crypto = yield* Crypto.Crypto;
+      const runtime = Layer.mergeAll(
+        Layer.succeed(PgClient.PgClient, sql),
+        Layer.succeed(Crypto.Crypto, crypto),
+      );
+      const republish = Effect.fn("Publication.republish")(
+        function* (importId: typeof ImportId.Type) {
+          const sources =
+            yield* sql`SELECT source_file_id AS "sourceFileId", account_id AS "accountId", status, statement, bank_account AS account FROM imports WHERE id = ${importId}`.pipe(
+              Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(PublicationSource))),
+            );
+          const source = sources[0];
+          if (!source)
+            return yield* new FinanceError({ kind: "notFound", message: "Import not found." });
+          const rows = yield* readObservations(source.sourceFileId);
+          const questions: PendingQuestion[] = [];
+          const account = yield* accounts
+            .resolve({ accountId: source.accountId, identity: source.account })
+            .pipe(
+              Effect.catchTag("FinanceError", (error) => {
+                if (error.kind !== "needsReview" && error.kind !== "conflict")
+                  return Effect.fail(error);
+                questions.push({
+                  kind: "account",
+                  question: {
+                    reason: error.kind === "conflict" ? "accountConflict" : "accountMissing",
+                    message: error.message,
+                  },
+                  observationIds: rows.map((row) => row.id),
+                  postingIds: [],
+                });
+                return Effect.succeed(null);
+              }),
+            );
+
+          if (account) {
+            const active = rows.filter(
+              (row) =>
+                row.decision?.kind !== "omit" &&
+                (effectiveCandidate(row) !== null || row.issue !== null),
+            );
+            const unreadable = active.filter((row) => effectiveCandidate(row) === null);
+            for (const row of unreadable)
+              questions.push({
+                kind: "value",
+                question: {
+                  reason: "unreadableValue",
+                  message: "Read the source beside this row and enter the booked values.",
+                },
+                observationIds: [row.id],
+                postingIds: [],
+              });
+            const observations = active.map((row) => ({
+              ...row,
+              candidate: effectiveCandidate(row),
+            }));
+            const coverage = reconcile({ observations, statement: source.statement });
+            const invalidCurrency = observations.some(
+              (row) => row.candidate && row.candidate.amount.currency !== account.currency,
+            );
+            if (invalidCurrency)
+              return yield* new FinanceError({
+                kind: "invalid",
+                message: "Every booked amount must use the account currency.",
+              });
+            if (coverage.issues.length > 0 && unreadable.length === 0) {
+              questions.push({
+                kind: "value",
+                question: { reason: "unreconciled", message: coverage.issues.join(" ") },
+                observationIds: active.map((row) => row.id),
+                postingIds: active.flatMap((row) => (row.postingId ? [row.postingId] : [])),
+              });
+            } else {
+              const postings = yield* readMatchingPostings(account.id);
+              const byId = new Map(postings.map((posting) => [posting.id, posting]));
+              const matchingRows: MatchingObservation[] = [];
+              for (const row of active) {
+                const candidate = effectiveCandidate(row);
+                if (!candidate) continue;
+                const choice = row.decision;
+                const postingId =
+                  choice?.kind === "match" || choice?.kind === "keep" || choice?.kind === "correct"
+                    ? choice.postingId
+                    : null;
+                const posting = postingId ? byId.get(postingId) : undefined;
+                matchingRows.push({
+                  id: row.id,
+                  locatorKey: row.locatorKey,
+                  candidate,
+                  decision: posting
+                    ? { kind: "match", posting }
+                    : choice?.kind === "distinct" || choice?.kind === "correct"
+                      ? { kind: "distinct" }
+                      : null,
+                });
+              }
+              const result = matchObservations(
+                source.sourceFileId,
+                matchingRows,
+                postings,
+                source.statement.order,
+                unreadable.length === 0,
+              );
+              for (const question of result.questions)
+                questions.push({
+                  kind: question.kind,
+                  question: { reason: question.reason, message: questionMessages[question.reason] },
+                  observationIds: question.observationIds,
+                  postingIds: question.postingIds,
+                });
+              yield* applyAssignments(account.id, rows, result.assignments);
+            }
+            if (coverage.observedStart && coverage.observedEnd) {
+              const id = yield* crypto.randomUUIDv4;
+              yield* sql`INSERT INTO source_coverage ${sql.insert({ id, source_file_id: source.sourceFileId, account_id: account.id, stated_start: source.statement.statedStart, stated_end: source.statement.statedEnd, observed_start: coverage.observedStart, observed_end: coverage.observedEnd, opening_minor: coverage.opening?.money.minor ?? null, opening_on: coverage.opening?.on ?? null, closing_minor: coverage.closing?.money.minor ?? null, closing_on: coverage.closing?.on ?? null, reconciled: unreadable.length === 0 && coverage.reconciled })} ON CONFLICT (source_file_id, account_id) DO UPDATE SET stated_start = EXCLUDED.stated_start, stated_end = EXCLUDED.stated_end, observed_start = EXCLUDED.observed_start, observed_end = EXCLUDED.observed_end, opening_minor = EXCLUDED.opening_minor, opening_on = EXCLUDED.opening_on, closing_minor = EXCLUDED.closing_minor, closing_on = EXCLUDED.closing_on, reconciled = EXCLUDED.reconciled`;
+            }
+          }
+          yield* replaceQuestions(importId, questions);
+          const [counts] =
+            yield* sql`SELECT count(*) FILTER (WHERE posting_id IS NOT NULL AND COALESCE((match_evidence->>'created')::boolean, match_method = 'new'))::integer AS "newPostings", count(*) FILTER (WHERE posting_id IS NOT NULL AND NOT COALESCE((match_evidence->>'created')::boolean, match_method = 'new'))::integer AS "matchedPostings" FROM observations WHERE source_file_id = ${source.sourceFileId}`.pipe(
+              Effect.flatMap(
+                Schema.decodeUnknownEffect(
+                  Schema.Tuple([
+                    Schema.Struct({ newPostings: Schema.Int, matchedPostings: Schema.Int }),
+                  ]),
+                ),
+              ),
+            );
+          const summary = { observations: rows.length, ...counts, reviewItems: questions.length };
+          yield* sql`UPDATE imports SET account_id = ${account?.id ?? source.accountId}, status = ${questions.length > 0 ? "needs_review" : "complete"}, summary = ${sql.json(summary)}, failure = NULL, version = version + 1, updated_at = now() WHERE id = ${importId}`;
+          return summary;
+        },
+        Effect.provide(runtime),
+        Effect.catchTags({
+          SqlError: () => Effect.fail(databaseUnavailable()),
+          SchemaError: () => Effect.fail(databaseUnavailable()),
+          PlatformError: () => Effect.fail(databaseUnavailable()),
+        }),
+      );
       const publish = Effect.fn("Publication.publish")(function* (
         input: typeof PublishImport.Type,
       ) {
@@ -44,113 +203,31 @@ export class Publication extends Context.Service<
           Effect.provideService(Crypto.Crypto, crypto),
           Effect.mapError(databaseUnavailable),
         );
-        const commandId = CommandId.make(
-          v5(`${input.importId}/${input.parserVersion}/${hash}`, v5.URL),
-        );
         return yield* commands.run({
-          commandId,
+          commandId: CommandId.make(v5(`${input.importId}/${input.parserVersion}/${hash}`, v5.URL)),
           input: encoded,
           result: Schema.toCodecJson(ImportSummary),
           execute: Effect.gen(function* () {
             const sources =
-              yield* sql`SELECT source_file_id AS "sourceFileId", account_id AS "accountId", status FROM imports WHERE id = ${input.importId}`.pipe(
-                Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(PublicationSource))),
+              yield* sql`UPDATE imports SET parser_version = ${input.parserVersion}, statement = ${sql.json(encoded.statement)}, bank_account = ${sql.json(encoded.account)} WHERE id = ${input.importId} RETURNING source_file_id AS "sourceFileId"`.pipe(
+                Effect.flatMap(
+                  Schema.decodeUnknownEffect(
+                    Schema.Array(Schema.Struct({ sourceFileId: SourceFileId })),
+                  ),
+                ),
               );
             const source = sources[0];
             if (!source)
               return yield* new FinanceError({ kind: "notFound", message: "Import not found." });
-            if (source.status !== "processing")
-              return yield* new FinanceError({
-                kind: "conflict",
-                message: "This import is not processing.",
-              });
-            const account = yield* accounts.resolve({
-              accountId: source.accountId,
-              identity: input.account,
-            });
-            const coverage = reconcile(input);
-            if (coverage.issues.length > 0)
-              return yield* new FinanceError({
-                kind: "needsReview",
-                message: coverage.issues.join(" "),
-              });
-            const rows = yield* Effect.forEach(
-              input.observations,
-              Effect.fn(function* (observation) {
-                if (!observation.candidate)
-                  return yield* new FinanceError({
-                    kind: "invalid",
-                    message: "The source contains an unreadable row.",
-                  });
-                const candidate = observation.candidate;
-                const postingId = yield* crypto.randomUUIDv4.pipe(
-                  Effect.mapError(databaseUnavailable),
-                );
-                const observationId = yield* crypto.randomUUIDv4.pipe(
-                  Effect.mapError(databaseUnavailable),
-                );
-                const stored = yield* Schema.encodeEffect(ParsedObservation)(observation);
-                return {
-                  posting: {
-                    id: postingId,
-                    account_id: account.id,
-                    currency: candidate.amount.currency,
-                    amount_minor: candidate.amount.minor,
-                    posted_on: candidate.postedOn,
-                    value_on: candidate.valueOn,
-                    description: candidate.description,
-                    original_currency: candidate.originalMoney?.currency ?? null,
-                    original_amount_minor: candidate.originalMoney?.minor ?? null,
-                  },
-                  observation: {
-                    id: observationId,
-                    import_id: input.importId,
-                    source_file_id: source.sourceFileId,
-                    locator_key: observation.locatorKey,
-                    locator: stored.locator,
-                    raw: stored.raw,
-                    candidate: stored.candidate,
-                    issue: null,
-                    posting_id: postingId,
-                    match_method: "new",
-                    match_evidence: {},
-                  },
-                };
-              }),
-            );
-            if (rows.length > 0) {
-              yield* sql`INSERT INTO postings ${sql.insert(rows.map((row) => row.posting))}`;
-              yield* sql`INSERT INTO observations ${sql.insert(rows.map((row) => row.observation))}`;
-            }
-            if (coverage.observedStart && coverage.observedEnd) {
-              const id = yield* crypto.randomUUIDv4.pipe(Effect.mapError(databaseUnavailable));
-              yield* sql`INSERT INTO source_coverage ${sql.insert({
-                id,
-                source_file_id: source.sourceFileId,
-                account_id: account.id,
-                stated_start: input.statement.statedStart,
-                stated_end: input.statement.statedEnd,
-                observed_start: coverage.observedStart,
-                observed_end: coverage.observedEnd,
-                opening_minor: coverage.opening?.money.minor ?? null,
-                opening_on: coverage.opening?.on ?? null,
-                closing_minor: coverage.closing?.money.minor ?? null,
-                closing_on: coverage.closing?.on ?? null,
-                reconciled: coverage.reconciled,
-              })}`;
-            }
-            const summary = {
-              observations: rows.length,
-              newPostings: rows.length,
-              matchedPostings: 0,
-              reviewItems: 0,
-            };
-            yield* sql`UPDATE imports SET account_id = ${account.id}, statement = ${sql.json(encoded.statement)}, bank_account = ${sql.json(encoded.account)}, status = 'complete', summary = ${sql.json(summary)}, parser_version = ${input.parserVersion}, failure = NULL, version = version + 1, updated_at = now() WHERE id = ${input.importId}`;
-            return summary;
-          }),
+            yield* saveObservations(input.importId, source.sourceFileId, input.observations);
+            return yield* republish(input.importId);
+          }).pipe(
+            Effect.provide(runtime),
+            Effect.catchTag("PlatformError", () => Effect.fail(databaseUnavailable())),
+          ),
         });
       });
-      return Publication.of({ publish });
+      return Publication.of({ publish, republish });
     }),
   );
 }

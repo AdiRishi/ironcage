@@ -26,7 +26,8 @@ export function ImportsPage() {
           predicate: (query) =>
             query.queryKey[0] === "accounts" ||
             query.queryKey[0] === "postings" ||
-            query.queryKey[0] === "posting",
+            query.queryKey[0] === "posting" ||
+            query.queryKey[0] === "reviews",
         })
         .catch(reportError);
   }, [client, completedVersions]);
@@ -64,6 +65,15 @@ export function ImportsPage() {
                     <p role="alert" className="text-sm text-destructive">
                       {item.failure.message}
                     </p>
+                  )}
+                  {item.status === "needs_review" && (
+                    <Link
+                      to="/review"
+                      search={{ importId: item.id }}
+                      className="mr-4 text-sm text-primary underline"
+                    >
+                      Review source rows
+                    </Link>
                   )}
                   {item.summary && (
                     <Link

@@ -1,6 +1,6 @@
 import { type QueryClient } from "@tanstack/react-query";
 import { HeadContent, Link, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
-import { House, LockKeyhole, Upload, List } from "lucide-react";
+import { House, LockKeyhole, Upload, List, ClipboardCheck } from "lucide-react";
 
 import appCss from "@/global-styles/tailwind.css?url";
 
@@ -63,6 +63,14 @@ function RootDocument({ children }: { readonly children: React.ReactNode }) {
               >
                 <List className="size-5" />
                 Transactions
+              </Link>
+              <Link
+                to="/review"
+                className="flex items-center gap-3 rounded-md px-3 py-2"
+                activeProps={{ className: "bg-accent text-primary" }}
+              >
+                <ClipboardCheck className="size-5" />
+                Review
               </Link>
             </nav>
             <p className="mt-auto hidden pt-10 text-xs text-muted-foreground md:block">
