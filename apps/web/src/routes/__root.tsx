@@ -1,6 +1,6 @@
 import { type QueryClient } from "@tanstack/react-query";
 import { HeadContent, Link, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
-import { House, LockKeyhole } from "lucide-react";
+import { House, LockKeyhole, Upload, List } from "lucide-react";
 
 import appCss from "@/global-styles/tailwind.css?url";
 
@@ -41,10 +41,28 @@ function RootDocument({ children }: { readonly children: React.ReactNode }) {
             <nav aria-label="Main navigation">
               <Link
                 to="/"
-                className="flex items-center gap-3 rounded-md bg-accent px-3 py-2 text-primary"
+                className="flex items-center gap-3 rounded-md px-3 py-2"
+                activeProps={{ className: "bg-accent text-primary" }}
+                activeOptions={{ exact: true }}
               >
                 <House className="size-5" />
                 Home
+              </Link>
+              <Link
+                to="/imports"
+                className="flex items-center gap-3 rounded-md px-3 py-2"
+                activeProps={{ className: "bg-accent text-primary" }}
+              >
+                <Upload className="size-5" />
+                Imports
+              </Link>
+              <Link
+                to="/transactions"
+                className="flex items-center gap-3 rounded-md px-3 py-2"
+                activeProps={{ className: "bg-accent text-primary" }}
+              >
+                <List className="size-5" />
+                Transactions
               </Link>
             </nav>
             <p className="mt-auto hidden pt-10 text-xs text-muted-foreground md:block">

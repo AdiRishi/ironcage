@@ -4,7 +4,7 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import * as Planetscale from "alchemy/Planetscale";
 import { Effect } from "effect";
 
-import { api } from "../../workers/api/src/index.ts";
+import { api, type ApiOperations } from "../../workers/api/src/index.ts";
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
 import { localPostgres } from "./database/local.ts";
 import { apiBindings } from "./worker-bindings.ts";
@@ -44,10 +44,7 @@ export const financialStorage = Effect.gen(function* () {
   return { database, sources };
 });
 
-export class Api extends Cloudflare.Worker<
-  Api,
-  Pick<Effect.Success<ReturnType<typeof api>>, "listAccounts">
->()("ApiWorker") {}
+export class Api extends Cloudflare.Worker<Api, ApiOperations>()("ApiWorker") {}
 
 export default Api.make(
   {

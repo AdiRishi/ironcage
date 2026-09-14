@@ -11,8 +11,10 @@
     "@effect/platform-browser": "catalog:",
     "@effect/sql-pg": "catalog:",
     "@repo/contracts": "workspace:*",
+    "@repo/finance": "workspace:*",
     "alchemy": "catalog:",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "uuid": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",
