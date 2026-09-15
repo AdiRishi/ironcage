@@ -3,7 +3,7 @@ import { URL } from "node:url";
 
 import { PgClient } from "@effect/sql-pg";
 import { CommandId, type ParsedFile, type SourceFormat } from "@repo/contracts/finance";
-import { Effect, Schema } from "effect";
+import { Crypto, Effect, Schema } from "effect";
 import { expect } from "vitest";
 
 import { parseCsv } from "../../../processor/src/imports/csv.ts";
@@ -52,7 +52,7 @@ test.skipIf(!existsSync(directory))(
         owners.set(
           identity,
           yield* accounts.create({
-            commandId: CommandId.make(crypto.randomUUID()),
+            commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
             label: `Corpus account ${owners.size + 1}`,
             kind: file.account.kind,
             currency: file.account.currency,

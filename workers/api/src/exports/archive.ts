@@ -1,12 +1,12 @@
 import { FinanceError } from "@repo/contracts/finance";
-import type { ReadWriteBucketClient } from "alchemy/Cloudflare/R2";
-import type { RuntimeContext } from "alchemy/RuntimeContext";
-import { Effect, Stream } from "effect";
+import { Effect, Exit, Stream } from "effect";
 import { Zip, ZipDeflate } from "fflate";
+
+import type { TemporaryExports } from "../platform/services.ts";
 
 export interface ArchiveEntry {
   readonly path: string;
-  readonly body: Stream.Stream<Uint8Array, FinanceError, RuntimeContext>;
+  readonly body: Stream.Stream<Uint8Array, FinanceError>;
 }
 const archiveFailure = () =>
   new FinanceError({
@@ -54,38 +54,41 @@ export const archiveStream = (entries: ReadonlyArray<ArchiveEntry>) =>
   });
 
 export const writeArchive = Effect.fn("Exports.writeArchive")(function* (
-  bucket: ReadWriteBucketClient,
+  bucket: Pick<TemporaryExports["Service"], "createMultipartUpload">,
   key: string,
   entries: ReadonlyArray<ArchiveEntry>,
 ) {
-  const upload = yield* bucket.createMultipartUpload(key, {
-    httpMetadata: { contentType: "application/zip" },
-  });
-  const parts: Array<Effect.Success<ReturnType<typeof upload.uploadPart>>> = [];
-  const buffer = new Uint8Array(5 * 1024 * 1024);
-  let length = 0;
-  const flush = Effect.fn(function* () {
-    parts.push(yield* upload.uploadPart(parts.length + 1, buffer.subarray(0, length)));
-    length = 0;
-  });
-  yield* Effect.gen(function* () {
-    yield* archiveStream(entries).pipe(
-      Stream.runForEach((chunk) =>
-        Effect.gen(function* () {
-          let offset = 0;
-          while (offset < chunk.length) {
-            const count = Math.min(buffer.length - length, chunk.length - offset);
-            buffer.set(chunk.subarray(offset, offset + count), length);
-            length += count;
-            offset += count;
-            if (length === buffer.length) yield* flush();
-          }
-        }),
-      ),
-    );
-    if (length > 0) yield* flush();
-    yield* upload.complete(parts);
-  }).pipe(Effect.onError(() => upload.abort().pipe(Effect.ignore)));
+  yield* Effect.acquireUseRelease(
+    bucket.createMultipartUpload(key, {
+      httpMetadata: { contentType: "application/zip" },
+    }),
+    Effect.fnUntraced(function* (upload) {
+      const parts: Array<Effect.Success<ReturnType<typeof upload.uploadPart>>> = [];
+      const buffer = new Uint8Array(5 * 1024 * 1024);
+      let length = 0;
+      const flush = Effect.fn(function* () {
+        parts.push(yield* upload.uploadPart(parts.length + 1, buffer.subarray(0, length)));
+        length = 0;
+      });
+      yield* archiveStream(entries).pipe(
+        Stream.runForEach((chunk) =>
+          Effect.gen(function* () {
+            let offset = 0;
+            while (offset < chunk.length) {
+              const count = Math.min(buffer.length - length, chunk.length - offset);
+              buffer.set(chunk.subarray(offset, offset + count), length);
+              length += count;
+              offset += count;
+              if (length === buffer.length) yield* flush();
+            }
+          }),
+        ),
+      );
+      if (length > 0) yield* flush();
+      yield* upload.complete(parts);
+    }),
+    (upload, exit) => (Exit.isFailure(exit) ? upload.abort().pipe(Effect.ignore) : Effect.void),
+  );
 }, Effect.mapError(archiveFailure));
 
 export const textEntry = (path: string, text: string): ArchiveEntry => ({

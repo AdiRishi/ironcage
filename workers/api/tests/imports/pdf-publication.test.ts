@@ -45,7 +45,7 @@ test(
         const summary = yield* publication.publish({ ...file, importId: input.importId });
         expect(summary.reviewItems).toBe(0);
       }
-      const owners = yield* accounts.list();
+      const owners = yield* accounts.list;
       expect(owners).toHaveLength(1);
       expect(owners[0]).toMatchObject({
         bankId: "123456",

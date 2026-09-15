@@ -8,7 +8,7 @@ import {
   type SourceFormat,
   SourceFileId,
 } from "@repo/contracts/finance";
-import { Effect } from "effect";
+import { Crypto, Effect } from "effect";
 
 import { Accounts } from "../../src/accounts/service.ts";
 
@@ -19,7 +19,7 @@ export const reset = Effect.gen(function* () {
 export const account = Effect.fn("fixtureAccount")(function* () {
   const accounts = yield* Accounts;
   return yield* accounts.create({
-    commandId: CommandId.make(crypto.randomUUID()),
+    commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
     label: "Everyday",
     kind: "deposit",
     currency: "AUD",
@@ -30,9 +30,9 @@ export const source = Effect.fn("fixtureSource")(function* (
   format: typeof SourceFormat.Type = "csv",
 ) {
   const sql = yield* PgClient.PgClient;
-  const sourceFileId = SourceFileId.make(crypto.randomUUID());
-  const importId = ImportId.make(crypto.randomUUID());
-  yield* sql`INSERT INTO source_files ${sql.insert({ id: sourceFileId, sha256: crypto.randomUUID(), file_name: `example.${format}`, media_type: "text/plain", byte_size: 1, object_key: sourceFileId })}`;
+  const sourceFileId = SourceFileId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4));
+  const importId = ImportId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4));
+  yield* sql`INSERT INTO source_files ${sql.insert({ id: sourceFileId, sha256: yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4), file_name: `example.${format}`, media_type: "text/plain", byte_size: 1, object_key: sourceFileId })}`;
   yield* sql`INSERT INTO imports ${sql.insert({ id: importId, source_file_id: sourceFileId, account_id: accountId, format, parser_version: "test", status: "processing" })}`;
   return { sourceFileId, importId };
 });

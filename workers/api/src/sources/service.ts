@@ -20,12 +20,12 @@ const make = Effect.gen(function* () {
   const sql = yield* PgClient.PgClient;
   const sources = yield* Sources;
   const commands = yield* Commands;
-  const list = Effect.fn("SourceFiles.list")(function* () {
-    return yield* sql`SELECT s.id, s.file_name AS "fileName", s.byte_size::text AS "byteSize", s.bytes_available AS "bytesAvailable", s.version, i.id AS "importId", i.format, i.status, (SELECT count(DISTINCT posting_id)::integer FROM observations WHERE source_file_id = s.id) AS "postingCount" FROM source_files s JOIN imports i ON i.source_file_id = s.id ORDER BY s.uploaded_at DESC, s.id DESC`.pipe(
+  const list =
+    sql`SELECT s.id, s.file_name AS "fileName", s.byte_size::text AS "byteSize", s.bytes_available AS "bytesAvailable", s.version, i.id AS "importId", i.format, i.status, (SELECT count(DISTINCT posting_id)::integer FROM observations WHERE source_file_id = s.id) AS "postingCount" FROM source_files s JOIN imports i ON i.source_file_id = s.id ORDER BY s.uploaded_at DESC, s.id DESC`.pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(SourceFile))),
       Effect.mapError(databaseUnavailable),
+      Effect.withSpan("SourceFiles.list"),
     );
-  });
   const remove = Effect.fn("SourceFiles.remove")(function* (input: typeof RemoveSourceBytes.Type) {
     const receipt = yield* commands.run({
       commandId: input.commandId,

@@ -53,6 +53,23 @@ Method signatures are defined once, in the implementation. Payload schemas are s
 - Responses carry what a screen or tool needs: record fields and evidence references. They never carry storage keys, credentials, or full bank account numbers beyond what the account settings screen shows.
 - Browser input, stored JSON, and model output are validated at the boundary. Inside a Worker, decoded types are trusted.
 
+## Effect service lifetime
+
+The API builds its application layers during Worker initialization. Platform
+adapters capture Alchemy's `RuntimeContext` there, so domain services expose only
+their results and typed failures. Binding clients defer I/O until a handler runs;
+initialization must not open connections or perform storage operations.
+
+Alchemy's `PostgresLayer` creates the pool lazily within the current execution
+scope and closes it when that scope ends. Application code does not keep a pool
+or a `ManagedRuntime` across Worker requests. No-argument service reads are
+Effect values; the RPC boundary exposes them as callable methods.
+
+Cloudflare Workflow tasks report native failures as defects. Workflow recovery
+handles those defects without converting interruption into successful work.
+Multipart exports bracket acquisition and cleanup with `Effect.acquireUseRelease`,
+so failure or cancellation aborts an unfinished upload.
+
 ## Background work
 
 Cloudflare Workflows runs imports with a few steps and the platform's bounded retries. The API keeps a small import status and the Workflow instance ID; it asks the platform for instance status when the import has no summary yet. There is no application job table. Stage 7 adds a cron trigger on the processor for finding scans and reminders.

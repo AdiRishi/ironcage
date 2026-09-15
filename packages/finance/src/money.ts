@@ -9,7 +9,7 @@ const currencyExponent = (currency: string) =>
 const Decimal = Schema.String.check(Schema.isPattern(/^[+-]?\d+(?:\.\d+)?$/));
 
 export const parseMoney = Effect.fn("parseMoney")(function* (text: string, currency: string) {
-  yield* Schema.decodeUnknownEffect(Decimal)(text).pipe(
+  yield* Schema.decodeEffect(Decimal)(text).pipe(
     Effect.mapError(
       () => new FinanceError({ kind: "invalid", message: "Invalid decimal amount." }),
     ),

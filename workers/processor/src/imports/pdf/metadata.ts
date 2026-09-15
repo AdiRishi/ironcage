@@ -25,14 +25,10 @@ export const metadata = Effect.fn(function* (pages: ReadonlyArray<PdfPage>) {
   );
   const dates = [...text(periodLine ?? []).matchAll(fullDates)].map((match) => match[0]);
   const start = dates[0]
-    ? yield* pdfDate(dates[0], { start: null, end: null }).pipe(
-        Effect.catch(() => Effect.succeed(null)),
-      )
+    ? yield* pdfDate(dates[0], { start: null, end: null }).pipe(Effect.orElseSucceed(() => null))
     : null;
   const end = dates[1]
-    ? yield* pdfDate(dates[1], { start: null, end: null }).pipe(
-        Effect.catch(() => Effect.succeed(null)),
-      )
+    ? yield* pdfDate(dates[1], { start: null, end: null }).pipe(Effect.orElseSucceed(() => null))
     : null;
   const number = header
     .find((item) => item.x > 450 && item.y > 730 && /^\d[\d ]{7,18}$/.test(item.str))

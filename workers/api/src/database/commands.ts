@@ -55,7 +55,7 @@ export class Commands extends Context.Service<
                     kind: "conflict",
                     message: "This command ID was already used for another request.",
                   });
-                return yield* Schema.decodeUnknownEffect(command.result)(receipt.result);
+                return yield* Schema.decodeEffect(command.result)(receipt.result);
               }
               const result = yield* command.execute;
               const encoded = yield* Schema.encodeEffect(command.result)(result);

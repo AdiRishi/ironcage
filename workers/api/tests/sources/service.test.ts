@@ -1,8 +1,6 @@
 import { PgClient } from "@effect/sql-pg";
 import { CommandId } from "@repo/contracts/finance";
-import type { ReadWriteBucketClient } from "alchemy/Cloudflare/R2";
-import { RuntimeContext } from "alchemy/RuntimeContext";
-import { Data, Effect, Layer } from "effect";
+import { Crypto, Data, Effect, Layer } from "effect";
 import { expect } from "vitest";
 
 import { Publication } from "../../src/imports/publication.ts";
@@ -16,27 +14,16 @@ class StorageFailure extends Data.TaggedError("R2Error")<{ message: string; caus
 
 const { test, services } = applicationTest();
 const unexpected = () => Effect.die("Unexpected storage operation");
-const runtime = RuntimeContext.of({
-  Type: "Test",
-  id: "source-removal",
-  env: {},
-  get: unexpected,
-  set: unexpected,
-});
 
 test(
   "retrying an R2 deletion failure uses its receipt key after replacement and retains all evidence",
   Effect.gen(function* () {
     const keys = new Set<string>();
     let fail = true;
-    const bucket: ReadWriteBucketClient = {
-      raw: unexpected(),
-      head: unexpected,
+    const bucket: Sources["Service"] = {
       get: unexpected,
-      list: unexpected,
       put: unexpected,
       createMultipartUpload: unexpected,
-      resumeMultipartUpload: unexpected,
       delete: (input) =>
         Effect.gen(function* () {
           if (fail)
@@ -44,7 +31,7 @@ test(
               message: "Injected storage outage",
               cause: new Error("offline"),
             });
-          for (const key of Array.isArray(input) ? input : [input]) keys.delete(key);
+          keys.delete(input);
         }),
     };
     yield* Effect.gen(function* () {
@@ -59,12 +46,12 @@ test(
       const postings = yield* Postings;
       const before = yield* postings.list({ filter: { importId: file.importId } });
       const input = {
-        commandId: CommandId.make(crypto.randomUUID()),
+        commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
         sourceFileId: file.sourceFileId,
         expectedVersion: 1,
       };
       expect((yield* files.remove(input).pipe(Effect.flip)).kind).toBe("unavailable");
-      expect((yield* files.list())[0]?.bytesAvailable).toBe(false);
+      expect((yield* files.list)[0]?.bytesAvailable).toBe(false);
       expect(keys.has(file.sourceFileId)).toBe(true);
       keys.add("replacement");
       yield* sql`UPDATE source_files SET object_key = 'replacement', bytes_available = true, version = version + 1 WHERE id = ${file.sourceFileId}`;
@@ -79,10 +66,13 @@ test(
       expect(keys.has("replacement")).toBe(true);
       expect(
         (yield* files
-          .remove({ ...input, commandId: CommandId.make(crypto.randomUUID()) })
+          .remove({
+            ...input,
+            commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
+          })
           .pipe(Effect.flip)).kind,
       ).toBe("stale");
-      expect((yield* files.list())[0]).toMatchObject({
+      expect((yield* files.list)[0]).toMatchObject({
         bytesAvailable: true,
         version: 3,
         postingCount: 1,
@@ -99,5 +89,5 @@ test(
         ),
       ),
     );
-  }).pipe(Effect.provideService(RuntimeContext, runtime)),
+  }),
 );

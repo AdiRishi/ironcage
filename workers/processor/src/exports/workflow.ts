@@ -13,7 +13,7 @@ export const runExport = (api: Pick<Api, "generateExport" | "failExport">) =>
     },
     (effect, input) =>
       effect.pipe(
-        Effect.catchCause(() =>
+        Effect.catchDefect(() =>
           Workflows.task("record-failure", api.failExport(input).pipe(Effect.orDie)),
         ),
       ),

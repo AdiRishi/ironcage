@@ -53,7 +53,7 @@ export function applicationTest() {
     Layer.provideMerge(Commands.layer),
     Layer.provide(AccountResolution.layer),
     Layer.provideMerge(database),
-    Layer.provide(NodeCrypto.layer),
+    Layer.provideMerge(NodeCrypto.layer),
   );
 
   return { test, services };

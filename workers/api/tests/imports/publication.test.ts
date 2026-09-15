@@ -3,7 +3,7 @@ import { URL } from "node:url";
 
 import { PgClient } from "@effect/sql-pg";
 import { CommandId, FinanceError, ImportSummary, ResolveReview } from "@repo/contracts/finance";
-import { Console, Duration, Effect, Schema } from "effect";
+import { Crypto, Console, Duration, Effect, Schema } from "effect";
 import { expect } from "vitest";
 
 import { parseCsv } from "../../../processor/src/imports/csv.ts";
@@ -90,7 +90,7 @@ test(
     if (!review?.observations[0] || !review.candidates[0])
       return yield* Effect.die("Expected a review with choices.");
     const command: typeof ResolveReview.Type = {
-      commandId: CommandId.make(crypto.randomUUID()),
+      commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
       reviewItemId: review.id,
       expectedVersion: review.version,
       resolution: {
@@ -108,7 +108,10 @@ test(
     expect(yield* reviews.resolve(command)).toEqual(resolved);
     expect(yield* reviews.list()).toHaveLength(0);
     const stale = yield* reviews
-      .resolve({ ...command, commandId: CommandId.make(crypto.randomUUID()) })
+      .resolve({
+        ...command,
+        commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
+      })
       .pipe(Effect.flip);
     expect(stale.kind).toBe("stale");
     const postings = yield* Postings;
@@ -138,7 +141,7 @@ test(
       return yield* Effect.die("Expected the prior accepted source row.");
     expect(review.kind).toBe("source_conflict");
     yield* reviews.resolve({
-      commandId: CommandId.make(crypto.randomUUID()),
+      commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
       reviewItemId: review.id,
       expectedVersion: review.version,
       resolution: {
@@ -167,7 +170,8 @@ test(
     yield* reset;
     const commands = yield* Commands;
     const sql = yield* PgClient.PgClient;
-    const commandId = CommandId.make(crypto.randomUUID());
+    const commandId = CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4));
+    const accountId = yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4);
     const result = { observations: 0, newPostings: 0, matchedPostings: 0, reviewItems: 0 };
     const command = {
       commandId,
@@ -178,7 +182,7 @@ test(
       .run({
         ...command,
         execute: Effect.gen(function* () {
-          yield* sql`INSERT INTO accounts (id, kind, label, currency) VALUES (${crypto.randomUUID()}, 'deposit', 'Uncommitted', 'AUD')`;
+          yield* sql`INSERT INTO accounts (id, kind, label, currency) VALUES (${accountId}, 'deposit', 'Uncommitted', 'AUD')`;
           return yield* new FinanceError({
             kind: "unavailable",
             message: "Injected failure before commit.",
@@ -188,7 +192,7 @@ test(
       .pipe(Effect.flip);
     expect(failed.kind).toBe("unavailable");
     const accounts = yield* Accounts;
-    expect(yield* accounts.list()).toHaveLength(0);
+    expect(yield* accounts.list).toHaveLength(0);
     expect(yield* commands.run({ ...command, execute: Effect.succeed(result) })).toEqual(result);
   }).pipe(Effect.provide(services)),
 );
@@ -260,7 +264,7 @@ test.skipIf(!existsSync(corpusDirectory))(
           owners.set(
             pair.identity.accountNumber,
             yield* accounts.create({
-              commandId: CommandId.make(crypto.randomUUID()),
+              commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
               label: `Corpus account ${owners.size + 1}`,
               kind: pair.identity.kind,
               currency: pair.identity.currency,
@@ -339,7 +343,7 @@ test(
     const correction = parsed(["Coffee"]).observations[0]?.candidate;
     if (!correction) return yield* Effect.die("Expected a decoded correction.");
     yield* reviews.resolve({
-      commandId: CommandId.make(crypto.randomUUID()),
+      commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
       reviewItemId: review.id,
       expectedVersion: review.version,
       resolution: {
@@ -380,7 +384,7 @@ test(
       return yield* Effect.die("Expected two ambiguous rows.");
     const failure = yield* reviews
       .resolve({
-        commandId: CommandId.make(crypto.randomUUID()),
+        commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
         reviewItemId: review.id,
         expectedVersion: review.version,
         resolution: {

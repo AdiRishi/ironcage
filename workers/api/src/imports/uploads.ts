@@ -7,7 +7,6 @@ import {
   UploadInput,
   UploadResult,
 } from "@repo/contracts/finance";
-import type { RuntimeContext } from "alchemy/RuntimeContext";
 import { Context, Crypto, Effect, Encoding, Layer, Schema } from "effect";
 
 import { databaseUnavailable } from "../database/commands.ts";
@@ -27,16 +26,13 @@ const Download = Schema.Struct({
 export class Uploads extends Context.Service<
   Uploads,
   {
-    readonly upload: (
-      input: UploadInput,
-    ) => Effect.Effect<typeof UploadResult.Type, FinanceError, RuntimeContext>;
+    readonly upload: (input: UploadInput) => Effect.Effect<typeof UploadResult.Type, FinanceError>;
     readonly download: (input: typeof SourceFileInput.Type) => Effect.Effect<
       {
         fileName: string;
         object: NonNullable<Effect.Success<ReturnType<Sources["Service"]["get"]>>>;
       },
-      FinanceError,
-      RuntimeContext
+      FinanceError
     >;
   }
 >()("@repo/api/imports/Uploads") {

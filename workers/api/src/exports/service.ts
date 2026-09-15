@@ -52,13 +52,13 @@ const make = Effect.gen(function* () {
   const get = Effect.fn("Exports.get")(function* (input: typeof ExportInput.Type) {
     return yield* reconcile(yield* read(input));
   });
-  const list = Effect.fn("Exports.list")(function* () {
+  const list = Effect.gen(function* () {
     const rows = yield* sql`SELECT ${fields} FROM exports ORDER BY requested_at DESC, id DESC`.pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(ExportRecord))),
       Effect.mapError(databaseUnavailable),
     );
     return yield* Effect.forEach(rows, reconcile, { concurrency: 4 });
-  });
+  }).pipe(Effect.withSpan("Exports.list"));
   const request = Effect.fn("Exports.request")(function* (input: typeof RequestExport.Type) {
     const result = yield* commands.run({
       commandId: input.commandId,

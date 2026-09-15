@@ -6,8 +6,8 @@ import { databaseUnavailable } from "../database/commands.ts";
 
 const make = Effect.gen(function* () {
   const sql = yield* PgClient.PgClient;
-  const get = Effect.fn("ModelUsage.get")(function* () {
-    return yield* sql.withTransaction(
+  const get = sql
+    .withTransaction(
       Effect.gen(function* () {
         yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY`;
         const settings =
@@ -26,8 +26,8 @@ const make = Effect.gen(function* () {
           recent,
         });
       }),
-    );
-  }, Effect.mapError(databaseUnavailable));
+    )
+    .pipe(Effect.mapError(databaseUnavailable), Effect.withSpan("ModelUsage.get"));
   return { get };
 });
 export class Models extends Context.Service<Models, Effect.Success<typeof make>>()(
