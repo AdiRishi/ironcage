@@ -8,13 +8,14 @@ import {
   ExportManifest,
   Account,
   ImportPage,
+  type ImportId,
   PostingPage,
   UploadResult,
 } from "@repo/contracts/finance";
 import * as Alchemy from "alchemy";
 import * as Output from "alchemy/Output";
 import * as Test from "alchemy/Test/Vitest";
-import { Crypto, Effect, Schedule, Schema } from "effect";
+import { Crypto, type Duration, Effect, Schedule, Schema } from "effect";
 import { FetchHttpClient, HttpBody, HttpClient } from "effect/unstable/http";
 import { unzipSync } from "fflate";
 import { expect, inject } from "vitest";
@@ -53,6 +54,22 @@ const { test, beforeAll, afterAll, deploy, destroy } = Test.make({
 const stack = beforeAll(deploy(Stack), { timeout: 600_000 });
 afterAll(destroy(Stack), { timeout: 600_000 });
 
+const waitForImport = (
+  url: string,
+  importId: typeof ImportId.Type,
+  timeout: Duration.Input = "30 seconds",
+) =>
+  HttpClient.get(`${url}/imports`).pipe(
+    Effect.flatMap((response) => response.json),
+    Effect.flatMap(Schema.decodeUnknownEffect(ImportPage)),
+    Effect.map((page) => page.rows.find((item) => item.id === importId)),
+    Effect.repeat({
+      schedule: Schedule.spaced("100 millis"),
+      while: (item) => item?.status === "processing",
+    }),
+    Effect.timeout(timeout),
+  );
+
 const importSyntheticCsv = Effect.fn("importSyntheticCsv")(function* (
   url: string,
   apiUrl: string,
@@ -80,16 +97,7 @@ const importSyntheticCsv = Effect.fn("importSyntheticCsv")(function* (
     Effect.flatMap((response) => response.json),
     Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
   );
-  const completed = yield* HttpClient.get(`${url}/imports`).pipe(
-    Effect.flatMap((response) => response.json),
-    Effect.flatMap(Schema.decodeUnknownEffect(ImportPage)),
-    Effect.map((page) => page.rows.find((item) => item.id === upload.importId)),
-    Effect.repeat({
-      schedule: Schedule.spaced("300 millis"),
-      while: (item) => item?.status === "processing",
-    }),
-    Effect.timeout("30 seconds"),
-  );
+  const completed = yield* waitForImport(url, upload.importId);
   expect(completed?.status).toBe("complete");
   return { account, upload, csv };
 });
@@ -151,16 +159,7 @@ test(
       Effect.flatMap((response) => response.json),
       Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
     );
-    const completed = yield* HttpClient.get(`${url}/imports`).pipe(
-      Effect.flatMap((response) => response.json),
-      Effect.flatMap(Schema.decodeUnknownEffect(ImportPage)),
-      Effect.map((page) => page.rows.find((item) => item.id === upload.importId)),
-      Effect.repeat({
-        schedule: Schedule.spaced("300 millis"),
-        while: (item) => item?.status === "processing",
-      }),
-      Effect.timeout("30 seconds"),
-    );
+    const completed = yield* waitForImport(url, upload.importId);
     expect(completed?.status).toBe("complete");
     expect(completed?.summary).toEqual({
       observations: 3,
@@ -222,16 +221,7 @@ test.skipIf(live || !existsSync(corpusDirectory))(
         Effect.flatMap((response) => response.json),
         Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
       );
-      const completed = yield* HttpClient.get(`${url}/imports`).pipe(
-        Effect.flatMap((response) => response.json),
-        Effect.flatMap(Schema.decodeUnknownEffect(ImportPage)),
-        Effect.map((page) => page.rows.find((item) => item.id === upload.importId)),
-        Effect.repeat({
-          schedule: Schedule.spaced("100 millis"),
-          while: (item) => item?.status === "processing",
-        }),
-        Effect.timeout("30 seconds"),
-      );
+      const completed = yield* waitForImport(url, upload.importId);
       expect(completed?.status).toBe("complete");
       expect(completed?.summary?.observations).toBe(expectedRows);
       expect(completed?.summary?.newPostings).toBe(expectedRows);
@@ -261,16 +251,7 @@ test.skipIf(live || !existsSync(corpusDirectory))(
         Effect.flatMap((response) => response.json),
         Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
       );
-      const completed = yield* HttpClient.get(`${url}/imports`).pipe(
-        Effect.flatMap((response) => response.json),
-        Effect.flatMap(Schema.decodeUnknownEffect(ImportPage)),
-        Effect.map((page) => page.rows.find((item) => item.id === upload.importId)),
-        Effect.repeat({
-          schedule: Schedule.spaced("100 millis"),
-          while: (item) => item?.status === "processing",
-        }),
-        Effect.timeout("30 seconds"),
-      );
+      const completed = yield* waitForImport(url, upload.importId);
       expect(completed?.status).toBe("complete");
       expect(completed?.summary?.observations).toBe(expectedRows);
       expect(
@@ -311,16 +292,7 @@ test(
         Effect.flatMap((response) => response.json),
         Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
       );
-      const completed = yield* HttpClient.get(`${url}/imports`).pipe(
-        Effect.flatMap((response) => response.json),
-        Effect.flatMap(Schema.decodeUnknownEffect(ImportPage)),
-        Effect.map((page) => page.rows.find((item) => item.id === upload.importId)),
-        Effect.repeat({
-          schedule: Schedule.spaced("100 millis"),
-          while: (item) => item?.status === "processing",
-        }),
-        Effect.timeout("30 seconds"),
-      );
+      const completed = yield* waitForImport(url, upload.importId);
       expect(completed?.status).toBe("complete");
       expect(completed?.summary?.newPostings).toBe(2);
       expect(completed?.summary?.pages?.needingReview).toEqual([]);
@@ -351,16 +323,7 @@ test.skipIf(live || !existsSync(corpusDirectory))(
       Effect.flatMap((response) => response.json),
       Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
     );
-    const completed = yield* HttpClient.get(`${url}/imports`).pipe(
-      Effect.flatMap((response) => response.json),
-      Effect.flatMap(Schema.decodeUnknownEffect(ImportPage)),
-      Effect.map((page) => page.rows.find((item) => item.id === upload.importId)),
-      Effect.repeat({
-        schedule: Schedule.spaced("100 millis"),
-        while: (item) => item?.status === "processing",
-      }),
-      Effect.timeout("60 seconds"),
-    );
+    const completed = yield* waitForImport(url, upload.importId, "60 seconds");
     expect(completed?.status).toBe("complete");
     expect(completed?.summary?.observations).toBe(867);
     expect(
