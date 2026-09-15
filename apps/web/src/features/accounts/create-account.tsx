@@ -1,7 +1,6 @@
-import { AppRequestError } from "@repo/contracts/app";
 import { CommandId, CreateAccount } from "@repo/contracts/finance";
 import { useForm } from "@tanstack/react-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Schema, Struct } from "effect";
 import { useState } from "react";
 
@@ -23,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCommand } from "@/lib/use-command";
 
 import { createAccount } from "./functions";
 
@@ -31,27 +31,17 @@ const defaults: typeof Fields.Type = { label: "", kind: "deposit", currency: "AU
 export function CreateAccountDialog() {
   const [open, setOpen] = useState(false);
   const client = useQueryClient();
-  const mutation = useMutation({
+  const { mutation, submit, uncertain } = useCommand({
     mutationFn: (data: typeof CreateAccount.Type) => createAccount({ data }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ["accounts"] });
       setOpen(false);
     },
   });
-  const uncertain =
-    mutation.error instanceof AppRequestError && mutation.error.code === "unavailable";
   const form = useForm({
     defaultValues: defaults,
     validators: { onSubmit: Schema.toStandardSchemaV1(Fields) },
-    onSubmit: async ({ value }) => {
-      await mutation
-        .mutateAsync(
-          uncertain && mutation.variables
-            ? mutation.variables
-            : { ...value, commandId: CommandId.make(crypto.randomUUID()) },
-        )
-        .catch(() => undefined);
-    },
+    onSubmit: ({ value }) => submit({ ...value, commandId: CommandId.make(crypto.randomUUID()) }),
   });
   return (
     <Dialog
