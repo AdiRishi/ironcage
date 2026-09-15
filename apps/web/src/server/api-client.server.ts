@@ -8,6 +8,11 @@ import { runApiRequest } from "./api-request";
 
 type ApiMethods = Pick<
   Api,
+  | "interpretPostings"
+  | "getEvent"
+  | "getEventForPosting"
+  | "getInterpretationSummary"
+  | "getReferenceData"
   | "listSourceFiles"
   | "removeSourceBytes"
   | "getModelUsage"

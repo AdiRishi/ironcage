@@ -1,6 +1,7 @@
 import { Schema } from "effect";
 
 import { Candidate, Locator } from "./imports.ts";
+import { InterpretationFilter } from "./interpretation.ts";
 import {
   AccountId,
   CalendarDate,
@@ -25,6 +26,7 @@ export const Posting = Schema.Struct({
 });
 export type Posting = typeof Posting.Type;
 export const PostingFilter = Schema.Struct({
+  ...InterpretationFilter.fields,
   accountId: Schema.optionalKey(AccountId),
   currency: Schema.optionalKey(Currency),
   from: Schema.optionalKey(CalendarDate),

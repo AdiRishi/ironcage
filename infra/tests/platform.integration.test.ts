@@ -378,16 +378,26 @@ test(
     expect(manifest.tables.map((table) => table.name)).toEqual([
       "__alchemy_migrations",
       "accounts",
+      "allocation_personal_events",
+      "allocation_tags",
+      "allocations",
+      "categories",
       "command_receipts",
+      "event_postings",
+      "events",
       "exports",
       "imports",
+      "merchant_aliases",
+      "merchants",
       "model_usage",
       "observations",
+      "personal_events",
       "postings",
       "review_items",
       "settings",
       "source_coverage",
       "source_files",
+      "tags",
     ]);
     for (const table of manifest.tables) {
       const rows = yield* Schema.decodeEffect(Schema.fromJsonString(Schema.Array(Schema.Unknown)))(

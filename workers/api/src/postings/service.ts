@@ -34,6 +34,14 @@ export class Postings extends Context.Service<
         cursor,
       }: typeof ListPostings.Type) {
         const predicates = [sql`true`];
+        if (filter.role)
+          predicates.push(
+            sql`EXISTS (SELECT 1 FROM events e JOIN event_postings ep ON ep.event_id = e.id WHERE ep.posting_id = p.id AND ep.active AND e.kind = ${filter.role})`,
+          );
+        if (filter.interpretationReview !== undefined)
+          predicates.push(
+            sql`EXISTS (SELECT 1 FROM review_items r JOIN event_postings ep ON ep.event_id = ANY(r.event_ids) WHERE ep.posting_id = p.id AND ep.active AND r.resolved_at IS NULL) = ${filter.interpretationReview}`,
+          );
         if (filter.accountId) predicates.push(sql`p.account_id = ${filter.accountId}`);
         if (filter.currency) predicates.push(sql`p.currency = ${filter.currency}`);
         if (filter.from) predicates.push(sql`p.posted_on >= ${filter.from}::date`);

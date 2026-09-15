@@ -7,6 +7,7 @@ import { HttpRouter } from "effect/unstable/http";
 import { AccountResolution } from "./accounts/resolution.ts";
 import { Accounts } from "./accounts/service.ts";
 import { Commands } from "./database/commands.ts";
+import { Events } from "./events/service.ts";
 import { exportHttpRoutes } from "./exports/http.ts";
 import { Exports } from "./exports/service.ts";
 import { importHttpRoutes } from "./imports/http.ts";
@@ -23,6 +24,11 @@ import { SourceFiles } from "./sources/service.ts";
 // Declared explicitly because deriving it from `api` would make the infra Worker
 // class refer to itself through the bindings type.
 export type ApiOperations = {
+  interpretPostings: Events["Service"]["interpret"];
+  getEvent: Events["Service"]["get"];
+  getEventForPosting: Events["Service"]["forPosting"];
+  getInterpretationSummary: () => Events["Service"]["summary"];
+  getReferenceData: () => Events["Service"]["references"];
   listSourceFiles: () => SourceFiles["Service"]["list"];
   removeSourceBytes: SourceFiles["Service"]["remove"];
   getModelUsage: () => Models["Service"]["get"];
@@ -54,6 +60,7 @@ export const api = Effect.fn("Api.initialize")(function* (
 ) {
   const services = Layer.mergeAll(
     Accounts.layer,
+    Events.layer,
     Exports.layer,
     SourceFiles.layer,
     Models.layer,
@@ -81,6 +88,7 @@ export const api = Effect.fn("Api.initialize")(function* (
     ]),
   );
   return yield* Effect.gen(function* () {
+    const events = yield* Events;
     const sourceFiles = yield* SourceFiles;
     const models = yield* Models;
     const exports = yield* Exports;
@@ -95,6 +103,11 @@ export const api = Effect.fn("Api.initialize")(function* (
       Layer.mergeAll(importHttpRoutes, exportHttpRoutes),
     );
     const operations = {
+      interpretPostings: events.interpret,
+      getEvent: events.get,
+      getEventForPosting: events.forPosting,
+      getInterpretationSummary: () => events.summary,
+      getReferenceData: () => events.references,
       listSourceFiles: () => sourceFiles.list,
       removeSourceBytes: sourceFiles.remove,
       getModelUsage: () => models.get,

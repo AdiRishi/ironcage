@@ -3,6 +3,7 @@ import { formatMoney } from "@repo/finance";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
+import { InterpretationPanel } from "@/features/events/panel";
 import { locatorLabel, sourceHref } from "@/lib/sources";
 
 import { postingQueryOptions } from "./queries";
@@ -40,6 +41,7 @@ export function TransactionDetail({ id }: { id: typeof PostingId.Type }) {
           </p>
         )}
       </header>
+      <InterpretationPanel postingId={id} />
       <section className="space-y-4">
         <h2 className="text-xl font-semibold">Source evidence</h2>
         {evidence.map((item) => (

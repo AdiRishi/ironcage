@@ -8,6 +8,7 @@ import { Crypto, Effect, Schema } from "effect";
 import { expect } from "vitest";
 
 import { Accounts } from "../../src/accounts/service.ts";
+import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { applicationTest } from "../support/application.ts";
 import { reset, source } from "../support/fixtures.ts";
@@ -95,6 +96,15 @@ test.skipIf(!existsSync(directory))(
           Effect.map((rows) => rows.map((row) => row.signature)),
         );
       expect(canonical).toHaveLength(9224);
+      const events = yield* Events;
+      const interpretation = yield* events.interpret({
+        commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
+        scope: "all",
+      });
+      expect(interpretation.created).toBe(9224);
+      expect(interpretation.remaining).toBe(0);
+      expect(interpretation.counts.reduce((total, row) => total + row.count, 0)).toBe(9224);
+      yield* Effect.logInfo("Corpus interpretation", { reverse, counts: interpretation.counts });
       if (baseline) expect(JSON.stringify(canonical) === JSON.stringify(baseline)).toBe(true);
       baseline = canonical;
     }

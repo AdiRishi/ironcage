@@ -40,6 +40,13 @@ export function ReviewPage({ filter }: { filter: Omit<typeof ListReviewItems.Typ
           Check the source evidence and choose what should be recorded.
         </p>
       </header>
+      <Link
+        to="/transactions"
+        search={{ interpretationReview: true }}
+        className="text-primary underline"
+      >
+        Review financial interpretations
+      </Link>
       <nav aria-label="Review status" className="flex gap-4">
         <Link
           to="/review"
