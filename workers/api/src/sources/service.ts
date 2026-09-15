@@ -7,7 +7,8 @@ import {
 } from "@repo/contracts/finance";
 import { Context, Effect, Layer, Schema } from "effect";
 
-import { Commands, databaseUnavailable } from "../database/commands.ts";
+import { Commands } from "../database/commands.ts";
+import { toFinanceError } from "../database/failures.ts";
 import { Sources } from "../platform/services.ts";
 
 const RemovalReceipt = Schema.Struct({ ...SourceRemoval.fields, objectKey: Schema.String });
@@ -23,20 +24,21 @@ const make = Effect.gen(function* () {
   const list =
     sql`SELECT s.id, s.file_name AS "fileName", s.byte_size::text AS "byteSize", s.bytes_available AS "bytesAvailable", s.version, i.id AS "importId", i.format, i.status, (SELECT count(DISTINCT posting_id)::integer FROM observations WHERE source_file_id = s.id) AS "postingCount" FROM source_files s JOIN imports i ON i.source_file_id = s.id ORDER BY s.uploaded_at DESC, s.id DESC`.pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(SourceFile))),
-      Effect.mapError(databaseUnavailable),
+      toFinanceError,
       Effect.withSpan("SourceFiles.list"),
     );
+  // The receipt keeps the object key that was current when the command first ran, so a
+  // repeat after a reupload deletes only that object and never the replacement.
   const remove = Effect.fn("SourceFiles.remove")(function* (input: typeof RemoveSourceBytes.Type) {
     const receipt = yield* commands.run({
       commandId: input.commandId,
       input: { operation: "removeSourceBytes", ...input },
       result: Schema.toCodecJson(RemovalReceipt),
       execute: Effect.gen(function* () {
-        const rows =
+        const [source] =
           yield* sql`SELECT version, object_key AS "objectKey", (SELECT count(DISTINCT posting_id)::integer FROM observations WHERE source_file_id = s.id) AS "postingCount" FROM source_files s WHERE id = ${input.sourceFileId}`.pipe(
             Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(StoredSource))),
           );
-        const source = rows[0];
         if (!source)
           return yield* new FinanceError({ kind: "notFound", message: "Source file not found." });
         if (source.version !== input.expectedVersion)
@@ -69,7 +71,7 @@ const make = Effect.gen(function* () {
   return { list, remove };
 });
 export class SourceFiles extends Context.Service<SourceFiles, Effect.Success<typeof make>>()(
-  "@repo/api/SourceFiles",
+  "@repo/api/sources/SourceFiles",
 ) {
   static readonly layer = Layer.effect(SourceFiles, make);
 }

@@ -9,9 +9,10 @@ import {
 } from "@repo/contracts/finance";
 import { Context, Effect, Layer, Schema } from "effect";
 
-import { databaseUnavailable } from "../database/commands.ts";
-import { postingFields } from "./fields.ts";
+import { postingFields } from "../database/columns.ts";
+import { toFinanceError } from "../database/failures.ts";
 
+const pageSize = 50;
 export class Postings extends Context.Service<
   Postings,
   {
@@ -54,44 +55,38 @@ export class Postings extends Context.Service<
             sql`(p.posted_on, p.id) < (${cursor.postedOn}::date, ${cursor.id}::uuid)`,
           );
         const rows =
-          yield* sql`SELECT ${fields} FROM postings p JOIN accounts a ON a.id = p.account_id WHERE ${sql.and(predicates)} ORDER BY p.posted_on DESC, p.id DESC LIMIT 51`.pipe(
+          yield* sql`SELECT ${fields} FROM postings p JOIN accounts a ON a.id = p.account_id WHERE ${sql.and(predicates)} ORDER BY p.posted_on DESC, p.id DESC LIMIT ${pageSize + 1}`.pipe(
             Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Posting))),
           );
-        const page = rows.slice(0, 50);
+        const page = rows.slice(0, pageSize);
         const last = page.at(-1);
         return {
           rows: page,
-          nextCursor: rows.length > 50 && last ? { postedOn: last.postedOn, id: last.id } : null,
+          nextCursor:
+            rows.length > pageSize && last ? { postedOn: last.postedOn, id: last.id } : null,
         };
-      }, Effect.mapError(databaseUnavailable));
-      const get = Effect.fn("Postings.get")(
-        function* ({ postingId }: typeof PostingInput.Type) {
-          return yield* sql.withTransaction(
-            Effect.gen(function* () {
-              yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
-              const postings =
-                yield* sql`SELECT ${fields} FROM postings p JOIN accounts a ON a.id = p.account_id WHERE p.id = ${postingId}`.pipe(
-                  Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Posting))),
-                );
-              const posting = postings[0];
-              if (!posting)
-                return yield* new FinanceError({
-                  kind: "notFound",
-                  message: "Transaction not found.",
-                });
-              const evidence =
-                yield* sql`SELECT o.id, s.id AS "sourceFileId", s.file_name AS "fileName", s.bytes_available AS "bytesAvailable", o.locator, o.raw, o.candidate, o.match_method AS "matchMethod" FROM observations o JOIN source_files s ON s.id = o.source_file_id WHERE o.posting_id = ${postingId} ORDER BY s.uploaded_at, o.locator_key`.pipe(
-                  Effect.flatMap(Schema.decodeUnknownEffect(PostingDetail.fields.evidence)),
-                );
-              return { posting, evidence };
-            }),
-          );
-        },
-        Effect.catchTags({
-          SqlError: () => Effect.fail(databaseUnavailable()),
-          SchemaError: () => Effect.fail(databaseUnavailable()),
-        }),
-      );
+      }, toFinanceError);
+      const get = Effect.fn("Postings.get")(function* ({ postingId }: typeof PostingInput.Type) {
+        return yield* sql.withTransaction(
+          Effect.gen(function* () {
+            yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
+            const [posting] =
+              yield* sql`SELECT ${fields} FROM postings p JOIN accounts a ON a.id = p.account_id WHERE p.id = ${postingId}`.pipe(
+                Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Posting))),
+              );
+            if (!posting)
+              return yield* new FinanceError({
+                kind: "notFound",
+                message: "Transaction not found.",
+              });
+            const evidence =
+              yield* sql`SELECT o.id, s.id AS "sourceFileId", s.file_name AS "fileName", s.bytes_available AS "bytesAvailable", o.locator, o.raw, o.candidate, o.match_method AS "matchMethod" FROM observations o JOIN source_files s ON s.id = o.source_file_id WHERE o.posting_id = ${postingId} ORDER BY s.uploaded_at, o.locator_key`.pipe(
+                Effect.flatMap(Schema.decodeUnknownEffect(PostingDetail.fields.evidence)),
+              );
+            return { posting, evidence };
+          }),
+        );
+      }, toFinanceError);
       return Postings.of({ list, get });
     }),
   );

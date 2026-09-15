@@ -37,47 +37,44 @@ export class TemporaryExports extends Context.Service<
     Layer.effect(TemporaryExports, bucketService(client));
 }
 
-interface ImportJobClient {
-  readonly start: (input: {
-    importId: typeof ImportId.Type;
-    instanceId: string;
-  }) => Effect.Effect<void, FinanceError, RuntimeContext>;
+export interface WorkflowState {
+  readonly status: string;
+  readonly failure: string | null;
+}
+export const workflowEnded = (state: WorkflowState) =>
+  state.status === "errored" || state.status === "terminated" || state.status === "complete";
+
+interface JobClient<Start> {
+  readonly start: (input: Start) => Effect.Effect<void, FinanceError, RuntimeContext>;
   readonly status: (input: {
     instanceId: string;
-  }) => Effect.Effect<{ status: string; failure: string | null }, FinanceError, RuntimeContext>;
+  }) => Effect.Effect<WorkflowState, FinanceError, RuntimeContext>;
 }
-const importJobs = Effect.fn("ImportJobs.initialize")(function* (client: ImportJobClient) {
-  const runtime = yield* RuntimeContext;
-  const provide = Effect.provideService(RuntimeContext, runtime);
-  return {
-    start: (input: Parameters<ImportJobClient["start"]>[0]) => client.start(input).pipe(provide),
-    status: (input: Parameters<ImportJobClient["status"]>[0]) => client.status(input).pipe(provide),
-  };
-});
+const jobService = <Start>(client: JobClient<Start>) =>
+  Effect.gen(function* () {
+    const runtime = yield* RuntimeContext;
+    const provide = Effect.provideService(RuntimeContext, runtime);
+    return {
+      start: (input: Start) => client.start(input).pipe(provide),
+      status: (input: { instanceId: string }) => client.status(input).pipe(provide),
+    };
+  });
+
 export class ImportJobs extends Context.Service<
   ImportJobs,
-  Effect.Success<ReturnType<typeof importJobs>>
+  Effect.Success<
+    ReturnType<typeof jobService<{ importId: typeof ImportId.Type; instanceId: string }>>
+  >
 >()("@repo/api/platform/ImportJobs") {
-  static readonly layer = (client: ImportJobClient) => Layer.effect(ImportJobs, importJobs(client));
+  static readonly layer = (
+    client: JobClient<{ importId: typeof ImportId.Type; instanceId: string }>,
+  ) => Layer.effect(ImportJobs, jobService(client));
 }
 
-interface ExportJobClient {
-  readonly start: (input: {
-    exportId: typeof ExportId.Type;
-  }) => Effect.Effect<void, FinanceError, RuntimeContext>;
-  readonly status: ImportJobClient["status"];
-}
-const exportJobs = Effect.fn("ExportJobs.initialize")(function* (client: ExportJobClient) {
-  const runtime = yield* RuntimeContext;
-  const provide = Effect.provideService(RuntimeContext, runtime);
-  return {
-    start: (input: Parameters<ExportJobClient["start"]>[0]) => client.start(input).pipe(provide),
-    status: (input: Parameters<ExportJobClient["status"]>[0]) => client.status(input).pipe(provide),
-  };
-});
 export class ExportJobs extends Context.Service<
   ExportJobs,
-  Effect.Success<ReturnType<typeof exportJobs>>
+  Effect.Success<ReturnType<typeof jobService<{ exportId: typeof ExportId.Type }>>>
 >()("@repo/api/platform/ExportJobs") {
-  static readonly layer = (client: ExportJobClient) => Layer.effect(ExportJobs, exportJobs(client));
+  static readonly layer = (client: JobClient<{ exportId: typeof ExportId.Type }>) =>
+    Layer.effect(ExportJobs, jobService(client));
 }

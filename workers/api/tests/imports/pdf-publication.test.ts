@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import { URL } from "node:url";
 
+import { parsePdf } from "@repo/processor/imports";
 import { Effect } from "effect";
 import { expect } from "vitest";
 
-import { parsePdf } from "../../../processor/src/imports/pdf/index.ts";
 import { Accounts } from "../../src/accounts/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Postings } from "../../src/postings/service.ts";
@@ -68,7 +68,7 @@ test(
     expect(summary.newPostings).toBe(2);
     expect(summary.reviewItems).toBe(1);
     const reviews = yield* Reviews;
-    const questions = yield* reviews.list();
+    const questions = (yield* reviews.list()).rows;
     expect(questions[0]).toMatchObject({
       kind: "value",
       sourceFileId: input.sourceFileId,

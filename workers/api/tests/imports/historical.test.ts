@@ -3,12 +3,10 @@ import { URL } from "node:url";
 
 import { PgClient } from "@effect/sql-pg";
 import { CommandId, type ParsedFile, type SourceFormat } from "@repo/contracts/finance";
+import { parseCsv, parseOfx, parsePdf } from "@repo/processor/imports";
 import { Crypto, Effect, Schema } from "effect";
 import { expect } from "vitest";
 
-import { parseCsv } from "../../../processor/src/imports/csv.ts";
-import { parseOfx } from "../../../processor/src/imports/ofx.ts";
-import { parsePdf } from "../../../processor/src/imports/pdf/index.ts";
 import { Accounts } from "../../src/accounts/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { applicationTest } from "../support/application.ts";

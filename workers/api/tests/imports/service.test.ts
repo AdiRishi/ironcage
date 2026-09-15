@@ -5,8 +5,7 @@ import { Crypto, Effect } from "effect";
 import { Layer } from "effect";
 import { expect } from "vitest";
 
-import { Imports } from "../../src/imports/operations.ts";
-import { ImportRepository } from "../../src/imports/repository.ts";
+import { Imports } from "../../src/imports/service.ts";
 import { ImportJobs } from "../../src/platform/services.ts";
 import { applicationTest } from "../support/application.ts";
 import { account, reset, source } from "../support/fixtures.ts";
@@ -21,8 +20,7 @@ test(
     const file = yield* source(owner.id);
     yield* sql`UPDATE imports SET status = 'failed', workflow_instance_id = 'old' WHERE id = ${file.importId}`;
     const imports = yield* Imports;
-    const repository = yield* ImportRepository;
-    const item = yield* repository.get(file);
+    const item = yield* imports.get(file);
     const input = {
       ...file,
       commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
@@ -31,7 +29,7 @@ test(
     const first = yield* imports.retry(input);
     expect(first.status).toBe("processing");
     expect(yield* imports.retry(input)).toEqual(first);
-    yield* repository.fail({
+    yield* imports.fail({
       importId: file.importId,
       instanceId: "old",
       failure: { message: "Late failure" },
@@ -44,11 +42,10 @@ test(
       })
       .pipe(Effect.flip);
     expect(stale.kind).toBe("stale");
-    expect(yield* repository.get(file)).toEqual(first);
+    expect(yield* imports.get(file)).toEqual(first);
   }).pipe(
     Effect.provide(
       Imports.layer.pipe(
-        Layer.provideMerge(ImportRepository.layer),
         Layer.provide(
           Layer.succeed(ImportJobs, {
             start: () => Effect.void,
@@ -76,7 +73,6 @@ test(
   }).pipe(
     Effect.provide(
       Imports.layer.pipe(
-        Layer.provideMerge(ImportRepository.layer),
         Layer.provide(
           Layer.succeed(ImportJobs, {
             start: () => Effect.void,

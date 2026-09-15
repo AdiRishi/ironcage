@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tests",
     "test": "vitest run"
   },
@@ -23,6 +22,7 @@
     "@effect/platform-node": "catalog:",
     "@effect/vitest": "catalog:",
     "@repo/infra": "workspace:*",
+    "@repo/processor": "workspace:*",
     "@repo/tsconfig": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",

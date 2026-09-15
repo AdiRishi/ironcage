@@ -2,7 +2,8 @@ import { PgClient } from "@effect/sql-pg";
 import { FinanceError, Settings as SettingsValue, UpdateSettings } from "@repo/contracts/finance";
 import { Context, Effect, Layer, Schema } from "effect";
 
-import { Commands, databaseUnavailable } from "../database/commands.ts";
+import { Commands } from "../database/commands.ts";
+import { toFinanceError } from "../database/failures.ts";
 
 export class Settings extends Context.Service<
   Settings,
@@ -18,11 +19,13 @@ export class Settings extends Context.Service<
     Effect.gen(function* () {
       const sql = yield* PgClient.PgClient;
       const commands = yield* Commands;
-      const get = Effect.gen(function* () {
-        const rows =
-          yield* sql`SELECT timezone, reporting_currency AS "reportingCurrency", version FROM settings WHERE id = 1`;
-        return yield* Schema.decodeUnknownEffect(SettingsValue)(rows[0]);
-      }).pipe(Effect.mapError(databaseUnavailable), Effect.withSpan("Settings.get"));
+      const get =
+        sql`SELECT timezone, reporting_currency AS "reportingCurrency", version FROM settings WHERE id = 1`.pipe(
+          Effect.flatMap(Schema.decodeUnknownEffect(Schema.Tuple([SettingsValue]))),
+          Effect.map(([settings]) => settings),
+          toFinanceError,
+          Effect.withSpan("Settings.get"),
+        );
       const update = Effect.fn("Settings.update")(function* (input: typeof UpdateSettings.Type) {
         return yield* commands.run({
           commandId: input.commandId,

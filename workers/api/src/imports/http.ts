@@ -2,28 +2,25 @@ import { AccountId, FinanceError, SourceFileInput } from "@repo/contracts/financ
 import { Effect, Layer, Schema, Stream } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 
+import { failureResponse } from "../http.ts";
 import { Uploads } from "./uploads.ts";
 
+const maximumFileSize = 10 * 1024 * 1024;
 const FileUpload = Schema.instanceOf(File).check(
-  Schema.makeFilter((file) => file.size > 0 && file.size <= 10 * 1024 * 1024),
+  Schema.makeFilter((file) => file.size > 0 && file.size <= maximumFileSize),
 );
 const invalid = () =>
   new FinanceError({
     kind: "invalid",
     message: "Choose a non-empty bank file of 10 MB or smaller.",
   });
-const failureResponse = (error: FinanceError) =>
-  HttpServerResponse.jsonUnsafe(
-    { code: error.kind, message: error.message },
-    { status: error.kind === "invalid" ? 400 : error.kind === "notFound" ? 404 : 503 },
-  );
 const upload = Effect.gen(function* () {
   const request = yield* HttpServerRequest.HttpServerRequest;
   let size = 0;
   const chunks = yield* request.stream.pipe(
     Stream.mapEffect((chunk) => {
       size += chunk.byteLength;
-      return size > 10 * 1024 * 1024 + 16 * 1024
+      return size > maximumFileSize + 16 * 1024
         ? Effect.fail(invalid())
         : Effect.succeed(new Uint8Array(chunk));
     }),
@@ -58,13 +55,12 @@ const download = Effect.gen(function* () {
       () => new FinanceError({ kind: "invalid", message: "Invalid source file ID." }),
     ),
   );
-  const { fileName, object } = yield* Uploads.use((uploads) => uploads.download(input));
+  const { fileName, mediaType, object } = yield* Uploads.use((uploads) => uploads.download(input));
+  const inline = mediaType === "application/pdf";
   return HttpServerResponse.stream(object.body, {
     headers: {
-      "content-type": fileName.toLowerCase().endsWith(".pdf")
-        ? "application/pdf"
-        : "application/octet-stream",
-      "content-disposition": `${fileName.toLowerCase().endsWith(".pdf") ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+      "content-type": mediaType,
+      "content-disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(fileName)}`,
       "cache-control": "private, no-store",
     },
   });

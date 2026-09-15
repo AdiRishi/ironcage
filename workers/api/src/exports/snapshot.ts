@@ -1,6 +1,8 @@
-import { PgClient } from "@effect/sql-pg";
+import type { PgClient } from "@effect/sql-pg";
 import { SourceFileId } from "@repo/contracts/finance";
 import { Effect, Schema } from "effect";
+
+import { instant } from "../database/columns.ts";
 
 const Column = Schema.Struct({ table: Schema.String, name: Schema.String, type: Schema.String });
 const TableData = Schema.Struct({ json: Schema.String, count: Schema.Int });
@@ -11,13 +13,12 @@ const Source = Schema.Struct({
   bytesAvailable: Schema.Boolean,
 });
 
-export const takeSnapshot = Effect.fn("Exports.snapshot")(function* () {
-  const sql = yield* PgClient.PgClient;
+export const takeSnapshot = Effect.fn("Exports.snapshot")(function* (sql: PgClient.PgClient) {
   return yield* sql.withTransaction(
     Effect.gen(function* () {
       yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY`;
       const times =
-        yield* sql`SELECT to_char(transaction_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS instant`.pipe(
+        yield* sql`SELECT ${instant(sql, sql`transaction_timestamp()`)} AS instant`.pipe(
           Effect.flatMap(
             Schema.decodeUnknownEffect(Schema.Tuple([Schema.Struct({ instant: Schema.String })])),
           ),
@@ -40,7 +41,7 @@ export const takeSnapshot = Effect.fn("Exports.snapshot")(function* () {
                     : column.type === "date"
                       ? sql`to_char(${field}, 'YYYY-MM-DD')`
                       : column.type === "timestamp with time zone"
-                        ? sql`to_char(${field} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`
+                        ? instant(sql, field)
                         : field;
                 return sql`${value} AS ${field}`;
               });

@@ -2,7 +2,7 @@ import { PgClient } from "@effect/sql-pg";
 import { Effect, Layer } from "effect";
 import { expect } from "vitest";
 
-import { Models } from "../../src/models/usage.ts";
+import { Models } from "../../src/models/service.ts";
 import { applicationTest } from "../support/application.ts";
 
 const { test, services } = applicationTest();
