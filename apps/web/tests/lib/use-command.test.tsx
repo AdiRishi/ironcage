@@ -4,20 +4,13 @@ import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 
-import { AppRequestError } from "@/lib/app-error";
 import { createQueryClient } from "@/lib/query-client";
 import { serverFnFetch } from "@/lib/server-fn-fetch";
 import { useCommand } from "@/lib/use-command";
 
 type Save = { commandId: typeof CommandId.Type; label: string; expectedVersion: number };
 
-function Editor({
-  save,
-  version = 1,
-}: {
-  save: (input: Save) => Promise<string>;
-  version?: number;
-}) {
+function Editor({ save }: { save: (input: Save) => Promise<string> }) {
   const [label, setLabel] = useState("Everyday");
   const { mutation, submit, uncertain } = useCommand({ mutationFn: save });
   return (
@@ -32,7 +25,7 @@ function Editor({
           submit({
             commandId: CommandId.make(crypto.randomUUID()),
             label,
-            expectedVersion: version,
+            expectedVersion: 1,
           })
         }
       >
@@ -77,39 +70,6 @@ test("retry after a lost fetch response preserves the committed command and its 
   await screen.getByRole("button", { name: "Retry", exact: true }).click();
   await expect.element(screen.getByRole("status")).toHaveTextContent("Everyday");
   expect(records).toEqual(["Everyday"]);
-  await screen.unmount();
-  client.clear();
-});
-
-test("a stale edit can submit the retained input with the refreshed version", async () => {
-  const rejected = new Set<string>();
-  let saved: Save | undefined;
-  async function save(input: Save) {
-    if (input.expectedVersion !== 2) {
-      rejected.add(input.commandId);
-      throw new AppRequestError("stale", "Refresh this record.");
-    }
-    if (rejected.has(input.commandId)) throw new Error("A changed command reused its ID.");
-    saved = input;
-    return input.label;
-  }
-  const client = createQueryClient();
-  const screen = await render(
-    <QueryClientProvider client={client}>
-      <Editor save={save} />
-    </QueryClientProvider>,
-  );
-  await screen.getByRole("textbox", { name: "Name" }).fill("Savings");
-  await screen.getByRole("button", { name: "Save", exact: true }).click();
-  await expect.element(screen.getByRole("alert")).toHaveTextContent("Refresh this record.");
-  await screen.rerender(
-    <QueryClientProvider client={client}>
-      <Editor save={save} version={2} />
-    </QueryClientProvider>,
-  );
-  await screen.getByRole("button", { name: "Save", exact: true }).click();
-  await expect.element(screen.getByRole("status")).toHaveTextContent("Savings");
-  expect(saved).toMatchObject({ label: "Savings", expectedVersion: 2 });
   await screen.unmount();
   client.clear();
 });

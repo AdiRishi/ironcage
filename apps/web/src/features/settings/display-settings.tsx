@@ -2,12 +2,14 @@ import { CommandId, type Settings, UpdateSettings } from "@repo/contracts/financ
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { Schema, Struct } from "effect";
+import { useState } from "react";
 
-import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AppRequestError } from "@/lib/app-error";
 import { useCommand } from "@/lib/use-command";
 
 import { updateSettings } from "./functions";
@@ -21,19 +23,29 @@ const timezones = [
   "UTC",
 ];
 export function DisplaySettings({ settings }: { settings: Settings }) {
+  const [baseline, setBaseline] = useState(settings);
   const client = useQueryClient();
   const { mutation, submit, uncertain } = useCommand({
     mutationFn: (data: typeof UpdateSettings.Type) => updateSettings({ data }),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["settings"] }),
+    onError: async (error) => {
+      if (error instanceof AppRequestError && error.code === "stale")
+        await client.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onSuccess: async (saved) => {
+      setBaseline(saved);
+      form.reset({ timezone: saved.timezone, reportingCurrency: saved.reportingCurrency });
+      await client.invalidateQueries({ queryKey: ["settings"] });
+    },
   });
+  const stale = mutation.error instanceof AppRequestError && mutation.error.code === "stale";
   const form = useForm({
-    defaultValues: { timezone: settings.timezone, reportingCurrency: settings.reportingCurrency },
+    defaultValues: { timezone: baseline.timezone, reportingCurrency: baseline.reportingCurrency },
     validators: { onSubmit: Schema.toStandardSchemaV1(Fields) },
     onSubmit: ({ value }) =>
       submit({
         commandId: CommandId.make(crypto.randomUUID()),
         ...value,
-        expectedVersion: settings.version,
+        expectedVersion: baseline.version,
       }),
   });
   return (
@@ -90,20 +102,27 @@ export function DisplaySettings({ settings }: { settings: Settings }) {
       {mutation.error && (
         <Alert variant="destructive">
           <AlertDescription>{mutation.error.message}</AlertDescription>
-          {!uncertain && (
-            <AlertAction>
+          {stale && (
+            <AlertDescription>
+              Current settings: {settings.timezone} · {settings.reportingCurrency}. Your edits are
+              still in the form.
+            </AlertDescription>
+          )}
+          {stale && (
+            <div className="mt-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                disabled={settings.version === baseline.version}
                 onClick={() => {
+                  setBaseline(settings);
                   mutation.reset();
-                  client.invalidateQueries({ queryKey: ["settings"] }).catch(reportError);
                 }}
               >
-                Refresh
+                Keep my edits
               </Button>
-            </AlertAction>
+            </div>
           )}
         </Alert>
       )}
