@@ -53,6 +53,47 @@ const { test, beforeAll, afterAll, deploy, destroy } = Test.make({
 const stack = beforeAll(deploy(Stack), { timeout: 600_000 });
 afterAll(destroy(Stack), { timeout: 600_000 });
 
+const importSyntheticCsv = Effect.fn("importSyntheticCsv")(function* (
+  url: string,
+  apiUrl: string,
+  name: string,
+) {
+  yield* waitForWorker(url);
+  const account = yield* HttpClient.post(`${url}/accounts`, {
+    body: HttpBody.jsonUnsafe({
+      commandId: yield* randomUUID,
+      label: name,
+      kind: "deposit",
+      currency: "AUD",
+    }),
+  }).pipe(
+    Effect.flatMap((response) => response.json),
+    Effect.flatMap(Schema.decodeUnknownEffect(Account)),
+  );
+  const csv = `02/09/2026,-4.50,${name} coffee,100.00\n02/09/2026,-4.50,${name} coffee,104.50\n01/09/2026,+109.00,${name} deposit,109.00\n`;
+  const body = new FormData();
+  body.set("accountId", account.id);
+  body.set("file", new Blob([csv], { type: "text/csv" }), `${name}.csv`);
+  const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
+    body: HttpBody.formData(body),
+  }).pipe(
+    Effect.flatMap((response) => response.json),
+    Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
+  );
+  const completed = yield* HttpClient.get(`${url}/imports`).pipe(
+    Effect.flatMap((response) => response.json),
+    Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Import))),
+    Effect.map((imports) => imports.find((item) => item.id === upload.importId)),
+    Effect.repeat({
+      schedule: Schedule.spaced("300 millis"),
+      while: (item) => item?.status === "processing",
+    }),
+    Effect.timeout("30 seconds"),
+  );
+  expect(completed?.status).toBe("complete");
+  return { account, upload, csv };
+});
+
 test.skipIf(!live)(
   "Access rejects unauthenticated application, source, and export requests",
   Effect.gen(function* () {
@@ -331,6 +372,7 @@ test(
   Effect.gen(function* () {
     const { url, apiUrl } = yield* stack;
     yield* waitForWorker(url);
+    const fixture = yield* importSyntheticCsv(url, apiUrl, "export");
     const input = {
       commandId: yield* randomUUID,
       includeSources: true,
@@ -393,10 +435,47 @@ test(
     expect(Object.keys(archive).length).toBe(
       1 + manifest.tables.length + manifest.sources.filter((source) => source.path).length,
     );
-    const csv = manifest.sources.find((source) => source.fileName === "transactions.csv");
-    expect(csv?.path && new TextDecoder().decode(archive[csv.path])).toBe(
-      "02/09/2026,-4.50,Coffee,100.00\n02/09/2026,-4.50,Coffee,104.50\n01/09/2026,+109.00,Deposit,109.00\n",
+    const source = manifest.sources.find((item) => item.id === fixture.upload.sourceFileId);
+    expect(source?.path && new TextDecoder().decode(archive[source.path])).toBe(fixture.csv);
+    const postings = yield* Schema.decodeEffect(
+      Schema.fromJsonString(
+        Schema.Array(
+          Schema.Struct({
+            id: Schema.String,
+            account_id: Schema.String,
+            posted_on: Schema.String,
+            amount_minor: Schema.String,
+          }),
+        ),
+      ),
+    )(new TextDecoder().decode(archive["tables/postings.json"]));
+    const recorded = postings.filter((posting) => posting.account_id === fixture.account.id);
+    expect(
+      recorded
+        .map((posting) => ({ on: posting.posted_on, minor: posting.amount_minor }))
+        .sort((left, right) => left.on.localeCompare(right.on)),
+    ).toEqual([
+      { on: "2026-09-01", minor: "10900" },
+      { on: "2026-09-02", minor: "-450" },
+      { on: "2026-09-02", minor: "-450" },
+    ]);
+    const observations = yield* Schema.decodeEffect(
+      Schema.fromJsonString(
+        Schema.Array(
+          Schema.Struct({
+            import_id: Schema.String,
+            source_file_id: Schema.String,
+            posting_id: Schema.NullOr(Schema.String),
+          }),
+        ),
+      ),
+    )(new TextDecoder().decode(archive["tables/observations.json"]));
+    const evidence = observations.filter((row) => row.import_id === fixture.upload.importId);
+    expect(evidence).toHaveLength(3);
+    expect(evidence.map((row) => row.posting_id)).toEqual(
+      expect.arrayContaining(recorded.map((row) => row.id)),
     );
+    expect(evidence.every((row) => row.source_file_id === fixture.upload.sourceFileId)).toBe(true);
   }),
   { timeout: 120_000 },
 );
@@ -405,11 +484,12 @@ test(
   "removing and reuploading original bytes preserves postings and old commands cannot remove the replacement",
   Effect.gen(function* () {
     const { url, apiUrl } = yield* stack;
+    const { account, upload, csv } = yield* importSyntheticCsv(url, apiUrl, "removal");
     const files = yield* HttpClient.get(`${url}/source-files`).pipe(
       Effect.flatMap((response) => response.json),
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(SourceFile))),
     );
-    const file = files.find((source) => source.fileName === "transactions.csv");
+    const file = files.find((source) => source.id === upload.sourceFileId);
     if (!file) return yield* Effect.die("Missing synthetic CSV");
     const input = {
       commandId: yield* randomUUID,
@@ -427,16 +507,8 @@ test(
     }).pipe(Effect.flatMap((response) => response.json));
     expect(removed).toEqual({ sourceFileId: file.id, affectedPostingCount: 3 });
     expect((yield* HttpClient.get(`${apiUrl}/sources/${file.id}`)).status).toBe(404);
-    const imports = yield* HttpClient.get(`${url}/imports`).pipe(
-      Effect.flatMap((response) => response.json),
-      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Import))),
-    );
-    const accountId = imports.find((item) => item.id === file.importId)?.accountId;
-    if (!accountId) return yield* Effect.die("Missing synthetic account");
-    const csv =
-      "02/09/2026,-4.50,Coffee,100.00\n02/09/2026,-4.50,Coffee,104.50\n01/09/2026,+109.00,Deposit,109.00\n";
     const body = new FormData();
-    body.set("accountId", accountId);
+    body.set("accountId", account.id);
     body.set("file", new Blob([csv], { type: "text/csv" }), "restored.csv");
     const restored = yield* HttpClient.post(`${apiUrl}/uploads`, {
       body: HttpBody.formData(body),

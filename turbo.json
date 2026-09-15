@@ -21,8 +21,7 @@
     "typecheck": {
       "dependsOn": ["^typecheck"]
     },
-    "test": {},
-    "@repo/infra#test": {
+    "test": {
       "cache": false
     }
   }
