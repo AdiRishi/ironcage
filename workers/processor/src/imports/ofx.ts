@@ -5,12 +5,12 @@ import {
   FinanceError,
   type ParsedFile,
 } from "@repo/contracts/finance";
-import { nextCalendarDate, parseCalendarDate, parseMoney } from "@repo/finance";
+import { decodeEntities, nextCalendarDate, parseCalendarDate, parseMoney } from "@repo/finance";
 import { Effect, Schema } from "effect";
 import { parseSync } from "ofx-js";
 
 import { parseDescription } from "./description.ts";
-import { decodeCandidate, issue } from "./observation.ts";
+import { issue, observation } from "./observation.ts";
 
 const Fields = Schema.Record(Schema.String, Schema.String);
 const Transaction = Schema.Struct({
@@ -59,9 +59,6 @@ const date = Effect.fn("parseOfxDate")(function* (text: string) {
   );
   return yield* parseCalendarDate(`${text.slice(0, 4)}-${text.slice(4, 6)}-${text.slice(6, 8)}`);
 });
-const decodeEntities = (text: string) =>
-  text.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-
 export const parseOfx = Effect.fn("parseOfx")(function* (bytes: Uint8Array) {
   let text = new TextDecoder("windows-1252").decode(bytes);
   // CommBank emits empty SGML leaves and a CREDITLINE wrapper with mismatched tags.
@@ -101,44 +98,37 @@ export const parseOfx = Effect.fn("parseOfx")(function* (bytes: Uint8Array) {
   );
   const entries = statement.BANKTRANLIST.STMTTRN;
   const rows = entries === undefined ? [] : Array.isArray(entries) ? entries : [entries];
-  const observations = yield* Effect.forEach(
-    rows,
-    Effect.fn(function* (raw, index) {
-      const decoded = yield* decodeCandidate(
-        Effect.gen(function* () {
-          const row = yield* Schema.decodeUnknownEffect(Transaction)(raw).pipe(
-            Effect.mapError(issue("unsupportedLayout", "Required OFX transaction fields")),
-          );
-          const postedOn = yield* date(row.DTPOSTED).pipe(
-            Effect.mapError(issue("unreadableDate", row.DTPOSTED)),
-          );
-          const userDate = row.DTUSER
-            ? yield* date(row.DTUSER).pipe(Effect.mapError(issue("unreadableDate", row.DTUSER)))
-            : null;
-          const name = decodeEntities(row.NAME ?? "").trim();
-          const memo = decodeEntities(row.MEMO ?? "").trim();
-          const description = yield* parseDescription(
-            name && name !== memo ? `${name} ${memo}` : memo || name,
-          ).pipe(Effect.mapError(issue("unsupportedLayout", row.MEMO ?? row.NAME ?? "")));
-          return {
-            postedOn,
-            ...description,
-            valueOn: userDate && userDate !== postedOn ? userDate : description.valueOn,
-            amount: yield* parseMoney(row.TRNAMT, account.currency).pipe(
-              Effect.mapError(issue("unreadableAmount", row.TRNAMT)),
-            ),
-            balance: null,
-            bankId: row.FITID?.trim() || null,
-          };
-        }),
-      );
-      return {
-        locatorKey: `ofxTransaction:1:${index + 1}`,
-        locator: { kind: "ofxTransaction" as const, statement: 1, ordinal: index + 1 },
-        raw,
-        ...decoded,
-      };
-    }),
+  const observations = yield* Effect.forEach(rows, (raw, index) =>
+    observation(
+      { kind: "ofxTransaction", statement: 1, ordinal: index + 1 },
+      raw,
+      Effect.gen(function* () {
+        const row = yield* Schema.decodeUnknownEffect(Transaction)(raw).pipe(
+          Effect.mapError(issue("unsupportedLayout", "Required OFX transaction fields")),
+        );
+        const postedOn = yield* date(row.DTPOSTED).pipe(
+          Effect.mapError(issue("unreadableDate", row.DTPOSTED)),
+        );
+        const userDate = row.DTUSER
+          ? yield* date(row.DTUSER).pipe(Effect.mapError(issue("unreadableDate", row.DTUSER)))
+          : null;
+        const name = decodeEntities(row.NAME ?? "").trim();
+        const memo = decodeEntities(row.MEMO ?? "").trim();
+        const description = yield* parseDescription(
+          name && name !== memo ? `${name} ${memo}` : memo || name,
+        ).pipe(Effect.mapError(issue("unsupportedLayout", row.MEMO ?? row.NAME ?? "")));
+        return {
+          postedOn,
+          ...description,
+          valueOn: userDate && userDate !== postedOn ? userDate : description.valueOn,
+          amount: yield* parseMoney(row.TRNAMT, account.currency).pipe(
+            Effect.mapError(issue("unreadableAmount", row.TRNAMT)),
+          ),
+          balance: null,
+          bankId: row.FITID?.trim() || null,
+        };
+      }),
+    ),
   );
   const ledgerDate = yield* date(statement.LEDGERBAL.DTASOF);
   const metadata: ParsedFile["statement"]["raw"] = {

@@ -10,8 +10,12 @@ export const pdfDate = Effect.fn("pdfDate")(function* (
   period: { start: CalendarDate | null; end: CalendarDate | null },
 ) {
   const match = dated.exec(literal.trim());
-  if (!match) return yield* Effect.fail("Unreadable statement date");
-  const month = months.indexOf(match[2]!.slice(0, 3).toLowerCase()) + 1;
+  const month = match ? months.indexOf(match[2]!.slice(0, 3).toLowerCase()) + 1 : 0;
+  if (!match || month === 0)
+    return yield* new FinanceError({
+      kind: "invalid",
+      message: `Unreadable statement date: ${literal.trim()}`,
+    });
   const years = match[3]
     ? [match[3]]
     : [...new Set([period.start?.slice(0, 4), period.end?.slice(0, 4)])].filter(
@@ -28,7 +32,10 @@ export const pdfDate = Effect.fn("pdfDate")(function* (
     )
       return result.success;
   }
-  return yield* Effect.fail("Statement date is outside its printed period");
+  return yield* new FinanceError({
+    kind: "invalid",
+    message: `Statement date outside the printed period: ${literal.trim()}`,
+  });
 });
 export const pdfMoney = Effect.fn("pdfMoney")(function* (
   literal: string,

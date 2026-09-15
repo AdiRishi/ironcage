@@ -1,56 +1,42 @@
 import { ExportInput, FinanceError, ImportId } from "@repo/contracts/finance";
 import type { processorBindings } from "@repo/infra/worker-bindings";
+import type { WorkflowInstanceStatus } from "alchemy/Cloudflare/Workflows";
 import { Effect } from "effect";
+
+// Native Workflow bindings report failures as defects; callers see `unavailable`.
+const unavailable = (message: string) =>
+  Effect.catchDefect(() => Effect.fail(new FinanceError({ kind: "unavailable", message })));
+const describe = (instance: WorkflowInstanceStatus) => ({
+  status: instance.status,
+  failure: instance.error?.message ?? null,
+});
 
 export const processor = (bindings: Effect.Success<ReturnType<typeof processorBindings>>) =>
   Effect.succeed({
-    startExport: Effect.fn("Processor.startExport")(
-      function* (input: typeof ExportInput.Type) {
-        yield* bindings.exports.createBatch([{ id: input.exportId, params: input }]);
-      },
-      Effect.catchDefect(() =>
-        Effect.fail(
-          new FinanceError({
-            kind: "unavailable",
-            message: "Export processing could not start. Request a new export.",
-          }),
-        ),
-      ),
-    ),
-    getExportInstance: Effect.fn("Processor.getExportInstance")(
-      function* ({ instanceId }: { instanceId: string }) {
-        const result = yield* (yield* bindings.exports.get(instanceId)).status();
-        return { status: result.status, failure: result.error?.message ?? null };
-      },
-      Effect.catchDefect(() =>
-        Effect.fail(
-          new FinanceError({ kind: "unavailable", message: "Export status is unavailable." }),
-        ),
-      ),
-    ),
-    startImport: Effect.fn("Processor.startImport")(
-      function* ({ importId, instanceId }: { importId: typeof ImportId.Type; instanceId: string }) {
-        yield* bindings.imports.createBatch([{ id: instanceId, params: { importId, instanceId } }]);
-      },
-      Effect.catchDefect(() =>
-        Effect.fail(
-          new FinanceError({
-            kind: "unavailable",
-            message: "Import processing could not start. Retry the import.",
-          }),
-        ),
-      ),
-    ),
-    getImportInstance: Effect.fn("Processor.getImportInstance")(
-      function* ({ instanceId }: { instanceId: string }) {
-        const instance = yield* bindings.imports.get(instanceId);
-        const result = yield* instance.status();
-        return { status: result.status, failure: result.error?.message ?? null };
-      },
-      Effect.catchDefect(() =>
-        Effect.fail(
-          new FinanceError({ kind: "unavailable", message: "Import status is unavailable." }),
-        ),
-      ),
-    ),
+    startExport: Effect.fn("Processor.startExport")(function* (input: typeof ExportInput.Type) {
+      yield* bindings.exports.createBatch([{ id: input.exportId, params: input }]);
+    }, unavailable("Export processing could not start. Request a new export.")),
+    getExportInstance: Effect.fn("Processor.getExportInstance")(function* ({
+      instanceId,
+    }: {
+      instanceId: string;
+    }) {
+      return describe(yield* (yield* bindings.exports.get(instanceId)).status());
+    }, unavailable("Export status is unavailable.")),
+    startImport: Effect.fn("Processor.startImport")(function* ({
+      importId,
+      instanceId,
+    }: {
+      importId: typeof ImportId.Type;
+      instanceId: string;
+    }) {
+      yield* bindings.imports.createBatch([{ id: instanceId, params: { importId, instanceId } }]);
+    }, unavailable("Import processing could not start. Retry the import.")),
+    getImportInstance: Effect.fn("Processor.getImportInstance")(function* ({
+      instanceId,
+    }: {
+      instanceId: string;
+    }) {
+      return describe(yield* (yield* bindings.imports.get(instanceId)).status());
+    }, unavailable("Import status is unavailable.")),
   });

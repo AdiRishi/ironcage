@@ -15,10 +15,8 @@ it.effect(
   () =>
     Effect.gen(function* () {
       const error = yield* parsePdf(fixture("card-invalid-period")).pipe(Effect.flip);
-      expect(error).toMatchObject({
-        kind: "invalid",
-        message: "The statement metadata could not be decoded.",
-      });
+      expect(error.kind).toBe("invalid");
+      expect(error.message).toMatch(/Unreadable statement date/);
     }),
 );
 
