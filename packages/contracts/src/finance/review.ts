@@ -6,6 +6,7 @@ import {
   AccountId,
   CommandId,
   ImportId,
+  Instant,
   ObservationId,
   PostingId,
   ReviewItemId,
@@ -72,8 +73,8 @@ export const ReviewItem = Schema.Struct({
   observations: Schema.Array(ReviewObservation),
   candidates: Schema.Array(ReviewCandidate),
   version: Version,
-  createdAt: Schema.String,
-  resolvedAt: Schema.NullOr(Schema.String),
+  createdAt: Instant,
+  resolvedAt: Schema.NullOr(Instant),
   resolution: Schema.NullOr(ReviewResolution),
 });
 export type ReviewItem = typeof ReviewItem.Type;
@@ -88,3 +89,8 @@ export const ListReviewItems = Schema.Struct({
   importId: Schema.optionalKey(ImportId),
   cursor: Schema.optionalKey(RecordCursor),
 });
+export const ReviewPage = Schema.Struct({
+  rows: Schema.Array(ReviewItem),
+  nextCursor: Schema.NullOr(RecordCursor),
+});
+export type ReviewPage = typeof ReviewPage.Type;

@@ -1,19 +1,22 @@
 import { FinanceError, type Money } from "@repo/contracts/finance";
-import { Effect, Schema } from "effect";
+import { Effect } from "effect";
 
-const currencyExponent = (currency: string) =>
-  new Intl.NumberFormat("en", { style: "currency", currency })
-    .formatToParts(0n)
-    .find((part) => part.type === "fraction")?.value.length ?? 0;
-
-const Decimal = Schema.String.check(Schema.isPattern(/^[+-]?\d+(?:\.\d+)?$/));
+const exponents = new Map<string, number>();
+const currencyExponent = (currency: string) => {
+  let exponent = exponents.get(currency);
+  if (exponent === undefined) {
+    exponent =
+      new Intl.NumberFormat("en", { style: "currency", currency })
+        .formatToParts(0n)
+        .find((part) => part.type === "fraction")?.value.length ?? 0;
+    exponents.set(currency, exponent);
+  }
+  return exponent;
+};
 
 export const parseMoney = Effect.fn("parseMoney")(function* (text: string, currency: string) {
-  yield* Schema.decodeEffect(Decimal)(text).pipe(
-    Effect.mapError(
-      () => new FinanceError({ kind: "invalid", message: "Invalid decimal amount." }),
-    ),
-  );
+  if (!/^[+-]?\d+(?:\.\d+)?$/.test(text))
+    return yield* new FinanceError({ kind: "invalid", message: "Invalid decimal amount." });
   const exponent = currencyExponent(currency);
   const negative = text.startsWith("-");
   const unsigned = text.replace(/^[+-]/, "");

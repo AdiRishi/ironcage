@@ -1,10 +1,10 @@
-import { AppRequestError } from "@repo/contracts/app";
 import { CommandId } from "@repo/contracts/finance";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 
+import { AppRequestError } from "@/lib/app-error";
 import { createQueryClient } from "@/lib/query-client";
 import { serverFnFetch } from "@/lib/server-fn-fetch";
 import { useCommand } from "@/lib/use-command";

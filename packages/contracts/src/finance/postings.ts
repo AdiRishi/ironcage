@@ -6,6 +6,7 @@ import {
   CalendarDate,
   Currency,
   ImportId,
+  MatchMethod,
   Money,
   ObservationId,
   PostingId,
@@ -55,6 +56,6 @@ export const Evidence = Schema.Struct({
   ...SourceReference.fields,
   raw: Schema.Record(Schema.String, Schema.String),
   candidate: Schema.NullOr(Candidate),
-  matchMethod: Schema.NullOr(Schema.String),
+  matchMethod: Schema.NullOr(MatchMethod),
 });
 export const PostingDetail = Schema.Struct({ posting: Posting, evidence: Schema.Array(Evidence) });

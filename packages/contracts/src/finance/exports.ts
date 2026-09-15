@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { CommandId, SourceFileId } from "./values.ts";
+import { CommandId, Instant, SourceFileId } from "./values.ts";
 
 export const ExportId = Schema.String.check(Schema.isUUID()).pipe(Schema.brand("ExportId"));
 export const ExportInput = Schema.Struct({ exportId: ExportId });
@@ -10,7 +10,7 @@ export const RequestExport = Schema.Struct({
 });
 export const ExportManifest = Schema.Struct({
   formatVersion: Schema.Literal(1),
-  snapshotAt: Schema.String,
+  snapshotAt: Instant,
   includeSources: Schema.Boolean,
   tables: Schema.Array(
     Schema.Struct({ name: Schema.String, path: Schema.String, count: Schema.Int }),
@@ -29,8 +29,8 @@ export const ExportRecord = Schema.Struct({
   status: Schema.Literals(["processing", "ready", "failed"]),
   includeSources: Schema.Boolean,
   manifest: Schema.NullOr(ExportManifest),
-  expiresAt: Schema.NullOr(Schema.String),
+  expiresAt: Schema.NullOr(Instant),
   failure: Schema.NullOr(Schema.Struct({ message: Schema.String })),
-  requestedAt: Schema.String,
+  requestedAt: Instant,
 });
 export type ExportRecord = typeof ExportRecord.Type;

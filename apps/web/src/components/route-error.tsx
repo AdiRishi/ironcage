@@ -1,5 +1,6 @@
-import { AppRequestError } from "@repo/contracts/app";
 import { type ErrorComponentProps, useRouter } from "@tanstack/react-router";
+
+import { AppRequestError } from "@/lib/app-error";
 
 import { Button } from "./ui/button";
 

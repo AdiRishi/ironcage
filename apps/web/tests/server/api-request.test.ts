@@ -1,9 +1,9 @@
-import { AppRequestError } from "@repo/contracts/app";
 import { isCancelledError } from "@tanstack/react-query";
 import { makeRpcStub } from "alchemy/Cloudflare/Bridge";
 import { Effect } from "effect";
 import { expect, test } from "vitest";
 
+import { AppRequestError } from "@/lib/app-error";
 import { createQueryClient } from "@/lib/query-client";
 import { runApiRequest } from "@/server/api-request";
 

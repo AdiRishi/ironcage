@@ -1,5 +1,26 @@
-import type { Candidate, ObservationId, PostingId, SourceFileId } from "@repo/contracts/finance";
+import {
+  Candidate,
+  type MatchMethod,
+  type ObservationId,
+  PostingId,
+  SourceFileId,
+  Statement,
+} from "@repo/contracts/finance";
+import { Schema } from "effect";
 
+export const MatchingPosting = Schema.Struct({
+  id: PostingId,
+  candidate: Candidate,
+  evidence: Schema.Array(
+    Schema.Struct({
+      sourceFileId: SourceFileId,
+      locatorKey: Schema.String,
+      order: Statement.fields.order,
+      candidate: Candidate,
+    }),
+  ),
+});
+export type MatchingPosting = typeof MatchingPosting.Type;
 export interface MatchingObservation {
   readonly id: typeof ObservationId.Type;
   readonly locatorKey: string;
@@ -9,29 +30,18 @@ export interface MatchingObservation {
     | { readonly kind: "distinct" }
     | null;
 }
-export interface MatchingPosting {
-  readonly id: typeof PostingId.Type;
-  readonly candidate: Candidate;
-  readonly evidence: ReadonlyArray<{
-    readonly sourceFileId: typeof SourceFileId.Type;
-    readonly locatorKey: string;
-    readonly order: "ascending" | "descending";
-    readonly candidate: Candidate;
-  }>;
-}
-export type MatchMethod = "sameRow" | "bankId" | "group" | "corroborated" | "user";
 export type MatchAssignment =
   | {
       readonly observationId: typeof ObservationId.Type;
       readonly postingId: typeof PostingId.Type;
-      readonly method: MatchMethod;
+      readonly method: Exclude<MatchMethod, "new">;
     }
   | {
       readonly observationId: typeof ObservationId.Type;
       readonly postingId: null;
       readonly method: "new" | "user";
     };
-export interface MatchQuestion {
+interface MatchQuestion {
   readonly kind: "source_conflict" | "value" | "duplicate";
   readonly reason: "changedSource" | "changedBankId" | "ambiguousGroup" | "conflictingBalances";
   readonly observationIds: ReadonlyArray<typeof ObservationId.Type>;
@@ -41,21 +51,20 @@ const sameMoney = (left: Candidate["amount"] | null, right: Candidate["amount"] 
   left === null
     ? right === null
     : right !== null && left.currency === right.currency && left.minor === right.minor;
-export const sameBookedFields = (left: Candidate, right: Candidate) =>
+const sameBookedFields = (left: Candidate, right: Candidate) =>
   left.postedOn === right.postedOn &&
   left.valueOn === right.valueOn &&
   sameMoney(left.amount, right.amount) &&
   left.description === right.description &&
   sameMoney(left.originalMoney, right.originalMoney);
-export const normalizedDescription = (description: string) =>
-  description
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
-    .replace(/\s+/g, " ")
-    .trim();
-const key = (candidate: Candidate) =>
+export const decodeEntities = (text: string) =>
+  text.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+const normalizedDescription = (description: string) =>
+  decodeEntities(description).replace(/\s+/g, " ").trim();
+const matchKey = (candidate: Candidate) =>
   `${candidate.amount.currency}/${candidate.postedOn}/${candidate.amount.minor}`;
+export const sameMatchKey = (left: Candidate, right: Candidate) =>
+  matchKey(left) === matchKey(right);
 const balanceConflict = (observation: Candidate, posting: MatchingPosting) =>
   observation.balance !== null &&
   posting.evidence.some(
@@ -86,13 +95,20 @@ const indistinguishable = (candidates: ReadonlyArray<Candidate>) => {
   );
 };
 
-export function matchObservations(
-  sourceFileId: typeof SourceFileId.Type,
-  observations: ReadonlyArray<MatchingObservation>,
-  postings: ReadonlyArray<MatchingPosting>,
-  order: "ascending" | "descending" = "descending",
-  complete = true,
-) {
+export function matchObservations({
+  sourceFileId,
+  observations,
+  postings,
+  order,
+  complete,
+}: {
+  readonly sourceFileId: typeof SourceFileId.Type;
+  readonly observations: ReadonlyArray<MatchingObservation>;
+  readonly postings: ReadonlyArray<MatchingPosting>;
+  readonly order: Statement["order"];
+  /** False when an unreadable row means the file's row count cannot be trusted. */
+  readonly complete: boolean;
+}) {
   const assignments: MatchAssignment[] = [];
   const questions: MatchQuestion[] = [];
   const matchedRows = new Set<typeof ObservationId.Type>();
@@ -104,7 +120,7 @@ export function matchObservations(
         .map((item) => [item.locatorKey, { posting, candidate: item.candidate }] as const),
     ),
   );
-  const postingsByKey = Map.groupBy(postings, (posting) => key(posting.candidate));
+  const postingsByKey = Map.groupBy(postings, (posting) => matchKey(posting.candidate));
   const postingsByBankId = new Map<string, Set<MatchingPosting>>();
   for (const posting of postings)
     for (const evidence of posting.evidence) {
@@ -116,7 +132,7 @@ export function matchObservations(
   const link = (
     observation: MatchingObservation,
     posting: MatchingPosting,
-    method: MatchMethod,
+    method: Exclude<MatchMethod, "new">,
   ) => {
     matchedRows.add(observation.id);
     matchedPostings.add(posting.id);
@@ -162,7 +178,7 @@ export function matchObservations(
       const matches = Array.from(postingsByBankId.get(observation.candidate.bankId) ?? []);
       const only = matches[0];
       if (matches.length === 1 && only) {
-        if (key(observation.candidate) === key(only.candidate) && !matchedPostings.has(only.id))
+        if (sameMatchKey(observation.candidate, only.candidate) && !matchedPostings.has(only.id))
           link(observation, only, "bankId");
         else ask("value", "changedBankId", [observation], matches);
       } else if (matches.length > 1) ask("value", "changedBankId", [observation], matches);
@@ -171,7 +187,7 @@ export function matchObservations(
   const groups = new Map<string, MatchingObservation[]>();
   for (const row of observations) {
     if (matchedRows.has(row.id)) continue;
-    const groupKey = key(row.candidate);
+    const groupKey = matchKey(row.candidate);
     const group = groups.get(groupKey);
     if (group) group.push(row);
     else groups.set(groupKey, [row]);

@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { Money } from "./values.ts";
+import { Instant, Money } from "./values.ts";
 
 export const ModelUsage = Schema.Struct({
   enabled: Schema.Boolean,
@@ -16,7 +16,7 @@ export const ModelUsage = Schema.Struct({
       id: Schema.String,
       task: Schema.String,
       model: Schema.String,
-      occurredAt: Schema.String,
+      occurredAt: Instant,
       inputTokens: Schema.NullOr(Schema.BigIntFromString),
       outputTokens: Schema.NullOr(Schema.BigIntFromString),
       cost: Schema.NullOr(Money),
