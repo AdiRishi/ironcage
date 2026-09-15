@@ -1,7 +1,6 @@
-import { AppRequestError } from "@repo/contracts/app";
-import { type Account, CommandId, UpdateAccount } from "@repo/contracts/finance";
+import { CommandId, type Account, UpdateAccount } from "@repo/contracts/finance";
 import { useForm } from "@tanstack/react-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Schema, Struct } from "effect";
 import { useState } from "react";
 
@@ -23,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCommand } from "@/lib/use-command";
 
 import { updateAccount } from "./functions";
 
@@ -31,7 +31,7 @@ const kinds = { deposit: "Deposit", card: "Credit card", loan: "Loan" };
 export function EditAccountDialog({ account }: { account: Account }) {
   const [open, setOpen] = useState(false);
   const client = useQueryClient();
-  const mutation = useMutation({
+  const { mutation, submit, uncertain } = useCommand({
     mutationFn: (data: typeof UpdateAccount.Type) => updateAccount({ data }),
     onSuccess: async () => {
       await client.invalidateQueries({
@@ -43,25 +43,16 @@ export function EditAccountDialog({ account }: { account: Account }) {
       setOpen(false);
     },
   });
-  const uncertain =
-    mutation.error instanceof AppRequestError && mutation.error.code === "unavailable";
   const form = useForm({
     defaultValues: { label: account.label, kind: account.kind },
     validators: { onSubmit: Schema.toStandardSchemaV1(Fields) },
-    onSubmit: async ({ value }) => {
-      await mutation
-        .mutateAsync(
-          uncertain && mutation.variables
-            ? mutation.variables
-            : {
-                ...value,
-                accountId: account.id,
-                commandId: CommandId.make(crypto.randomUUID()),
-                expectedVersion: account.version,
-              },
-        )
-        .catch(() => undefined);
-    },
+    onSubmit: ({ value }) =>
+      submit({
+        commandId: CommandId.make(crypto.randomUUID()),
+        ...value,
+        accountId: account.id,
+        expectedVersion: account.version,
+      }),
   });
   return (
     <Dialog

@@ -1,7 +1,6 @@
-import { AppRequestError } from "@repo/contracts/app";
 import { CommandId, type SourceFile, type RemoveSourceBytes } from "@repo/contracts/finance";
 import { formatMoney } from "@repo/finance";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 
@@ -17,6 +16,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { postingsQueryOptions } from "@/features/transactions/queries";
+import { useCommand } from "@/lib/use-command";
 
 import { removeSourceBytes } from "./functions";
 
@@ -28,7 +28,7 @@ export function RemoveSourceDialog({ file }: { file: SourceFile }) {
     ...postingsQueryOptions({ filter: { importId: file.importId } }),
     enabled: open,
   });
-  const mutation = useMutation({
+  const { mutation, submit, uncertain } = useCommand({
     mutationFn: (data: typeof RemoveSourceBytes.Type) => removeSourceBytes({ data }),
     onSuccess: () => setOpen(false),
     onSettled: () =>
@@ -37,8 +37,6 @@ export function RemoveSourceDialog({ file }: { file: SourceFile }) {
           ["sourceFiles", "posting", "reviews"].includes(String(query.queryKey[0])),
       }),
   });
-  const uncertain =
-    mutation.error instanceof AppRequestError && mutation.error.code === "unavailable";
   return (
     <div className="space-y-2">
       <Dialog
@@ -109,15 +107,11 @@ export function RemoveSourceDialog({ file }: { file: SourceFile }) {
               variant="destructive"
               disabled={mutation.isPending || postings.isPending || postings.isError}
               onClick={() =>
-                mutation.mutate(
-                  uncertain && mutation.variables
-                    ? mutation.variables
-                    : {
-                        commandId: CommandId.make(crypto.randomUUID()),
-                        sourceFileId: file.id,
-                        expectedVersion: file.version,
-                      },
-                )
+                submit({
+                  commandId: CommandId.make(crypto.randomUUID()),
+                  sourceFileId: file.id,
+                  expectedVersion: file.version,
+                })
               }
             >
               {mutation.isPending

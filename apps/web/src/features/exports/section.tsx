@@ -1,11 +1,11 @@
-import { AppRequestError } from "@repo/contracts/app";
 import { CommandId, type RequestExport } from "@repo/contracts/finance";
 import { useForm } from "@tanstack/react-form";
-import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { useCommand } from "@/lib/use-command";
 
 import { listExports, requestExport } from "./functions";
 
@@ -20,23 +20,13 @@ export const exportsQueryOptions = () =>
 export function ExportsSection({ timezone }: { timezone: string }) {
   const client = useQueryClient();
   const { data: exports, dataUpdatedAt } = useSuspenseQuery(exportsQueryOptions());
-  const mutation = useMutation({
+  const { mutation, submit, uncertain } = useCommand({
     mutationFn: (data: typeof RequestExport.Type) => requestExport({ data }),
     onSuccess: () => client.invalidateQueries({ queryKey: ["exports"] }),
   });
-  const uncertain =
-    mutation.error instanceof AppRequestError && mutation.error.code === "unavailable";
   const form = useForm({
     defaultValues: { includeSources: false },
-    onSubmit: async ({ value }) => {
-      await mutation
-        .mutateAsync(
-          uncertain && mutation.variables
-            ? mutation.variables
-            : { ...value, commandId: CommandId.make(crypto.randomUUID()) },
-        )
-        .catch(() => undefined);
-    },
+    onSubmit: ({ value }) => submit({ ...value, commandId: CommandId.make(crypto.randomUUID()) }),
   });
   return (
     <section className="space-y-5 rounded-lg border p-5 sm:p-6">

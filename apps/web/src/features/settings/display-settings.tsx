@@ -1,42 +1,33 @@
-import { AppRequestError } from "@repo/contracts/app";
 import { CommandId, type Settings, UpdateSettings } from "@repo/contracts/finance";
 import { useForm } from "@tanstack/react-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Schema, Struct } from "effect";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useCommand } from "@/lib/use-command";
 
 import { updateSettings } from "./functions";
 
 const Fields = Schema.Struct(Struct.pick(UpdateSettings.fields, ["timezone", "reportingCurrency"]));
 export function DisplaySettings({ settings }: { settings: Settings }) {
   const client = useQueryClient();
-  const mutation = useMutation({
+  const { mutation, submit, uncertain } = useCommand({
     mutationFn: (data: typeof UpdateSettings.Type) => updateSettings({ data }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ["settings"] });
     },
   });
-  const uncertain =
-    mutation.error instanceof AppRequestError && mutation.error.code === "unavailable";
   const form = useForm({
     defaultValues: { timezone: settings.timezone, reportingCurrency: settings.reportingCurrency },
     validators: { onSubmit: Schema.toStandardSchemaV1(Fields) },
-    onSubmit: async ({ value }) => {
-      await mutation
-        .mutateAsync(
-          uncertain && mutation.variables
-            ? mutation.variables
-            : {
-                ...value,
-                commandId: CommandId.make(crypto.randomUUID()),
-                expectedVersion: settings.version,
-              },
-        )
-        .catch(() => undefined);
-    },
+    onSubmit: ({ value }) =>
+      submit({
+        commandId: CommandId.make(crypto.randomUUID()),
+        ...value,
+        expectedVersion: settings.version,
+      }),
   });
   return (
     <form
