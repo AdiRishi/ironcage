@@ -105,17 +105,15 @@ export class Uploads extends Context.Service<
         );
         if (result.discardObject) yield* sources.delete(objectKey);
         if (!result.existing)
-          yield* jobs
-            .start({ importId, instanceId: importId })
-            .pipe(
-              Effect.catch((failure) =>
-                imports.fail({
-                  importId,
-                  instanceId: importId,
-                  failure: { message: failure.message },
-                }),
-              ),
-            );
+          yield* jobs.start({ importId, instanceId: importId }).pipe(
+            Effect.catch((failure) =>
+              imports.fail({
+                importId,
+                instanceId: importId,
+                failure: { message: failure.message },
+              }),
+            ),
+          );
         return {
           sourceFileId: result.sourceFileId,
           importId: result.importId,
