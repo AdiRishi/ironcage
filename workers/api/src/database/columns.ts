@@ -9,7 +9,7 @@ export const money = (sql: SqlClient.SqlClient, currency: string, minor: string)
   sql`jsonb_build_object('currency', ${sql(currency)}, 'minor', ${sql(minor)}::text)`;
 
 export const nullableMoney = (sql: SqlClient.SqlClient, currency: string, minor: string) =>
-  sql`CASE WHEN ${sql(currency)} IS NULL THEN NULL ELSE ${money(sql, currency, minor)} END`;
+  sql`CASE WHEN ${sql(minor)} IS NULL THEN NULL ELSE ${money(sql, currency, minor)} END`;
 
 export const postingFields = (
   sql: SqlClient.SqlClient,

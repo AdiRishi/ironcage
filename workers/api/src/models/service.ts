@@ -12,7 +12,7 @@ const make = Effect.gen(function* () {
       Effect.gen(function* () {
         yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY`;
         const settings =
-          yield* sql`SELECT ai_enabled AS enabled, ${nullableMoney(sql, "ai_warning_minor", "ai_warning_minor")} AS warning FROM settings WHERE id = 1`;
+          yield* sql`SELECT ai_enabled AS enabled, ${nullableMoney(sql, "reporting_currency", "ai_warning_minor")} AS warning FROM settings WHERE id = 1`;
         const totals =
           yield* sql`SELECT count(*)::integer AS calls, COALESCE(sum(input_tokens), 0)::text AS "inputTokens", COALESCE(sum(output_tokens), 0)::text AS "outputTokens", count(*) FILTER (WHERE input_tokens IS NULL OR output_tokens IS NULL OR cost_minor IS NULL)::integer AS "unknownUsage" FROM model_usage`;
         const costs =
