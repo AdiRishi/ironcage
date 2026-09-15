@@ -3,8 +3,6 @@
   "include": ["alchemy.run.ts", "src"],
   "compilerOptions": {
     "allowImportingTsExtensions": true,
-    "declaration": false,
-    "declarationMap": false,
     "noEmit": true,
     "types": ["node"]
   }

@@ -8,7 +8,7 @@ export default defineConfig({
     fileParallelism: false,
     testTimeout: 30_000,
     include: ["tests/**/*.test.ts"],
-    exclude: ["tests/**/*.browser.test.ts", "tests/**/*.live.test.ts"],
+    exclude: ["tests/**/*.live.test.ts"],
     provide: { live: false },
   },
 });
