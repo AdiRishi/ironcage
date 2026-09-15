@@ -21,6 +21,14 @@
     "typecheck": {
       "dependsOn": ["^typecheck"]
     },
+    "@repo/infra#typecheck": {
+      "dependsOn": ["^typecheck"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/workers/api/src/**",
+        "$TURBO_ROOT$/workers/processor/src/**"
+      ]
+    },
     "test": {
       "cache": false
     }

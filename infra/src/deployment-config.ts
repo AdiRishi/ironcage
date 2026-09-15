@@ -31,11 +31,10 @@ export const decodeStage = Function.flow(
   Effect.mapError((error) => new Config.ConfigError(error)),
 );
 
+const testPolicy: StagePolicy = { environment: "test", web: { workersDev: true, domain: null } };
+const isNamedStage = (stage: Stage): stage is keyof typeof stages => stage in stages;
 export const stagePolicy = (stage: Stage): StagePolicy =>
-  Object.entries(stages).find(([name]) => name === stage)?.[1] ?? {
-    environment: "test",
-    web: { workersDev: true, domain: null },
-  };
+  isNamedStage(stage) ? stages[stage] : testPolicy;
 
 export const deploymentConfig = Effect.fn("ApplicationPlatform.DeploymentConfig")(function* () {
   const stack = yield* Alchemy.Stack;
