@@ -16,10 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { locatorLabel, sourceHref } from "@/lib/sources";
 
 import { CorrectValues } from "./correct-values";
 import { OmitRow } from "./omit-row";
 
+const distinctTarget = { value: null, label: "A distinct new transaction" };
 export function RowChoice({
   row,
   review,
@@ -34,21 +36,22 @@ export function RowChoice({
   const [correcting, setCorrecting] = useState(false);
   const [omitting, setOmitting] = useState(false);
   const [correctionTarget, setCorrectionTarget] = useState(row.postingId);
-  const locator =
-    row.locator.kind === "csvLine"
-      ? `Line ${row.locator.line}`
-      : row.locator.kind === "ofxTransaction"
-        ? `Transaction ${row.locator.ordinal}`
-        : `Page ${row.locator.page}, row ${row.locator.row}`;
   const accepted = row.acceptedCandidate;
+  const targets = [
+    distinctTarget,
+    ...review.candidates.map((posting) => ({
+      value: posting.id,
+      label: `${posting.postedOn} · ${formatMoney(posting.amount)} · ${posting.description}`,
+    })),
+  ];
   return (
     <article className="space-y-4 rounded-md bg-secondary/50 p-4">
-      <h3 className="font-medium">{locator}</h3>
+      <h3 className="font-medium">{locatorLabel(row.locator)}</h3>
       {row.locator.kind === "pdfRow" &&
         (review.bytesAvailable ? (
           <a
             className="text-sm text-primary underline"
-            href={`/sources/${review.sourceFileId}#page=${row.locator.page}`}
+            href={sourceHref(review.sourceFileId, row.locator)}
           >
             Open statement page {row.locator.page}
           </a>
@@ -113,7 +116,7 @@ export function RowChoice({
                     <a
                       key={source.sourceFileId}
                       className="block text-primary underline"
-                      href={`/sources/${source.sourceFileId}${source.locator.kind === "pdfRow" ? `#page=${source.locator.page}` : ""}`}
+                      href={sourceHref(source.sourceFileId, source.locator)}
                     >
                       {source.fileName}
                       {source.locator.kind === "pdfRow" ? ` · Page ${source.locator.page}` : ""}
@@ -163,15 +166,19 @@ export function RowChoice({
       {correcting && !row.postingId && review.candidates.length > 0 && (
         <div className="space-y-2">
           <Label htmlFor={`${row.id}-target`}>Save corrected values to</Label>
-          <Select value={correctionTarget} onValueChange={setCorrectionTarget} disabled={disabled}>
+          <Select
+            items={targets}
+            value={correctionTarget}
+            onValueChange={setCorrectionTarget}
+            disabled={disabled}
+          >
             <SelectTrigger id={`${row.id}-target`}>
-              <SelectValue placeholder="A distinct new transaction" />
+              <SelectValue placeholder={distinctTarget.label} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={null}>A distinct new transaction</SelectItem>
-              {review.candidates.map((posting) => (
-                <SelectItem key={posting.id} value={posting.id}>
-                  {posting.postedOn} · {formatMoney(posting.amount)} · {posting.description}
+              {targets.map((target) => (
+                <SelectItem key={target.value ?? ""} value={target.value}>
+                  {target.label}
                 </SelectItem>
               ))}
             </SelectContent>

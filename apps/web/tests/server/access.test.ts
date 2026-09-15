@@ -4,7 +4,7 @@ import { expect, it } from "vitest";
 import { authenticate, validMutationOrigin } from "../../src/server/access";
 
 it("requires Access for every non-development environment", async () => {
-  for (const environment of ["production", "staging", "test"]) {
+  for (const environment of ["production", "staging", "test"] as const) {
     expect(
       await authenticate(new Request("https://wealth.example/"), {
         ENVIRONMENT: environment,
@@ -56,7 +56,11 @@ it("accepts a signed Access session and rejects wrong audiences, issuers, expire
   const address = server.address();
   if (!address || Predicate.isString(address)) throw new Error("Expected a TCP address");
   const issuer = `http://127.0.0.1:${address.port}`;
-  const config = { ENVIRONMENT: "production", ACCESS_ISSUER: issuer, ACCESS_AUDIENCE: "ironcage" };
+  const config = {
+    ENVIRONMENT: "production",
+    ACCESS_ISSUER: issuer,
+    ACCESS_AUDIENCE: "ironcage",
+  } as const;
   try {
     for (const session of [
       { issuer, audience: "ironcage", expires: "1h", allowed: true },

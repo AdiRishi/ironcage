@@ -3,6 +3,7 @@ import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { Schema, Struct } from "effect";
 
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -12,13 +13,18 @@ import { useCommand } from "@/lib/use-command";
 import { updateSettings } from "./functions";
 
 const Fields = Schema.Struct(Struct.pick(UpdateSettings.fields, ["timezone", "reportingCurrency"]));
+const timezones = [
+  "Australia/Sydney",
+  "Australia/Melbourne",
+  "Australia/Brisbane",
+  "Australia/Perth",
+  "UTC",
+];
 export function DisplaySettings({ settings }: { settings: Settings }) {
   const client = useQueryClient();
   const { mutation, submit, uncertain } = useCommand({
     mutationFn: (data: typeof UpdateSettings.Type) => updateSettings({ data }),
-    onSuccess: async () => {
-      await client.invalidateQueries({ queryKey: ["settings"] });
-    },
+    onSuccess: () => client.invalidateQueries({ queryKey: ["settings"] }),
   });
   const form = useForm({
     defaultValues: { timezone: settings.timezone, reportingCurrency: settings.reportingCurrency },
@@ -52,13 +58,7 @@ export function DisplaySettings({ settings }: { settings: Settings }) {
                 list="timezones"
               />
               <datalist id="timezones">
-                {[
-                  "Australia/Sydney",
-                  "Australia/Melbourne",
-                  "Australia/Brisbane",
-                  "Australia/Perth",
-                  "UTC",
-                ].map((value) => (
+                {timezones.map((value) => (
                   <option key={value} value={value}>
                     {value}
                   </option>
@@ -88,21 +88,24 @@ export function DisplaySettings({ settings }: { settings: Settings }) {
         </form.Field>
       </fieldset>
       {mutation.error && (
-        <div role="alert" className="space-y-2 text-sm text-destructive">
-          <p>{mutation.error.message}</p>
+        <Alert variant="destructive">
+          <AlertDescription>{mutation.error.message}</AlertDescription>
           {!uncertain && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                mutation.reset();
-                client.invalidateQueries({ queryKey: ["settings"] }).catch(reportError);
-              }}
-            >
-              Refresh settings
-            </Button>
+            <AlertAction>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  mutation.reset();
+                  client.invalidateQueries({ queryKey: ["settings"] }).catch(reportError);
+                }}
+              >
+                Refresh
+              </Button>
+            </AlertAction>
           )}
-        </div>
+        </Alert>
       )}
       {mutation.isSuccess && <output className="block text-sm">Display settings saved.</output>}
       <Button type="submit" disabled={mutation.isPending}>

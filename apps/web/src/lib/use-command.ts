@@ -1,17 +1,22 @@
-import { AppRequestError } from "@repo/contracts/app";
 import { CommandId } from "@repo/contracts/finance";
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
 
+import { AppRequestError } from "./app-error";
+
+// A lost response leaves the outcome unknown, so the retry resends the same
+// command ID and input rather than whatever the form holds now.
 export function useCommand<Input extends { commandId: typeof CommandId.Type }, Data>(
   options: UseMutationOptions<Data, Error, Input>,
 ) {
-  const mutation = useMutation({ ...options, retry: false });
+  const mutation = useMutation(options);
   const uncertain =
     mutation.error instanceof AppRequestError && mutation.error.code === "unavailable";
-
-  function submit(input: Input) {
-    mutation.mutate(uncertain && mutation.variables ? mutation.variables : input);
-  }
-
-  return { mutation, submit, uncertain };
+  const retry = () => {
+    if (mutation.variables) mutation.mutate(mutation.variables);
+  };
+  const submit = (input: Input) => {
+    if (uncertain) retry();
+    else mutation.mutate(input);
+  };
+  return { mutation, submit, retry, uncertain };
 }

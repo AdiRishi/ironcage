@@ -2,7 +2,8 @@ import { CommandId, type RequestExport } from "@repo/contracts/finance";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 
-import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useCommand } from "@/lib/use-command";
@@ -53,9 +54,9 @@ export function ExportsSection({ timezone }: { timezone: string }) {
           {mutation.isPending ? "Requesting…" : uncertain ? "Retry request" : "Request export"}
         </Button>
         {mutation.error && (
-          <p role="alert" className="text-sm text-destructive">
-            {mutation.error.message}
-          </p>
+          <Alert variant="destructive">
+            <AlertDescription>{mutation.error.message}</AlertDescription>
+          </Alert>
         )}
       </form>
       {exports.length > 0 && (
@@ -86,15 +87,15 @@ export function ExportsSection({ timezone }: { timezone: string }) {
                     </p>
                   )}
                   {item.failure && (
-                    <p role="alert" className="text-destructive">
-                      {item.failure.message}
-                    </p>
+                    <Alert variant="destructive">
+                      <AlertDescription>{item.failure.message}</AlertDescription>
+                    </Alert>
                   )}
                 </div>
                 {item.status === "ready" && !expired ? (
                   <a
+                    className={buttonVariants({ variant: "outline" })}
                     href={`/exports/${item.id}`}
-                    className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted focus-visible:outline-2"
                   >
                     Download ZIP
                   </a>

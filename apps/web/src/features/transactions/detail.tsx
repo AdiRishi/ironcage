@@ -1,9 +1,20 @@
-import { PostingId } from "@repo/contracts/finance";
+import { type MatchMethod, PostingId } from "@repo/contracts/finance";
 import { formatMoney } from "@repo/finance";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
+import { locatorLabel, sourceHref } from "@/lib/sources";
+
 import { postingQueryOptions } from "./queries";
+
+const matchLabels: Record<MatchMethod, string> = {
+  new: "First recorded from this source",
+  sameRow: "Same source row as an earlier import",
+  bankId: "Matched by bank transaction ID",
+  group: "Matched by date and amount",
+  corroborated: "Matched by description or balance",
+  user: "Matched by your review decision",
+};
 
 export function TransactionDetail({ id }: { id: typeof PostingId.Type }) {
   const {
@@ -37,17 +48,13 @@ export function TransactionDetail({ id }: { id: typeof PostingId.Type }) {
               <div>
                 <h3 className="font-medium break-all">{item.fileName}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {item.locator.kind === "csvLine"
-                    ? `CSV line ${item.locator.line}`
-                    : item.locator.kind === "ofxTransaction"
-                      ? `OFX transaction ${item.locator.ordinal}`
-                      : `Page ${item.locator.page}, row ${item.locator.row}`}{" "}
-                  · Match: {item.matchMethod}
+                  {locatorLabel(item.locator)}
+                  {item.matchMethod && ` · ${matchLabels[item.matchMethod]}`}
                 </p>
               </div>
               {item.bytesAvailable ? (
                 <a
-                  href={`/sources/${item.sourceFileId}${item.locator.kind === "pdfRow" ? `#page=${item.locator.page}` : ""}`}
+                  href={sourceHref(item.sourceFileId, item.locator)}
                   className="text-sm text-primary underline underline-offset-4"
                 >
                   {item.locator.kind === "pdfRow" ? "Open statement page" : "Download original"}
