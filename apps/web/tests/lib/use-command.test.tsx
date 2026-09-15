@@ -2,10 +2,11 @@ import { AppRequestError } from "@repo/contracts/app";
 import { CommandId } from "@repo/contracts/finance";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 
 import { createQueryClient } from "@/lib/query-client";
+import { serverFnFetch } from "@/lib/server-fn-fetch";
 import { useCommand } from "@/lib/use-command";
 
 type Save = { commandId: typeof CommandId.Type; label: string; expectedVersion: number };
@@ -43,15 +44,26 @@ function Editor({
   );
 }
 
-test("retry after a lost response preserves the committed command and its original input", async () => {
+test("retry after a lost fetch response preserves the committed command and its original input", async ({
+  onTestFinished,
+}) => {
   const receipts = new Map<string, string>();
   const records: string[] = [];
+  const originalFetch = globalThis.fetch;
+  const transport = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+    if (input === "/test-command-response") return Promise.reject(new TypeError("Failed to fetch"));
+    return originalFetch(input, init);
+  });
+  onTestFinished(() => {
+    transport.mockRestore();
+  });
   async function save(input: Save) {
     const receipt = receipts.get(input.commandId);
     if (receipt) return receipt;
     records.push(input.label);
     receipts.set(input.commandId, input.label);
-    throw new AppRequestError("unavailable", "The response was lost.");
+    await serverFnFetch("/test-command-response");
+    return input.label;
   }
   const client = createQueryClient();
   const screen = await render(
@@ -60,7 +72,7 @@ test("retry after a lost response preserves the committed command and its origin
     </QueryClientProvider>,
   );
   await screen.getByRole("button", { name: "Save", exact: true }).click();
-  await expect.element(screen.getByRole("alert")).toHaveTextContent("The response was lost.");
+  await expect.element(screen.getByRole("alert")).toHaveTextContent("The connection was lost.");
   await screen.getByRole("textbox", { name: "Name" }).fill("Changed after failure");
   await screen.getByRole("button", { name: "Retry", exact: true }).click();
   await expect.element(screen.getByRole("status")).toHaveTextContent("Everyday");

@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Schema, Struct } from "effect";
 
 import { Button } from "@/components/ui/button";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCommand } from "@/lib/use-command";
@@ -63,11 +64,7 @@ export function DisplaySettings({ settings }: { settings: Settings }) {
                   </option>
                 ))}
               </datalist>
-              {field.state.meta.errors.map((error) => (
-                <p key={error?.message} className="text-sm text-destructive">
-                  {error?.message}
-                </p>
-              ))}
+              <FieldError errors={field.state.meta.errors} />
             </div>
           )}
         </form.Field>

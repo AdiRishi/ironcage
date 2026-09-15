@@ -3,6 +3,7 @@ import { Schema } from "effect";
 import { useId } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FieldError } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -40,11 +41,7 @@ export function OmitRow({
               onBlur={field.handleBlur}
               onChange={(event) => field.handleChange(event.target.value)}
             />
-            {field.state.meta.errors.map((error) => (
-              <p key={error?.message} className="text-sm text-destructive">
-                {error?.message}
-              </p>
-            ))}
+            <FieldError errors={field.state.meta.errors} />
           </div>
         )}
       </form.Field>

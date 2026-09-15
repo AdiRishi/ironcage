@@ -1,21 +1,14 @@
 import { CommandId, type RequestExport } from "@repo/contracts/finance";
 import { useForm } from "@tanstack/react-form";
-import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useCommand } from "@/lib/use-command";
 
-import { listExports, requestExport } from "./functions";
-
-export const exportsQueryOptions = () =>
-  queryOptions({
-    queryKey: ["exports"],
-    queryFn: () => listExports(),
-    refetchInterval: (query) =>
-      query.state.data?.some((item) => item.status === "processing") ? 1500 : false,
-  });
+import { requestExport } from "./functions";
+import { exportsQueryOptions } from "./queries";
 
 export function ExportsSection({ timezone }: { timezone: string }) {
   const client = useQueryClient();

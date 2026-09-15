@@ -18,6 +18,8 @@ import {
 import { CreateAccountDialog } from "@/features/accounts/create-account";
 import { accountsQueryOptions } from "@/features/accounts/queries";
 
+import { invalidateImportRecords } from "./invalidate-records";
+
 type UploadProgress =
   | { status: "uploading" | "failed"; message: string }
   | { status: "uploaded" | "existing"; message: string; importId: typeof ImportId.Type };
@@ -64,12 +66,10 @@ export function UploadFiles() {
             message: result.existing ? "Original available. Records already imported." : "Uploaded",
             importId: result.importId,
           });
-          await client.invalidateQueries({
-            predicate: (query) =>
-              ["imports", "accounts", "postings", "posting", "reviews", "sourceFiles"].includes(
-                String(query.queryKey[0]),
-              ),
-          });
+          await Promise.all([
+            invalidateImportRecords(client),
+            client.invalidateQueries({ queryKey: ["imports"] }),
+          ]);
         } catch {
           update({
             status: "failed",

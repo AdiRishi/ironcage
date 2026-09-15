@@ -1,5 +1,5 @@
 import { type SourceFile } from "@repo/contracts/finance";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 
@@ -12,11 +12,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { listSourceFiles } from "./functions";
+import { sourceFilesQueryOptions } from "./queries";
 import { RemoveSourceDialog } from "./remove-dialog";
 
-export const sourceFilesQueryOptions = () =>
-  queryOptions({ queryKey: ["sourceFiles"], queryFn: () => listSourceFiles() });
 const features = tableFeatures({});
 const column = createColumnHelper<typeof features, SourceFile>();
 const columns = column.columns([

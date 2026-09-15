@@ -1,11 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { accountsQueryOptions } from "@/features/accounts/queries";
-import { exportsQueryOptions } from "@/features/exports/section";
-import { modelUsageQueryOptions } from "@/features/settings/model-usage";
+import { exportsQueryOptions } from "@/features/exports/queries";
 import { SettingsPage } from "@/features/settings/page";
-import { settingsQueryOptions, retentionQueryOptions } from "@/features/settings/queries";
-import { sourceFilesQueryOptions } from "@/features/sources/section";
+import {
+  settingsQueryOptions,
+  retentionQueryOptions,
+  modelUsageQueryOptions,
+} from "@/features/settings/queries";
+import { sourceFilesQueryOptions } from "@/features/sources/queries";
 
 export const Route = createFileRoute("/settings")({
   loader: ({ context }) =>

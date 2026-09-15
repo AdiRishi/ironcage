@@ -1,10 +1,8 @@
 import { formatMoney } from "@repo/finance";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 
-import { getModelUsage } from "./functions";
+import { modelUsageQueryOptions } from "./queries";
 
-export const modelUsageQueryOptions = () =>
-  queryOptions({ queryKey: ["modelUsage"], queryFn: () => getModelUsage() });
 export function ModelUsageSection() {
   const { data } = useSuspenseQuery(modelUsageQueryOptions());
   return (
