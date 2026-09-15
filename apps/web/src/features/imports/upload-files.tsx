@@ -57,9 +57,12 @@ export function UploadFiles() {
         const body = new FormData();
         body.set("file", file);
         if (accountId) body.set("accountId", accountId);
-        let response: unknown;
+        let result: typeof UploadResponse.Type;
         try {
-          response = await (await fetch("/uploads", { method: "POST", body })).json();
+          const response: unknown = await (
+            await fetch("/uploads", { method: "POST", body })
+          ).json();
+          result = await Schema.decodeUnknownPromise(UploadResponse)(response);
         } catch {
           update({
             status: "failed",
@@ -67,7 +70,6 @@ export function UploadFiles() {
           });
           return;
         }
-        const result = await Schema.decodeUnknownPromise(UploadResponse)(response);
         if ("message" in result) {
           update({ status: "failed", message: result.message });
           return;
