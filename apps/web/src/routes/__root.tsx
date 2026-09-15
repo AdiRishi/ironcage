@@ -23,6 +23,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: RouteError,
 });
 
+const navigation = [
+  { to: "/", label: "Home", icon: House, exact: true },
+  { to: "/imports", label: "Imports", icon: Upload },
+  { to: "/transactions", label: "Transactions", icon: List },
+  { to: "/review", label: "Review", icon: ClipboardCheck },
+  { to: "/settings", label: "Settings", icon: Settings },
+] as const;
+
 function RootDocument({ children }: { readonly children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -42,47 +50,18 @@ function RootDocument({ children }: { readonly children: React.ReactNode }) {
               [ ] ironcage
             </Link>
             <nav aria-label="Main navigation">
-              <Link
-                to="/"
-                className="flex items-center gap-3 rounded-md px-3 py-2"
-                activeProps={{ className: "bg-accent text-primary" }}
-                activeOptions={{ exact: true }}
-              >
-                <House className="size-5" />
-                Home
-              </Link>
-              <Link
-                to="/imports"
-                className="flex items-center gap-3 rounded-md px-3 py-2"
-                activeProps={{ className: "bg-accent text-primary" }}
-              >
-                <Upload className="size-5" />
-                Imports
-              </Link>
-              <Link
-                to="/transactions"
-                className="flex items-center gap-3 rounded-md px-3 py-2"
-                activeProps={{ className: "bg-accent text-primary" }}
-              >
-                <List className="size-5" />
-                Transactions
-              </Link>
-              <Link
-                to="/review"
-                className="flex items-center gap-3 rounded-md px-3 py-2"
-                activeProps={{ className: "bg-accent text-primary" }}
-              >
-                <ClipboardCheck className="size-5" />
-                Review
-              </Link>
-              <Link
-                to="/settings"
-                className="flex items-center gap-3 rounded-md px-3 py-2"
-                activeProps={{ className: "bg-accent text-primary" }}
-              >
-                <Settings className="size-5" />
-                Settings
-              </Link>
+              {navigation.map(({ to, label, icon: Icon, ...item }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  className="flex items-center gap-3 rounded-md px-3 py-2"
+                  activeProps={{ className: "bg-accent text-primary" }}
+                  activeOptions={{ exact: "exact" in item }}
+                >
+                  <Icon className="size-5" />
+                  {label}
+                </Link>
+              ))}
             </nav>
             <p className="mt-auto hidden pt-10 text-xs text-muted-foreground md:block">
               <LockKeyhole className="mb-2 size-4" />

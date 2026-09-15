@@ -1,17 +1,28 @@
-import { type ListReviewItems, type ReviewItem } from "@repo/contracts/finance";
+import {
+  type ListReviewItems,
+  type ReviewItem,
+  type ReviewResolution,
+} from "@repo/contracts/finance";
 import { formatMoney } from "@repo/finance";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 
 import { reviewQueryOptions } from "./queries";
 import { ReviewCard } from "./review-card";
 
-export function ReviewPage({ filter }: { filter: typeof ListReviewItems.Type }) {
+export function ReviewPage({ filter }: { filter: Omit<typeof ListReviewItems.Type, "cursor"> }) {
   const history = useSuspenseInfiniteQuery(reviewQueryOptions(filter));
-  const reviews = history.data.pages.flat();
+  const reviews = history.data.pages.flatMap((page) => page.rows);
   const { importId } = filter;
   const heading = useRef<HTMLHeadingElement>(null);
   const previousCount = useRef(reviews.length);
@@ -55,23 +66,27 @@ export function ReviewPage({ filter }: { filter: typeof ListReviewItems.Type }) 
         </Link>
       )}
       {reviews.length === 0 ? (
-        <div className="rounded-lg border p-10">
-          <h2 className="font-semibold">
-            {filter.open === false ? "No resolved reviews" : "Nothing to review"}
-          </h2>
-          <p className="mt-2 text-muted-foreground">
-            {filter.open === false
-              ? "Your decisions will appear here."
-              : "All imported source rows have been accounted for."}
-          </p>
-          <Link to="/transactions" className="mt-4 inline-block text-primary underline">
-            View transactions
-          </Link>
-        </div>
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyTitle>
+              {filter.open === false ? "No resolved reviews" : "Nothing to review"}
+            </EmptyTitle>
+            <EmptyDescription>
+              {filter.open === false
+                ? "Your decisions will appear here."
+                : "All imported source rows have been accounted for."}
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Link to="/transactions" className="text-primary underline">
+              View transactions
+            </Link>
+          </EmptyContent>
+        </Empty>
       ) : (
         reviews.map((review) =>
           review.resolution ? (
-            <ResolvedReview key={review.id} review={review} />
+            <ResolvedReview key={review.id} review={review} resolution={review.resolution} />
           ) : (
             <ReviewCard key={review.id} review={review} />
           ),
@@ -91,16 +106,21 @@ export function ReviewPage({ filter }: { filter: typeof ListReviewItems.Type }) 
     </div>
   );
 }
-function ResolvedReview({ review }: { review: ReviewItem }) {
-  const resolution = review.resolution;
+function ResolvedReview({
+  review,
+  resolution,
+}: {
+  review: ReviewItem;
+  resolution: typeof ReviewResolution.Type;
+}) {
   return (
     <section className="space-y-3 rounded-lg border p-5">
       <p className="text-sm break-all text-muted-foreground">{review.fileName}</p>
       <h2 className="font-semibold">{review.question.message}</h2>
-      {resolution?.kind === "account" ? (
+      {resolution.kind === "account" ? (
         <p className="text-sm">Account confirmed.</p>
       ) : (
-        resolution?.decisions.map(({ observationId, decision }) => (
+        resolution.decisions.map(({ observationId, decision }) => (
           <p key={observationId} className="text-sm">
             {decision.kind === "omit"
               ? `Omitted: ${decision.reason}`

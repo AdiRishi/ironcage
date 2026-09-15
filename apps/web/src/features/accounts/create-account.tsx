@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Schema, Struct } from "effect";
 import { useId, useState } from "react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,6 +27,7 @@ import {
 import { useCommand } from "@/lib/use-command";
 
 import { createAccount } from "./functions";
+import { accountKindLabels } from "./labels";
 
 const Fields = Schema.Struct(Struct.omit(CreateAccount.fields, ["commandId"]));
 const defaults: typeof Fields.Type = { label: "", kind: "deposit", currency: "AUD" };
@@ -49,7 +51,7 @@ export function CreateAccountDialog() {
     <Dialog
       open={open}
       onOpenChange={(value) => {
-        if (value && !mutation.isPending && !uncertain) {
+        if (value && !uncertain) {
           form.reset();
           mutation.reset();
         }
@@ -73,9 +75,9 @@ export function CreateAccountDialog() {
             <form.Field name="label">
               {(field) => (
                 <div className="space-y-2">
-                  <Label htmlFor={`${id}-${field.name}`}>Account name</Label>
+                  <Label htmlFor={`${id}-label`}>Account name</Label>
                   <Input
-                    id={`${id}-${field.name}`}
+                    id={`${id}-label`}
                     value={field.state.value}
                     onChange={(event) => field.handleChange(event.target.value)}
                     onBlur={field.handleBlur}
@@ -92,20 +94,23 @@ export function CreateAccountDialog() {
             <form.Field name="kind">
               {(field) => (
                 <div className="space-y-2">
-                  <Label htmlFor={`${id}-${field.name}`}>Account type</Label>
+                  <Label htmlFor={`${id}-kind`}>Account type</Label>
                   <Select
+                    items={accountKindLabels}
                     value={field.state.value}
                     onValueChange={(value) => {
                       if (value) field.handleChange(value);
                     }}
                   >
-                    <SelectTrigger id={`${id}-${field.name}`}>
+                    <SelectTrigger id={`${id}-kind`}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="deposit">Deposit</SelectItem>
-                      <SelectItem value="card">Credit card</SelectItem>
-                      <SelectItem value="loan">Loan</SelectItem>
+                      {Object.entries(accountKindLabels).map(([kind, label]) => (
+                        <SelectItem key={kind} value={kind}>
+                          {label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -114,9 +119,9 @@ export function CreateAccountDialog() {
             <form.Field name="currency">
               {(field) => (
                 <div className="space-y-2">
-                  <Label htmlFor={`${id}-${field.name}`}>Currency</Label>
+                  <Label htmlFor={`${id}-currency`}>Currency</Label>
                   <Input
-                    id={`${id}-${field.name}`}
+                    id={`${id}-currency`}
                     value={field.state.value}
                     onChange={(event) => field.handleChange(event.target.value.toUpperCase())}
                     required
@@ -127,10 +132,10 @@ export function CreateAccountDialog() {
               )}
             </form.Field>
           </fieldset>
-          {mutation.isError && (
-            <div role="alert" className="space-y-2 text-sm text-destructive">
-              <p>{mutation.error.message}</p>
-            </div>
+          {mutation.error && (
+            <Alert variant="destructive">
+              <AlertDescription>{mutation.error.message}</AlertDescription>
+            </Alert>
           )}
           <Button type="submit" disabled={mutation.isPending}>
             {mutation.isPending

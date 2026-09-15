@@ -1,13 +1,15 @@
 import { ListReviewItems } from "@repo/contracts/finance";
 import { createFileRoute } from "@tanstack/react-router";
-import { Schema } from "effect";
+import { Schema, Struct } from "effect";
 
 import { accountsQueryOptions } from "@/features/accounts/queries";
 import { ReviewPage } from "@/features/review/page";
 import { reviewQueryOptions } from "@/features/review/queries";
 
+const ReviewSearch = Schema.Struct(Struct.omit(ListReviewItems.fields, ["cursor"]));
+
 export const Route = createFileRoute("/review")({
-  validateSearch: Schema.toStandardSchemaV1(ListReviewItems),
+  validateSearch: Schema.toStandardSchemaV1(ReviewSearch),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     await Promise.all([

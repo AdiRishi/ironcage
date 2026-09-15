@@ -1,7 +1,7 @@
 import { type Account, PostingFilter } from "@repo/contracts/finance";
 import { formatDecimal, parseMoney } from "@repo/finance";
 import { useForm } from "@tanstack/react-form";
-import { Effect, Schema } from "effect";
+import { Effect, Schema, type Types } from "effect";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -49,9 +49,7 @@ export function TransactionFilters({
       }
       const result = await Effect.runPromise(
         Effect.gen(function* () {
-          const input: {
-            -readonly [K in keyof typeof PostingFilter.Encoded]: (typeof PostingFilter.Encoded)[K];
-          } = {};
+          const input: Types.Mutable<typeof PostingFilter.Encoded> = {};
           if (filter.importId) input.importId = filter.importId;
           if (value.accountId) input.accountId = value.accountId;
           if (value.currency) input.currency = value.currency;

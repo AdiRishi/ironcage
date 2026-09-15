@@ -1,6 +1,7 @@
 import { CommandId, type Import, type RetryImport } from "@repo/contracts/finance";
 import { useQueryClient } from "@tanstack/react-query";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useCommand } from "@/lib/use-command";
 
@@ -29,9 +30,9 @@ export function RetryImportButton({ item }: { item: Import }) {
         {mutation.isPending ? "Starting…" : "Retry import"}
       </Button>
       {mutation.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {mutation.error.message}
-        </p>
+        <Alert variant="destructive">
+          <AlertDescription>{mutation.error.message}</AlertDescription>
+        </Alert>
       )}
     </div>
   );

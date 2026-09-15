@@ -4,6 +4,7 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,12 +38,13 @@ export function RemoveSourceDialog({ file }: { file: SourceFile }) {
           ["sourceFiles", "posting", "reviews"].includes(String(query.queryKey[0])),
       }),
   });
+  const failure = (mutation.error || postings.error)?.message;
   return (
     <div className="space-y-2">
       <Dialog
         open={open}
         onOpenChange={(value) => {
-          if (value && !mutation.isPending && !uncertain) mutation.reset();
+          if (value && !uncertain) mutation.reset();
           setOpen(value);
         }}
       >
@@ -91,15 +93,10 @@ export function RemoveSourceDialog({ file }: { file: SourceFile }) {
               )}
             </div>
           )}
-          {postings.error && (
-            <p role="alert" className="text-destructive">
-              {postings.error.message}
-            </p>
-          )}
-          {mutation.error && (
-            <p role="alert" className="text-destructive">
-              {mutation.error.message}
-            </p>
+          {failure && (
+            <Alert variant="destructive">
+              <AlertDescription>{failure}</AlertDescription>
+            </Alert>
           )}
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>

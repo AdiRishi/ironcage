@@ -3,6 +3,7 @@ import { formatMoney } from "@repo/finance";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 
+import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import {
   Table,
   TableBody,
@@ -66,9 +67,11 @@ export function TransactionsTable({ rows }: { rows: ReadonlyArray<Posting> }) {
         </TableBody>
       </Table>
       {rows.length === 0 && (
-        <p className="p-12 text-center text-muted-foreground">
-          No transactions match these filters.
-        </p>
+        <Empty>
+          <EmptyHeader>
+            <EmptyDescription>No transactions match these filters.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       )}
     </div>
   );

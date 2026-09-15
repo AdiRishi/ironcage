@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Schema, Struct } from "effect";
 import { useId, useState } from "react";
 
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,9 +27,9 @@ import {
 import { useCommand } from "@/lib/use-command";
 
 import { updateAccount } from "./functions";
+import { accountKindLabels } from "./labels";
 
 const Fields = Schema.Struct(Struct.pick(UpdateAccount.fields, ["label", "kind"]));
-const kinds = { deposit: "Deposit", card: "Credit card", loan: "Loan" };
 export function EditAccountDialog({ account }: { account: Account }) {
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -38,9 +39,7 @@ export function EditAccountDialog({ account }: { account: Account }) {
     onSuccess: async () => {
       await client.invalidateQueries({
         predicate: (query) =>
-          query.queryKey[0] === "accounts" ||
-          query.queryKey[0] === "postings" ||
-          query.queryKey[0] === "posting",
+          ["accounts", "postings", "posting"].includes(String(query.queryKey[0])),
       });
       setOpen(false);
     },
@@ -60,7 +59,7 @@ export function EditAccountDialog({ account }: { account: Account }) {
     <Dialog
       open={open}
       onOpenChange={(value) => {
-        if (value && !mutation.isPending && !uncertain) {
+        if (value && !uncertain) {
           form.reset({ label: account.label, kind: account.kind });
           mutation.reset();
         }
@@ -107,7 +106,7 @@ export function EditAccountDialog({ account }: { account: Account }) {
                 <div className="space-y-2">
                   <Label htmlFor={`${id}-kind`}>Account type</Label>
                   <Select
-                    items={kinds}
+                    items={accountKindLabels}
                     disabled={account.accountNumber !== null}
                     value={field.state.value}
                     onValueChange={(value) => {
@@ -118,9 +117,11 @@ export function EditAccountDialog({ account }: { account: Account }) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="deposit">Deposit</SelectItem>
-                      <SelectItem value="card">Credit card</SelectItem>
-                      <SelectItem value="loan">Loan</SelectItem>
+                      {Object.entries(accountKindLabels).map(([kind, label]) => (
+                        <SelectItem key={kind} value={kind}>
+                          {label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -134,21 +135,24 @@ export function EditAccountDialog({ account }: { account: Account }) {
             )}
           </fieldset>
           {mutation.error && (
-            <div role="alert" className="space-y-2 text-sm text-destructive">
-              <p>{mutation.error.message}</p>
+            <Alert variant="destructive">
+              <AlertDescription>{mutation.error.message}</AlertDescription>
               {!uncertain && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    mutation.reset();
-                    client.invalidateQueries({ queryKey: ["accounts"] }).catch(reportError);
-                  }}
-                >
-                  Refresh account
-                </Button>
+                <AlertAction>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      mutation.reset();
+                      client.invalidateQueries({ queryKey: ["accounts"] }).catch(reportError);
+                    }}
+                  >
+                    Refresh
+                  </Button>
+                </AlertAction>
               )}
-            </div>
+            </Alert>
           )}
           <Button type="submit" disabled={mutation.isPending}>
             {mutation.isPending ? "Saving…" : uncertain ? "Retry save" : "Save account"}

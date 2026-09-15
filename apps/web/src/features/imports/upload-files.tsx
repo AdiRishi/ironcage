@@ -17,8 +17,7 @@ import {
 } from "@/components/ui/select";
 import { CreateAccountDialog } from "@/features/accounts/create-account";
 import { accountsQueryOptions } from "@/features/accounts/queries";
-
-import { invalidateImportRecords } from "./invalidate-records";
+import { invalidatePublishedRecords } from "@/lib/invalidate-records";
 
 type UploadProgress =
   | { status: "uploading" | "failed"; message: string }
@@ -27,13 +26,18 @@ type UploadState = UploadProgress & {
   id: string;
   fileName: string;
 };
-const UploadFailure = Schema.Struct({ message: Schema.String });
+const UploadResponse = Schema.Union([UploadResult, Schema.Struct({ message: Schema.String })]);
+const fileIdentity = { value: null, label: "Use the file’s bank identity" };
 export function UploadFiles() {
   const { data: accounts } = useSuspenseQuery(accountsQueryOptions());
   const client = useQueryClient();
   const [accountId, setAccountId] = useState<typeof AccountId.Type | null>(null);
   const [uploads, setUploads] = useState<UploadState[]>([]);
   const [dragging, setDragging] = useState(false);
+  const accountItems = [
+    fileIdentity,
+    ...accounts.map((account) => ({ value: account.id, label: account.label })),
+  ];
   async function uploadFiles(files: FileList | null) {
     if (!files) return;
     await Promise.all(
@@ -50,32 +54,30 @@ export function UploadFiles() {
             ),
           );
         }
+        const body = new FormData();
+        body.set("file", file);
+        if (accountId) body.set("accountId", accountId);
+        let response: unknown;
         try {
-          const body = new FormData();
-          body.set("file", file);
-          if (accountId) body.set("accountId", accountId);
-          const response = await fetch("/uploads", { method: "POST", body });
-          if (!response.ok) {
-            const failure = await Schema.decodeUnknownPromise(UploadFailure)(await response.json());
-            update({ status: "failed", message: failure.message });
-            return;
-          }
-          const result = await Schema.decodeUnknownPromise(UploadResult)(await response.json());
-          update({
-            status: result.existing ? "existing" : "uploaded",
-            message: result.existing ? "Original available. Records already imported." : "Uploaded",
-            importId: result.importId,
-          });
-          await Promise.all([
-            invalidateImportRecords(client),
-            client.invalidateQueries({ queryKey: ["imports"] }),
-          ]);
+          response = await (await fetch("/uploads", { method: "POST", body })).json();
         } catch {
           update({
             status: "failed",
             message: "Upload did not finish. Choose the file again to retry.",
           });
+          return;
         }
+        const result = await Schema.decodeUnknownPromise(UploadResponse)(response);
+        if ("message" in result) {
+          update({ status: "failed", message: result.message });
+          return;
+        }
+        update({
+          status: result.existing ? "existing" : "uploaded",
+          message: result.existing ? "Original available. Records already imported." : "Uploaded",
+          importId: result.importId,
+        });
+        await invalidatePublishedRecords(client);
       }),
     );
   }
@@ -84,22 +86,14 @@ export function UploadFiles() {
       <div className="mb-5 flex flex-wrap items-end gap-3">
         <div className="space-y-2">
           <Label htmlFor="upload-account">Account for these files</Label>
-          <Select
-            value={accountId}
-            onValueChange={setAccountId}
-            items={[
-              { value: null, label: "Use the file’s bank identity" },
-              ...accounts.map((account) => ({ value: account.id, label: account.label })),
-            ]}
-          >
+          <Select value={accountId} onValueChange={setAccountId} items={accountItems}>
             <SelectTrigger id="upload-account" className="min-w-60">
-              <SelectValue placeholder="Use the file’s bank identity" />
+              <SelectValue placeholder={fileIdentity.label} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={null}>Use the file’s bank identity</SelectItem>
-              {accounts.map((account) => (
-                <SelectItem key={account.id} value={account.id}>
-                  {account.label}
+              {accountItems.map((item) => (
+                <SelectItem key={item.value ?? ""} value={item.value}>
+                  {item.label}
                 </SelectItem>
               ))}
             </SelectContent>

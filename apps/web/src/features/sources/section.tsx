@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 
+import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import {
   Table,
   TableBody,
@@ -11,6 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { importStatusLabels } from "@/features/imports/import-record";
+import { sourceHref } from "@/lib/sources";
 
 import { sourceFilesQueryOptions } from "./queries";
 import { RemoveSourceDialog } from "./remove-dialog";
@@ -25,7 +28,7 @@ const columns = column.columns([
         <p className="font-medium">{row.original.fileName}</p>
         <p className="text-xs text-muted-foreground">
           {row.original.format.toUpperCase()} · {BigInt(row.original.byteSize).toLocaleString()}{" "}
-          bytes · {row.original.status.replace("_", " ")}
+          bytes · {importStatusLabels[row.original.status]}
         </p>
         <Link
           to="/transactions"
@@ -41,7 +44,7 @@ const columns = column.columns([
     header: "Original",
     cell: ({ row }) =>
       row.original.bytesAvailable ? (
-        <a className="text-sm underline underline-offset-4" href={`/sources/${row.original.id}`}>
+        <a className="text-sm underline underline-offset-4" href={sourceHref(row.original.id)}>
           Open file
         </a>
       ) : (
@@ -97,7 +100,11 @@ export function SourceFilesSection() {
           </TableBody>
         </Table>
         {data.length === 0 && (
-          <p className="p-5 text-sm text-muted-foreground">No files imported yet.</p>
+          <Empty>
+            <EmptyHeader>
+              <EmptyDescription>No files imported yet.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         )}
       </div>
     </section>

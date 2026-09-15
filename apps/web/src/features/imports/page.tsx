@@ -1,6 +1,7 @@
 import { useSuspenseQuery, useSuspenseInfiniteQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { settingsQueryOptions } from "@/features/settings/queries";
 
 import { ImportRecord } from "./import-record";
@@ -9,7 +10,7 @@ import { UploadFiles } from "./upload-files";
 import { useImportCompletion } from "./use-import-completion";
 export function ImportsPage() {
   const history = useSuspenseInfiniteQuery(importsQueryOptions());
-  const imports = history.data.pages.flat();
+  const imports = history.data.pages.flatMap((page) => page.rows);
   const { data: settings } = useSuspenseQuery(settingsQueryOptions());
   useImportCompletion(imports);
   return (
@@ -24,9 +25,11 @@ export function ImportsPage() {
       <section>
         <h2 className="mb-4 text-xl font-semibold">Import history</h2>
         {imports.length === 0 ? (
-          <p className="rounded-lg border p-8 text-center text-muted-foreground">
-            Your imported files will appear here.
-          </p>
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyDescription>Your imported files will appear here.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <ul className="divide-y rounded-lg border">
             {imports.map((item) => (

@@ -1,7 +1,9 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 
+import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { CreateAccountDialog } from "@/features/accounts/create-account";
 import { EditAccountDialog } from "@/features/accounts/edit-account";
+import { accountKindLabels } from "@/features/accounts/labels";
 import { accountsQueryOptions } from "@/features/accounts/queries";
 import { ExportsSection } from "@/features/exports/section";
 import { SourceFilesSection } from "@/features/sources/section";
@@ -26,9 +28,11 @@ export function SettingsPage() {
           <CreateAccountDialog />
         </div>
         {accounts.length === 0 ? (
-          <p className="rounded-lg border p-5 text-muted-foreground">
-            Import an OFX file or add an account to begin.
-          </p>
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyDescription>Import an OFX file or add an account to begin.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <ul className="divide-y rounded-lg border">
             {accounts.map((account) => (
@@ -36,12 +40,7 @@ export function SettingsPage() {
                 <div>
                   <p className="font-medium">{account.label}</p>
                   <p className="text-sm text-muted-foreground">
-                    {account.kind === "card"
-                      ? "Credit card"
-                      : account.kind === "loan"
-                        ? "Loan"
-                        : "Deposit"}{" "}
-                    · {account.currency}
+                    {accountKindLabels[account.kind]} · {account.currency}
                   </p>
                   {account.accountNumber && (
                     <p className="mt-1 text-xs text-muted-foreground">

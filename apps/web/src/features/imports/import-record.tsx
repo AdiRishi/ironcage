@@ -1,11 +1,12 @@
 import { type Import } from "@repo/contracts/finance";
 import { Link } from "@tanstack/react-router";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 
 import { RetryImportButton } from "./retry-import";
 
-const statuses = {
+export const importStatusLabels: Record<Import["status"], string> = {
   processing: "Processing",
   needs_review: "Needs review",
   complete: "Complete",
@@ -38,9 +39,9 @@ export function ImportRecord({ item, timezone }: { item: Import; timezone: strin
           </p>
         )}
         {item.failure && (
-          <p role="alert" className="text-sm text-destructive">
-            {item.failure.message}
-          </p>
+          <Alert variant="destructive">
+            <AlertDescription>{item.failure.message}</AlertDescription>
+          </Alert>
         )}
         {item.status === "failed" && <RetryImportButton item={item} />}
         {item.status === "needs_review" && (
@@ -63,7 +64,7 @@ export function ImportRecord({ item, timezone }: { item: Import; timezone: strin
         )}
       </div>
       <Badge variant={item.status === "failed" ? "destructive" : "secondary"}>
-        {statuses[item.status]}
+        {importStatusLabels[item.status]}
       </Badge>
     </li>
   );

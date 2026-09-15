@@ -2,6 +2,7 @@ import { AccountId, type ReviewItem } from "@repo/contracts/finance";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -18,7 +19,7 @@ import { RowChoice } from "./row-choice";
 import { useResolution } from "./use-resolution";
 
 export function ReviewCard({ review }: { review: ReviewItem }) {
-  const { mutation, submit, uncertain, refresh } = useResolution(review);
+  const { mutation, submit, retry, uncertain, refresh } = useResolution(review);
   const blocked = mutation.isPending || uncertain;
   return (
     <section className="space-y-5 rounded-lg border p-5 sm:p-6">
@@ -45,24 +46,27 @@ export function ReviewCard({ review }: { review: ReviewItem }) {
         ))
       )}
       {mutation.isPending && <output className="text-sm">Saving your decision…</output>}
-      {mutation.isError && (
-        <div role="alert" className="space-y-3 text-sm">
-          <p className="text-destructive">{mutation.error.message}</p>
-          {uncertain ? (
-            <Button variant="outline" onClick={() => mutation.mutate(mutation.variables)}>
-              Retry this decision
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                refresh().catch(reportError);
-              }}
-            >
-              Refresh review
-            </Button>
-          )}
-        </div>
+      {mutation.error && (
+        <Alert variant="destructive">
+          <AlertDescription>{mutation.error.message}</AlertDescription>
+          <AlertAction>
+            {uncertain ? (
+              <Button variant="outline" size="sm" onClick={retry}>
+                Retry
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  refresh().catch(reportError);
+                }}
+              >
+                Refresh
+              </Button>
+            )}
+          </AlertAction>
+        </Alert>
       )}
     </section>
   );
@@ -77,17 +81,21 @@ function AccountChoice({
   const { data: accounts } = useSuspenseQuery(accountsQueryOptions());
   const id = useId();
   const [accountId, setAccountId] = useState<typeof AccountId.Type | null>(null);
+  const items = accounts.map((account) => ({
+    value: account.id,
+    label: `${account.label} · ${account.currency}`,
+  }));
   return (
     <div className="space-y-4">
       <Label htmlFor={id}>Account for this file</Label>
-      <Select value={accountId} onValueChange={setAccountId} disabled={disabled}>
+      <Select items={items} value={accountId} onValueChange={setAccountId} disabled={disabled}>
         <SelectTrigger id={id}>
           <SelectValue placeholder="Choose an account" />
         </SelectTrigger>
         <SelectContent>
-          {accounts.map((account) => (
-            <SelectItem key={account.id} value={account.id}>
-              {account.label} · {account.currency}
+          {items.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
             </SelectItem>
           ))}
         </SelectContent>
