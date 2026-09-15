@@ -4,15 +4,13 @@ import { Effect } from "effect";
 import { extractTextItems } from "unpdf";
 
 import { parseDescription } from "../description.ts";
-import { decodeCandidate, issue } from "../observation.ts";
+import { issue, locatorKey, observation } from "../observation.ts";
 import { metadata } from "./metadata.ts";
 import { tableRows, rawRow } from "./table.ts";
 import { bounds, type PdfPage } from "./text.ts";
 import { absoluteMoney, pdfDate, pdfMoney } from "./values.ts";
 
-export const decodeStatement = Effect.fn("decodeStatement")(function* (
-  pages: ReadonlyArray<PdfPage>,
-) {
+const decodeStatement = Effect.fn("decodeStatement")(function* (pages: ReadonlyArray<PdfPage>) {
   const meta = yield* metadata(pages);
   let statement = meta.statement;
   const observations: ParsedObservation[] = [];
@@ -29,7 +27,7 @@ export const decodeStatement = Effect.fn("decodeStatement")(function* (
         ))
     )
       observations.push({
-        locatorKey: `pdfRow:${index + 1}:1`,
+        locatorKey: locatorKey({ kind: "pdfRow", page: index + 1, row: 1 }),
         locator: { kind: "pdfRow", page: index + 1, row: 1 },
         raw: { text: page.map((item) => item.str).join(" "), positions: JSON.stringify(page) },
         candidate: null,
@@ -63,8 +61,10 @@ export const decodeStatement = Effect.fn("decodeStatement")(function* (
         !/\d/.test(row.debit + row.credit) &&
         /interest rate|minimum repayment|interest earned/i.test(row.description);
       const decoded = notice
-        ? { candidate: null, issue: null }
-        : yield* decodeCandidate(
+        ? { locatorKey: locatorKey(locator), locator, raw, candidate: null, issue: null }
+        : yield* observation(
+            locator,
+            raw,
             Effect.gen(function* () {
               const postedOn = yield* pdfDate(row.date, period).pipe(
                 Effect.mapError(issue("unreadableDate", row.date)),
@@ -92,10 +92,8 @@ export const decodeStatement = Effect.fn("decodeStatement")(function* (
               };
             }),
           );
+      // Zero-amount rows are printed notices such as a waived fee, not postings.
       observations.push({
-        locatorKey: `pdfRow:${row.page}:${row.row}`,
-        locator,
-        raw,
         ...decoded,
         candidate: decoded.candidate?.amount.minor === 0n ? null : decoded.candidate,
       });
@@ -125,13 +123,5 @@ export const parsePdf = Effect.fn("parsePdf")(function* (bytes: Uint8Array) {
       () => new FinanceError({ kind: "invalid", message: "The PDF could not be read." }),
     ),
   );
-  return yield* decodeStatement(document.items).pipe(
-    Effect.mapError(
-      () =>
-        new FinanceError({
-          kind: "invalid",
-          message: "The statement metadata could not be decoded.",
-        }),
-    ),
-  );
+  return yield* decodeStatement(document.items);
 });

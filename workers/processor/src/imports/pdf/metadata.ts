@@ -1,11 +1,11 @@
-import { type BankAccount, type Statement } from "@repo/contracts/finance";
+import { type BankAccount, FinanceError, type Statement } from "@repo/contracts/finance";
 import { nextCalendarDate } from "@repo/finance";
 import { Effect } from "effect";
 
 import { lines, text, type PdfPage } from "./text.ts";
 import { absoluteMoney, fullDates, pdfDate, pdfMoney } from "./values.ts";
 
-export const metadata = Effect.fn(function* (pages: ReadonlyArray<PdfPage>) {
+export const metadata = Effect.fn("pdfMetadata")(function* (pages: ReadonlyArray<PdfPage>) {
   const all = pages.flat();
   const kind: (typeof BankAccount.Type)["kind"] = all.some((item) =>
     /Home Loan Transactions/.test(item.str),
@@ -23,9 +23,14 @@ export const metadata = Effect.fn(function* (pages: ReadonlyArray<PdfPage>) {
   const periodLine = lines(header).find(
     (line) => line.some((item) => item.x > 350) && [...text(line).matchAll(fullDates)].length === 2,
   );
-  const dates = [...text(periodLine ?? []).matchAll(fullDates)].map((match) => match[0]);
-  const start = dates[0] ? yield* pdfDate(dates[0], { start: null, end: null }) : null;
-  const end = dates[1] ? yield* pdfDate(dates[1], { start: null, end: null }) : null;
+  if (!periodLine)
+    return yield* new FinanceError({
+      kind: "invalid",
+      message: "The statement does not print a statement period.",
+    });
+  const [first, second] = [...text(periodLine).matchAll(fullDates)].map((match) => match[0]);
+  const start = first ? yield* pdfDate(first, { start: null, end: null }) : null;
+  const end = second ? yield* pdfDate(second, { start: null, end: null }) : null;
   const number = header
     .find((item) => item.x > 450 && item.y > 730 && /^\d[\d ]{7,18}$/.test(item.str))
     ?.str.replace(/\s/g, "");
@@ -45,7 +50,7 @@ export const metadata = Effect.fn(function* (pages: ReadonlyArray<PdfPage>) {
     debitTotal: null,
     creditTotal: null,
     order: "ascending",
-    raw: { period: text(periodLine ?? []) },
+    raw: { period: text(periodLine) },
   };
   if (kind === "card") {
     for (const line of lines(header)) {

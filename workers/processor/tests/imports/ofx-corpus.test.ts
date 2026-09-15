@@ -20,7 +20,7 @@ describe.skipIf(!existsSync(directory))("private OFX corpus", () => {
           const parsed = yield* parseOfx(readFileSync(new URL(name, directory)));
           const csvName = name.replace(/^(\d+)b_/, "$1a_").replace(/\.ofx$/, ".csv");
           const csv = yield* parseCsv(readFileSync(new URL(csvName, directory)), "AUD");
-          expect(parsed.observations.length === csv.observations.length).toBe(true);
+          expect(parsed.observations).toHaveLength(csv.observations.length);
           const sameRows = parsed.observations.every((row, index) => {
             const other = csv.observations[index]?.candidate;
             return (

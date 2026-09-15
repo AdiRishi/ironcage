@@ -2,7 +2,7 @@ import { FinanceError, ImportJob } from "@repo/contracts/finance";
 import type { Api } from "@repo/infra/api";
 import { Workflows } from "alchemy/Cloudflare";
 import type { ReadBucketClient } from "alchemy/Cloudflare/R2";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 
 import { parseCsv } from "./csv.ts";
 import { parseOfx } from "./ofx.ts";
@@ -11,10 +11,17 @@ import { parsePdf } from "./pdf/index.ts";
 export const runImport = (
   api: Pick<Api, "getImportSource" | "publishImport" | "failImport">,
   sources: ReadBucketClient,
-) =>
-  Effect.fn("ImportWorkflow.run")(
+) => {
+  const recordFailure = (input: typeof ImportJob.Type, message: string) =>
+    Workflows.task(
+      "record-failure",
+      api.failImport({ ...input, failure: { message } }).pipe(Effect.orDie),
+    );
+  return Effect.fn("ImportWorkflow.run")(
     function* (input: typeof ImportJob.Type) {
-      return yield* Workflows.task(
+      // Only `unavailable` is worth the platform's retries; any other failure is a
+      // property of the file and is recorded as the import's failure message.
+      const failure = yield* Workflows.task(
         "import",
         Effect.gen(function* () {
           const source = yield* api.getImportSource(input);
@@ -36,25 +43,24 @@ export const runImport = (
               : source.format === "ofx"
                 ? yield* parseOfx(bytes)
                 : yield* parsePdf(bytes);
-          return yield* api.publishImport({ importId: input.importId, ...result });
-        }).pipe(Effect.orDie),
+          yield* api.publishImport({ importId: input.importId, ...result });
+          return null;
+        }).pipe(
+          Effect.catchIf(
+            (error) => Schema.is(FinanceError)(error) && error.kind !== "unavailable",
+            (error) => Effect.succeed(error.message),
+          ),
+          Effect.orDie,
+        ),
         { timeout: "1 minute", retries: { limit: 2, delay: "2 seconds", backoff: "exponential" } },
       );
+      if (failure !== null) yield* recordFailure(input, failure);
     },
     (effect, input) =>
       effect.pipe(
         Effect.catchDefect(() =>
-          Workflows.task(
-            "record-failure",
-            api
-              .failImport({
-                ...input,
-                failure: {
-                  message: "The import could not finish. Retry processing the original file.",
-                },
-              })
-              .pipe(Effect.orDie),
-          ),
+          recordFailure(input, "The import could not finish. Retry processing the original file."),
         ),
       ),
   );
+};

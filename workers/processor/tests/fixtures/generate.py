@@ -1,3 +1,4 @@
+# Regenerates the synthetic statements. Requires `pip install reportlab pypdf`.
 from pathlib import Path
 from reportlab.pdfgen import canvas
 
@@ -11,6 +12,8 @@ def document(name):
 def word(c, x, y, value):
     c.drawString(x, y, value)
 
+# CommBank card statements print the decimal point as a glyph the text layer drops,
+# leaving a space where it stood; the dot here reproduces that defect.
 def card_money(c, x, y, value):
     word(c, x, y, value)
     gap = value.rfind(' ')
