@@ -1,6 +1,6 @@
-import { AppRequestError } from "@repo/contracts/app";
 import { expect, test } from "vitest";
 
+import { AppRequestError } from "@/lib/app-error";
 import { createQueryClient } from "@/lib/query-client";
 
 test.each(["notFound", "invalid", "internal"] as const)(

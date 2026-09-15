@@ -1,19 +1,12 @@
+import { type FinanceError } from "@repo/contracts/finance";
 import { Schema } from "effect";
 
-const AppErrorCode = Schema.Literals([
-  "invalid",
-  "notFound",
-  "stale",
-  "conflict",
-  "needsReview",
-  "unavailable",
-  "internal",
-]);
+type AppErrorCode = FinanceError["kind"] | "internal";
 
 export class AppRequestError extends Error {
-  readonly code: typeof AppErrorCode.Type;
+  readonly code: AppErrorCode;
 
-  constructor(code: typeof AppErrorCode.Type, message: string) {
+  constructor(code: AppErrorCode, message: string) {
     super(message);
     this.name = "AppRequestError";
     this.code = code;

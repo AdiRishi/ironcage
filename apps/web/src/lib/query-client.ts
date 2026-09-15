@@ -1,5 +1,6 @@
-import { AppRequestError } from "@repo/contracts/app";
 import { QueryClient } from "@tanstack/react-query";
+
+import { AppRequestError } from "@/lib/app-error";
 
 export const createQueryClient = () =>
   new QueryClient({

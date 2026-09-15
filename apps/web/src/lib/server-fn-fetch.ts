@@ -1,4 +1,4 @@
-import { AppRequestError } from "@repo/contracts/app";
+import { AppRequestError } from "@/lib/app-error";
 
 export async function serverFnFetch(...args: Parameters<typeof fetch>) {
   try {

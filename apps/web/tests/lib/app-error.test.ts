@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { AppRequestError, appRequestErrorSerialization } from "../src/app.ts";
+import { AppRequestError, appRequestErrorSerialization } from "@/lib/app-error";
 
 test("browser error serialization preserves recovery codes without server diagnostics", () => {
   const error = Object.assign(new AppRequestError("unavailable", "Try again."), {

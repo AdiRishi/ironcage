@@ -8,6 +8,7 @@ import {
   CommandId,
   RecordCursor,
   ImportId,
+  Instant,
   Money,
   SourceFileId,
   Version,
@@ -108,7 +109,7 @@ export const Import = Schema.Struct({
   summary: Schema.NullOr(ImportSummary),
   failure: Schema.NullOr(Schema.Struct({ message: Schema.String })),
   version: Version,
-  createdAt: Schema.String,
+  createdAt: Instant,
 });
 export type Import = typeof Import.Type;
 export const ImportInput = Schema.Struct({ importId: ImportId });
@@ -145,3 +146,8 @@ export const FailImport = Schema.Struct({
 });
 
 export const ListImports = Schema.Struct({ cursor: Schema.optionalKey(RecordCursor) });
+export const ImportPage = Schema.Struct({
+  rows: Schema.Array(Import),
+  nextCursor: Schema.NullOr(RecordCursor),
+});
+export type ImportPage = typeof ImportPage.Type;

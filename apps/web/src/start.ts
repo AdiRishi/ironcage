@@ -1,7 +1,7 @@
-import { appRequestErrorSerialization } from "@repo/contracts/app";
 import { createSerializationAdapter } from "@tanstack/react-router";
 import { createCsrfMiddleware, createStart } from "@tanstack/react-start";
 
+import { appRequestErrorSerialization } from "@/lib/app-error";
 import { serverFnFetch } from "@/lib/server-fn-fetch";
 
 const csrfMiddleware = createCsrfMiddleware({

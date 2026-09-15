@@ -37,9 +37,21 @@ export class FinanceError extends Schema.TaggedError<FinanceError>()("FinanceErr
   message: Schema.String,
 }) {}
 
+export const Instant = Schema.String.check(
+  Schema.isPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3,6}Z$/),
+);
+export type Instant = typeof Instant.Type;
+
 export const RecordCursor = Schema.Struct({
-  createdAt: Schema.String.check(
-    Schema.isPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3,6}Z$/),
-  ),
+  createdAt: Instant,
   id: Schema.String.check(Schema.isUUID()),
 });
+export const MatchMethod = Schema.Literals([
+  "sameRow",
+  "bankId",
+  "group",
+  "corroborated",
+  "new",
+  "user",
+]);
+export type MatchMethod = typeof MatchMethod.Type;
