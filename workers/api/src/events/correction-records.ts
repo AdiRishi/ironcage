@@ -7,9 +7,11 @@ import {
   FinanceError,
   type ExpectedEventVersion,
 } from "@repo/contracts/finance";
+import { isCost } from "@repo/finance";
 import { Crypto, Effect, Schema } from "effect";
 
 import { instant } from "../database/columns.ts";
+import { readCredits, readFees, readMovement } from "../relationships/repository.ts";
 
 export const checkEventVersions = Effect.fn("checkEventVersions")(function* (
   events: ReadonlyArray<FinancialEvent>,
@@ -48,8 +50,61 @@ export const recordCorrection = Effect.fn("recordCorrection")(function* ({
   yield* sql`INSERT INTO corrections (id, event_id, command_id, prior, accepted, scope) VALUES (${yield* crypto.randomUUIDv4}, ${prior.id}, ${commandId}, ${sql.json(yield* Schema.encodeEffect(Schema.toCodecJson(Correction.fields.prior))(prior))}, ${sql.json(yield* Schema.encodeEffect(Schema.toCodecJson(Correction.fields.accepted))(accepted))}, ${scope})`;
 });
 
+export const validateEventRelationships = Effect.fn("validateEventRelationships")(function* (
+  event: FinancialEvent,
+) {
+  const sql = yield* PgClient.PgClient;
+  const credits = yield* readCredits();
+  for (const link of credits.filter(
+    (link) => link.creditEventId === event.id || link.costEventId === event.id,
+  )) {
+    const isCredit = link.creditEventId === event.id;
+    const allocation = event.allocations.find(
+      (row) => row.id === (isCredit ? link.creditAllocationId : link.costAllocationId),
+    );
+    const applied = credits
+      .filter((row) =>
+        isCredit
+          ? row.creditAllocationId === link.creditAllocationId
+          : row.costAllocationId === link.costAllocationId,
+      )
+      .reduce((sum, row) => sum + row.amount.minor, 0n);
+    if (
+      !allocation ||
+      allocation.amount.minor < applied ||
+      (isCredit
+        ? allocation.role !== "refund" && allocation.role !== "reimbursement"
+        : !isCost(allocation.role))
+    )
+      return yield* new FinanceError({
+        kind: "conflict",
+        message:
+          "Remove the applied credits before changing their allocation or reducing the amount below the credited total.",
+      });
+  }
+  const movement = yield* readMovement(event.id);
+  const [stored] = yield* sql`SELECT kind FROM events WHERE id=${event.id}`.pipe(
+    Effect.flatMap(
+      Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ kind: Schema.String }))),
+    ),
+  );
+  if (movement && stored?.kind !== event.kind)
+    return yield* new FinanceError({
+      kind: "conflict",
+      message: "Unlink the movement before changing its role.",
+    });
+  for (const fee of yield* readFees(event.id)) {
+    if (event.kind !== (fee.feeEventId === event.id ? "financingCost" : "purchase"))
+      return yield* new FinanceError({
+        kind: "conflict",
+        message: "Remove the fee association before changing the role.",
+      });
+  }
+});
+
 export const writeEvent = Effect.fn("writeEvent")(function* (event: FinancialEvent) {
   const sql = yield* PgClient.PgClient;
+  yield* validateEventRelationships(event);
   for (const allocation of event.allocations) {
     if (allocation.categoryId) {
       const rows = yield* sql`SELECT id FROM categories WHERE id = ${allocation.categoryId}`;
@@ -84,7 +139,7 @@ export const writeEvent = Effect.fn("writeEvent")(function* (event: FinancialEve
       }
     }
   }
-  yield* sql`UPDATE events SET kind = ${event.kind}, purchase_on = ${event.purchaseOn}, version = ${event.version}, suggestion = NULL WHERE id = ${event.id}`;
+  yield* sql`UPDATE events SET primary_posting_id = ${event.primaryPostingId}, reporting_account_id = ${event.reportingAccountId}, kind = ${event.kind}, purchase_on = ${event.purchaseOn}, version = ${event.version}, suggestion = NULL WHERE id = ${event.id}`;
   const owned = yield* sql`SELECT id FROM allocations WHERE event_id <> ${event.id} AND ${sql.in(
     "id",
     event.allocations.map((allocation) => allocation.id),

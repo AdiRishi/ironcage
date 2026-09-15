@@ -17,6 +17,7 @@ import { Array as Arr, Context, Crypto, Effect, Layer, Schema } from "effect";
 import { postingFields } from "../database/columns.ts";
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
+import { proposeMovements } from "../relationships/proposals.ts";
 import { readEvent } from "./repository.ts";
 
 export class Events extends Context.Service<
@@ -103,6 +104,8 @@ export class Events extends Context.Service<
                   records.map((record) => record.event.id),
                 )} AND kind = 'unresolved'`;
             }
+            if (postings.length > 0)
+              yield* proposeMovements.pipe(Effect.provideService(PgClient.PgClient, sql));
             return { ...(yield* summary), created: postings.length };
           }),
         });

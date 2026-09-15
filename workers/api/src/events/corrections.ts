@@ -19,6 +19,7 @@ import {
   correctionHistory,
   recordCorrection,
   writeEvent,
+  validateEventRelationships,
 } from "./correction-records.ts";
 import { previewImpact } from "./impact.ts";
 import { readEvent } from "./repository.ts";
@@ -58,6 +59,7 @@ export class Corrections extends Context.Service<
               yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
               const event = yield* readEvent(change.eventId);
               const accepted = yield* correctEvent(event, change);
+              yield* validateEventRelationships(accepted);
               return {
                 change,
                 expectedVersions: [{ eventId: event.id, version: event.version }],

@@ -13,7 +13,7 @@ export const nullableMoney = (sql: SqlClient.SqlClient, currency: string, minor:
 
 export const postingFields = (
   sql: SqlClient.SqlClient,
-) => sql`p.id, p.account_id AS "accountId", a.label AS "accountLabel", p.posted_on::text AS "postedOn", p.value_on::text AS "valueOn", p.description,
+) => sql`p.id, p.account_id AS "accountId", COALESCE((SELECT h.label FROM account_periods h WHERE h.account_id=p.account_id AND p.posted_on >= h.start_on AND (h.end_on IS NULL OR p.posted_on<h.end_on)), a.label) AS "accountLabel", p.posted_on::text AS "postedOn", p.value_on::text AS "valueOn", p.description,
   ${money(sql, "p.currency", "p.amount_minor")} AS amount,
   ${nullableMoney(sql, "p.original_currency", "p.original_amount_minor")} AS "originalMoney"`;
 

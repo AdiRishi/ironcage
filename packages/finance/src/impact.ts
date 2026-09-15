@@ -1,5 +1,7 @@
 import {
   AccountId,
+  AllocationId,
+  type CreditLink,
   CalendarDate,
   EventId,
   FinancialRole,
@@ -11,6 +13,7 @@ import { DateTime, Schema } from "effect";
 
 export const MeasureFact = Schema.Struct({
   eventId: EventId,
+  allocationId: AllocationId,
   accountId: AccountId,
   postedOn: CalendarDate,
   kind: FinancialRole,
@@ -30,9 +33,10 @@ export function postedMonth(on: CalendarDate) {
 }
 export function eventFacts(event: FinancialEvent): ReadonlyArray<MeasureFact> {
   const primary = event.postings.find((posting) => posting.id === event.primaryPostingId);
-  return primary
+  return primary && event.active
     ? event.allocations.map((allocation) => ({
         eventId: event.id,
+        allocationId: allocation.id,
         accountId: event.reportingAccountId,
         postedOn: primary.postedOn,
         kind: event.kind,
@@ -49,8 +53,10 @@ export function periodMeasures({
   observedCashMovement,
   cashComplete,
   loanComplete,
+  credits = [],
 }: {
   facts: ReadonlyArray<MeasureFact>;
+  credits?: ReadonlyArray<typeof CreditLink.Type>;
   currency: string;
   loanAccountIds: ReadonlyArray<typeof AccountId.Type>;
   observedCashMovement: bigint;
@@ -66,7 +72,12 @@ export function periodMeasures({
   for (const fact of facts) {
     if (fact.role === "purchase" || fact.role === "financingCost") {
       gross += fact.amount.minor;
-      if (!fact.nonPersonal) net += fact.amount.minor;
+      if (!fact.nonPersonal)
+        net +=
+          fact.amount.minor -
+          credits
+            .filter((link) => link.costAllocationId === fact.allocationId)
+            .reduce((sum, link) => sum + link.amount.minor, 0n);
     }
     if (fact.role === "income") income += fact.amount.minor;
     if (fact.kind === "unresolved") unresolved.add(fact.eventId);

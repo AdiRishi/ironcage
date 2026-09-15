@@ -17,6 +17,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 
+import { InterpretationReviewSection } from "../relationships/reviews";
 import { reviewQueryOptions } from "./queries";
 import { ReviewCard } from "./review-card";
 
@@ -32,6 +33,7 @@ export function ReviewPage({ filter }: { filter: Omit<typeof ListReviewItems.Typ
   }, [reviews.length]);
   return (
     <div className="space-y-8">
+      <InterpretationReviewSection />
       <header>
         <h1 ref={heading} tabIndex={-1} className="text-3xl font-semibold tracking-tight">
           Source review
