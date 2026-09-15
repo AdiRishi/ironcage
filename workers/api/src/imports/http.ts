@@ -56,10 +56,10 @@ const download = Effect.gen(function* () {
     ),
   );
   const { fileName, mediaType, object } = yield* Uploads.use((uploads) => uploads.download(input));
-  const inline = mediaType === "application/pdf";
+  const inline = fileName.toLowerCase().endsWith(".pdf");
   return HttpServerResponse.stream(object.body, {
     headers: {
-      "content-type": mediaType,
+      "content-type": inline ? "application/pdf" : mediaType,
       "content-disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(fileName)}`,
       "cache-control": "private, no-store",
     },

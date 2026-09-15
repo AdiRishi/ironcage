@@ -48,6 +48,14 @@ export class Imports extends Context.Service<
         sql`SELECT ${fields} FROM imports i JOIN source_files s ON s.id = i.source_file_id WHERE ${condition} ORDER BY i.created_at DESC, i.id DESC LIMIT ${pageSize + 1}`.pipe(
           Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(StoredImport))),
         );
+      const readOne = Effect.fn("Imports.readOne")(function* ({
+        importId,
+      }: typeof ImportInput.Type) {
+        const [item] = yield* read(sql`i.id = ${importId}`);
+        if (!item)
+          return yield* new FinanceError({ kind: "notFound", message: "Import not found." });
+        return item;
+      });
       const fail = Effect.fn("Imports.fail")(function* ({
         importId,
         failure,
@@ -79,13 +87,10 @@ export class Imports extends Context.Service<
         });
         return yield* get({ importId: item.id });
       });
-      const get: Imports["Service"]["get"] = Effect.fn("Imports.get")(function* ({
-        importId,
-      }: typeof ImportInput.Type) {
-        const [item] = yield* read(sql`i.id = ${importId}`);
-        if (!item)
-          return yield* new FinanceError({ kind: "notFound", message: "Import not found." });
-        return yield* refreshStatus(item);
+      const get: Imports["Service"]["get"] = Effect.fn("Imports.get")(function* (
+        input: typeof ImportInput.Type,
+      ) {
+        return yield* refreshStatus(yield* readOne(input));
       }, toFinanceError);
       const list = Effect.fn("Imports.list")(function* (input: typeof ListImports.Type = {}) {
         const stored = yield* read(
@@ -118,7 +123,7 @@ export class Imports extends Context.Service<
           input: { operation: "retryImport", ...input },
           result: Schema.toCodecJson(ImportJob),
           execute: Effect.gen(function* () {
-            const item = yield* get(input);
+            const item = yield* readOne(input);
             if (item.version !== input.expectedVersion)
               return yield* new FinanceError({
                 kind: "stale",

@@ -293,14 +293,18 @@ test(
   "PDF uploads publish through the native Workflow and open as original statement pages",
   Effect.gen(function* () {
     const { url, apiUrl } = yield* stack;
-    for (const name of ["deposit", "card", "loan"]) {
+    for (const [name, mediaType] of Object.entries({
+      deposit: "application/pdf",
+      card: "application/octet-stream",
+      loan: "",
+    })) {
       const bytes = new Uint8Array(
         readFileSync(
           new URL(`../../workers/processor/tests/fixtures/${name}.pdf`, import.meta.url),
         ),
       );
       const body = new FormData();
-      body.set("file", new Blob([bytes], { type: "application/pdf" }), `${name}.pdf`);
+      body.set("file", new Blob([bytes], { type: mediaType }), `${name}.pdf`);
       const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
         body: HttpBody.formData(body),
       }).pipe(

@@ -1,6 +1,6 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { PgClient } from "@effect/sql-pg";
-import { CommandId } from "@repo/contracts/finance";
+import { CommandId, FinanceError } from "@repo/contracts/finance";
 import { Crypto, Effect } from "effect";
 import { Layer } from "effect";
 import { expect } from "vitest";
@@ -11,6 +11,41 @@ import { applicationTest } from "../support/application.ts";
 import { account, reset, source } from "../support/fixtures.ts";
 
 const { test, services } = applicationTest();
+test(
+  "a stale retry is rejected even when Workflow status is unavailable",
+  Effect.gen(function* () {
+    yield* reset;
+    const sql = yield* PgClient.PgClient;
+    const file = yield* source((yield* account()).id);
+    yield* sql`UPDATE imports SET workflow_instance_id = 'running', version = 2 WHERE id = ${file.importId}`;
+    const imports = yield* Imports;
+    const error = yield* imports
+      .retry({
+        importId: file.importId,
+        commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
+        expectedVersion: 1,
+      })
+      .pipe(Effect.flip);
+    expect(error.kind).toBe("stale");
+  }).pipe(
+    Effect.provide(
+      Imports.layer.pipe(
+        Layer.provide(
+          Layer.succeed(ImportJobs, {
+            start: () => Effect.void,
+            status: () =>
+              Effect.fail(
+                new FinanceError({ kind: "unavailable", message: "Workflow unavailable" }),
+              ),
+          }),
+        ),
+        Layer.provideMerge(services),
+        Layer.provide(NodeCrypto.layer),
+      ),
+    ),
+  ),
+);
+
 test(
   "retrying a lost response keeps one attempt and ignores an older attempt's failure",
   Effect.gen(function* () {
