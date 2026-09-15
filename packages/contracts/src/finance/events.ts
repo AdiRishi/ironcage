@@ -31,7 +31,7 @@ export const FinancialEvent = Schema.Struct({
   purchaseOn: Schema.NullOr(CalendarDate),
   active: Schema.Boolean,
   version: Version,
-  allocations: Schema.Array(Allocation),
+  allocations: Schema.NonEmptyArray(Allocation),
   postings: Schema.Array(Posting),
 });
 export type FinancialEvent = typeof FinancialEvent.Type;

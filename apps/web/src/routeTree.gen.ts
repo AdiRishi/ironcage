@@ -16,6 +16,7 @@ import { Route as UploadsRouteImport } from './routes/uploads'
 import { Route as ExportsExportIdRouteImport } from './routes/exports/$exportId'
 import { Route as ImportsIndexRouteImport } from './routes/imports/index'
 import { Route as ImportsImportIdRouteImport } from './routes/imports/$importId'
+import { Route as SettingsCategoriesRouteImport } from './routes/settings_.categories'
 import { Route as SourcesSourceFileIdRouteImport } from './routes/sources/$sourceFileId'
 import { Route as TransactionsIndexRouteImport } from './routes/transactions/index'
 import { Route as TransactionsIdRouteImport } from './routes/transactions/$id'
@@ -55,6 +56,11 @@ const ImportsImportIdRoute = ImportsImportIdRouteImport.update({
   path: '/imports/$importId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsCategoriesRoute = SettingsCategoriesRouteImport.update({
+  id: '/settings_/categories',
+  path: '/settings/categories',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SourcesSourceFileIdRoute = SourcesSourceFileIdRouteImport.update({
   id: '/sources/$sourceFileId',
   path: '/sources/$sourceFileId',
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/uploads': typeof UploadsRoute
   '/exports/$exportId': typeof ExportsExportIdRoute
   '/imports/$importId': typeof ImportsImportIdRoute
+  '/settings/categories': typeof SettingsCategoriesRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
   '/imports/': typeof ImportsIndexRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/uploads': typeof UploadsRoute
   '/exports/$exportId': typeof ExportsExportIdRoute
   '/imports/$importId': typeof ImportsImportIdRoute
+  '/settings/categories': typeof SettingsCategoriesRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
   '/imports': typeof ImportsIndexRoute
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/uploads': typeof UploadsRoute
   '/exports/$exportId': typeof ExportsExportIdRoute
   '/imports/$importId': typeof ImportsImportIdRoute
+  '/settings_/categories': typeof SettingsCategoriesRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
   '/imports/': typeof ImportsIndexRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/uploads'
     | '/exports/$exportId'
     | '/imports/$importId'
+    | '/settings/categories'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
     | '/imports/'
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/uploads'
     | '/exports/$exportId'
     | '/imports/$importId'
+    | '/settings/categories'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
     | '/imports'
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/uploads'
     | '/exports/$exportId'
     | '/imports/$importId'
+    | '/settings_/categories'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
     | '/imports/'
@@ -154,6 +166,7 @@ export interface RootRouteChildren {
   UploadsRoute: typeof UploadsRoute
   ExportsExportIdRoute: typeof ExportsExportIdRoute
   ImportsImportIdRoute: typeof ImportsImportIdRoute
+  SettingsCategoriesRoute: typeof SettingsCategoriesRoute
   SourcesSourceFileIdRoute: typeof SourcesSourceFileIdRoute
   TransactionsIdRoute: typeof TransactionsIdRoute
   ImportsIndexRoute: typeof ImportsIndexRoute
@@ -211,6 +224,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ImportsImportIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings_/categories': {
+      id: '/settings_/categories'
+      path: '/settings/categories'
+      fullPath: '/settings/categories'
+      preLoaderRoute: typeof SettingsCategoriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sources/$sourceFileId': {
       id: '/sources/$sourceFileId'
       path: '/sources/$sourceFileId'
@@ -242,6 +262,7 @@ const rootRouteChildren: RootRouteChildren = {
   UploadsRoute: UploadsRoute,
   ExportsExportIdRoute: ExportsExportIdRoute,
   ImportsImportIdRoute: ImportsImportIdRoute,
+  SettingsCategoriesRoute: SettingsCategoriesRoute,
   SourcesSourceFileIdRoute: SourcesSourceFileIdRoute,
   TransactionsIdRoute: TransactionsIdRoute,
   ImportsIndexRoute: ImportsIndexRoute,

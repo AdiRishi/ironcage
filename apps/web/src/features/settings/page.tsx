@@ -1,4 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { CreateAccountDialog } from "@/features/accounts/create-account";
@@ -22,6 +23,9 @@ export function SettingsPage() {
         <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-2 text-muted-foreground">Accounts, display preferences, and your data.</p>
       </header>
+      <Link to="/settings/categories" className="text-primary underline">
+        Categories, merchants, tags, and personal events
+      </Link>
       <section className="space-y-5">
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-xl font-semibold">Accounts</h2>

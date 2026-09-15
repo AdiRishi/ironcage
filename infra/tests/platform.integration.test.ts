@@ -383,6 +383,7 @@ test(
       "allocations",
       "categories",
       "command_receipts",
+      "corrections",
       "event_postings",
       "events",
       "exports",

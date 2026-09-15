@@ -1,6 +1,7 @@
 import { type Account, PostingFilter, FinancialRole } from "@repo/contracts/finance";
 import { formatDecimal, parseMoney, financialRoleLabels } from "@repo/finance";
 import { useForm } from "@tanstack/react-form";
+import { useQuery } from "@tanstack/react-query";
 import { Effect, Schema, type Types } from "effect";
 import { useState } from "react";
 
@@ -14,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ReferenceChoice } from "@/features/events/choice";
+import { referenceDataQuery } from "@/features/events/queries";
 
 export function TransactionFilters({
   filter,
@@ -24,8 +27,19 @@ export function TransactionFilters({
   accounts: ReadonlyArray<Account>;
   onApply: (filter: typeof PostingFilter.Type) => Promise<void>;
 }) {
+  const references = useQuery(referenceDataQuery());
   const [error, setError] = useState<string | null>(null);
   const defaults = {
+    categoryId: filter.categoryId ?? null,
+    merchantId: filter.merchantId ?? null,
+    tagId: filter.tagId ?? null,
+    personalEventId: filter.personalEventId ?? null,
+    interpretationReview:
+      filter.interpretationReview === undefined
+        ? "all"
+        : filter.interpretationReview
+          ? "yes"
+          : "no",
     role: filter.role ?? "all",
     accountId: filter.accountId ?? "",
     currency: filter.currency ?? "",
@@ -53,8 +67,12 @@ export function TransactionFilters({
           const input: Types.Mutable<typeof PostingFilter.Encoded> = {};
           if (value.role !== "all")
             input.role = yield* Schema.decodeUnknownEffect(FinancialRole)(value.role);
-          if (filter.interpretationReview !== undefined)
-            input.interpretationReview = filter.interpretationReview;
+          if (value.interpretationReview !== "all")
+            input.interpretationReview = value.interpretationReview === "yes";
+          if (value.categoryId) input.categoryId = value.categoryId;
+          if (value.merchantId) input.merchantId = value.merchantId;
+          if (value.tagId) input.tagId = value.tagId;
+          if (value.personalEventId) input.personalEventId = value.personalEventId;
           if (filter.importId) input.importId = filter.importId;
           if (value.accountId) input.accountId = value.accountId;
           if (value.currency) input.currency = value.currency;
@@ -97,6 +115,69 @@ export function TransactionFilters({
       }}
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <form.Field name="categoryId">
+          {(field) => (
+            <ReferenceChoice
+              label="Category"
+              value={field.state.value}
+              options={references.data?.categories ?? []}
+              onChange={field.handleChange}
+            />
+          )}
+        </form.Field>
+        <form.Field name="merchantId">
+          {(field) => (
+            <ReferenceChoice
+              label="Merchant"
+              value={field.state.value}
+              options={references.data?.merchants ?? []}
+              onChange={field.handleChange}
+            />
+          )}
+        </form.Field>
+        <form.Field name="tagId">
+          {(field) => (
+            <ReferenceChoice
+              label="Tag"
+              value={field.state.value}
+              options={references.data?.tags ?? []}
+              onChange={field.handleChange}
+            />
+          )}
+        </form.Field>
+        <form.Field name="personalEventId">
+          {(field) => (
+            <ReferenceChoice
+              label="Personal event"
+              value={field.state.value}
+              options={references.data?.personalEvents ?? []}
+              onChange={field.handleChange}
+            />
+          )}
+        </form.Field>
+        <form.Field name="interpretationReview">
+          {(field) => (
+            <div className="space-y-2">
+              <Label htmlFor="interpretation-review">Interpretation review</Label>
+              <Select
+                items={{ all: "All transactions", yes: "Needs review", no: "Reviewed" }}
+                value={field.state.value}
+                onValueChange={(value) => {
+                  if (value) field.handleChange(value);
+                }}
+              >
+                <SelectTrigger id="interpretation-review">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All transactions</SelectItem>
+                  <SelectItem value="yes">Needs review</SelectItem>
+                  <SelectItem value="no">Reviewed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </form.Field>
         <form.Field name="role">
           {(field) => (
             <div className="space-y-2">

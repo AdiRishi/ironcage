@@ -37,3 +37,7 @@ export function sourceRole({
 export function allocationRole(kind: FinancialRole): typeof AllocationRole.Type {
   return kind === "cardSettlement" || kind === "loanPayment" ? "transfer" : kind;
 }
+
+export function isCost(role: typeof AllocationRole.Type) {
+  return role === "purchase" || role === "financingCost";
+}

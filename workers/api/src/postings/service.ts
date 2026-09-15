@@ -42,6 +42,24 @@ export class Postings extends Context.Service<
           predicates.push(
             sql`EXISTS (SELECT 1 FROM review_items r JOIN event_postings ep ON ep.event_id = ANY(r.event_ids) WHERE ep.posting_id = p.id AND ep.active AND r.resolved_at IS NULL) = ${filter.interpretationReview}`,
           );
+        const allocations = [sql`al.event_id = ep.event_id`];
+        if (filter.categoryId)
+          allocations.push(
+            sql`al.category_id IN (WITH RECURSIVE tree AS (SELECT id FROM categories WHERE id = ${filter.categoryId} UNION ALL SELECT c.id FROM categories c JOIN tree ON c.parent_id = tree.id) SELECT id FROM tree)`,
+          );
+        if (filter.merchantId) allocations.push(sql`al.merchant_id = ${filter.merchantId}`);
+        if (filter.tagId)
+          allocations.push(
+            sql`EXISTS (SELECT 1 FROM allocation_tags at WHERE at.allocation_id = al.id AND at.tag_id = ${filter.tagId})`,
+          );
+        if (filter.personalEventId)
+          allocations.push(
+            sql`EXISTS (SELECT 1 FROM allocation_personal_events ap WHERE ap.allocation_id = al.id AND ap.personal_event_id = ${filter.personalEventId})`,
+          );
+        if (allocations.length > 1)
+          predicates.push(
+            sql`EXISTS (SELECT 1 FROM event_postings ep JOIN allocations al ON al.event_id = ep.event_id WHERE ep.posting_id = p.id AND ep.active AND ${sql.and(allocations)})`,
+          );
         if (filter.accountId) predicates.push(sql`p.account_id = ${filter.accountId}`);
         if (filter.currency) predicates.push(sql`p.currency = ${filter.currency}`);
         if (filter.from) predicates.push(sql`p.posted_on >= ${filter.from}::date`);
@@ -49,7 +67,9 @@ export class Postings extends Context.Service<
         if (filter.minimum) predicates.push(sql`p.amount_minor >= ${filter.minimum}::bigint`);
         if (filter.maximum) predicates.push(sql`p.amount_minor <= ${filter.maximum}::bigint`);
         if (filter.description)
-          predicates.push(sql`strpos(lower(p.description), lower(${filter.description})) > 0`);
+          predicates.push(
+            sql`(strpos(lower(p.description), lower(${filter.description})) > 0 OR EXISTS (SELECT 1 FROM event_postings ep JOIN allocations al ON al.event_id = ep.event_id JOIN merchants m ON m.id = al.merchant_id WHERE ep.posting_id = p.id AND ep.active AND strpos(lower(m.name), lower(${filter.description})) > 0))`,
+          );
         if (filter.importId)
           predicates.push(
             sql`EXISTS (SELECT 1 FROM observations o WHERE o.posting_id = p.id AND o.import_id = ${filter.importId})`,

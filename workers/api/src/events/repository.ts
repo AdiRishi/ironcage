@@ -1,5 +1,5 @@
 import { PgClient } from "@effect/sql-pg";
-import { Allocation, EventId, FinancialEvent, FinanceError } from "@repo/contracts/finance";
+import { EventId, FinancialEvent, FinanceError } from "@repo/contracts/finance";
 import { Effect, Schema, Struct } from "effect";
 
 import { money, postingFields } from "../database/columns.ts";
@@ -28,7 +28,7 @@ export const readEvent = Effect.fn("readEvent")(function* (eventId: typeof Event
     ARRAY(SELECT tag_id FROM allocation_tags WHERE allocation_id = al.id ORDER BY tag_id) AS "tagIds",
     ARRAY(SELECT personal_event_id FROM allocation_personal_events WHERE allocation_id = al.id ORDER BY personal_event_id) AS "personalEventIds"
     FROM allocations al JOIN events e ON e.id = al.event_id WHERE al.event_id = ${eventId} ORDER BY al.id`.pipe(
-      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Allocation))),
+      Effect.flatMap(Schema.decodeUnknownEffect(FinancialEvent.fields.allocations)),
     );
   const postings =
     yield* sql`SELECT ${postingFields(sql)} FROM postings p JOIN accounts a ON a.id = p.account_id

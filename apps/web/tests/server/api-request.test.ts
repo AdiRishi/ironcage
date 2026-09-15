@@ -1,5 +1,6 @@
+import { FinanceError } from "@repo/contracts/finance";
 import { isCancelledError } from "@tanstack/react-query";
-import { makeRpcStub } from "alchemy/Cloudflare/Bridge";
+import { makeRpcStub, encodeRpcError, ErrorTag } from "alchemy/Cloudflare/Bridge";
 import { Effect } from "effect";
 import { expect, test } from "vitest";
 
@@ -58,5 +59,22 @@ test("an expired RPC deadline becomes a retryable unavailable error", async () =
     runApiRequest(Effect.never.pipe(Effect.timeout("20 millis")), signal()),
   ).rejects.toEqual(
     new AppRequestError("unavailable", "The service is temporarily unavailable. Please try again."),
+  );
+});
+
+test("financial conflicts retain their message across the native RPC error envelope", async () => {
+  const client = makeRpcStub<{ write: () => Effect.Effect<never, FinanceError> }>({
+    write: async () => ({
+      _tag: ErrorTag,
+      error: encodeRpcError(
+        new FinanceError({
+          kind: "conflict",
+          message: "Allocations must sum to the booked magnitude.",
+        }),
+      ),
+    }),
+  });
+  await expect(runApiRequest(client.write(), signal())).rejects.toEqual(
+    new AppRequestError("conflict", "Allocations must sum to the booked magnitude."),
   );
 });
