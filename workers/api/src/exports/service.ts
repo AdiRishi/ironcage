@@ -12,7 +12,13 @@ import { Context, Crypto, Effect, Layer, Schema, Stream } from "effect";
 import { instant } from "../database/columns.ts";
 import { Commands } from "../database/commands.ts";
 import { toFinanceError, unavailable } from "../database/failures.ts";
-import { ExportJobs, TemporaryExports, Sources, workflowEnded } from "../platform/services.ts";
+import {
+  ExportJobs,
+  TemporaryExports,
+  Sources,
+  ensureWorkflowStatus,
+  workflowEnded,
+} from "../platform/services.ts";
 import { writeArchive, textEntry, type ArchiveEntry } from "./archive.ts";
 import { takeSnapshot } from "./snapshot.ts";
 
@@ -36,8 +42,8 @@ const make = Effect.gen(function* () {
   }, toFinanceError);
   const refreshStatus = Effect.fn("Exports.refreshStatus")(function* (record: ExportRecord) {
     if (record.status !== "processing") return record;
-    const state = yield* jobs.status({ instanceId: record.id });
-    if (!workflowEnded(state)) return record;
+    const state = yield* ensureWorkflowStatus(jobs, { exportId: record.id }, record.id);
+    if (!state || !workflowEnded(state)) return record;
     yield* fail({ exportId: record.id });
     return yield* read({ exportId: record.id });
   });

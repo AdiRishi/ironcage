@@ -44,12 +44,22 @@ export interface WorkflowState {
 export const workflowEnded = (state: WorkflowState) =>
   state.status === "errored" || state.status === "terminated" || state.status === "complete";
 
-interface JobClient<Start> {
-  readonly start: (input: Start) => Effect.Effect<void, FinanceError, RuntimeContext>;
-  readonly status: (input: {
-    instanceId: string;
-  }) => Effect.Effect<WorkflowState, FinanceError, RuntimeContext>;
+interface JobClient<Start, R = RuntimeContext> {
+  readonly start: (input: Start) => Effect.Effect<void, FinanceError, R>;
+  readonly status: (input: { instanceId: string }) => Effect.Effect<WorkflowState, FinanceError, R>;
 }
+
+export const ensureWorkflowStatus = Effect.fn("ensureWorkflowStatus")(
+  function* <Start>(client: JobClient<Start, never>, input: Start, instanceId: string) {
+    // createBatch is idempotent, including when a previous request lost its response.
+    yield* client.start(input);
+    return yield* client.status({ instanceId });
+  },
+  Effect.catchIf(
+    (error) => error.kind === "unavailable",
+    () => Effect.succeed(null),
+  ),
+);
 const jobService = <Start>(client: JobClient<Start>) =>
   Effect.gen(function* () {
     const runtime = yield* RuntimeContext;

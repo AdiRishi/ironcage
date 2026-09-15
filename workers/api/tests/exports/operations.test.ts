@@ -1,11 +1,13 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
-import { CommandId, FinanceError } from "@repo/contracts/finance";
+import { PgClient } from "@effect/sql-pg";
+import { CommandId, ExportId, FinanceError } from "@repo/contracts/finance";
 import { Crypto, Effect, Layer } from "effect";
 import { expect } from "vitest";
 
 import { Exports } from "../../src/exports/service.ts";
 import { ExportJobs, Sources, TemporaryExports } from "../../src/platform/services.ts";
 import { applicationTest } from "../support/application.ts";
+import { reset } from "../support/fixtures.ts";
 
 const { test, services } = applicationTest();
 const unexpected = () => Effect.die("Unexpected storage access before export generation");
@@ -61,6 +63,47 @@ test(
               Layer.succeed(TemporaryExports, bucket),
             ),
           ),
+        ),
+      ),
+    );
+  }),
+);
+
+test(
+  "listing a committed export starts its missing Workflow without creating another export",
+  Effect.gen(function* () {
+    const instances = new Set<string>();
+    const jobs = ExportJobs.of({
+      start: ({ exportId }) =>
+        Effect.sync(() => {
+          instances.add(exportId);
+        }),
+      status: ({ instanceId }) =>
+        instances.has(instanceId)
+          ? Effect.succeed({ status: "running", failure: null })
+          : Effect.fail(new FinanceError({ kind: "unavailable", message: "Instance not found" })),
+    });
+    yield* Effect.gen(function* () {
+      yield* reset;
+      const exportId = ExportId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4));
+      const sql = yield* PgClient.PgClient;
+      yield* sql`INSERT INTO exports (id, status, include_sources) VALUES (${exportId}, 'processing', false)`;
+      const exports = yield* Exports;
+      const rows = yield* exports.list;
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ id: exportId, status: "processing" });
+      expect(yield* exports.get({ exportId })).toEqual(rows[0]);
+      expect([...instances]).toEqual([exportId]);
+    }).pipe(
+      Effect.provide(
+        Exports.layer.pipe(
+          Layer.provideMerge(services),
+          Layer.provide(NodeCrypto.layer),
+          Layer.provide([
+            Layer.succeed(ExportJobs, jobs),
+            Layer.succeed(Sources, bucket),
+            Layer.succeed(TemporaryExports, bucket),
+          ]),
         ),
       ),
     );

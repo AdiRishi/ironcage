@@ -68,12 +68,14 @@ export class Uploads extends Context.Service<
         const mediaType = input.mediaType || "application/octet-stream";
         const hash = Encoding.encodeHex(yield* crypto.digest("SHA-256", input.bytes));
         const existing = yield* findBySha(hash);
-        if (existing?.bytesAvailable)
+        if (existing?.bytesAvailable) {
+          yield* imports.get({ importId: existing.importId });
           return {
             sourceFileId: existing.sourceFileId,
             importId: existing.importId,
             existing: true,
           };
+        }
         const uploadId = yield* crypto.randomUUIDv4;
         const objectKey = `sources/${hash}/${uploadId}`;
         yield* sources.put(objectKey, input.bytes, { httpMetadata: { contentType: mediaType } });
@@ -104,6 +106,7 @@ export class Uploads extends Context.Service<
           }),
         );
         if (result.discardObject) yield* sources.delete(objectKey);
+        if (result.existing) yield* imports.get({ importId: result.importId });
         if (!result.existing)
           yield* jobs.start({ importId, instanceId: importId }).pipe(
             Effect.catch((failure) =>
