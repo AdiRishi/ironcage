@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Schema, Struct } from "effect";
 import { useId, useState } from "react";
 
-import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AppRequestError } from "@/lib/app-error";
 import { useCommand } from "@/lib/use-command";
 
 import { updateAccount } from "./functions";
@@ -33,9 +34,14 @@ const Fields = Schema.Struct(Struct.pick(UpdateAccount.fields, ["label", "kind"]
 export function EditAccountDialog({ account }: { account: Account }) {
   const id = useId();
   const [open, setOpen] = useState(false);
+  const [baseline, setBaseline] = useState(account);
   const client = useQueryClient();
   const { mutation, submit, uncertain } = useCommand({
     mutationFn: (data: typeof UpdateAccount.Type) => updateAccount({ data }),
+    onError: async (error) => {
+      if (error instanceof AppRequestError && error.code === "stale")
+        await client.invalidateQueries({ queryKey: ["accounts"] });
+    },
     onSuccess: async () => {
       await client.invalidateQueries({
         predicate: (query) =>
@@ -44,15 +50,16 @@ export function EditAccountDialog({ account }: { account: Account }) {
       setOpen(false);
     },
   });
+  const stale = mutation.error instanceof AppRequestError && mutation.error.code === "stale";
   const form = useForm({
-    defaultValues: { label: account.label, kind: account.kind },
+    defaultValues: { label: baseline.label, kind: baseline.kind },
     validators: { onSubmit: Schema.toStandardSchemaV1(Fields) },
     onSubmit: ({ value }) =>
       submit({
         commandId: CommandId.make(crypto.randomUUID()),
         ...value,
         accountId: account.id,
-        expectedVersion: account.version,
+        expectedVersion: baseline.version,
       }),
   });
   return (
@@ -60,6 +67,7 @@ export function EditAccountDialog({ account }: { account: Account }) {
       open={open}
       onOpenChange={(value) => {
         if (value && !mutation.isPending && !uncertain) {
+          setBaseline(account);
           form.reset({ label: account.label, kind: account.kind });
           mutation.reset();
         }
@@ -137,20 +145,27 @@ export function EditAccountDialog({ account }: { account: Account }) {
           {mutation.error && (
             <Alert variant="destructive">
               <AlertDescription>{mutation.error.message}</AlertDescription>
-              {!uncertain && (
-                <AlertAction>
+              {stale && (
+                <AlertDescription>
+                  Current account: {account.label} · {accountKindLabels[account.kind]}. Your edits
+                  are still in the form.
+                </AlertDescription>
+              )}
+              {stale && (
+                <div className="mt-2">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
+                    disabled={account.version === baseline.version}
                     onClick={() => {
+                      setBaseline(account);
                       mutation.reset();
-                      client.invalidateQueries({ queryKey: ["accounts"] }).catch(reportError);
                     }}
                   >
-                    Refresh
+                    Keep my edits
                   </Button>
-                </AlertAction>
+                </div>
               )}
             </Alert>
           )}
