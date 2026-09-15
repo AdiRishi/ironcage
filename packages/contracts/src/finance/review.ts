@@ -16,8 +16,12 @@ import {
 } from "./values.ts";
 
 export const ObservationDecision = Schema.Union([
-  Schema.Struct({ kind: Schema.Literal("match"), postingId: PostingId }),
-  Schema.Struct({ kind: Schema.Literal("distinct") }),
+  Schema.Struct({
+    kind: Schema.Literal("match"),
+    postingId: PostingId,
+    candidate: Schema.optionalKey(Candidate),
+  }),
+  Schema.Struct({ kind: Schema.Literal("distinct"), candidate: Schema.optionalKey(Candidate) }),
   Schema.Struct({ kind: Schema.Literal("omit"), reason: Schema.Trim.check(Schema.isMinLength(1)) }),
   Schema.Struct({
     kind: Schema.Literal("correct"),

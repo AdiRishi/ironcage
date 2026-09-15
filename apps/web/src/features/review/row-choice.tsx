@@ -21,7 +21,7 @@ import { locatorLabel, sourceHref } from "@/lib/sources";
 import { CorrectValues } from "./correct-values";
 import { OmitRow } from "./omit-row";
 
-const distinctTarget = { value: null, label: "A distinct new transaction" };
+const automaticTarget = { value: null, label: "Find a matching transaction" };
 export function RowChoice({
   row,
   review,
@@ -38,7 +38,7 @@ export function RowChoice({
   const [correctionTarget, setCorrectionTarget] = useState(row.postingId);
   const accepted = row.acceptedCandidate;
   const targets = [
-    distinctTarget,
+    automaticTarget,
     ...review.candidates.map((posting) => ({
       value: posting.id,
       label: `${posting.postedOn} · ${formatMoney(posting.amount)} · ${posting.description}`,
@@ -173,7 +173,7 @@ export function RowChoice({
             disabled={disabled}
           >
             <SelectTrigger id={`${row.id}-target`}>
-              <SelectValue placeholder={distinctTarget.label} />
+              <SelectValue placeholder={automaticTarget.label} />
             </SelectTrigger>
             <SelectContent>
               {targets.map((target) => (

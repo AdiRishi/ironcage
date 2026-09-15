@@ -40,7 +40,7 @@ export const readReviews = Effect.fn("readReviews")(function* (
     );
   const items =
     yield* sql`SELECT r.id, r.import_id AS "importId", s.file_name AS "fileName", s.id AS "sourceFileId", s.bytes_available AS "bytesAvailable", r.kind, r.question, r.version, ${instant(sql, sql("r.created_at"))} AS "createdAt", r.candidates AS "postingIds", r.resolution, ${instant(sql, sql("r.resolved_at"))} AS "resolvedAt",
-    COALESCE((SELECT jsonb_agg(jsonb_build_object('id', o.id, 'locator', o.locator, 'raw', o.raw, 'candidate', o.parsed_candidate, 'acceptedCandidate', CASE WHEN o.posting_id IS NULL THEN NULL ELSE o.candidate END, 'postingId', o.posting_id) ORDER BY array_position(r.observation_ids, o.id)) FROM observations o WHERE o.id = ANY(r.observation_ids)), '[]'::jsonb) AS observations
+    COALESCE((SELECT jsonb_agg(jsonb_build_object('id', o.id, 'locator', o.locator, 'raw', o.raw, 'candidate', COALESCE(o.decision->'candidate', o.parsed_candidate), 'acceptedCandidate', CASE WHEN o.posting_id IS NULL THEN NULL ELSE o.candidate END, 'postingId', o.posting_id) ORDER BY array_position(r.observation_ids, o.id)) FROM observations o WHERE o.id = ANY(r.observation_ids)), '[]'::jsonb) AS observations
     FROM review_items r JOIN imports i ON i.id = r.import_id JOIN source_files s ON s.id = i.source_file_id WHERE ${sql.and(predicates)} ORDER BY r.created_at, r.id LIMIT ${input.limit}`.pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(StoredReview))),
     );

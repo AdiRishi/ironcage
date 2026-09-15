@@ -140,7 +140,7 @@ export class Publication extends Context.Service<
                 candidate,
                 decision: posting
                   ? { kind: "match", posting }
-                  : choice?.kind === "distinct" || choice?.kind === "correct"
+                  : choice?.kind === "distinct"
                     ? { kind: "distinct" }
                     : null,
               });

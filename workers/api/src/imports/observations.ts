@@ -55,6 +55,6 @@ export const saveObservations = Effect.fn("saveObservations")(function* (
 export const effectiveCandidate = (row: StoredObservation) =>
   row.decision?.kind === "omit"
     ? null
-    : row.decision?.kind === "correct" || row.decision?.kind === "keep"
-      ? row.decision.candidate
+    : row.decision && "candidate" in row.decision
+      ? (row.decision.candidate ?? row.parsedCandidate)
       : row.parsedCandidate;
