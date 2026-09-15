@@ -168,7 +168,7 @@ export class Publication extends Context.Service<
                   observationIds: question.observationIds,
                   postingIds: question.postingIds,
                 });
-              yield* applyAssignments(account.id, rows, result.assignments);
+              yield* applyAssignments(account.id, matchingRows, result.assignments);
             }
             if (coverage.observedStart && coverage.observedEnd) {
               const id = yield* crypto.randomUUIDv4;

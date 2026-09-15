@@ -17,23 +17,27 @@ def card_money(c, x, y, value):
     if gap >= 0:
         c.circle(x + c.stringWidth(value[:gap], 'Helvetica', 9) + 1, y + .6, .5, fill=1, stroke=0)
 
-c = document('card.pdf')
-word(c, 373, 768, 'Ultimate Awards Credit Card')
-word(c, 466, 752, '5555 0000 0000 1111')
-word(c, 354, 711, 'Statement Period')
-word(c, 452, 711, '1 Dec 2025 - 3 Jan 2026')
-for y, label, value in [(592, 'Opening balance at 1 Dec', '$100 00'), (571, 'New transactions and charges', '$12 50'), (550, 'Payments/refunds', '$50 00'), (528, 'Closing balance at 3 Jan', '$62 50')]:
-    word(c, 57, y, label)
-    card_money(c, 239, y, value)
-c.showPage()
-c.setFont('Helvetica', 9)
-for x, value in [(52, 'Date'), (92, 'Transaction details'), (510, 'Amount (A$)')]:
-    word(c, x, 516, value)
-for y, date, description, value in [(499, '31 Dec', 'Book shop', '12 50'), (482, '02 Jan', 'Repayment', '50 00-'), (465, '03 Jan', 'Monthly fee waived', '0 00')]:
-    word(c, 52, y, date)
-    word(c, 92, y, description)
-    card_money(c, 536, y, value)
-c.save()
+def card_statement(name, period):
+    c = document(name)
+    word(c, 373, 768, 'Ultimate Awards Credit Card')
+    word(c, 466, 752, '5555 0000 0000 1111')
+    word(c, 354, 711, 'Statement Period')
+    word(c, 452, 711, period)
+    for y, label, value in [(592, 'Opening balance at 1 Dec', '$100 00'), (571, 'New transactions and charges', '$12 50'), (550, 'Payments/refunds', '$50 00'), (528, 'Closing balance at 3 Jan', '$62 50')]:
+        word(c, 57, y, label)
+        card_money(c, 239, y, value)
+    c.showPage()
+    c.setFont('Helvetica', 9)
+    for x, value in [(52, 'Date'), (92, 'Transaction details'), (510, 'Amount (A$)')]:
+        word(c, x, 516, value)
+    for y, date, description, value in [(499, '31 Dec', 'Book shop', '12 50'), (482, '02 Jan', 'Repayment', '50 00-'), (465, '03 Jan', 'Monthly fee waived', '0 00')]:
+        word(c, 52, y, date)
+        word(c, 92, y, description)
+        card_money(c, 536, y, value)
+    c.save()
+
+card_statement('card.pdf', '1 Dec 2025 - 3 Jan 2026')
+card_statement('card-invalid-period.pdf', '1 Dec 2025 - 31 Fob 2026')
 
 c = document('deposit.pdf')
 word(c, 354, 748, 'Account Number')

@@ -9,6 +9,19 @@ import { parsePdf } from "../../src/imports/pdf/index.ts";
 
 const fixture = (name: string) =>
   new Uint8Array(readFileSync(new URL(`../fixtures/${name}.pdf`, import.meta.url)));
+
+it.effect(
+  "a malformed printed period fails instead of discarding the statement's balance anchors",
+  () =>
+    Effect.gen(function* () {
+      const error = yield* parsePdf(fixture("card-invalid-period")).pipe(Effect.flip);
+      expect(error).toMatchObject({
+        kind: "invalid",
+        message: "The statement metadata could not be decoded.",
+      });
+    }),
+);
+
 it.effect(
   "card decimal gaps, repayments, year boundaries and waived fees preserve their booked meaning",
   () =>
