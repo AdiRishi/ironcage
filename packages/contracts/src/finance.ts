@@ -7,3 +7,5 @@ export * from "./finance/settings.ts";
 export * from "./finance/exports.ts";
 export * from "./finance/sources.ts";
 export * from "./finance/models.ts";
+export * from "./finance/events.ts";
+export * from "./finance/interpretation.ts";

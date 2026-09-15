@@ -1,5 +1,5 @@
-import { type Account, PostingFilter } from "@repo/contracts/finance";
-import { formatDecimal, parseMoney } from "@repo/finance";
+import { type Account, PostingFilter, FinancialRole } from "@repo/contracts/finance";
+import { formatDecimal, parseMoney, financialRoleLabels } from "@repo/finance";
 import { useForm } from "@tanstack/react-form";
 import { Effect, Schema, type Types } from "effect";
 import { useState } from "react";
@@ -26,6 +26,7 @@ export function TransactionFilters({
 }) {
   const [error, setError] = useState<string | null>(null);
   const defaults = {
+    role: filter.role ?? "all",
     accountId: filter.accountId ?? "",
     currency: filter.currency ?? "",
     from: filter.from ?? "",
@@ -50,6 +51,10 @@ export function TransactionFilters({
       const result = await Effect.runPromise(
         Effect.gen(function* () {
           const input: Types.Mutable<typeof PostingFilter.Encoded> = {};
+          if (value.role !== "all")
+            input.role = yield* Schema.decodeUnknownEffect(FinancialRole)(value.role);
+          if (filter.interpretationReview !== undefined)
+            input.interpretationReview = filter.interpretationReview;
           if (filter.importId) input.importId = filter.importId;
           if (value.accountId) input.accountId = value.accountId;
           if (value.currency) input.currency = value.currency;
@@ -92,6 +97,31 @@ export function TransactionFilters({
       }}
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <form.Field name="role">
+          {(field) => (
+            <div className="space-y-2">
+              <Label htmlFor="role-filter">Financial role</Label>
+              <Select
+                value={field.state.value}
+                onValueChange={(value) => {
+                  if (value) field.handleChange(value);
+                }}
+              >
+                <SelectTrigger id="role-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All roles</SelectItem>
+                  {Object.entries(financialRoleLabels).map(([role, label]) => (
+                    <SelectItem key={role} value={role}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </form.Field>
         <form.Field name="description">
           {(field) => (
             <div className="space-y-2">

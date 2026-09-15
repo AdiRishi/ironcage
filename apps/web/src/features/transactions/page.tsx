@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import { accountsQueryOptions } from "@/features/accounts/queries";
+import { InterpretTransactions } from "@/features/events/interpret";
 
 import { TransactionFilters } from "./filters";
 import { TransactionSearch, transactionQuery } from "./search";
@@ -32,6 +33,7 @@ export function TransactionsPage({
         </h1>
         <p className="mt-2 text-muted-foreground">Booked amounts, backed by your bank records.</p>
       </header>
+      <InterpretTransactions />
       <TransactionFilters
         key={JSON.stringify(filter)}
         filter={filter}

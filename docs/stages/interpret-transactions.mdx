@@ -22,15 +22,17 @@ Also read [Financial model](/technical/financial-model#financial-events), [Calcu
 
 Initial roles come from CommBank description patterns, verified against the corpus and adjusted there. Anything not matched is `unresolved`.
 
-| Account kind | Pattern in description                       | Role                                                     |
-| ------------ | -------------------------------------------- | -------------------------------------------------------- |
-| any          | contains `Card xx` and amount negative       | `purchase`                                               |
-| any          | starts with `Interest` or contains ` Fee`    | `financingCost`                                          |
-| deposit      | starts with `Transfer to` or `Transfer from` | `transfer` proposal, counterpart by amount and reference |
-| loan         | `Repayment/Payment`                          | `loanPayment`, deposit counterpart by amount and date    |
-| loan         | `Money we lent you`                          | `borrowing`                                              |
-| card         | starts with `Payment` and amount positive    | `cardSettlement`, deposit counterpart by amount and date |
-| deposit      | credit with a recurring employer description | `income` after the user confirms the first one           |
+| Account kind | Pattern in description                                      | Role                                                     |
+| ------------ | ----------------------------------------------------------- | -------------------------------------------------------- |
+| any          | contains `Card xx` and amount negative                      | `purchase`                                               |
+| any          | debit starting with `Interest` or containing the word `Fee` | `financingCost`                                          |
+| deposit      | starts with `Transfer to` or `Transfer from`                | `transfer` proposal, counterpart by amount and reference |
+| loan         | `Repayment/Payment`                                         | `loanPayment`, deposit counterpart by amount and date    |
+| loan         | `Money we lent you`                                         | `borrowing`                                              |
+| card         | starts with `Payment` and amount positive                   | `cardSettlement`, deposit counterpart by amount and date |
+| deposit      | credit with a recurring employer description                | `income` after the user confirms the first one           |
+
+Interest credits remain unresolved until confirmed. A category never establishes income.
 
 A proposal becomes a link only when the counterpart is found with equal opposite amount in one currency and a shared reference, or when the user confirms it.
 
