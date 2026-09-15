@@ -17,6 +17,7 @@ test(
       calls: 0,
       costs: [],
       recent: [],
+      warning: null,
     });
     const sql = yield* PgClient.PgClient;
     yield* sql`INSERT INTO model_usage (id, task, model, input_tokens, output_tokens, cost_minor, cost_currency, status) VALUES ('a72121c9-940d-4d3d-acbf-9a5cb864eb39', 'document', 'synthetic', 10, 20, 9007199254740993, 'AUD', 'success'), ('ba5048b5-35d9-40db-90d4-398b43dc457b', 'document', 'synthetic', NULL, NULL, NULL, NULL, 'failed')`;
@@ -30,6 +31,19 @@ test(
       inputTokens: null,
       outputTokens: null,
       cost: null,
+    });
+  }).pipe(Effect.provide(Models.layer.pipe(Layer.provideMerge(services)))),
+);
+
+test(
+  "a configured model warning retains its exact amount and reporting currency",
+  Effect.gen(function* () {
+    const sql = yield* PgClient.PgClient;
+    yield* sql`UPDATE settings SET reporting_currency = 'JPY', ai_warning_minor = 9007199254740993 WHERE id = 1`;
+    const models = yield* Models;
+    expect((yield* models.get).warning).toEqual({
+      currency: "JPY",
+      minor: 9007199254740993n,
     });
   }).pipe(Effect.provide(Models.layer.pipe(Layer.provideMerge(services)))),
 );
