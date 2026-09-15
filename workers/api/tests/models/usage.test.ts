@@ -10,7 +10,7 @@ test(
   "model usage keeps unknown reports separate and totals costs by currency without rounding",
   Effect.gen(function* () {
     const models = yield* Models;
-    const initial = yield* models.get();
+    const initial = yield* models.get;
     expect(initial).toMatchObject({
       enabled: false,
       provider: null,
@@ -20,7 +20,7 @@ test(
     });
     const sql = yield* PgClient.PgClient;
     yield* sql`INSERT INTO model_usage (id, task, model, input_tokens, output_tokens, cost_minor, cost_currency, status) VALUES ('a72121c9-940d-4d3d-acbf-9a5cb864eb39', 'document', 'synthetic', 10, 20, 9007199254740993, 'AUD', 'success'), ('ba5048b5-35d9-40db-90d4-398b43dc457b', 'document', 'synthetic', NULL, NULL, NULL, NULL, 'failed')`;
-    const usage = yield* models.get();
+    const usage = yield* models.get;
     expect(usage.calls).toBe(2);
     expect(usage.inputTokens).toBe(10n);
     expect(usage.outputTokens).toBe(20n);

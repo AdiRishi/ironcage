@@ -2,11 +2,10 @@ import { PostingId } from "@repo/contracts/finance";
 import { formatMoney } from "@repo/finance";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { Schema } from "effect";
 
 import { postingQueryOptions } from "@/features/transactions/queries";
 export const Route = createFileRoute("/transactions/$id")({
-  params: { parse: ({ id }) => ({ id: Schema.decodeUnknownSync(PostingId)(id) }) },
+  params: { parse: ({ id }) => ({ id: PostingId.make(id) }) },
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(postingQueryOptions({ postingId: params.id })),
   component: TransactionDetail,

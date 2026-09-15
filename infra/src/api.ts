@@ -2,6 +2,7 @@ import { Stack } from "alchemy";
 import { AlchemyContext } from "alchemy/AlchemyContext";
 import * as Cloudflare from "alchemy/Cloudflare";
 import * as Planetscale from "alchemy/Planetscale";
+import { RuntimeContext } from "alchemy/RuntimeContext";
 import { Effect } from "effect";
 
 import { api, type ApiOperations } from "../../workers/api/src/index.ts";
@@ -68,7 +69,8 @@ export default Api.make(
   Effect.gen(function* () {
     const storage = yield* financialStorage;
     const bindings = yield* apiBindings(storage);
-    return yield* api(bindings);
+    const runtime = yield* Cloudflare.Worker;
+    return yield* api(bindings).pipe(Effect.provideService(RuntimeContext, runtime));
   }).pipe(
     Effect.provide([Cloudflare.Hyperdrive.ConnectBinding, Cloudflare.R2.ReadWriteBucketBinding]),
   ),

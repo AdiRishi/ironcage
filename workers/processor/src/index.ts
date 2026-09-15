@@ -8,7 +8,7 @@ export const processor = (bindings: Effect.Success<ReturnType<typeof processorBi
       function* (input: typeof ExportInput.Type) {
         yield* bindings.exports.createBatch([{ id: input.exportId, params: input }]);
       },
-      Effect.catchCause(() =>
+      Effect.catchDefect(() =>
         Effect.fail(
           new FinanceError({
             kind: "unavailable",
@@ -22,7 +22,7 @@ export const processor = (bindings: Effect.Success<ReturnType<typeof processorBi
         const result = yield* (yield* bindings.exports.get(instanceId)).status();
         return { status: result.status, failure: result.error?.message ?? null };
       },
-      Effect.catchCause(() =>
+      Effect.catchDefect(() =>
         Effect.fail(
           new FinanceError({ kind: "unavailable", message: "Export status is unavailable." }),
         ),
@@ -32,7 +32,7 @@ export const processor = (bindings: Effect.Success<ReturnType<typeof processorBi
       function* ({ importId, instanceId }: { importId: typeof ImportId.Type; instanceId: string }) {
         yield* bindings.imports.createBatch([{ id: instanceId, params: { importId, instanceId } }]);
       },
-      Effect.catchCause(() =>
+      Effect.catchDefect(() =>
         Effect.fail(
           new FinanceError({
             kind: "unavailable",
@@ -47,7 +47,7 @@ export const processor = (bindings: Effect.Success<ReturnType<typeof processorBi
         const result = yield* instance.status();
         return { status: result.status, failure: result.error?.message ?? null };
       },
-      Effect.catchCause(() =>
+      Effect.catchDefect(() =>
         Effect.fail(
           new FinanceError({ kind: "unavailable", message: "Import status is unavailable." }),
         ),

@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { URL } from "node:url";
 
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import {
   SourceFile,
   ExportRecord,
@@ -13,7 +14,7 @@ import {
 import * as Alchemy from "alchemy";
 import * as Output from "alchemy/Output";
 import * as Test from "alchemy/Test/Vitest";
-import { Effect, Schedule, Schema } from "effect";
+import { Crypto, Effect, Schedule, Schema } from "effect";
 import { FetchHttpClient, HttpBody, HttpClient } from "effect/unstable/http";
 import { unzipSync } from "fflate";
 import { expect, inject } from "vitest";
@@ -25,7 +26,10 @@ import { workerGraph } from "../src/workers.ts";
 import Driver from "./fixtures/api-driver.ts";
 import { waitForWorker } from "./support/worker-readiness.ts";
 
-const platformProviders = providers();
+const randomUUID = Crypto.Crypto.use((crypto) => crypto.randomUUIDv4).pipe(
+  Effect.provide(NodeCrypto.layer),
+);
+const platformProviders = providers;
 const live = inject("live");
 const Stack = Alchemy.Stack(
   "RecordsPlatformTest",
@@ -54,11 +58,7 @@ test.skipIf(!live)(
   Effect.gen(function* () {
     const { webUrl } = yield* stack;
     if (!webUrl) return yield* Effect.die("Missing hosted application URL");
-    for (const path of [
-      "/",
-      `/sources/${crypto.randomUUID()}`,
-      `/exports/${crypto.randomUUID()}`,
-    ]) {
+    for (const path of ["/", `/sources/${yield* randomUUID}`, `/exports/${yield* randomUUID}`]) {
       const response = yield* HttpClient.get(`${webUrl}${path}`);
       yield* response.text;
       expect(response.status).toBe(302);
@@ -84,7 +84,7 @@ test(
     const { url, apiUrl } = yield* stack;
     yield* waitForWorker(url);
     const command = {
-      commandId: crypto.randomUUID(),
+      commandId: yield* randomUUID,
       label: "Daily account",
       kind: "deposit",
       currency: "AUD",
@@ -161,7 +161,7 @@ test.skipIf(live || !existsSync(corpusDirectory))(
     for (const [index, file] of files.entries()) {
       const account = yield* HttpClient.post(`${url}/accounts`, {
         body: HttpBody.jsonUnsafe({
-          commandId: crypto.randomUUID(),
+          commandId: yield* randomUUID,
           label: `CSV verification ${index + 1}`,
           kind: "deposit",
           currency: "AUD",
@@ -331,7 +331,10 @@ test(
   Effect.gen(function* () {
     const { url, apiUrl } = yield* stack;
     yield* waitForWorker(url);
-    const input = { commandId: crypto.randomUUID(), includeSources: true };
+    const input = {
+      commandId: yield* randomUUID,
+      includeSources: true,
+    };
     const requested = yield* HttpClient.post(`${url}/exports`, {
       body: HttpBody.jsonUnsafe(input),
     }).pipe(
@@ -359,7 +362,7 @@ test(
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toBe("application/zip");
     const archive = unzipSync(new Uint8Array(yield* response.arrayBuffer));
-    const manifest = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(ExportManifest))(
+    const manifest = yield* Schema.decodeEffect(Schema.fromJsonString(ExportManifest))(
       new TextDecoder().decode(archive["manifest.json"]),
     );
     expect(manifest).toEqual(completed.manifest);
@@ -378,9 +381,9 @@ test(
       "source_files",
     ]);
     for (const table of manifest.tables) {
-      const rows = yield* Schema.decodeUnknownEffect(
-        Schema.fromJsonString(Schema.Array(Schema.Unknown)),
-      )(new TextDecoder().decode(archive[table.path]));
+      const rows = yield* Schema.decodeEffect(Schema.fromJsonString(Schema.Array(Schema.Unknown)))(
+        new TextDecoder().decode(archive[table.path]),
+      );
       expect(rows.length).toBe(table.count);
     }
     for (const source of manifest.sources) {
@@ -409,7 +412,7 @@ test(
     const file = files.find((source) => source.fileName === "transactions.csv");
     if (!file) return yield* Effect.die("Missing synthetic CSV");
     const input = {
-      commandId: crypto.randomUUID(),
+      commandId: yield* randomUUID,
       sourceFileId: file.id,
       expectedVersion: file.version,
     };
@@ -453,7 +456,10 @@ test(
       ),
     ).toEqual(removed);
     const stale = yield* HttpClient.post(`${url}/remove-source`, {
-      body: HttpBody.jsonUnsafe({ ...input, commandId: crypto.randomUUID() }),
+      body: HttpBody.jsonUnsafe({
+        ...input,
+        commandId: yield* randomUUID,
+      }),
     });
     expect(stale.status).toBe(409);
     expect(yield* stale.json).toMatchObject({ kind: "stale" });

@@ -1,8 +1,7 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { PgClient } from "@effect/sql-pg";
 import { CommandId } from "@repo/contracts/finance";
-import { RuntimeContext } from "alchemy/RuntimeContext";
-import { Effect } from "effect";
+import { Crypto, Effect } from "effect";
 import { Layer } from "effect";
 import { expect } from "vitest";
 
@@ -12,13 +11,6 @@ import { ImportJobs } from "../../src/platform/services.ts";
 import { applicationTest } from "../support/application.ts";
 import { account, reset, source } from "../support/fixtures.ts";
 
-const testRuntime = RuntimeContext.of({
-  Type: "Test",
-  id: "import-operations",
-  env: {},
-  get: () => Effect.die("Unexpected platform binding access"),
-  set: () => Effect.die("Unexpected platform binding mutation"),
-});
 const { test, services } = applicationTest();
 test(
   "retrying a lost response keeps one attempt and ignores an older attempt's failure",
@@ -33,7 +25,7 @@ test(
     const item = yield* repository.get(file);
     const input = {
       ...file,
-      commandId: CommandId.make(crypto.randomUUID()),
+      commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
       expectedVersion: item.version,
     };
     const first = yield* imports.retry(input);
@@ -46,7 +38,10 @@ test(
     });
     expect((yield* imports.get(file)).status).toBe("processing");
     const stale = yield* imports
-      .retry({ ...input, commandId: CommandId.make(crypto.randomUUID()) })
+      .retry({
+        ...input,
+        commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
+      })
       .pipe(Effect.flip);
     expect(stale.kind).toBe("stale");
     expect(yield* repository.get(file)).toEqual(first);
@@ -64,7 +59,6 @@ test(
         Layer.provide(NodeCrypto.layer),
       ),
     ),
-    Effect.provideService(RuntimeContext, testRuntime),
   ),
 );
 
@@ -94,6 +88,5 @@ test(
         Layer.provide(NodeCrypto.layer),
       ),
     ),
-    Effect.provideService(RuntimeContext, testRuntime),
   ),
 );

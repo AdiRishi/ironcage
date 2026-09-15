@@ -22,20 +22,20 @@ import { Settings } from "./settings/service.ts";
 import { SourceFiles } from "./sources/service.ts";
 
 export type ApiOperations = {
-  listSourceFiles: SourceFiles["Service"]["list"];
+  listSourceFiles: () => SourceFiles["Service"]["list"];
   removeSourceBytes: SourceFiles["Service"]["remove"];
-  getModelUsage: Models["Service"]["get"];
+  getModelUsage: () => Models["Service"]["get"];
   requestExport: Exports["Service"]["request"];
-  listExports: Exports["Service"]["list"];
+  listExports: () => Exports["Service"]["list"];
   getExport: Exports["Service"]["get"];
   generateExport: Exports["Service"]["generate"];
   failExport: Exports["Service"]["fail"];
   getRetention: () => Effect.Effect<typeof Retention.Type>;
-  getSettings: Settings["Service"]["get"];
+  getSettings: () => Settings["Service"]["get"];
   updateSettings: Settings["Service"]["update"];
   listReviewItems: Reviews["Service"]["list"];
   resolveReview: Reviews["Service"]["resolve"];
-  listAccounts: Accounts["Service"]["list"];
+  listAccounts: () => Accounts["Service"]["list"];
   createAccount: Accounts["Service"]["create"];
   updateAccount: Accounts["Service"]["update"];
   listPostings: Postings["Service"]["list"];
@@ -61,26 +61,25 @@ export const api = Effect.fn("Api.initialize")(function* (
     Uploads.layer,
     Imports.layer,
     Settings.layer,
-  )
-    .pipe(Layer.provideMerge(Publication.layer))
-    .pipe(Layer.provideMerge(ImportRepository.layer))
-    .pipe(
-      Layer.provide([Commands.layer, AccountResolution.layer]),
-      Layer.provide([
-        bindings.database,
-        BrowserCrypto.layer,
-        Layer.succeed(Sources, bindings.sources),
-        Layer.succeed(TemporaryExports, bindings.exports),
-        Layer.succeed(ExportJobs, {
-          start: bindings.processor.startExport,
-          status: bindings.processor.getExportInstance,
-        }),
-        Layer.succeed(ImportJobs, {
-          start: bindings.processor.startImport,
-          status: bindings.processor.getImportInstance,
-        }),
-      ]),
-    );
+  ).pipe(
+    Layer.provideMerge(Publication.layer),
+    Layer.provideMerge(ImportRepository.layer),
+    Layer.provide([Commands.layer, AccountResolution.layer]),
+    Layer.provide([
+      bindings.database,
+      BrowserCrypto.layer,
+      Sources.layer(bindings.sources),
+      TemporaryExports.layer(bindings.exports),
+      ExportJobs.layer({
+        start: bindings.processor.startExport,
+        status: bindings.processor.getExportInstance,
+      }),
+      ImportJobs.layer({
+        start: bindings.processor.startImport,
+        status: bindings.processor.getImportInstance,
+      }),
+    ]),
+  );
   return yield* Effect.gen(function* () {
     const sourceFiles = yield* SourceFiles;
     const models = yield* Models;
@@ -97,20 +96,20 @@ export const api = Effect.fn("Api.initialize")(function* (
       Layer.mergeAll(importHttpRoutes, exportHttpRoutes),
     );
     const operations = {
-      listSourceFiles: sourceFiles.list,
+      listSourceFiles: () => sourceFiles.list,
       removeSourceBytes: sourceFiles.remove,
-      getModelUsage: models.get,
+      getModelUsage: () => models.get,
       requestExport: exports.request,
-      listExports: exports.list,
+      listExports: () => exports.list,
       getExport: exports.get,
       generateExport: exports.generate,
       failExport: exports.fail,
       getRetention: () => Effect.succeed(bindings.retention),
-      getSettings: settings.get,
+      getSettings: () => settings.get,
       updateSettings: settings.update,
       listReviewItems: reviews.list,
       resolveReview: reviews.resolve,
-      listAccounts: accounts.list,
+      listAccounts: () => accounts.list,
       createAccount: accounts.create,
       updateAccount: accounts.update,
       listPostings: postings.list,

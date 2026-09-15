@@ -43,7 +43,7 @@ export const runImport = (
     },
     (effect, input) =>
       effect.pipe(
-        Effect.catchCause(() =>
+        Effect.catchDefect(() =>
           Workflows.task(
             "record-failure",
             api

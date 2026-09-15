@@ -25,7 +25,7 @@ export const Infrastructure = Effect.gen(function* () {
 export default Alchemy.Stack(
   project.stackName,
   {
-    providers: providers(),
+    providers,
     state: Cloudflare.state(),
   },
   Infrastructure,

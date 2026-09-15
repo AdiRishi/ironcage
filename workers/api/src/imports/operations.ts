@@ -7,7 +7,6 @@ import {
   ListImports,
   RetryImport,
 } from "@repo/contracts/finance";
-import type { RuntimeContext } from "alchemy/RuntimeContext";
 import { Context, Crypto, Effect, Layer, Schema } from "effect";
 
 import { Commands, databaseUnavailable } from "../database/commands.ts";
@@ -21,13 +20,9 @@ export class Imports extends Context.Service<
   {
     readonly list: (
       input?: typeof ListImports.Type,
-    ) => Effect.Effect<ReadonlyArray<Import>, FinanceError, RuntimeContext>;
-    readonly get: (
-      input: typeof ImportInput.Type,
-    ) => Effect.Effect<Import, FinanceError, RuntimeContext>;
-    readonly retry: (
-      input: typeof RetryImport.Type,
-    ) => Effect.Effect<Import, FinanceError, RuntimeContext>;
+    ) => Effect.Effect<ReadonlyArray<Import>, FinanceError>;
+    readonly get: (input: typeof ImportInput.Type) => Effect.Effect<Import, FinanceError>;
+    readonly retry: (input: typeof RetryImport.Type) => Effect.Effect<Import, FinanceError>;
   }
 >()("@repo/api/imports/Imports") {
   static readonly layer = Layer.effect(

@@ -7,7 +7,7 @@ import { Commands, databaseUnavailable } from "../database/commands.ts";
 export class Accounts extends Context.Service<
   Accounts,
   {
-    readonly list: () => Effect.Effect<ReadonlyArray<Account>, FinanceError>;
+    readonly list: Effect.Effect<ReadonlyArray<Account>, FinanceError>;
     readonly create: (input: typeof CreateAccount.Type) => Effect.Effect<Account, FinanceError>;
     readonly update: (input: typeof UpdateAccount.Type) => Effect.Effect<Account, FinanceError>;
   }
@@ -20,12 +20,11 @@ export class Accounts extends Context.Service<
       const crypto = yield* Crypto.Crypto;
       const select = sql`id, kind, label, currency, bank_id AS "bankId", account_number AS "accountNumber", version`;
       const decode = Schema.decodeUnknownEffect(Schema.Array(Account));
-      const list = Effect.fn("Accounts.list")(function* () {
-        return yield* sql`SELECT ${select} FROM accounts ORDER BY label, id`.pipe(
-          Effect.flatMap(decode),
-          Effect.mapError(databaseUnavailable),
-        );
-      });
+      const list = sql`SELECT ${select} FROM accounts ORDER BY label, id`.pipe(
+        Effect.flatMap(decode),
+        Effect.mapError(databaseUnavailable),
+        Effect.withSpan("Accounts.list"),
+      );
       const create = Effect.fn("Accounts.create")(function* (input: typeof CreateAccount.Type) {
         const id = yield* crypto.randomUUIDv4.pipe(Effect.mapError(databaseUnavailable));
         return yield* commands.run({

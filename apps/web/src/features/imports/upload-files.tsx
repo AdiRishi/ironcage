@@ -54,11 +54,11 @@ export function UploadFiles() {
           if (accountId) body.set("accountId", accountId);
           const response = await fetch("/uploads", { method: "POST", body });
           if (!response.ok) {
-            const failure = Schema.decodeUnknownSync(UploadFailure)(await response.json());
+            const failure = await Schema.decodeUnknownPromise(UploadFailure)(await response.json());
             update({ status: "failed", message: failure.message });
             return;
           }
-          const result = Schema.decodeUnknownSync(UploadResult)(await response.json());
+          const result = await Schema.decodeUnknownPromise(UploadResult)(await response.json());
           update({
             status: result.existing ? "existing" : "uploaded",
             message: result.existing ? "Original available. Records already imported." : "Uploaded",

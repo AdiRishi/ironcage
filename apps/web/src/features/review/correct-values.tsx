@@ -48,9 +48,9 @@ export function CorrectValues({
     onSubmit: async ({ value }) => {
       setError(undefined);
       await Effect.gen(function* () {
-        const postedOn = yield* Schema.decodeUnknownEffect(CalendarDate)(value.postedOn);
+        const postedOn = yield* Schema.decodeEffect(CalendarDate)(value.postedOn);
         const valueOn = value.valueOn
-          ? yield* Schema.decodeUnknownEffect(CalendarDate)(value.valueOn)
+          ? yield* Schema.decodeEffect(CalendarDate)(value.valueOn)
           : null;
         const amount = yield* parseMoney(value.amount, value.currency);
         const balance = value.balance ? yield* parseMoney(value.balance, value.currency) : null;

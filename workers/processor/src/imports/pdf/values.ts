@@ -7,7 +7,7 @@ const dated = /^(\d{1,2})\s+([A-Za-z]{3,9})\b(?:\s+(\d{4}))?/;
 export const fullDates = /\b(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})\b/g;
 export const pdfDate = Effect.fn("pdfDate")(function* (
   literal: string,
-  period: { start: typeof CalendarDate.Type | null; end: typeof CalendarDate.Type | null },
+  period: { start: CalendarDate | null; end: CalendarDate | null },
 ) {
   const match = dated.exec(literal.trim());
   if (!match) return yield* Effect.fail("Unreadable statement date");
@@ -49,7 +49,7 @@ export const pdfMoney = Effect.fn("pdfMoney")(function* (
     return yield* new FinanceError({ kind: "invalid", message: "Invalid statement amount." });
   return yield* parseMoney(`${negative ? "-" : ""}${value.replaceAll(",", "")}`, "AUD");
 });
-export const absoluteMoney = (money: typeof Money.Type) => ({
+export const absoluteMoney = (money: Money) => ({
   ...money,
   minor: money.minor < 0n ? -money.minor : money.minor,
 });
