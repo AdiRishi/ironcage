@@ -5,6 +5,7 @@
   "scripts": {
     "build": "turbo build",
     "check": "oxlint --disable-nested-config --max-warnings=0 && oxfmt --check",
+    "format": "oxfmt",
     "dev": "turbo dev --ui=stream --filter @repo/infra",
     "dev:destroy": "pnpm --filter @repo/infra dev:destroy",
     "docs:build": "blume build",
