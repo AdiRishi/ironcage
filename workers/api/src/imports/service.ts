@@ -16,7 +16,7 @@ import type { Statement } from "effect/unstable/sql";
 import { instant } from "../database/columns.ts";
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
-import { ImportJobs, workflowEnded } from "../platform/services.ts";
+import { ImportJobs, ensureWorkflowStatus, workflowEnded } from "../platform/services.ts";
 
 const pageSize = 100;
 const StoredImport = Schema.Struct({
@@ -75,8 +75,12 @@ export class Imports extends Context.Service<
         ...item
       }: typeof StoredImport.Type) {
         if (item.status !== "processing" || !instanceId) return item;
-        const state = yield* jobs.status({ instanceId });
-        if (!workflowEnded(state)) return item;
+        const state = yield* ensureWorkflowStatus(
+          jobs,
+          { importId: item.id, instanceId },
+          instanceId,
+        );
+        if (!state || !workflowEnded(state)) return item;
         yield* fail({
           importId: item.id,
           instanceId,

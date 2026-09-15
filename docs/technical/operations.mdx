@@ -19,6 +19,8 @@ Production, staging, and test stages have separate databases and buckets. Choose
 
 Imports run as `ImportWorkflow` instances with a small number of steps and the platform's retry policy. The processor exposes instance status to the API. Input size and step timeouts are configured from the corpus measurements. Measure the largest file's publication before changing the design.
 
+For processing imports and exports, status reads first ensure the Workflow exists using the saved instance ID and the platform's idempotent `createBatch` operation. This recovers a request interrupted after its database commit but before Workflow creation. Reuploading an existing source performs the same check. A temporary Workflow service outage leaves the stored processing record readable; a later status read retries recovery. Terminal Workflow failures still become failed records.
+
 ## Backups and retention
 
 Enable PlanetScale's managed backups and point-in-time recovery, and record the retention period. [Back up and restore](https://planetscale.com/docs/postgres/backups). Database backups do not include R2 objects, so keep an independent copy of every original file outside Cloudflare, either the user's own archive or a second bucket. Record where that copy lives.
