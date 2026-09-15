@@ -6,10 +6,8 @@ import {
   PostingId,
   SourceFileId,
 } from "@repo/contracts/finance";
-import type { MatchAssignment } from "@repo/finance";
+import type { MatchAssignment, MatchingObservation } from "@repo/finance";
 import { Crypto, Effect, Schema } from "effect";
-
-import { effectiveCandidate, type StoredObservation } from "./observations.ts";
 
 const MatchingPosting = Schema.Struct({
   id: PostingId,
@@ -36,7 +34,7 @@ export const readMatchingPostings = Effect.fn("readMatchingPostings")(function* 
 
 export const applyAssignments = Effect.fn("applyAssignments")(function* (
   accountId: typeof AccountId.Type,
-  observations: ReadonlyArray<StoredObservation>,
+  observations: ReadonlyArray<MatchingObservation>,
   assignments: ReadonlyArray<MatchAssignment>,
 ) {
   const sql = yield* PgClient.PgClient;
@@ -62,9 +60,8 @@ export const applyAssignments = Effect.fn("applyAssignments")(function* (
     candidate: typeof Candidate.Encoded;
   }[] = [];
   for (const assignment of assignments) {
-    const row = byId.get(assignment.observationId);
-    const candidate = row && effectiveCandidate(row);
-    if (!candidate) continue;
+    const row = byId.get(assignment.observationId)!;
+    const candidate = row.candidate;
     const postingId = assignment.postingId ?? PostingId.make(yield* crypto.randomUUIDv4);
     if (assignment.postingId === null)
       created.push({
