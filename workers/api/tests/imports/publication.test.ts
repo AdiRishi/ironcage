@@ -3,11 +3,10 @@ import { URL } from "node:url";
 
 import { PgClient } from "@effect/sql-pg";
 import { CommandId, FinanceError, ImportSummary, ResolveReview } from "@repo/contracts/finance";
+import { parseCsv, parseOfx } from "@repo/processor/imports";
 import { Crypto, Console, Duration, Effect, Schema } from "effect";
 import { expect } from "vitest";
 
-import { parseCsv } from "../../../processor/src/imports/csv.ts";
-import { parseOfx } from "../../../processor/src/imports/ofx.ts";
 import { Accounts } from "../../src/accounts/service.ts";
 import { Commands } from "../../src/database/commands.ts";
 import { Publication } from "../../src/imports/publication.ts";
@@ -84,7 +83,7 @@ test(
       0,
     );
     const reviews = yield* Reviews;
-    const [review] = yield* reviews.list();
+    const [review] = (yield* reviews.list()).rows;
     expect(review?.kind).toBe("duplicate");
     expect(review?.candidates).toHaveLength(2);
     if (!review?.observations[0] || !review.candidates[0])
@@ -106,7 +105,7 @@ test(
     const resolved = yield* reviews.resolve(command);
     expect(resolved.reviewItems).toBe(0);
     expect(yield* reviews.resolve(command)).toEqual(resolved);
-    expect(yield* reviews.list()).toHaveLength(0);
+    expect((yield* reviews.list()).rows).toHaveLength(0);
     const stale = yield* reviews
       .resolve({
         ...command,
@@ -135,7 +134,7 @@ test(
     const postings = yield* Postings;
     expect((yield* postings.list({ filter: {} })).rows[0]?.description).toBe("Coffee");
     const reviews = yield* Reviews;
-    const [review] = yield* reviews.list();
+    const [review] = (yield* reviews.list()).rows;
     const row = review?.observations[0];
     if (!review || !row?.acceptedCandidate || !row.postingId)
       return yield* Effect.die("Expected the prior accepted source row.");
@@ -159,7 +158,7 @@ test(
       parserVersion: "test-3",
       importId: file.importId,
     });
-    expect(yield* reviews.list()).toHaveLength(0);
+    expect((yield* reviews.list()).rows).toHaveLength(0);
     expect((yield* postings.list({ filter: {} })).rows[0]?.description).toBe("Coffee");
   }).pipe(Effect.provide(services)),
 );
@@ -311,7 +310,7 @@ test.skipIf(!existsSync(corpusDirectory))(
       canonical.sort();
       expect(observed).toBe(6062);
       expect(canonical.length).toBe(2919);
-      expect(yield* reviews.list()).toHaveLength(0);
+      expect((yield* reviews.list()).rows).toHaveLength(0);
       if (baseline) expect(JSON.stringify(canonical) === JSON.stringify(baseline)).toBe(true);
       baseline = canonical;
     }
@@ -337,7 +336,7 @@ test(
       reviewItems: 1,
     });
     const reviews = yield* Reviews;
-    const [review] = yield* reviews.list();
+    const [review] = (yield* reviews.list()).rows;
     const row = review?.observations[0];
     if (!review || !row) return yield* Effect.die("Expected the unreadable source row.");
     const correction = parsed(["Coffee"]).observations[0]?.candidate;
@@ -358,7 +357,7 @@ test(
     });
     const postings = yield* Postings;
     expect((yield* postings.list({ filter: {} })).rows).toHaveLength(2);
-    expect(yield* reviews.list()).toHaveLength(0);
+    expect((yield* reviews.list()).rows).toHaveLength(0);
   }).pipe(Effect.provide(services)),
 );
 
@@ -376,7 +375,7 @@ test(
       importId: second.importId,
     });
     const reviews = yield* Reviews;
-    const [review] = yield* reviews.list();
+    const [review] = (yield* reviews.list()).rows;
     const choice = review?.candidates[0];
     const firstRow = review?.observations[0];
     const secondRow = review?.observations[1];
@@ -399,6 +398,6 @@ test(
     expect(failure.kind).toBe("invalid");
     const postings = yield* Postings;
     expect((yield* postings.get({ postingId: choice.id })).evidence).toHaveLength(1);
-    expect(yield* reviews.list()).toHaveLength(1);
+    expect((yield* reviews.list()).rows).toHaveLength(1);
   }).pipe(Effect.provide(services)),
 );

@@ -10,17 +10,18 @@ import { Commands } from "./database/commands.ts";
 import { exportHttpRoutes } from "./exports/http.ts";
 import { Exports } from "./exports/service.ts";
 import { importHttpRoutes } from "./imports/http.ts";
-import { Imports } from "./imports/operations.ts";
 import { Publication } from "./imports/publication.ts";
-import { ImportRepository } from "./imports/repository.ts";
+import { Imports } from "./imports/service.ts";
 import { Uploads } from "./imports/uploads.ts";
-import { Models } from "./models/usage.ts";
+import { Models } from "./models/service.ts";
 import { ExportJobs, TemporaryExports, ImportJobs, Sources } from "./platform/services.ts";
 import { Postings } from "./postings/service.ts";
 import { Reviews } from "./review/service.ts";
 import { Settings } from "./settings/service.ts";
 import { SourceFiles } from "./sources/service.ts";
 
+// Declared explicitly because deriving it from `api` would make the infra Worker
+// class refer to itself through the bindings type.
 export type ApiOperations = {
   listSourceFiles: () => SourceFiles["Service"]["list"];
   removeSourceBytes: SourceFiles["Service"]["remove"];
@@ -43,8 +44,8 @@ export type ApiOperations = {
   retryImport: Imports["Service"]["retry"];
   listImports: Imports["Service"]["list"];
   getImport: Imports["Service"]["get"];
-  getImportSource: ImportRepository["Service"]["source"];
-  failImport: ImportRepository["Service"]["fail"];
+  getImportSource: Imports["Service"]["source"];
+  failImport: Imports["Service"]["fail"];
   publishImport: Publication["Service"]["publish"];
 };
 
@@ -59,11 +60,10 @@ export const api = Effect.fn("Api.initialize")(function* (
     Reviews.layer,
     Postings.layer,
     Uploads.layer,
-    Imports.layer,
     Settings.layer,
   ).pipe(
     Layer.provideMerge(Publication.layer),
-    Layer.provideMerge(ImportRepository.layer),
+    Layer.provideMerge(Imports.layer),
     Layer.provide([Commands.layer, AccountResolution.layer]),
     Layer.provide([
       bindings.database,
@@ -89,7 +89,6 @@ export const api = Effect.fn("Api.initialize")(function* (
     const accounts = yield* Accounts;
     const postings = yield* Postings;
     const imports = yield* Imports;
-    const repository = yield* ImportRepository;
     const publication = yield* Publication;
     const uploads = yield* Uploads;
     const fetch = yield* HttpRouter.toHttpEffect(
@@ -117,8 +116,8 @@ export const api = Effect.fn("Api.initialize")(function* (
       retryImport: imports.retry,
       listImports: imports.list,
       getImport: imports.get,
-      getImportSource: repository.source,
-      failImport: repository.fail,
+      getImportSource: imports.source,
+      failImport: imports.fail,
       publishImport: publication.publish,
     } satisfies ApiOperations;
     return {

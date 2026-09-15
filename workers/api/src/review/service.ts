@@ -9,25 +9,26 @@ import {
   ObservationDecision,
   PostingId,
   ResolveReview,
-  ReviewItem,
+  ReviewPage,
   ListReviewItems,
 } from "@repo/contracts/finance";
+import { sameMatchKey } from "@repo/finance";
 import { Context, Effect, Layer, Schema } from "effect";
 
 import { AccountResolution } from "../accounts/resolution.ts";
-import { Commands, databaseUnavailable } from "../database/commands.ts";
+import { Commands } from "../database/commands.ts";
+import { toFinanceError } from "../database/failures.ts";
 import { readMatchingPostings } from "../imports/matching.ts";
 import { effectiveCandidate, readObservations } from "../imports/observations.ts";
 import { Publication } from "../imports/publication.ts";
 import { readReviews } from "./repository.ts";
 
+const pageSize = 100;
 const invalid = (message: string) => new FinanceError({ kind: "invalid", message });
 export class Reviews extends Context.Service<
   Reviews,
   {
-    readonly list: (
-      input?: typeof ListReviewItems.Type,
-    ) => Effect.Effect<ReadonlyArray<ReviewItem>, FinanceError>;
+    readonly list: (input?: typeof ListReviewItems.Type) => Effect.Effect<ReviewPage, FinanceError>;
     readonly resolve: (
       input: typeof ResolveReview.Type,
     ) => Effect.Effect<ImportSummary, FinanceError>;
@@ -40,23 +41,27 @@ export class Reviews extends Context.Service<
       const commands = yield* Commands;
       const accounts = yield* AccountResolution;
       const publication = yield* Publication;
-      const list = Effect.fn("Reviews.list")((input: typeof ListReviewItems.Type = {}) =>
-        readReviews(input).pipe(
-          Effect.provideService(PgClient.PgClient, sql),
-          Effect.mapError(databaseUnavailable),
-        ),
-      );
+      const list = Effect.fn("Reviews.list")(function* (input: typeof ListReviewItems.Type = {}) {
+        const items = yield* readReviews(sql, { ...input, limit: pageSize + 1 });
+        const rows = items.slice(0, pageSize);
+        const last = rows.at(-1);
+        return {
+          rows,
+          nextCursor:
+            items.length > pageSize && last ? { createdAt: last.createdAt, id: last.id } : null,
+        };
+      }, toFinanceError);
       const resolve = Effect.fn("Reviews.resolve")(function* (input: typeof ResolveReview.Type) {
-        const encoded = yield* Schema.encodeEffect(ResolveReview)(input).pipe(
-          Effect.mapError(databaseUnavailable),
-        );
+        const encoded = yield* Schema.encodeEffect(ResolveReview)(input);
         return yield* commands.run({
           commandId: input.commandId,
           input: encoded,
           result: Schema.toCodecJson(ImportSummary),
           execute: Effect.gen(function* () {
-            const reviews = yield* readReviews({ reviewItemId: input.reviewItemId });
-            const review = reviews.find((item) => item.id === input.reviewItemId);
+            const [review] = yield* readReviews(sql, {
+              reviewItemId: input.reviewItemId,
+              limit: 1,
+            });
             if (!review)
               return yield* new FinanceError({
                 kind: "stale",
@@ -98,7 +103,7 @@ export class Reviews extends Context.Service<
             } else {
               if (review.kind === "account")
                 return yield* invalid("Choose the account for this import first.");
-              const sources =
+              const [source] =
                 yield* sql`SELECT source_file_id AS "sourceFileId", account_id AS "accountId" FROM imports WHERE id = ${review.importId}`.pipe(
                   Effect.flatMap(
                     Schema.decodeUnknownEffect(
@@ -108,13 +113,12 @@ export class Reviews extends Context.Service<
                     ),
                   ),
                 );
-              const source = sources[0];
               if (!source)
                 return yield* invalid(
                   "The import needs an account before its rows can be reviewed.",
                 );
-              const rows = yield* readObservations(source.sourceFileId);
-              const postings = yield* readMatchingPostings(source.accountId);
+              const rows = yield* readObservations(sql, source.sourceFileId);
+              const postings = yield* readMatchingPostings(sql, source.accountId);
               const allowedRows = new Set(review.observations.map((row) => row.id));
               const chosenRows = new Set(resolution.decisions.map((item) => item.observationId));
               if (
@@ -172,9 +176,7 @@ export class Reviews extends Context.Service<
                   if (
                     decision.kind === "match" &&
                     candidate &&
-                    (candidate.postedOn !== posting.candidate.postedOn ||
-                      candidate.amount.currency !== posting.candidate.amount.currency ||
-                      candidate.amount.minor !== posting.candidate.amount.minor)
+                    !sameMatchKey(candidate, posting.candidate)
                   )
                     return yield* invalid(
                       "A match must have the same booked date, currency and amount. Correct the value first if needed.",
@@ -190,9 +192,9 @@ export class Reviews extends Context.Service<
             }
             yield* sql`UPDATE review_items SET resolution = ${sql.json(encoded.resolution)}, resolved_at = now(), version = version + 1 WHERE id = ${input.reviewItemId}`;
             return yield* publication.republish(review.importId);
-          }).pipe(Effect.provideService(PgClient.PgClient, sql)),
+          }),
         });
-      });
+      }, toFinanceError);
       return Reviews.of({ list, resolve });
     }),
   );

@@ -14,7 +14,7 @@ test(
     const sql = yield* PgClient.PgClient;
     const owner = yield* account();
     yield* sql`INSERT INTO postings (id, account_id, currency, amount_minor, posted_on, description) VALUES ('f605f95a-f1c9-4997-90b1-842d5e8d5656', ${owner.id}, 'AUD', 9007199254740993, '2026-09-01', 'Synthetic precision test')`;
-    const snapshot = yield* takeSnapshot();
+    const snapshot = yield* takeSnapshot(sql);
     const tables =
       yield* sql`SELECT table_name AS name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name`.pipe(
         Effect.flatMap(

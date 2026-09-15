@@ -2,7 +2,9 @@ import { PgClient } from "@effect/sql-pg";
 import { Account, CreateAccount, UpdateAccount, FinanceError } from "@repo/contracts/finance";
 import { Context, Crypto, Effect, Layer, Schema } from "effect";
 
-import { Commands, databaseUnavailable } from "../database/commands.ts";
+import { accountFields } from "../database/columns.ts";
+import { Commands } from "../database/commands.ts";
+import { toFinanceError } from "../database/failures.ts";
 
 export class Accounts extends Context.Service<
   Accounts,
@@ -18,39 +20,39 @@ export class Accounts extends Context.Service<
       const sql = yield* PgClient.PgClient;
       const commands = yield* Commands;
       const crypto = yield* Crypto.Crypto;
-      const select = sql`id, kind, label, currency, bank_id AS "bankId", account_number AS "accountNumber", version`;
+      const fields = accountFields(sql);
       const decode = Schema.decodeUnknownEffect(Schema.Array(Account));
-      const list = sql`SELECT ${select} FROM accounts ORDER BY label, id`.pipe(
+      const decodeOne = Schema.decodeUnknownEffect(Schema.Tuple([Account]));
+      const list = sql`SELECT ${fields} FROM accounts ORDER BY label, id`.pipe(
         Effect.flatMap(decode),
-        Effect.mapError(databaseUnavailable),
+        toFinanceError,
         Effect.withSpan("Accounts.list"),
       );
       const create = Effect.fn("Accounts.create")(function* (input: typeof CreateAccount.Type) {
-        const id = yield* crypto.randomUUIDv4.pipe(Effect.mapError(databaseUnavailable));
+        const id = yield* crypto.randomUUIDv4;
         return yield* commands.run({
           commandId: input.commandId,
           input: { operation: "createAccount", ...input },
           result: Schema.toCodecJson(Account),
           execute: Effect.gen(function* () {
-            const rows =
-              yield* sql`INSERT INTO accounts (id, label, kind, currency) VALUES (${id}, ${input.label.trim()}, ${input.kind}, ${input.currency}) RETURNING ${select}`.pipe(
-                Effect.flatMap(decode),
+            const [account] =
+              yield* sql`INSERT INTO accounts (id, label, kind, currency) VALUES (${id}, ${input.label}, ${input.kind}, ${input.currency}) RETURNING ${fields}`.pipe(
+                Effect.flatMap(decodeOne),
               );
-            return yield* Schema.decodeUnknownEffect(Account)(rows[0]);
+            return account;
           }),
         });
-      });
+      }, toFinanceError);
       const update = Effect.fn("Accounts.update")(function* (input: typeof UpdateAccount.Type) {
         return yield* commands.run({
           commandId: input.commandId,
           input: { operation: "updateAccount", ...input },
           result: Schema.toCodecJson(Account),
           execute: Effect.gen(function* () {
-            const accounts =
-              yield* sql`SELECT ${select} FROM accounts WHERE id = ${input.accountId}`.pipe(
+            const [account] =
+              yield* sql`SELECT ${fields} FROM accounts WHERE id = ${input.accountId}`.pipe(
                 Effect.flatMap(decode),
               );
-            const account = accounts[0];
             if (!account)
               return yield* new FinanceError({ kind: "notFound", message: "Account not found." });
             if (account.version !== input.expectedVersion)
@@ -63,14 +65,14 @@ export class Accounts extends Context.Service<
                 kind: "conflict",
                 message: "The bank has established this account's kind.",
               });
-            const rows =
-              yield* sql`UPDATE accounts SET label = ${input.label.trim()}, kind = ${input.kind}, version = version + 1, updated_at = now() WHERE id = ${input.accountId} RETURNING ${select}`.pipe(
-                Effect.flatMap(decode),
+            const [updated] =
+              yield* sql`UPDATE accounts SET label = ${input.label}, kind = ${input.kind}, version = version + 1, updated_at = now() WHERE id = ${input.accountId} RETURNING ${fields}`.pipe(
+                Effect.flatMap(decodeOne),
               );
-            return yield* Schema.decodeUnknownEffect(Account)(rows[0]);
+            return updated;
           }),
         });
-      });
+      }, toFinanceError);
       return Accounts.of({ list, create, update });
     }),
   );

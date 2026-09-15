@@ -1,4 +1,4 @@
-import { PgClient } from "@effect/sql-pg";
+import type { PgClient } from "@effect/sql-pg";
 import {
   Candidate,
   ImportId,
@@ -8,7 +8,7 @@ import {
   PostingId,
   SourceFileId,
 } from "@repo/contracts/finance";
-import { Crypto, Effect, Schema } from "effect";
+import { type Crypto, Effect, Schema } from "effect";
 
 export const StoredObservation = Schema.Struct({
   id: ObservationId,
@@ -19,22 +19,18 @@ export const StoredObservation = Schema.Struct({
 });
 export type StoredObservation = typeof StoredObservation.Type;
 
-export const readObservations = Effect.fn("readObservations")(function* (
-  sourceFileId: typeof SourceFileId.Type,
-) {
-  const sql = yield* PgClient.PgClient;
-  return yield* sql`SELECT id, locator_key AS "locatorKey", locator, raw, candidate, parsed_candidate AS "parsedCandidate", issue, posting_id AS "postingId", decision FROM observations WHERE source_file_id = ${sourceFileId} ORDER BY CASE locator->>'kind' WHEN 'csvLine' THEN (locator->>'line')::integer WHEN 'ofxTransaction' THEN (locator->>'ordinal')::integer ELSE (locator->>'page')::integer END, (locator->>'row')::integer, locator_key`.pipe(
+export const readObservations = (sql: PgClient.PgClient, sourceFileId: typeof SourceFileId.Type) =>
+  sql`SELECT id, locator_key AS "locatorKey", locator, raw, candidate, parsed_candidate AS "parsedCandidate", issue, posting_id AS "postingId", decision FROM observations WHERE source_file_id = ${sourceFileId} ORDER BY CASE locator->>'kind' WHEN 'csvLine' THEN (locator->>'line')::integer WHEN 'ofxTransaction' THEN (locator->>'ordinal')::integer ELSE (locator->>'page')::integer END, (locator->>'row')::integer, locator_key`.pipe(
     Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(StoredObservation))),
   );
-});
 
 export const saveObservations = Effect.fn("saveObservations")(function* (
+  sql: PgClient.PgClient,
+  crypto: Crypto.Crypto,
   importId: typeof ImportId.Type,
   sourceFileId: typeof SourceFileId.Type,
   observations: ReadonlyArray<ParsedObservation>,
 ) {
-  const sql = yield* PgClient.PgClient;
-  const crypto = yield* Crypto.Crypto;
   const rows = yield* Effect.forEach(
     observations,
     Effect.fn(function* (observation) {

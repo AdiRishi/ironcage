@@ -1,4 +1,4 @@
-import { PgClient } from "@effect/sql-pg";
+import type { PgClient } from "@effect/sql-pg";
 import {
   ImportId,
   ListReviewItems,
@@ -10,9 +10,9 @@ import {
   ReviewKind,
   ReviewQuestion,
 } from "@repo/contracts/finance";
-import { Crypto, Effect, Schema, Struct } from "effect";
+import { type Crypto, Effect, Schema, Struct } from "effect";
 
-import { postingFields } from "../postings/fields.ts";
+import { instant, postingFields } from "../database/columns.ts";
 
 export interface PendingQuestion {
   readonly kind: typeof ReviewKind.Type;
@@ -20,10 +20,15 @@ export interface PendingQuestion {
   readonly observationIds: ReadonlyArray<typeof ObservationId.Type>;
   readonly postingIds: ReadonlyArray<typeof PostingId.Type>;
 }
+const StoredReview = Schema.Struct({
+  ...Struct.omit(ReviewItem.fields, ["candidates"]),
+  postingIds: Schema.Array(PostingId),
+});
+
 export const readReviews = Effect.fn("readReviews")(function* (
-  input: typeof ListReviewItems.Type & { reviewItemId?: typeof ReviewItemId.Type } = {},
+  sql: PgClient.PgClient,
+  input: typeof ListReviewItems.Type & { reviewItemId?: typeof ReviewItemId.Type; limit: number },
 ) {
-  const sql = yield* PgClient.PgClient;
   const predicates = [
     input.open === false ? sql`r.resolved_at IS NOT NULL` : sql`r.resolved_at IS NULL`,
   ];
@@ -34,40 +39,30 @@ export const readReviews = Effect.fn("readReviews")(function* (
       sql`(r.created_at, r.id) > (${input.cursor.createdAt}::timestamptz, ${input.cursor.id}::uuid)`,
     );
   const items =
-    yield* sql`SELECT r.id, r.import_id AS "importId", s.file_name AS "fileName", s.id AS "sourceFileId", s.bytes_available AS "bytesAvailable", r.kind, r.question, r.version, to_char(r.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "createdAt", r.candidates AS "postingIds", r.resolution, to_char(r.resolved_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "resolvedAt",
+    yield* sql`SELECT r.id, r.import_id AS "importId", s.file_name AS "fileName", s.id AS "sourceFileId", s.bytes_available AS "bytesAvailable", r.kind, r.question, r.version, ${instant(sql, sql("r.created_at"))} AS "createdAt", r.candidates AS "postingIds", r.resolution, ${instant(sql, sql("r.resolved_at"))} AS "resolvedAt",
     COALESCE((SELECT jsonb_agg(jsonb_build_object('id', o.id, 'locator', o.locator, 'raw', o.raw, 'candidate', o.parsed_candidate, 'acceptedCandidate', CASE WHEN o.posting_id IS NULL THEN NULL ELSE o.candidate END, 'postingId', o.posting_id) ORDER BY array_position(r.observation_ids, o.id)) FROM observations o WHERE o.id = ANY(r.observation_ids)), '[]'::jsonb) AS observations
-    FROM review_items r JOIN imports i ON i.id = r.import_id JOIN source_files s ON s.id = i.source_file_id WHERE ${sql.and(predicates)} ORDER BY r.created_at, r.id LIMIT 100`.pipe(
-      Effect.flatMap(
-        Schema.decodeUnknownEffect(
-          Schema.Array(
-            Schema.Struct({
-              ...Struct.omit(ReviewItem.fields, ["candidates"]),
-              postingIds: Schema.Array(PostingId),
-            }),
-          ),
-        ),
-      ),
+    FROM review_items r JOIN imports i ON i.id = r.import_id JOIN source_files s ON s.id = i.source_file_id WHERE ${sql.and(predicates)} ORDER BY r.created_at, r.id LIMIT ${input.limit}`.pipe(
+      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(StoredReview))),
     );
-  return yield* Effect.forEach(
-    items,
-    Effect.fn(function* ({ postingIds, ...item }) {
-      const candidates =
-        postingIds.length === 0
-          ? []
-          : yield* sql`SELECT ${postingFields(sql)}, COALESCE((SELECT jsonb_agg(jsonb_build_object('sourceFileId', s.id, 'fileName', s.file_name, 'bytesAvailable', s.bytes_available, 'locator', o.locator) ORDER BY s.uploaded_at) FROM observations o JOIN source_files s ON s.id = o.source_file_id WHERE o.posting_id = p.id), '[]'::jsonb) AS sources FROM postings p JOIN accounts a ON a.id = p.account_id WHERE ${sql.in("p.id", postingIds)} ORDER BY p.posted_on, p.id`.pipe(
-              Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(ReviewCandidate))),
-            );
-      return { ...item, candidates };
-    }),
-  );
+  const postingIds = [...new Set(items.flatMap((item) => item.postingIds))];
+  const candidates =
+    postingIds.length === 0
+      ? []
+      : yield* sql`SELECT ${postingFields(sql)}, COALESCE((SELECT jsonb_agg(jsonb_build_object('sourceFileId', s.id, 'fileName', s.file_name, 'bytesAvailable', s.bytes_available, 'locator', o.locator) ORDER BY s.uploaded_at) FROM observations o JOIN source_files s ON s.id = o.source_file_id WHERE o.posting_id = p.id), '[]'::jsonb) AS sources FROM postings p JOIN accounts a ON a.id = p.account_id WHERE ${sql.in("p.id", postingIds)} ORDER BY p.posted_on, p.id`.pipe(
+          Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(ReviewCandidate))),
+        );
+  return items.map(({ postingIds, ...item }): ReviewItem => ({
+    ...item,
+    candidates: candidates.filter((candidate) => postingIds.includes(candidate.id)),
+  }));
 });
 
 export const replaceQuestions = Effect.fn("replaceQuestions")(function* (
+  sql: PgClient.PgClient,
+  crypto: Crypto.Crypto,
   importId: typeof ImportId.Type,
   questions: ReadonlyArray<PendingQuestion>,
 ) {
-  const sql = yield* PgClient.PgClient;
-  const crypto = yield* Crypto.Crypto;
   yield* sql`DELETE FROM review_items WHERE import_id = ${importId} AND resolved_at IS NULL`;
   for (const item of questions) {
     const id = yield* crypto.randomUUIDv4;

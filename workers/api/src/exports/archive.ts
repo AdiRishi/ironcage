@@ -97,6 +97,7 @@ export const textEntry = (path: string, text: string): ArchiveEntry => ({
     Stream.fromIterable(
       (function* () {
         const encoder = new TextEncoder();
+        // The u flag keeps surrogate pairs intact so no chunk splits a character.
         for (const [chunk] of text.matchAll(/.{1,32768}/gsu)) {
           yield encoder.encode(chunk);
         }

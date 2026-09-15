@@ -1,11 +1,11 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { PgClient } from "@effect/sql-pg";
+import { localPostgres } from "@repo/infra/database/local";
+import { localDatabaseProviders } from "@repo/infra/database/providers";
 import * as Alchemy from "alchemy";
 import * as Test from "alchemy/Test/Vitest";
 import { Effect, Layer, Redacted } from "effect";
 
-import { localPostgres } from "../../../../infra/src/database/local.ts";
-import { localDatabaseProviders } from "../../../../infra/src/database/providers.ts";
 import { AccountResolution } from "../../src/accounts/resolution.ts";
 import { Accounts } from "../../src/accounts/service.ts";
 import { Commands } from "../../src/database/commands.ts";

@@ -3,8 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./imports": {
+      "types": "./src/imports/index.ts",
+      "default": "./src/imports/index.ts"
+    }
+  },
   "scripts": {
-    "build": "tsc --noEmit -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tests",
     "test": "vitest run"
   },

@@ -7,7 +7,7 @@ import {
   ExportRecord,
   ExportManifest,
   Account,
-  Import,
+  ImportPage,
   PostingPage,
   UploadResult,
 } from "@repo/contracts/finance";
@@ -23,7 +23,7 @@ import { deploymentConfig } from "../src/deployment-config.ts";
 import { providers } from "../src/providers.ts";
 import { webApplication } from "../src/web-application.ts";
 import { workerGraph } from "../src/workers.ts";
-import Driver from "./fixtures/api-driver.ts";
+import Driver from "./support/api-driver.ts";
 import { waitForWorker } from "./support/worker-readiness.ts";
 
 const randomUUID = Crypto.Crypto.use((crypto) => crypto.randomUUIDv4).pipe(
@@ -82,8 +82,8 @@ const importSyntheticCsv = Effect.fn("importSyntheticCsv")(function* (
   );
   const completed = yield* HttpClient.get(`${url}/imports`).pipe(
     Effect.flatMap((response) => response.json),
-    Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Import))),
-    Effect.map((imports) => imports.find((item) => item.id === upload.importId)),
+    Effect.flatMap(Schema.decodeUnknownEffect(ImportPage)),
+    Effect.map((page) => page.rows.find((item) => item.id === upload.importId)),
     Effect.repeat({
       schedule: Schedule.spaced("300 millis"),
       while: (item) => item?.status === "processing",
@@ -153,8 +153,8 @@ test(
     );
     const completed = yield* HttpClient.get(`${url}/imports`).pipe(
       Effect.flatMap((response) => response.json),
-      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Import))),
-      Effect.map((imports) => imports.find((item) => item.id === upload.importId)),
+      Effect.flatMap(Schema.decodeUnknownEffect(ImportPage)),
+      Effect.map((page) => page.rows.find((item) => item.id === upload.importId)),
       Effect.repeat({
         schedule: Schedule.spaced("300 millis"),
         while: (item) => item?.status === "processing",
@@ -224,8 +224,8 @@ test.skipIf(live || !existsSync(corpusDirectory))(
       );
       const completed = yield* HttpClient.get(`${url}/imports`).pipe(
         Effect.flatMap((response) => response.json),
-        Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Import))),
-        Effect.map((imports) => imports.find((item) => item.id === upload.importId)),
+        Effect.flatMap(Schema.decodeUnknownEffect(ImportPage)),
+        Effect.map((page) => page.rows.find((item) => item.id === upload.importId)),
         Effect.repeat({
           schedule: Schedule.spaced("100 millis"),
           while: (item) => item?.status === "processing",
@@ -263,8 +263,8 @@ test.skipIf(live || !existsSync(corpusDirectory))(
       );
       const completed = yield* HttpClient.get(`${url}/imports`).pipe(
         Effect.flatMap((response) => response.json),
-        Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Import))),
-        Effect.map((imports) => imports.find((item) => item.id === upload.importId)),
+        Effect.flatMap(Schema.decodeUnknownEffect(ImportPage)),
+        Effect.map((page) => page.rows.find((item) => item.id === upload.importId)),
         Effect.repeat({
           schedule: Schedule.spaced("100 millis"),
           while: (item) => item?.status === "processing",
@@ -309,8 +309,8 @@ test(
       );
       const completed = yield* HttpClient.get(`${url}/imports`).pipe(
         Effect.flatMap((response) => response.json),
-        Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Import))),
-        Effect.map((imports) => imports.find((item) => item.id === upload.importId)),
+        Effect.flatMap(Schema.decodeUnknownEffect(ImportPage)),
+        Effect.map((page) => page.rows.find((item) => item.id === upload.importId)),
         Effect.repeat({
           schedule: Schedule.spaced("100 millis"),
           while: (item) => item?.status === "processing",
@@ -349,8 +349,8 @@ test.skipIf(live || !existsSync(corpusDirectory))(
     );
     const completed = yield* HttpClient.get(`${url}/imports`).pipe(
       Effect.flatMap((response) => response.json),
-      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Import))),
-      Effect.map((imports) => imports.find((item) => item.id === upload.importId)),
+      Effect.flatMap(Schema.decodeUnknownEffect(ImportPage)),
+      Effect.map((page) => page.rows.find((item) => item.id === upload.importId)),
       Effect.repeat({
         schedule: Schedule.spaced("100 millis"),
         while: (item) => item?.status === "processing",

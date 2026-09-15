@@ -2,6 +2,7 @@ import { ExportInput, FinanceError } from "@repo/contracts/finance";
 import { Effect } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/unstable/http";
 
+import { failureResponse } from "../http.ts";
 import { Exports } from "./service.ts";
 
 export const exportHttpRoutes = HttpRouter.add(
@@ -19,13 +20,5 @@ export const exportHttpRoutes = HttpRouter.add(
         "cache-control": "private, no-store",
       },
     });
-  }).pipe(
-    Effect.catch((error) =>
-      Effect.succeed(
-        HttpServerResponse.text(error.message, {
-          status: error.kind === "invalid" ? 400 : error.kind === "notFound" ? 404 : 503,
-        }),
-      ),
-    ),
-  ),
+  }).pipe(Effect.catch((error) => Effect.succeed(failureResponse(error)))),
 );
