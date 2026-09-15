@@ -42,7 +42,7 @@ export function RemoveSourceDialog({ file }: { file: SourceFile }) {
       <Dialog
         open={open}
         onOpenChange={(value) => {
-          if (value && !uncertain) mutation.reset();
+          if (value && !mutation.isPending && !uncertain) mutation.reset();
           setOpen(value);
         }}
       >

@@ -1,26 +1,32 @@
 import { CommandId, ResolveReview, type ReviewItem } from "@repo/contracts/finance";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Effect, Schema } from "effect";
+
+import { invalidateImportRecords } from "@/features/imports/invalidate-records";
+import { useCommand } from "@/lib/use-command";
 
 import { resolveReview } from "./functions";
 
 export function useResolution(review: ReviewItem) {
   const client = useQueryClient();
-  const mutation = useMutation({
+  const { mutation, submit, uncertain } = useCommand({
     mutationFn: async (data: typeof ResolveReview.Type) =>
       resolveReview({ data: await Effect.runPromise(Schema.encodeEffect(ResolveReview)(data)) }),
     onSuccess: () =>
-      client.invalidateQueries({
-        predicate: (query) =>
-          ["reviews", "imports", "postings", "posting", "accounts"].includes(
-            String(query.queryKey[0]),
-          ),
-      }),
+      Promise.all([
+        invalidateImportRecords(client),
+        client.invalidateQueries({ queryKey: ["imports"] }),
+      ]),
   });
   return {
     mutation,
+    uncertain,
+    refresh: async () => {
+      await client.invalidateQueries({ queryKey: ["reviews"] });
+      mutation.reset();
+    },
     submit: (resolution: (typeof ResolveReview.Type)["resolution"]) =>
-      mutation.mutate({
+      submit({
         commandId: CommandId.make(crypto.randomUUID()),
         reviewItemId: review.id,
         expectedVersion: review.version,

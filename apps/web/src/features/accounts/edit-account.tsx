@@ -2,7 +2,7 @@ import { CommandId, type Account, UpdateAccount } from "@repo/contracts/finance"
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { Schema, Struct } from "effect";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -29,6 +30,7 @@ import { updateAccount } from "./functions";
 const Fields = Schema.Struct(Struct.pick(UpdateAccount.fields, ["label", "kind"]));
 const kinds = { deposit: "Deposit", card: "Credit card", loan: "Loan" };
 export function EditAccountDialog({ account }: { account: Account }) {
+  const id = useId();
   const [open, setOpen] = useState(false);
   const client = useQueryClient();
   const { mutation, submit, uncertain } = useCommand({
@@ -58,7 +60,7 @@ export function EditAccountDialog({ account }: { account: Account }) {
     <Dialog
       open={open}
       onOpenChange={(value) => {
-        if (value && !uncertain) {
+        if (value && !mutation.isPending && !uncertain) {
           form.reset({ label: account.label, kind: account.kind });
           mutation.reset();
         }
@@ -86,21 +88,24 @@ export function EditAccountDialog({ account }: { account: Account }) {
             <form.Field name="label">
               {(field) => (
                 <div className="space-y-2">
-                  <Label htmlFor="account-label">Account name</Label>
+                  <Label htmlFor={`${id}-label`}>Account name</Label>
                   <Input
-                    id="account-label"
+                    id={`${id}-label`}
                     value={field.state.value}
                     onChange={(event) => field.handleChange(event.target.value)}
                     required
                     maxLength={100}
+                    aria-invalid={field.state.meta.errors.length > 0}
+                    aria-describedby={`${id}-label-error`}
                   />
+                  <FieldError id={`${id}-label-error`} errors={field.state.meta.errors} />
                 </div>
               )}
             </form.Field>
             <form.Field name="kind">
               {(field) => (
                 <div className="space-y-2">
-                  <Label htmlFor="account-kind">Account type</Label>
+                  <Label htmlFor={`${id}-kind`}>Account type</Label>
                   <Select
                     items={kinds}
                     disabled={account.accountNumber !== null}
@@ -109,7 +114,7 @@ export function EditAccountDialog({ account }: { account: Account }) {
                       if (value) field.handleChange(value);
                     }}
                   >
-                    <SelectTrigger id="account-kind">
+                    <SelectTrigger id={`${id}-kind`}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

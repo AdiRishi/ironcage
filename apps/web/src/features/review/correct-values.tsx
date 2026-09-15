@@ -5,6 +5,7 @@ import { Effect, Schema } from "effect";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -91,11 +92,7 @@ export function CorrectValues({
                   onBlur={field.handleBlur}
                   onChange={(event) => field.handleChange(event.target.value)}
                 />
-                {field.state.meta.errors.map((issue) => (
-                  <p key={issue?.message} className="text-sm text-destructive">
-                    {issue?.message}
-                  </p>
-                ))}
+                <FieldError errors={field.state.meta.errors} />
               </div>
             )}
           </form.Field>

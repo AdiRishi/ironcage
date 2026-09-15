@@ -2,7 +2,7 @@ import { CommandId, CreateAccount } from "@repo/contracts/finance";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { Schema, Struct } from "effect";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -29,6 +30,7 @@ import { createAccount } from "./functions";
 const Fields = Schema.Struct(Struct.omit(CreateAccount.fields, ["commandId"]));
 const defaults: typeof Fields.Type = { label: "", kind: "deposit", currency: "AUD" };
 export function CreateAccountDialog() {
+  const id = useId();
   const [open, setOpen] = useState(false);
   const client = useQueryClient();
   const { mutation, submit, uncertain } = useCommand({
@@ -47,7 +49,7 @@ export function CreateAccountDialog() {
     <Dialog
       open={open}
       onOpenChange={(value) => {
-        if (value && !uncertain) {
+        if (value && !mutation.isPending && !uncertain) {
           form.reset();
           mutation.reset();
         }
@@ -71,30 +73,33 @@ export function CreateAccountDialog() {
             <form.Field name="label">
               {(field) => (
                 <div className="space-y-2">
-                  <Label htmlFor={field.name}>Account name</Label>
+                  <Label htmlFor={`${id}-${field.name}`}>Account name</Label>
                   <Input
-                    id={field.name}
+                    id={`${id}-${field.name}`}
                     value={field.state.value}
                     onChange={(event) => field.handleChange(event.target.value)}
                     onBlur={field.handleBlur}
                     placeholder="Everyday account"
                     required
                     maxLength={100}
+                    aria-invalid={field.state.meta.errors.length > 0}
+                    aria-describedby={`${id}-label-error`}
                   />
+                  <FieldError id={`${id}-label-error`} errors={field.state.meta.errors} />
                 </div>
               )}
             </form.Field>
             <form.Field name="kind">
               {(field) => (
                 <div className="space-y-2">
-                  <Label htmlFor={field.name}>Account type</Label>
+                  <Label htmlFor={`${id}-${field.name}`}>Account type</Label>
                   <Select
                     value={field.state.value}
                     onValueChange={(value) => {
                       if (value) field.handleChange(value);
                     }}
                   >
-                    <SelectTrigger id={field.name}>
+                    <SelectTrigger id={`${id}-${field.name}`}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -109,9 +114,9 @@ export function CreateAccountDialog() {
             <form.Field name="currency">
               {(field) => (
                 <div className="space-y-2">
-                  <Label htmlFor={field.name}>Currency</Label>
+                  <Label htmlFor={`${id}-${field.name}`}>Currency</Label>
                   <Input
-                    id={field.name}
+                    id={`${id}-${field.name}`}
                     value={field.state.value}
                     onChange={(event) => field.handleChange(event.target.value.toUpperCase())}
                     required
