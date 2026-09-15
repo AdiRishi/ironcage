@@ -134,7 +134,12 @@ export class Reviews extends Context.Service<
               for (const answer of resolution.decisions) {
                 const row = rows.find((item) => item.id === answer.observationId);
                 if (!row) return yield* invalid("Source row not found.");
-                const decision = answer.decision;
+                const decision =
+                  (answer.decision.kind === "match" || answer.decision.kind === "distinct") &&
+                  row.decision &&
+                  "candidate" in row.decision
+                    ? { ...answer.decision, candidate: row.decision.candidate }
+                    : answer.decision;
                 if (decision.kind === "omit" && row.postingId)
                   return yield* invalid("An accepted source row must be kept or corrected.");
                 if (decision.kind === "distinct" && row.postingId)
@@ -152,8 +157,8 @@ export class Reviews extends Context.Service<
                     "Keep must use this row's accepted values and transaction.",
                   );
                 const candidate =
-                  decision.kind === "correct" || decision.kind === "keep"
-                    ? decision.candidate
+                  "candidate" in decision
+                    ? (decision.candidate ?? effectiveCandidate(row))
                     : effectiveCandidate(row);
                 const postingId =
                   decision.kind === "match" ||
@@ -190,7 +195,7 @@ export class Reviews extends Context.Service<
                 yield* sql`UPDATE observations SET decision = ${sql.json(stored)} WHERE id = ${answer.observationId}`;
               }
             }
-            yield* sql`UPDATE review_items SET resolution = ${sql.json(encoded.resolution)}, resolved_at = now(), version = version + 1 WHERE id = ${input.reviewItemId}`;
+            yield* sql`UPDATE review_items SET resolution = ${sql.json(encoded.resolution)}, resolved_at = clock_timestamp(), version = version + 1 WHERE id = ${input.reviewItemId}`;
             return yield* publication.republish(review.importId);
           }),
         });

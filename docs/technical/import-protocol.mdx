@@ -138,6 +138,8 @@ Every row's disposition is in one transaction: accepted rows are committed toget
 
 Resolving applies the decision to the observations, then reruns steps 4 to 6 of publication for the import under the same lock. Decisions persist in `observations.decision`, so a later reparse reproduces them. `parsed_candidate` retains the latest parser reading while `candidate` retains the accepted reading. A disputed reparse cannot overwrite accepted evidence.
 
+A correction without a chosen posting runs through normal matching. It does not declare a distinct posting. If matching still needs review, the corrected candidate stays visible and is retained in the subsequent match or distinct decision. Across supporting files, the most recently resolved value correction or keep decision supplies the posting's accepted fields. Resolution times are recorded after acquiring the write lock. Source-format preference applies only when no value decision takes precedence.
+
 ## PDF statements
 
 Stage 2. Use `unpdf` to get positioned text, then a CommBank layout adapter per account kind groups text into transaction rows and separates them from headings, reward summaries, totals, and notices. Locators are page and row with the bounding box.
