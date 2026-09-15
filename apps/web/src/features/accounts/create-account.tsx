@@ -51,7 +51,7 @@ export function CreateAccountDialog() {
     <Dialog
       open={open}
       onOpenChange={(value) => {
-        if (value && !uncertain) {
+        if (value && !mutation.isPending && !uncertain) {
           form.reset();
           mutation.reset();
         }

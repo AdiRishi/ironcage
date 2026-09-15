@@ -59,7 +59,7 @@ export function EditAccountDialog({ account }: { account: Account }) {
     <Dialog
       open={open}
       onOpenChange={(value) => {
-        if (value && !uncertain) {
+        if (value && !mutation.isPending && !uncertain) {
           form.reset({ label: account.label, kind: account.kind });
           mutation.reset();
         }
