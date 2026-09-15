@@ -1,25 +1,48 @@
 import { PgClient } from "@effect/sql-pg";
-import { AccountId, AccountKind, type FinancialEvent, FinanceError } from "@repo/contracts/finance";
+import {
+  AccountId,
+  AccountKind,
+  type FinancialEvent,
+  type CreditLink,
+  type CalendarDate,
+  FinanceError,
+} from "@repo/contracts/finance";
 import { MeasureFact, eventFacts, periodMeasures, postedMonth } from "@repo/finance";
 import { DateTime, Effect, Schema } from "effect";
 
 import { money } from "../database/columns.ts";
+import { readCredits } from "../relationships/repository.ts";
 
 export const previewImpact = Effect.fn("previewImpact")(function* (
   prior: FinancialEvent,
   accepted: FinancialEvent,
 ) {
+  return yield* previewPeriod([prior], [accepted]);
+});
+
+export const previewPeriod = Effect.fn("previewPeriod")(function* (
+  prior: readonly FinancialEvent[],
+  accepted: readonly FinancialEvent[],
+  creditChange?: {
+    before: readonly (typeof CreditLink.Type)[];
+    after: readonly (typeof CreditLink.Type)[];
+  },
+  on?: CalendarDate,
+) {
   const sql = yield* PgClient.PgClient;
-  const primary = prior.postings.find((posting) => posting.id === prior.primaryPostingId);
+  const first = prior[0];
+  const primary = first?.postings.find((posting) => posting.id === first.primaryPostingId);
   if (!primary)
     return yield* new FinanceError({
       kind: "conflict",
       message: "The event has no primary posting.",
     });
-  const period = postedMonth(primary.postedOn);
-  const currency = prior.magnitude.currency;
+  const period = postedMonth(on ?? primary.postedOn);
+  const currency = primary.amount.currency;
+  const currentCredits = creditChange ? creditChange.before : yield* readCredits();
+  const credits = creditChange ?? { before: currentCredits, after: currentCredits };
   const facts =
-    yield* sql`SELECT e.id AS "eventId", e.reporting_account_id AS "accountId", p.posted_on::text AS "postedOn", e.kind, al.role, ${money(sql, "e.currency", "al.amount_minor")} AS amount, al.non_personal AS "nonPersonal"
+    yield* sql`SELECT e.id AS "eventId", al.id AS "allocationId", e.reporting_account_id AS "accountId", p.posted_on::text AS "postedOn", e.kind, al.role, ${money(sql, "e.currency", "al.amount_minor")} AS amount, al.non_personal AS "nonPersonal"
     FROM events e JOIN postings p ON p.id = e.primary_posting_id JOIN allocations al ON al.event_id = e.id
     WHERE e.active AND e.currency = ${currency} AND p.posted_on >= ${period.start}::date AND p.posted_on < ${period.endExclusive}::date`.pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(MeasureFact))),
@@ -61,10 +84,16 @@ export const previewImpact = Effect.fn("previewImpact")(function* (
     currency,
     accountIds: accounts.map((account) => account.id),
     calculatedAt: DateTime.formatIso(yield* DateTime.now),
-    before: periodMeasures({ ...context, facts }),
+    before: periodMeasures({ ...context, facts, credits: credits.before }),
     after: periodMeasures({
       ...context,
-      facts: [...facts.filter((fact) => fact.eventId !== prior.id), ...eventFacts(accepted)],
+      credits: credits.after,
+      facts: [
+        ...facts.filter((fact) => !prior.some((event) => event.id === fact.eventId)),
+        ...accepted
+          .flatMap(eventFacts)
+          .filter((fact) => fact.postedOn >= period.start && fact.postedOn < period.endExclusive),
+      ],
     }),
   };
 });

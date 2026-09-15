@@ -9,6 +9,7 @@ import { accountsQueryOptions } from "@/features/accounts/queries";
 import { ExportsSection } from "@/features/exports/section";
 import { SourceFilesSection } from "@/features/sources/section";
 
+import { AccountPeriodsSection } from "../accounts/periods";
 import { DisplaySettings } from "./display-settings";
 import { ModelUsageSection } from "./model-usage";
 import { settingsQueryOptions, retentionQueryOptions } from "./queries";
@@ -63,6 +64,7 @@ export function SettingsPage() {
         <h2 className="text-xl font-semibold">Display</h2>
         <DisplaySettings settings={settings} />
       </section>
+      <AccountPeriodsSection accounts={accounts} />
       <ExportsSection timezone={settings.timezone} />
       <ModelUsageSection />
       <SourceFilesSection />

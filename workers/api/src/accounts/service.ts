@@ -60,10 +60,11 @@ export class Accounts extends Context.Service<
                 kind: "stale",
                 message: "The account changed. Refresh it before saving.",
               });
-            if (account.accountNumber && account.kind !== input.kind)
+            if (account.kind !== input.kind)
               return yield* new FinanceError({
                 kind: "conflict",
-                message: "The bank has established this account's kind.",
+                message:
+                  "An account's kind cannot change. Create a separate account for a different kind.",
               });
             const [updated] =
               yield* sql`UPDATE accounts SET label = ${input.label}, kind = ${input.kind}, version = version + 1, updated_at = now() WHERE id = ${input.accountId} RETURNING ${fields}`.pipe(

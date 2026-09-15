@@ -4,6 +4,7 @@ import type { apiBindings } from "@repo/infra/worker-bindings";
 import { Effect, Layer } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 
+import { AccountHistory } from "./accounts/periods.ts";
 import { AccountResolution } from "./accounts/resolution.ts";
 import { Accounts } from "./accounts/service.ts";
 import { Commands } from "./database/commands.ts";
@@ -19,6 +20,8 @@ import { Models } from "./models/service.ts";
 import { ExportJobs, TemporaryExports, ImportJobs, Sources } from "./platform/services.ts";
 import { Postings } from "./postings/service.ts";
 import { References } from "./references/service.ts";
+import { InterpretationReviews } from "./relationships/reviews.ts";
+import { Relationships } from "./relationships/service.ts";
 import { Reviews } from "./review/service.ts";
 import { Settings } from "./settings/service.ts";
 import { SourceFiles } from "./sources/service.ts";
@@ -26,6 +29,16 @@ import { SourceFiles } from "./sources/service.ts";
 // Declared explicitly because deriving it from `api` would make the infra Worker
 // class refer to itself through the bindings type.
 export type ApiOperations = {
+  getEventRelationships: Relationships["Service"]["get"];
+  listRelationshipCandidates: Relationships["Service"]["candidates"];
+  previewRelationship: Relationships["Service"]["preview"];
+  applyRelationship: Relationships["Service"]["apply"];
+  listInterpretationReviews: InterpretationReviews["Service"]["list"];
+  proposeRelationships: InterpretationReviews["Service"]["propose"];
+  dismissInterpretationReview: InterpretationReviews["Service"]["dismiss"];
+  listAccountPeriods: () => AccountHistory["Service"]["list"];
+  saveAccountPeriod: AccountHistory["Service"]["save"];
+  deleteAccountPeriod: AccountHistory["Service"]["remove"];
   saveReference: References["Service"]["save"];
   deleteReference: References["Service"]["remove"];
   previewCorrection: Corrections["Service"]["preview"];
@@ -68,9 +81,12 @@ export const api = Effect.fn("Api.initialize")(function* (
 ) {
   const services = Layer.mergeAll(
     Accounts.layer,
+    AccountHistory.layer,
     Events.layer,
     Corrections.layer,
     References.layer,
+    Relationships.layer,
+    InterpretationReviews.layer,
     Exports.layer,
     SourceFiles.layer,
     Models.layer,
@@ -98,6 +114,9 @@ export const api = Effect.fn("Api.initialize")(function* (
     ]),
   );
   return yield* Effect.gen(function* () {
+    const relationships = yield* Relationships;
+    const interpretationReviews = yield* InterpretationReviews;
+    const accountHistory = yield* AccountHistory;
     const references = yield* References;
     const corrections = yield* Corrections;
     const events = yield* Events;
@@ -115,6 +134,16 @@ export const api = Effect.fn("Api.initialize")(function* (
       Layer.mergeAll(importHttpRoutes, exportHttpRoutes),
     );
     const operations = {
+      getEventRelationships: relationships.get,
+      listRelationshipCandidates: relationships.candidates,
+      previewRelationship: relationships.preview,
+      applyRelationship: relationships.apply,
+      listInterpretationReviews: interpretationReviews.list,
+      proposeRelationships: interpretationReviews.propose,
+      dismissInterpretationReview: interpretationReviews.dismiss,
+      listAccountPeriods: () => accountHistory.list,
+      saveAccountPeriod: accountHistory.save,
+      deleteAccountPeriod: accountHistory.remove,
       saveReference: references.save,
       deleteReference: references.remove,
       previewCorrection: corrections.preview,

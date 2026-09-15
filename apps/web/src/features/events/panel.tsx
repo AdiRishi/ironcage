@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
+import { RelationshipsPanel } from "../relationships/panel";
 import { EventEditor } from "./editor";
 import { EventHistory } from "./history";
 import { eventForPostingQuery, referenceDataQuery } from "./queries";
@@ -103,6 +104,7 @@ export function InterpretationPanel({ postingId }: { postingId: typeof PostingId
               <span>{formatMoney(allocation.amount)}</span>
             </div>
           ))}
+          <RelationshipsPanel event={event} />
           <EventHistory eventId={event.id} />
         </>
       ) : (

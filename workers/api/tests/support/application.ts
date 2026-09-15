@@ -6,6 +6,7 @@ import * as Alchemy from "alchemy";
 import * as Test from "alchemy/Test/Vitest";
 import { Effect, Layer, Redacted } from "effect";
 
+import { AccountHistory } from "../../src/accounts/periods.ts";
 import { AccountResolution } from "../../src/accounts/resolution.ts";
 import { Accounts } from "../../src/accounts/service.ts";
 import { Commands } from "../../src/database/commands.ts";
@@ -14,6 +15,8 @@ import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { References } from "../../src/references/service.ts";
+import { InterpretationReviews } from "../../src/relationships/reviews.ts";
+import { Relationships } from "../../src/relationships/service.ts";
 import { Reviews } from "../../src/review/service.ts";
 import { Settings } from "../../src/settings/service.ts";
 
@@ -48,9 +51,12 @@ export function applicationTest() {
   );
   const services = Layer.mergeAll(
     Accounts.layer,
+    AccountHistory.layer,
     Events.layer,
     Corrections.layer,
     References.layer,
+    Relationships.layer,
+    InterpretationReviews.layer,
     Postings.layer,
     Reviews.layer,
     Settings.layer,

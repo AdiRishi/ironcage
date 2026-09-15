@@ -34,7 +34,7 @@ Initial roles come from CommBank description patterns, verified against the corp
 
 Interest credits remain unresolved until confirmed. A category never establishes income.
 
-A proposal becomes a link only when the counterpart is found with equal opposite amount in one currency and a shared reference, or when the user confirms it.
+A proposal becomes a link only when the counterpart is found with equal opposite amount in one currency and a shared reference, or when the user confirms it. The current implementation proposes equal opposite movements within three calendar days and requires confirmation. Amount and date alone never create a link.
 
 ## Screens
 
@@ -55,7 +55,7 @@ A proposal becomes a link only when the counterpart is found with equal opposite
 
 - Categories as a tree with rename, move, and archive. Merchants with aliases. Tags. Personal events with a period and an exclude-from-ordinary flag.
 - Rules: condition, action, scope of past, future, or both. Editing previews affected events and lists exceptions.
-- Accounts gain offset relationships with effective periods, and effective-dated label changes.
+- Accounts gain offset relationships with effective periods, and effective-dated label changes. These periods include `start_on` and exclude `end_on`; a missing end means ongoing. Periods for the same account cannot overlap within either kind. Account kinds are immutable.
 - Classification: enabled or disabled, provider, what is sent, usage, and Suggest categories for uncategorized events.
 
 ## Data
@@ -81,6 +81,8 @@ A proposal becomes a link only when the counterpart is found with equal opposite
 | `rules`                      | `id`, `conditions` jsonb, `action` jsonb, `scope` (`past`, `future`, `both`), `version`                                                                                     |
 | `rule_exceptions`            | `rule_id`, `event_id`                                                                                                                                                       |
 | `review_items`               | `kind` gains `role`, `relationship`, `ruleConflict`; `event_ids` uuid[]                                                                                                     |
+
+Unlinking a movement restores its original interpretation and reactivates the counterpart event with its original ID. Applied credits and fee associations must be removed before a correction can invalidate their roles or amounts. Credit previews include the original cost period even when the credit posts later. Loan principal reduction remains unavailable until the selected period has complete loan coverage.
 
 Database checks: allocations of an event sum to `magnitude_minor`, enforced in the command transaction; `credit_links.amount_minor` positive and bounded by both remaining amounts, enforced in the command transaction; one active event per posting by a partial unique index.
 
