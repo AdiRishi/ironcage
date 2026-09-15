@@ -20,6 +20,9 @@ export default defineConfig({
       },
       {
         extends: true,
+        // Register server-function mocks before Vite follows their Worker-only imports.
+        server: { preTransformRequests: false },
+        optimizeDeps: { exclude: ["@/server/api-client.server"] },
         test: {
           name: "components",
           include: ["tests/**/*.test.tsx"],
