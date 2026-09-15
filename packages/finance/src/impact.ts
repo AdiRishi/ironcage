@@ -1,0 +1,94 @@
+import {
+  AccountId,
+  CalendarDate,
+  EventId,
+  FinancialRole,
+  Money,
+  PeriodMeasures,
+  type FinancialEvent,
+} from "@repo/contracts/finance";
+import { DateTime, Schema } from "effect";
+
+export const MeasureFact = Schema.Struct({
+  eventId: EventId,
+  accountId: AccountId,
+  postedOn: CalendarDate,
+  kind: FinancialRole,
+  role: FinancialRole,
+  amount: Money,
+  nonPersonal: Schema.Boolean,
+});
+export type MeasureFact = typeof MeasureFact.Type;
+export function postedMonth(on: CalendarDate) {
+  const start = CalendarDate.make(`${on.slice(0, 7)}-01`);
+  return {
+    start,
+    endExclusive: CalendarDate.make(
+      DateTime.formatIsoDateUtc(DateTime.add(DateTime.makeUnsafe(start), { months: 1 })),
+    ),
+  };
+}
+export function eventFacts(event: FinancialEvent): ReadonlyArray<MeasureFact> {
+  const primary = event.postings.find((posting) => posting.id === event.primaryPostingId);
+  return primary
+    ? event.allocations.map((allocation) => ({
+        eventId: event.id,
+        accountId: event.reportingAccountId,
+        postedOn: primary.postedOn,
+        kind: event.kind,
+        role: allocation.role,
+        amount: allocation.amount,
+        nonPersonal: allocation.nonPersonal,
+      }))
+    : [];
+}
+export function periodMeasures({
+  facts,
+  currency,
+  loanAccountIds,
+  observedCashMovement,
+  cashComplete,
+  loanComplete,
+}: {
+  facts: ReadonlyArray<MeasureFact>;
+  currency: string;
+  loanAccountIds: ReadonlyArray<typeof AccountId.Type>;
+  observedCashMovement: bigint;
+  cashComplete: boolean;
+  loanComplete: boolean;
+}): typeof PeriodMeasures.Type {
+  let gross = 0n,
+    net = 0n,
+    income = 0n,
+    repayments = 0n,
+    financing = 0n;
+  const unresolved = new Set<typeof EventId.Type>();
+  for (const fact of facts) {
+    if (fact.role === "purchase" || fact.role === "financingCost") {
+      gross += fact.amount.minor;
+      if (!fact.nonPersonal) net += fact.amount.minor;
+    }
+    if (fact.role === "income") income += fact.amount.minor;
+    if (fact.kind === "unresolved") unresolved.add(fact.eventId);
+    if (loanAccountIds.includes(fact.accountId)) {
+      if (fact.kind === "loanPayment") repayments += fact.amount.minor;
+      if (fact.kind === "financingCost") financing += fact.amount.minor;
+    }
+  }
+  const money = (minor: bigint) => ({ currency, minor });
+  return {
+    grossCosts: money(gross),
+    netPersonalCosts: money(net),
+    income: money(income),
+    cashChange: cashComplete ? money(observedCashMovement) : null,
+    observedCashMovement: money(observedCashMovement),
+    loanRepayments: money(repayments),
+    financingCosts: money(financing),
+    netPrincipalReduction:
+      loanComplete &&
+      !facts.some((fact) => loanAccountIds.includes(fact.accountId) && fact.kind === "unresolved")
+        ? money(repayments - financing)
+        : null,
+    unresolvedCount: unresolved.size,
+  };
+}

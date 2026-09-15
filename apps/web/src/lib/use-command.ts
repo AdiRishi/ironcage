@@ -1,5 +1,5 @@
 import { CommandId } from "@repo/contracts/finance";
-import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type UseMutationOptions } from "@tanstack/react-query";
 
 import { AppRequestError } from "./app-error";
 
@@ -8,7 +8,15 @@ import { AppRequestError } from "./app-error";
 export function useCommand<Input extends { commandId: typeof CommandId.Type }, Data>(
   options: UseMutationOptions<Data, Error, Input>,
 ) {
-  const mutation = useMutation(options);
+  const client = useQueryClient();
+  const mutation = useMutation({
+    ...options,
+    onError: async (error, variables, result, context) => {
+      if (error instanceof AppRequestError && error.code === "stale")
+        await client.invalidateQueries();
+      await options.onError?.(error, variables, result, context);
+    },
+  });
   const uncertain =
     mutation.error instanceof AppRequestError && mutation.error.code === "unavailable";
   const retry = () => {

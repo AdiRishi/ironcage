@@ -164,7 +164,14 @@ export class Events extends Context.Service<
         interpret,
         get,
         forPosting,
-        summary: sql.withTransaction(summary).pipe(toFinanceError),
+        summary: sql
+          .withTransaction(
+            Effect.gen(function* () {
+              yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
+              return yield* summary;
+            }),
+          )
+          .pipe(toFinanceError),
         references,
       });
     }),

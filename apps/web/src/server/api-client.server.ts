@@ -9,6 +9,12 @@ import { runApiRequest } from "./api-request";
 type ApiMethods = Pick<
   Api,
   | "interpretPostings"
+  | "previewCorrection"
+  | "applyCorrection"
+  | "undoCorrection"
+  | "getCorrectionHistory"
+  | "saveReference"
+  | "deleteReference"
   | "getEvent"
   | "getEventForPosting"
   | "getInterpretationSummary"

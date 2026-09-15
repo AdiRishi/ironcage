@@ -9,3 +9,5 @@ export * from "./finance/sources.ts";
 export * from "./finance/models.ts";
 export * from "./finance/events.ts";
 export * from "./finance/interpretation.ts";
+export * from "./finance/corrections.ts";
+export * from "./finance/references.ts";
