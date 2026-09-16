@@ -16,3 +16,4 @@ export * from "./finance/relationships.ts";
 export * from "./finance/account-periods.ts";
 export * from "./finance/rules.ts";
 export * from "./finance/classification.ts";
+export * from "./finance/analysis.ts";

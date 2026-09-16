@@ -8,6 +8,7 @@ import { runApiRequest } from "./api-request";
 
 type ApiMethods = Pick<
   Api,
+  | "overview"
   | "getEventRelationships"
   | "listRelationshipCandidates"
   | "previewRelationship"

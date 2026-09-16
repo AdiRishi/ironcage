@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 const publishedRecords = new Set([
+  "analysis",
   "imports",
   "accounts",
   "postings",
