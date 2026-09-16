@@ -3,6 +3,8 @@ import {
   CalendarDate,
   FinanceError,
   type AnalysisQuery,
+  type AnalysisRowsInput,
+  type AnalysisRowsResult,
   type ComparisonResult,
   type ContributorsInput,
   type ContributorsResult,
@@ -10,6 +12,7 @@ import {
   type OverviewResult,
 } from "@repo/contracts/finance";
 import {
+  calculateRows,
   calculateComparison,
   calculateContributors,
   calculateOverview,
@@ -25,6 +28,7 @@ import { readAnalysisSnapshot } from "./snapshot.ts";
 export class Analysis extends Context.Service<
   Analysis,
   {
+    readonly rows: (input: AnalysisRowsInput) => Effect.Effect<AnalysisRowsResult, FinanceError>;
     readonly overview: (input: OverviewInput) => Effect.Effect<OverviewResult, FinanceError>;
     readonly compare: (input: AnalysisQuery) => Effect.Effect<ComparisonResult, FinanceError>;
     readonly contributors: (
@@ -121,7 +125,42 @@ export class Analysis extends Context.Service<
             }),
           ),
       );
-      return Analysis.of({ overview, compare, contributors });
+      const rows = Effect.fn("Analysis.rows")((input: AnalysisRowsInput) =>
+        read(
+          Effect.gen(function* () {
+            if (
+              ["cashBalanceChange", "netPrincipalReduction"].includes(input.query.measure) &&
+              input.groupBy !== "account"
+            )
+              return yield* new FinanceError({
+                kind: "invalid",
+                message: "Account movement measures can only be grouped by account.",
+              });
+            if (
+              input.groupKey === "remainder" &&
+              (input.groupBy === "tag" ||
+                input.groupBy === "personalEvent" ||
+                input.query.measure === "surplusRate" ||
+                (input.query.measure === "purchaseCount" && input.groupBy !== "account"))
+            )
+              return yield* new FinanceError({
+                kind: "invalid",
+                message: "Overlapping groups have no remainder.",
+              });
+            const data = yield* context(input.query);
+            return calculateRows(
+              data.snapshot,
+              input,
+              {
+                current: data.period,
+                previous: comparisonPeriod(input.query.period, input.query.comparison, data.period),
+              },
+              data.calculatedAt,
+            );
+          }),
+        ),
+      );
+      return Analysis.of({ overview, compare, contributors, rows });
     }),
   );
 }

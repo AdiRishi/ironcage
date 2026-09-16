@@ -36,6 +36,7 @@ import { SourceFiles } from "./sources/service.ts";
 export type ApiOperations = {
   overview: Analysis["Service"]["overview"];
   compare: Analysis["Service"]["compare"];
+  rows: Analysis["Service"]["rows"];
   contributors: Analysis["Service"]["contributors"];
   getEventRelationships: Relationships["Service"]["get"];
   listRelationshipCandidates: Relationships["Service"]["candidates"];
@@ -170,6 +171,7 @@ export const api = Effect.fn("Api.initialize")(function* (
     const operations = {
       overview: analysis.overview,
       compare: analysis.compare,
+      rows: analysis.rows,
       contributors: analysis.contributors,
       getEventRelationships: relationships.get,
       listRelationshipCandidates: relationships.candidates,
