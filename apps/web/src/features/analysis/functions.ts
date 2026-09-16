@@ -1,4 +1,9 @@
-import { OverviewInput, AnalysisQuery, ContributorsInput } from "@repo/contracts/finance";
+import {
+  OverviewInput,
+  AnalysisQuery,
+  ContributorsInput,
+  AnalysisRowsInput,
+} from "@repo/contracts/finance";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 
@@ -13,3 +18,7 @@ export const compare = createServerFn({ method: "GET" })
 export const contributors = createServerFn({ method: "GET" })
   .validator(Schema.toStandardSchemaV1(ContributorsInput))
   .handler(({ data }) => callApiRpc((client) => client.contributors(data)));
+
+export const rows = createServerFn({ method: "GET" })
+  .validator(Schema.toStandardSchemaV1(AnalysisRowsInput))
+  .handler(({ data }) => callApiRpc((client) => client.rows(data)));

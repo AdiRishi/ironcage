@@ -24,6 +24,7 @@ import { Route as SettingsSuggestionsRouteImport } from './routes/settings_.sugg
 import { Route as SourcesSourceFileIdRouteImport } from './routes/sources/$sourceFileId'
 import { Route as TransactionsIndexRouteImport } from './routes/transactions/index'
 import { Route as TransactionsIdRouteImport } from './routes/transactions/$id'
+import { Route as TrendsRowsRouteImport } from './routes/trends_.rows'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -100,6 +101,11 @@ const TransactionsIdRoute = TransactionsIdRouteImport.update({
   path: '/transactions/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TrendsRowsRoute = TrendsRowsRouteImport.update({
+  id: '/trends_/rows',
+  path: '/trends/rows',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/settings/suggestions': typeof SettingsSuggestionsRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
+  '/trends/rows': typeof TrendsRowsRoute
   '/imports/': typeof ImportsIndexRoute
   '/transactions/': typeof TransactionsIndexRoute
 }
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/settings/suggestions': typeof SettingsSuggestionsRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
+  '/trends/rows': typeof TrendsRowsRoute
   '/imports': typeof ImportsIndexRoute
   '/transactions': typeof TransactionsIndexRoute
 }
@@ -150,6 +158,7 @@ export interface FileRoutesById {
   '/settings_/suggestions': typeof SettingsSuggestionsRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
+  '/trends_/rows': typeof TrendsRowsRoute
   '/imports/': typeof ImportsIndexRoute
   '/transactions/': typeof TransactionsIndexRoute
 }
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/settings/suggestions'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
+    | '/trends/rows'
     | '/imports/'
     | '/transactions/'
   fileRoutesByTo: FileRoutesByTo
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/settings/suggestions'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
+    | '/trends/rows'
     | '/imports'
     | '/transactions'
   id:
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/settings_/suggestions'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
+    | '/trends_/rows'
     | '/imports/'
     | '/transactions/'
   fileRoutesById: FileRoutesById
@@ -221,6 +233,7 @@ export interface RootRouteChildren {
   SettingsSuggestionsRoute: typeof SettingsSuggestionsRoute
   SourcesSourceFileIdRoute: typeof SourcesSourceFileIdRoute
   TransactionsIdRoute: typeof TransactionsIdRoute
+  TrendsRowsRoute: typeof TrendsRowsRoute
   ImportsIndexRoute: typeof ImportsIndexRoute
   TransactionsIndexRoute: typeof TransactionsIndexRoute
 }
@@ -332,6 +345,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TransactionsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/trends_/rows': {
+      id: '/trends_/rows'
+      path: '/trends/rows'
+      fullPath: '/trends/rows'
+      preLoaderRoute: typeof TrendsRowsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -349,6 +369,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsSuggestionsRoute: SettingsSuggestionsRoute,
   SourcesSourceFileIdRoute: SourcesSourceFileIdRoute,
   TransactionsIdRoute: TransactionsIdRoute,
+  TrendsRowsRoute: TrendsRowsRoute,
   ImportsIndexRoute: ImportsIndexRoute,
   TransactionsIndexRoute: TransactionsIndexRoute,
 }

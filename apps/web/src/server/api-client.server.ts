@@ -11,6 +11,7 @@ type ApiMethods = Pick<
   | "overview"
   | "compare"
   | "contributors"
+  | "rows"
   | "getEventRelationships"
   | "listRelationshipCandidates"
   | "previewRelationship"

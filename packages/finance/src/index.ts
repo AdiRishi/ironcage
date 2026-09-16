@@ -13,3 +13,4 @@ export * from "./analysis/decimal.ts";
 export * from "./analysis/measures.ts";
 export * from "./analysis/contributions.ts";
 export * from "./analysis/comparison.ts";
+export * from "./analysis/rows.ts";

@@ -2,7 +2,10 @@ import { Schema } from "effect";
 
 import { DateBasis, DecimalMoney, OverviewInput, Period, ResultCoverage } from "./analysis.ts";
 import { CategoryId, MerchantId, TagId, PersonalEventId } from "./interpretation.ts";
-import { AccountId, Instant, Money } from "./values.ts";
+import { EventId } from "./interpretation.ts";
+import { Posting } from "./postings.ts";
+import { CreditLink } from "./relationships.ts";
+import { AccountId, CalendarDate, Instant, Money } from "./values.ts";
 export const Measure = Schema.Literals([
   "grossCosts",
   "netPersonalCosts",
@@ -102,3 +105,36 @@ export const ContributorsResult = Schema.Struct({
   overlap: Schema.Boolean,
 });
 export type ContributorsResult = typeof ContributorsResult.Type;
+
+export const AnalysisRowCursor = Schema.Struct({
+  on: CalendarDate,
+  id: Schema.String.check(Schema.isUUID()),
+  period: Schema.Literals(["current", "previous"]),
+});
+export const AnalysisRowsInput = Schema.Struct({
+  query: AnalysisQuery,
+  groupBy: GroupBy,
+  groupKey: Schema.Union([
+    Schema.Literals(["unassigned", "remainder"]),
+    Schema.String.check(Schema.isUUID()),
+  ]),
+  cursor: Schema.optionalKey(AnalysisRowCursor),
+});
+export type AnalysisRowsInput = typeof AnalysisRowsInput.Type;
+export const AnalysisRow = Schema.Struct({
+  ...AnalysisRowCursor.fields,
+  eventId: Schema.NullOr(EventId),
+  posting: Posting,
+  counterparts: Schema.Array(Posting),
+  contribution: MetricValue,
+  credits: Schema.Array(CreditLink),
+});
+export type AnalysisRow = typeof AnalysisRow.Type;
+export const AnalysisRowsResult = Schema.Struct({
+  headline: ComparisonResult,
+  groupKey: Schema.String,
+  label: Schema.String,
+  rows: Schema.Array(AnalysisRow),
+  nextCursor: Schema.NullOr(AnalysisRowCursor),
+});
+export type AnalysisRowsResult = typeof AnalysisRowsResult.Type;

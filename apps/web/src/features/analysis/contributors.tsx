@@ -1,5 +1,6 @@
 import type { Contributor, ContributorsResult } from "@repo/contracts/finance";
 import { formatMoney } from "@repo/finance";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
@@ -36,6 +37,7 @@ const columns = column.columns([
   }),
 ]);
 export function ContributorsView({ result }: { result: ContributorsResult }) {
+  const navigate = useNavigate();
   const table = useTable({ features, columns, data: result.rows, getRowId: (row) => row.key });
   return (
     <section className="space-y-5 rounded-lg border p-5">
@@ -71,7 +73,23 @@ export function ContributorsView({ result }: { result: ContributorsResult }) {
               <CartesianGrid horizontal={false} />
               <XAxis type="number" hide />
               <YAxis dataKey="name" type="category" width={100} tickLine={false} axisLine={false} />
-              <Bar dataKey="delta" fill="var(--color-delta)" radius={3} />
+              <Bar
+                dataKey="delta"
+                fill="var(--color-delta)"
+                radius={3}
+                onClick={(_, index) => {
+                  const row = result.rows[index];
+                  if (row)
+                    navigate({
+                      to: "/trends/rows",
+                      search: {
+                        query: result.comparison.query,
+                        groupBy: result.groupBy,
+                        groupKey: row.key,
+                      },
+                    }).catch(reportError);
+                }}
+              />
             </BarChart>
           </ChartContainer>
         </details>
@@ -93,14 +111,40 @@ export function ContributorsView({ result }: { result: ContributorsResult }) {
             <TableRow key={row.id}>
               {row.getAllCells().map((cell) => (
                 <TableCell key={cell.id} className="tabular-nums">
-                  <table.FlexRender cell={cell} />
+                  {cell.column.id === "label" ? (
+                    <Link
+                      className="underline underline-offset-4"
+                      to="/trends/rows"
+                      search={{
+                        query: result.comparison.query,
+                        groupBy: result.groupBy,
+                        groupKey: row.original.key,
+                      }}
+                    >
+                      {row.original.label}
+                    </Link>
+                  ) : (
+                    <table.FlexRender cell={cell} />
+                  )}
                 </TableCell>
               ))}
             </TableRow>
           ))}
           {result.remainder && (
             <TableRow>
-              <TableCell>Everything else</TableCell>
+              <TableCell>
+                <Link
+                  className="underline"
+                  to="/trends/rows"
+                  search={{
+                    query: result.comparison.query,
+                    groupBy: result.groupBy,
+                    groupKey: "remainder",
+                  }}
+                >
+                  Everything else
+                </Link>
+              </TableCell>
               <TableCell />
               <TableCell />
               <TableCell>{formatMetric(result.remainder)}</TableCell>
