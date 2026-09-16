@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { referenceDataQuery } from "@/features/events/queries";
 import { useCommand } from "@/lib/use-command";
 
+import { CategoryTree } from "./category-tree";
 import { ReferenceEditor } from "./editor";
 import { deleteReference } from "./functions";
 
@@ -27,13 +28,6 @@ export function ReferencesPage() {
   });
   const today = CalendarDate.make(new Intl.DateTimeFormat("en-CA").format(new Date()));
   const records: ReadonlyArray<typeof ReferenceWrite.Type> = [
-    ...data.categories.map((category) => ({
-      kind: "category" as const,
-      target: { kind: "update" as const, id: category.id, expectedVersion: category.version },
-      name: category.name,
-      parentId: category.parentId,
-      archived: category.archived,
-    })),
     ...data.merchants.map((merchant) => ({
       kind: "merchant" as const,
       target: { kind: "update" as const, id: merchant.id, expectedVersion: merchant.version },
@@ -127,98 +121,115 @@ export function ReferencesPage() {
               Add {section.kind === "personalEvent" ? "personal event" : section.kind}
             </Button>
           </div>
-          <ul className="divide-y rounded-lg border">
-            {records
-              .filter((record) => record.kind === section.kind)
-              .map((record) => (
-                <li
-                  key={record.target.kind === "update" ? record.target.id : record.kind}
-                  className="flex flex-wrap items-center justify-between gap-3 p-4"
-                >
-                  <div>
-                    <p className="font-medium">
-                      {record.kind === "category" &&
-                        record.parentId &&
-                        `${data.categories.find((parent) => parent.id === record.parentId)?.name} / `}
-                      {record.name}
-                      {record.kind === "category" && record.archived && " · Archived"}
-                    </p>
-                    {record.kind === "merchant" && (
-                      <p className="text-sm text-muted-foreground">{record.aliases.join(", ")}</p>
-                    )}
-                    {record.kind === "personalEvent" && (
-                      <p className="text-sm text-muted-foreground">
-                        {record.startOn} through {record.endOn}
-                        {record.excludeFromOrdinary && " · Excluded from ordinary costs"}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setDraft(record)}>
-                      Edit {record.name}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      disabled={mutation.isPending || uncertain}
-                      onClick={() => {
-                        if (record.target.kind !== "update") return;
-                        switch (record.kind) {
-                          case "category":
-                            if (record.target.kind === "update")
-                              submit({
-                                commandId: CommandId.make(crypto.randomUUID()),
-                                record: {
-                                  kind: record.kind,
-                                  id: record.target.id,
-                                  expectedVersion: record.target.expectedVersion,
-                                },
-                              });
-                            break;
-                          case "merchant":
-                            if (record.target.kind === "update")
-                              submit({
-                                commandId: CommandId.make(crypto.randomUUID()),
-                                record: {
-                                  kind: record.kind,
-                                  id: record.target.id,
-                                  expectedVersion: record.target.expectedVersion,
-                                },
-                              });
-                            break;
-                          case "tag":
-                            if (record.target.kind === "update")
-                              submit({
-                                commandId: CommandId.make(crypto.randomUUID()),
-                                record: {
-                                  kind: record.kind,
-                                  id: record.target.id,
-                                  expectedVersion: record.target.expectedVersion,
-                                },
-                              });
-                            break;
-                          case "personalEvent":
-                            if (record.target.kind === "update")
-                              submit({
-                                commandId: CommandId.make(crypto.randomUUID()),
-                                record: {
-                                  kind: record.kind,
-                                  id: record.target.id,
-                                  expectedVersion: record.target.expectedVersion,
-                                },
-                              });
-                            break;
-                        }
-                      }}
-                    >
-                      Delete {record.name}
-                    </Button>
-                  </div>
-                </li>
-              ))}
-          </ul>
-          {!records.some((record) => record.kind === section.kind) && (
-            <p className="text-sm text-muted-foreground">None yet.</p>
+          {section.kind === "category" ? (
+            <CategoryTree
+              categories={data.categories}
+              disabled={mutation.isPending || uncertain}
+              onEdit={(category) =>
+                setDraft({
+                  kind: "category",
+                  target: { kind: "update", id: category.id, expectedVersion: category.version },
+                  name: category.name,
+                  parentId: category.parentId,
+                  archived: category.archived,
+                })
+              }
+              onDelete={(category) =>
+                submit({
+                  commandId: CommandId.make(crypto.randomUUID()),
+                  record: { kind: "category", id: category.id, expectedVersion: category.version },
+                })
+              }
+            />
+          ) : (
+            <ul className="divide-y rounded-lg border">
+              {records
+                .filter((record) => record.kind === section.kind)
+                .map((record) => (
+                  <li
+                    key={record.target.kind === "update" ? record.target.id : record.kind}
+                    className="flex flex-wrap items-center justify-between gap-3 p-4"
+                  >
+                    <div>
+                      <p className="font-medium">{record.name}</p>
+                      {record.kind === "merchant" && (
+                        <p className="text-sm text-muted-foreground">{record.aliases.join(", ")}</p>
+                      )}
+                      {record.kind === "personalEvent" && (
+                        <p className="text-sm text-muted-foreground">
+                          {record.startOn} through {record.endOn}
+                          {record.excludeFromOrdinary && " · Excluded from ordinary costs"}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={() => setDraft(record)}>
+                        Edit {record.name}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        disabled={mutation.isPending || uncertain}
+                        onClick={() => {
+                          if (record.target.kind !== "update") return;
+                          switch (record.kind) {
+                            case "category":
+                              if (record.target.kind === "update")
+                                submit({
+                                  commandId: CommandId.make(crypto.randomUUID()),
+                                  record: {
+                                    kind: record.kind,
+                                    id: record.target.id,
+                                    expectedVersion: record.target.expectedVersion,
+                                  },
+                                });
+                              break;
+                            case "merchant":
+                              if (record.target.kind === "update")
+                                submit({
+                                  commandId: CommandId.make(crypto.randomUUID()),
+                                  record: {
+                                    kind: record.kind,
+                                    id: record.target.id,
+                                    expectedVersion: record.target.expectedVersion,
+                                  },
+                                });
+                              break;
+                            case "tag":
+                              if (record.target.kind === "update")
+                                submit({
+                                  commandId: CommandId.make(crypto.randomUUID()),
+                                  record: {
+                                    kind: record.kind,
+                                    id: record.target.id,
+                                    expectedVersion: record.target.expectedVersion,
+                                  },
+                                });
+                              break;
+                            case "personalEvent":
+                              if (record.target.kind === "update")
+                                submit({
+                                  commandId: CommandId.make(crypto.randomUUID()),
+                                  record: {
+                                    kind: record.kind,
+                                    id: record.target.id,
+                                    expectedVersion: record.target.expectedVersion,
+                                  },
+                                });
+                              break;
+                          }
+                        }}
+                      >
+                        Delete {record.name}
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+            </ul>
           )}
+          {section.kind !== "category" &&
+            !records.some((record) => record.kind === section.kind) && (
+              <p className="text-sm text-muted-foreground">None yet.</p>
+            )}
         </section>
       ))}
     </div>

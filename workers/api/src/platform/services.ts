@@ -88,3 +88,18 @@ export class ExportJobs extends Context.Service<
   static readonly layer = (client: JobClient<{ exportId: typeof ExportId.Type }>) =>
     Layer.effect(ExportJobs, jobService(client));
 }
+
+export class ClassificationJobs extends Context.Service<
+  ClassificationJobs,
+  Effect.Success<
+    ReturnType<
+      typeof jobService<{
+        runId: typeof import("@repo/contracts/finance").ClassificationRunId.Type;
+      }>
+    >
+  >
+>()("@repo/api/platform/ClassificationJobs") {
+  static readonly layer = (
+    client: JobClient<{ runId: typeof import("@repo/contracts/finance").ClassificationRunId.Type }>,
+  ) => Layer.effect(ClassificationJobs, jobService(client));
+}

@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
+import { EventSuggestion } from "../classification/event-suggestion";
 import { RelationshipsPanel } from "../relationships/panel";
 import { EventEditor } from "./editor";
 import { EventHistory } from "./history";
@@ -105,6 +106,7 @@ export function InterpretationPanel({ postingId }: { postingId: typeof PostingId
             </div>
           ))}
           <RelationshipsPanel event={event} />
+          <EventSuggestion eventId={event.id} />
           <EventHistory eventId={event.id} />
         </>
       ) : (

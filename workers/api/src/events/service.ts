@@ -18,6 +18,8 @@ import { postingFields } from "../database/columns.ts";
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
 import { proposeMovements } from "../relationships/proposals.ts";
+import { writeRulePlan } from "../rules/apply.ts";
+import { planRules } from "../rules/plan.ts";
 import { readEvent } from "./repository.ts";
 
 export class Events extends Context.Service<
@@ -70,6 +72,7 @@ export class Events extends Context.Service<
                   ),
                 ),
               );
+            const createdIds: (typeof EventId.Type)[] = [];
             for (const batch of Arr.chunksOf(postings, 500)) {
               const records = yield* Effect.forEach(
                 batch,
@@ -94,6 +97,7 @@ export class Events extends Context.Service<
                   };
                 }),
               );
+              createdIds.push(...records.map((record) => EventId.make(record.event.id)));
               yield* sql`INSERT INTO events ${sql.insert(records.map((record) => record.event))}`;
               yield* sql`INSERT INTO event_postings ${sql.insert(records.map(({ event }) => ({ event_id: event.id, posting_id: event.primary_posting_id })))}`;
               yield* sql`INSERT INTO allocations ${sql.insert(records.map(({ event, allocationId }) => ({ id: allocationId, event_id: event.id, role: allocationRole(event.kind), amount_minor: event.magnitude_minor })))}`;
@@ -103,6 +107,15 @@ export class Events extends Context.Service<
                   "id",
                   records.map((record) => record.event.id),
                 )} AND kind = 'unresolved'`;
+            }
+            if (createdIds.length > 0) {
+              yield* sql`UPDATE allocations al SET merchant_id=(SELECT min(ma.merchant_id::text)::uuid FROM merchant_aliases ma JOIN events e ON e.id=al.event_id JOIN postings p ON p.id=e.primary_posting_id WHERE strpos(lower(p.description),ma.pattern)>0 HAVING count(DISTINCT ma.merchant_id)=1) WHERE ${sql.in("al.event_id", createdIds)}`;
+              const ruleCount = yield* sql`SELECT id FROM rules LIMIT 1`;
+              if (ruleCount.length)
+                yield* Effect.gen(function* () {
+                  const plan = yield* planRules(null, createdIds);
+                  yield* writeRulePlan(plan, input.commandId);
+                }).pipe(Effect.provideService(PgClient.PgClient, sql));
             }
             if (postings.length > 0)
               yield* proposeMovements.pipe(Effect.provideService(PgClient.PgClient, sql));

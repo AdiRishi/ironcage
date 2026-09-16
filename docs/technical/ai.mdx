@@ -19,7 +19,7 @@ Stage 2. The parser runs first. When a page cannot be decoded, and the user has 
 
 All 47 stage 2 statements decode without a model. No document provider is
 configured and model calls are disabled. Settings reports that no pages leave
-the application, zero calls, and no warning threshold. The usage schema keeps
+the application. Document extraction has no enable switch or warning threshold. The usage schema keeps
 unknown reports distinct from zero and sums costs by currency. An enable control
 and provider integration belong with the first document that requires a model,
 so there is no switch that silently does nothing.
@@ -29,6 +29,41 @@ so there is no switch that silently does nothing.
 Stage 3. Input: the posting description, the established financial role, the account kind, the merchant if known, and the current category tree. Output: a category ID or an explicit "needs review", with a one-line reason, as structured output validated against the current categories.
 
 Precedence from [Financial model](/technical/financial-model#precedence) applies: a correction or accepted rule on the event wins, and a suggestion never touches a booked field. Suggestions are shown for single or bulk acceptance. The user can categorize manually at any time, and an uncategorized cost still counts as spending. An unknown financial role stays unresolved rather than being inferred from a category.
+
+The configured provider is Cloudflare Workers AI, called through AI SDK 7 and
+`workers-ai-provider` via Cloudflare AI Gateway. The model is
+`@cf/zai-org/glm-5.3-flash`. The processor owns a stage-specific
+`ClassificationGateway` resource in `infra/src/classification.ts`. Alchemy's
+`QueryGateway` binding supplies its ID and Workers AI binding to the workflow.
+Gateway authentication is enabled. Request logging and response caching are
+disabled on the gateway and on each inference request. Usage remains in the
+application's usage records.
+Classification starts disabled. Settings exposes the switch, the provider and
+model, the data disclosure, and a USD usage warning, initially $5.
+
+The processor uses a Cloudflare Workflow with batches of 20 events. Each input
+description is limited to 1,000 characters and output to 4,096 tokens. Each
+model call has a two-minute timeout. The SDK handles transient retries; the
+Workflow does not repeat inference after an exhausted model call. Batch reads
+and results cross durable checkpoints through the shared schema codecs, which
+encode exact integer values as strings.
+
+The configured estimate uses $0.15 per million input tokens and $0.50 per
+million output tokens, from [Cloudflare's GLM-5.3-Flash model page](https://developers.cloudflare.com/workers-ai/models/glm-5.3-flash/).
+The estimate prices all input tokens at the uncached rate.
+`infra/src/classification.ts` owns the model and rates. Arithmetic uses integers
+and rounds the estimate up to a USD cent per call. These recorded estimates
+control the warning threshold; they are not the provider's invoice. Unknown
+usage remains unknown. A failed response with reported token usage retains its
+estimate.
+
+An event receives a suggestion only if it still has the requested version and
+one uncategorized allocation, with no specific correction, accepted rule, or
+relationship. The response must contain each requested event exactly once and
+use current category IDs or null. Saving a suggestion increments the event
+version. Single and bulk acceptance recheck that version and precedence,
+record a correction, and skip changed events. A null category stays in review.
+Failed runs display their failure and leave manual editing available.
 
 Evaluate a model change on representative corpus cases and synthetic fixtures: useful suggestions, wrong categories, ambiguous descriptions, and preservation of corrections.
 

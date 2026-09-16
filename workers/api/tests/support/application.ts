@@ -9,15 +9,19 @@ import { Effect, Layer, Redacted } from "effect";
 import { AccountHistory } from "../../src/accounts/periods.ts";
 import { AccountResolution } from "../../src/accounts/resolution.ts";
 import { Accounts } from "../../src/accounts/service.ts";
+import { ClassificationConfig } from "../../src/classification/config.ts";
+import { Classification } from "../../src/classification/service.ts";
 import { Commands } from "../../src/database/commands.ts";
 import { Corrections } from "../../src/events/corrections.ts";
 import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
+import { ClassificationJobs } from "../../src/platform/services.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { References } from "../../src/references/service.ts";
 import { InterpretationReviews } from "../../src/relationships/reviews.ts";
 import { Relationships } from "../../src/relationships/service.ts";
 import { Reviews } from "../../src/review/service.ts";
+import { Rules } from "../../src/rules/service.ts";
 import { Settings } from "../../src/settings/service.ts";
 
 const databaseProviders = localDatabaseProviders;
@@ -55,16 +59,34 @@ export function applicationTest() {
     Events.layer,
     Corrections.layer,
     References.layer,
+    Rules.layer,
     Relationships.layer,
     InterpretationReviews.layer,
     Postings.layer,
     Reviews.layer,
     Settings.layer,
+    Classification.layer,
   ).pipe(
     Layer.provideMerge(Publication.layer),
     Layer.provideMerge(Commands.layer),
     Layer.provide(AccountResolution.layer),
     Layer.provideMerge(database),
+    Layer.provide(
+      Layer.succeed(ClassificationConfig, {
+        provider: {
+          name: "Synthetic provider",
+          model: "synthetic",
+          inputMicrousdPerMillion: 270000n,
+          outputMicrousdPerMillion: 850000n,
+        },
+      }),
+    ),
+    Layer.provide(
+      Layer.succeed(ClassificationJobs, {
+        start: () => Effect.void,
+        status: () => Effect.succeed({ status: "running", failure: null }),
+      }),
+    ),
     Layer.provideMerge(NodeCrypto.layer),
   );
 
