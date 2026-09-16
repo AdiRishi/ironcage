@@ -3,9 +3,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Schema } from "effect";
 
 import { accountsQueryOptions } from "@/features/accounts/queries";
+import { defaultOverview } from "@/features/analysis/input";
 import { OverviewPage } from "@/features/analysis/overview";
 import { overviewQuery } from "@/features/analysis/queries";
-import { defaultOverview } from "@/features/analysis/selection";
 const Search = Schema.Struct({ query: Schema.optionalKey(OverviewInput) });
 export const Route = createFileRoute("/overview")({
   validateSearch: Schema.toStandardSchemaV1(Search),

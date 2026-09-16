@@ -17,7 +17,7 @@ import {
 import { Coverage } from "./coverage";
 import { formatMetric } from "./labels";
 import { analysisRowsQuery } from "./queries";
-import { ComparisonHeadline } from "./trends";
+import { ComparisonHeadline } from "./results";
 const features = tableFeatures({});
 const column = createColumnHelper<typeof features, AnalysisRow>();
 const columns = column.columns([

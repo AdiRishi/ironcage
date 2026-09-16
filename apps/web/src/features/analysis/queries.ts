@@ -2,23 +2,24 @@ import type { OverviewInput, ContributorsInput, AnalysisRowsInput } from "@repo/
 import { queryOptions } from "@tanstack/react-query";
 
 import { overview, contributors, rows } from "./functions";
+import { normalizeAnalysis, normalizeOverview } from "./input";
 export const overviewQuery = (input: OverviewInput) =>
   queryOptions({
-    queryKey: ["analysis", "overview", input],
+    queryKey: ["analysis", "overview", normalizeOverview(input)],
     queryFn: () => overview({ data: input }),
     staleTime: 0,
   });
 
 export const contributorsQuery = (input: typeof ContributorsInput.Type) =>
   queryOptions({
-    queryKey: ["analysis", "contributors", input],
+    queryKey: ["analysis", "contributors", { ...input, query: normalizeAnalysis(input.query) }],
     queryFn: () => contributors({ data: input }),
     staleTime: 0,
   });
 
 export const analysisRowsQuery = (input: AnalysisRowsInput) =>
   queryOptions({
-    queryKey: ["analysis", "rows", input],
+    queryKey: ["analysis", "rows", { ...input, query: normalizeAnalysis(input.query) }],
     queryFn: () => rows({ data: input }),
     staleTime: 0,
   });

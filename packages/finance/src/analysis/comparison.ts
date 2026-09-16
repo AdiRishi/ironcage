@@ -12,6 +12,7 @@ import type {
 import { currencyExponent } from "../money.ts";
 import {
   contributionGroups,
+  contributorSnapshot,
   groupLabel,
   selectContributions,
   type Contribution,
@@ -211,7 +212,13 @@ export function calculateContributors(
       current: current.filter((fact) => contributionGroups(fact, groupBy).includes(key)),
       previous: previous.filter((fact) => contributionGroups(fact, groupBy).includes(key)),
     };
-    const result = calculateComparison(snapshot, query, periods, calculatedAt, selected);
+    const result = calculateComparison(
+      contributorSnapshot(snapshot, groupBy, new Set([key])),
+      query,
+      periods,
+      calculatedAt,
+      selected,
+    );
     return {
       key,
       label: groupLabel(snapshot, groupBy, key),
@@ -253,7 +260,8 @@ export function calculateContributors(
     query.measure === "surplusRate" ||
     (query.measure === "purchaseCount" && groupBy !== "account");
   const rows = overlap ? all : all.slice(0, 10);
-  const remainder = overlap ? null : contributorRemainder(comparison.delta, rows);
+  const remainder =
+    overlap || rows.length === all.length ? null : contributorRemainder(comparison.delta, rows);
   return { comparison, groupBy, rows, remainder, overlap };
 }
 

@@ -1,7 +1,7 @@
 import { AnalysisQuery, GroupBy } from "@repo/contracts/finance";
 import { Schema } from "effect";
 
-import { defaultOverview } from "./selection";
+import { defaultOverview, normalizeAnalysis } from "./input";
 export const AnalysisSearch = Schema.Struct({
   query: Schema.optionalKey(AnalysisQuery),
   groupBy: Schema.optionalKey(GroupBy),
@@ -15,5 +15,8 @@ export const defaultAnalysis: AnalysisQuery = {
   normalization: "total",
 };
 export function analysisInput(search: AnalysisSearch) {
-  return { query: search.query ?? defaultAnalysis, groupBy: search.groupBy ?? "category" };
+  return {
+    query: normalizeAnalysis(search.query ?? defaultAnalysis),
+    groupBy: search.groupBy ?? "category",
+  };
 }

@@ -155,7 +155,14 @@ export function calculateOverview(
     coverage: {
       accounts: coverage,
       unresolvedCount: unresolved.length + awaitingInterpretation.length,
-      unresolvedAmount: money(unresolved.reduce((sum, event) => sum + event.magnitude.minor, 0n)),
+      unresolvedAmount: money(
+        unresolved.reduce((sum, event) => sum + event.magnitude.minor, 0n) +
+          awaitingInterpretation.reduce(
+            (sum, posting) =>
+              sum + (posting.amount.minor < 0n ? -posting.amount.minor : posting.amount.minor),
+            0n,
+          ),
+      ),
       unlinkedCredits: money(unlinked),
     },
     grossCosts: measures.grossCosts,

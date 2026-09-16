@@ -13,6 +13,7 @@ import { currencyExponent } from "../money.ts";
 import { calculateComparison, calculateContributors } from "./comparison.ts";
 import {
   contributionGroups,
+  contributorSnapshot,
   groupLabel,
   selectContributions,
   type Contribution,
@@ -72,7 +73,21 @@ export function calculateRows(
     current: select(selectContributions(snapshot, query, periods.current)),
     previous: select(selectContributions(snapshot, query, periods.previous)),
   };
-  const headline = calculateComparison(snapshot, query, periods, calculatedAt, selected);
+  const keys =
+    groupKey === "remainder"
+      ? new Set(
+          snapshot.accounts
+            .filter((account) => !excludedKeys.has(account.id))
+            .map((account) => account.id),
+        )
+      : new Set([groupKey]);
+  const headline = calculateComparison(
+    contributorSnapshot(snapshot, groupBy, keys),
+    query,
+    periods,
+    calculatedAt,
+    selected,
+  );
   const all: AnalysisRow[] = [];
   for (const period of ["current", "previous"] as const) {
     const facts = selected[period];

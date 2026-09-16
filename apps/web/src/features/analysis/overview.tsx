@@ -43,6 +43,7 @@ export function OverviewPage({
       <OverviewSelection
         key={JSON.stringify(input)}
         input={input}
+        resolvedPeriod={result.period}
         accounts={accounts}
         onApply={onApply}
       />
