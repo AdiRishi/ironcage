@@ -4,9 +4,10 @@ import { PostgresLayer } from "alchemy/SQL/Postgres";
 import { Effect } from "effect";
 
 import type { Api, financialStorage } from "./api.ts";
+import { ClassificationGateway, classificationProvider } from "./classification.ts";
 import { retentionPolicy } from "./database/retention.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
-import { ExportWorkflow, ImportWorkflow, Processor } from "./processor.ts";
+import { ClassificationWorkflow, ExportWorkflow, ImportWorkflow, Processor } from "./processor.ts";
 
 export const apiBindings = Effect.fn("ApplicationPlatform.ApiBindings")(function* (
   storage: Effect.Success<typeof financialStorage>,
@@ -15,6 +16,7 @@ export const apiBindings = Effect.fn("ApplicationPlatform.ApiBindings")(function
   const sources = yield* Cloudflare.R2.ReadWriteBucket(storage.sources);
   const processor = yield* Cloudflare.Workers.bindWorker(Processor);
   return {
+    classificationProvider,
     retention: yield* retentionPolicy,
     sources,
     exports: yield* Cloudflare.R2.ReadWriteBucket(storage.exports),
@@ -24,8 +26,13 @@ export const apiBindings = Effect.fn("ApplicationPlatform.ApiBindings")(function
 });
 export const processorBindings = Effect.fn("ApplicationPlatform.ProcessorBindings")(function* () {
   const imports = yield* ImportWorkflow;
-  return { imports, exports: yield* ExportWorkflow };
+  return { imports, exports: yield* ExportWorkflow, classification: yield* ClassificationWorkflow };
 });
+export const classificationBindings = Effect.fn("ApplicationPlatform.ClassificationBindings")(
+  function* () {
+    return yield* Cloudflare.AI.QueryGateway(ClassificationGateway);
+  },
+);
 export const websiteBindings = (
   environment: DeploymentConfig["environment"],
   api: Effect.Success<typeof Api>,

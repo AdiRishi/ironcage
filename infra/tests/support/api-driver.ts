@@ -7,6 +7,11 @@ import {
   PostingInput,
   PostingPage,
   PostingDetail,
+  InterpretPostings,
+  SuggestCategories,
+  UpdateClassificationSettings,
+  ClassificationSettings,
+  ModelUsage,
 } from "@repo/contracts/finance";
 import * as Cloudflare from "alchemy/Cloudflare";
 import { Effect, Layer, Schema } from "effect";
@@ -30,6 +35,69 @@ export default class ApiDriver extends Cloudflare.Worker<ApiDriver>()(
     const api = yield* Cloudflare.Workers.bindWorker(Api);
     const fetchApi = yield* Cloudflare.Workers.Fetch(yield* Api);
     const routes = Layer.mergeAll(
+      HttpRouter.add(
+        "POST",
+        "/interpret",
+        Effect.gen(function* () {
+          return HttpServerResponse.jsonUnsafe(
+            yield* api.interpretPostings(
+              yield* HttpServerRequest.schemaBodyJson(InterpretPostings),
+            ),
+          );
+        }).pipe(Effect.orDie),
+      ),
+      HttpRouter.add(
+        "GET",
+        "/classification/settings",
+        Effect.gen(function* () {
+          return HttpServerResponse.jsonUnsafe(
+            yield* Schema.encodeEffect(ClassificationSettings)(
+              yield* api.getClassificationSettings(),
+            ),
+          );
+        }).pipe(Effect.orDie),
+      ),
+      HttpRouter.add(
+        "POST",
+        "/classification/settings",
+        Effect.gen(function* () {
+          return HttpServerResponse.jsonUnsafe(
+            yield* api.updateClassificationSettings(
+              yield* HttpServerRequest.schemaBodyJson(UpdateClassificationSettings),
+            ),
+          );
+        }).pipe(Effect.orDie),
+      ),
+      HttpRouter.add(
+        "POST",
+        "/classification",
+        Effect.gen(function* () {
+          return HttpServerResponse.jsonUnsafe(
+            yield* api.suggestCategories(
+              yield* HttpServerRequest.schemaBodyJson(SuggestCategories),
+            ),
+          );
+        }).pipe(Effect.orDie),
+      ),
+      HttpRouter.add(
+        "GET",
+        "/classification",
+        api.listClassificationRuns().pipe(Effect.map(HttpServerResponse.jsonUnsafe), Effect.orDie),
+      ),
+      HttpRouter.add(
+        "GET",
+        "/suggestions",
+        api.listSuggestions().pipe(Effect.map(HttpServerResponse.jsonUnsafe), Effect.orDie),
+      ),
+      HttpRouter.add(
+        "GET",
+        "/model-usage",
+        Effect.gen(function* () {
+          return HttpServerResponse.jsonUnsafe(
+            yield* Schema.encodeEffect(ModelUsage)(yield* api.getModelUsage()),
+          );
+        }).pipe(Effect.orDie),
+      ),
       HttpRouter.add(
         "*",
         "/http/*",

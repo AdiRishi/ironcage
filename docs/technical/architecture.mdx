@@ -80,6 +80,14 @@ A failed step is visible on its owning screen with a retry action that starts ne
 
 Each service module under `infra/src/` declares the resources that service owns: the API declares Postgres, Hyperdrive, and the sources bucket; the processor declares the Workflow; the analyst declares its Durable Object namespace; the web module declares the site, domain, and Access application. Deployment values and secrets stay in the stack and never enter a runtime bundle. Runtime entry points may import their inferred binding types from `@repo/infra/worker-bindings` as type-only imports.
 
+The processor's classification service owns an AI Gateway in
+`infra/src/classification.ts`. `infra/src/worker-bindings.ts` composes its
+`QueryGateway` binding into the classification workflow. GLM inference uses
+the AI SDK's Workers AI provider with the bound gateway ID. Authentication is
+enabled; gateway logging and caching are disabled. Development uses a real
+stage-specific gateway. Local infrastructure tests replace only the gateway's
+cloud resource provider and do not make model calls or create cloud resources.
+
 ## Local service registration
 
 `pnpm dev` uses the Cloudflare runtime’s supported registry polling mode. The native directory watcher failed to propagate API worker registrations to the separate Vite process on macOS; polling restores service bindings. This changes local discovery only. Hosted workers use Cloudflare service bindings.

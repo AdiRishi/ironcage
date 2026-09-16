@@ -3,9 +3,6 @@ import { Schema } from "effect";
 import { Instant, Money } from "./values.ts";
 
 export const ModelUsage = Schema.Struct({
-  enabled: Schema.Boolean,
-  provider: Schema.NullOr(Schema.String),
-  warning: Schema.NullOr(Money),
   calls: Schema.Int,
   inputTokens: Schema.BigIntFromString,
   outputTokens: Schema.BigIntFromString,

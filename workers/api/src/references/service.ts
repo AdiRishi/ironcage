@@ -74,6 +74,15 @@ export class References extends Context.Service<
                   message: "Choose an existing parent outside this category's descendants.",
                 });
             }
+            if (
+              record.kind === "category" &&
+              record.archived &&
+              (yield* sql`SELECT id FROM rules WHERE action->>'categoryId'=${id}`).length
+            )
+              return yield* new FinanceError({
+                kind: "conflict",
+                message: "Change or remove rules assigning this category before archiving it.",
+              });
             if (record.kind === "personalEvent" && record.endOn < record.startOn)
               return yield* new FinanceError({
                 kind: "invalid",
@@ -110,9 +119,9 @@ export class References extends Context.Service<
             yield* checkVersion(tables[record.kind], record.id, record.expectedVersion);
             const usage =
               record.kind === "category"
-                ? sql`SELECT id FROM allocations WHERE category_id=${record.id} UNION ALL SELECT id FROM categories WHERE parent_id=${record.id}`
+                ? sql`SELECT id FROM allocations WHERE category_id=${record.id} UNION ALL SELECT id FROM categories WHERE parent_id=${record.id} UNION ALL SELECT id FROM rules WHERE action->>'categoryId'=${record.id}`
                 : record.kind === "merchant"
-                  ? sql`SELECT id FROM allocations WHERE merchant_id=${record.id}`
+                  ? sql`SELECT id FROM allocations WHERE merchant_id=${record.id} UNION ALL SELECT id FROM rules WHERE conditions->>'merchantId'=${record.id}`
                   : record.kind === "tag"
                     ? sql`SELECT allocation_id FROM allocation_tags WHERE tag_id=${record.id}`
                     : sql`SELECT allocation_id FROM allocation_personal_events WHERE personal_event_id=${record.id}`;
