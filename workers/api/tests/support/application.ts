@@ -9,6 +9,7 @@ import { Effect, Layer, Redacted } from "effect";
 import { AccountHistory } from "../../src/accounts/periods.ts";
 import { AccountResolution } from "../../src/accounts/resolution.ts";
 import { Accounts } from "../../src/accounts/service.ts";
+import { Analysis } from "../../src/analysis/service.ts";
 import { ClassificationConfig } from "../../src/classification/config.ts";
 import { Classification } from "../../src/classification/service.ts";
 import { Commands } from "../../src/database/commands.ts";
@@ -54,6 +55,7 @@ export function applicationTest() {
     ),
   );
   const services = Layer.mergeAll(
+    Analysis.layer,
     Accounts.layer,
     AccountHistory.layer,
     Events.layer,

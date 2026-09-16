@@ -7,6 +7,7 @@ import { HttpRouter } from "effect/unstable/http";
 import { AccountHistory } from "./accounts/periods.ts";
 import { AccountResolution } from "./accounts/resolution.ts";
 import { Accounts } from "./accounts/service.ts";
+import { Analysis } from "./analysis/service.ts";
 import { ClassificationConfig } from "./classification/config.ts";
 import { Classification } from "./classification/service.ts";
 import { Commands } from "./database/commands.ts";
@@ -33,6 +34,7 @@ import { SourceFiles } from "./sources/service.ts";
 // Declared explicitly because deriving it from `api` would make the infra Worker
 // class refer to itself through the bindings type.
 export type ApiOperations = {
+  overview: Analysis["Service"]["overview"];
   getEventRelationships: Relationships["Service"]["get"];
   listRelationshipCandidates: Relationships["Service"]["candidates"];
   previewRelationship: Relationships["Service"]["preview"];
@@ -99,6 +101,7 @@ export const api = Effect.fn("Api.initialize")(function* (
   bindings: Effect.Success<ReturnType<typeof apiBindings>>,
 ) {
   const services = Layer.mergeAll(
+    Analysis.layer,
     Accounts.layer,
     AccountHistory.layer,
     Events.layer,
@@ -140,6 +143,7 @@ export const api = Effect.fn("Api.initialize")(function* (
     ]),
   );
   return yield* Effect.gen(function* () {
+    const analysis = yield* Analysis;
     const relationships = yield* Relationships;
     const interpretationReviews = yield* InterpretationReviews;
     const accountHistory = yield* AccountHistory;
@@ -162,6 +166,7 @@ export const api = Effect.fn("Api.initialize")(function* (
       Layer.mergeAll(importHttpRoutes, exportHttpRoutes),
     );
     const operations = {
+      overview: analysis.overview,
       getEventRelationships: relationships.get,
       listRelationshipCandidates: relationships.candidates,
       previewRelationship: relationships.preview,
