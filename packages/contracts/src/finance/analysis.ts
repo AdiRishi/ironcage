@@ -36,7 +36,12 @@ export const OverviewInput = Schema.Struct({
 export type OverviewInput = typeof OverviewInput.Type;
 export const DecimalMoney = Schema.Struct({ currency: Currency, value: Schema.String });
 export const AccountCoverage = Schema.Struct({
-  account: Account,
+  account: Schema.Struct({
+    id: Account.fields.id,
+    kind: Account.fields.kind,
+    label: Account.fields.label,
+    currency: Account.fields.currency,
+  }),
   observed: Schema.Array(Period),
   reconciled: Schema.Array(Period),
   missing: Schema.Array(Period),

@@ -113,6 +113,8 @@
       "files": ["apps/web/src/components/ui/**"],
       "rules": {
         "anti-slop/no-runtime-typeof": "off",
+        "anti-slop/no-unknown-parameters": "off",
+        "typescript/restrict-template-expressions": "off",
         "anti-slop/require-safety-comment-for-type-assertion": "off",
         "jsx-a11y/label-has-associated-control": "off",
         // Base UI renders its own elements and sets the matching ARIA role on

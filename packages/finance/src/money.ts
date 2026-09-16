@@ -2,7 +2,7 @@ import { FinanceError, type Money } from "@repo/contracts/finance";
 import { Effect } from "effect";
 
 const exponents = new Map<string, number>();
-const currencyExponent = (currency: string) => {
+export const currencyExponent = (currency: string) => {
   let exponent = exponents.get(currency);
   if (exponent === undefined) {
     exponent =

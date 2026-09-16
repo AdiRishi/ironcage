@@ -50,7 +50,12 @@ export function accountCoverage(snapshot: AnalysisSnapshot, period: Period): Acc
         : [],
     );
     return {
-      account,
+      account: {
+        id: account.id,
+        kind: account.kind,
+        label: account.label,
+        currency: account.currency,
+      },
       observed: mergePeriods(observed),
       reconciled: mergePeriods(reconciled),
       missing: missingPeriods(period, reconciled),
@@ -94,6 +99,14 @@ export function calculateOverview(
   const money = (minor: bigint) => ({ currency: input.currency, minor });
   const surplus = measures.income.minor - measures.netPersonalCosts.minor;
   const unresolved = selected.filter((event) => event.kind === "unresolved");
+  const interpreted = new Set(
+    snapshot.events
+      .filter((event) => event.active)
+      .flatMap((event) => event.postings.map((posting) => posting.id)),
+  );
+  const awaitingInterpretation = snapshot.postings.filter(
+    (posting) => !interpreted.has(posting.id) && inPeriod(posting.postedOn, period),
+  );
   const unlinked = selected
     .flatMap((event) => event.allocations)
     .filter((allocation) => allocation.role === "refund" || allocation.role === "reimbursement")
@@ -120,7 +133,9 @@ export function calculateOverview(
         loanAccountIds: [item.account.id],
         observedCashMovement: 0n,
         cashComplete: false,
-        loanComplete: item.missing.length === 0,
+        loanComplete:
+          item.missing.length === 0 &&
+          !awaitingInterpretation.some((posting) => posting.accountId === item.account.id),
       });
       return {
         accountId: item.account.id,
@@ -139,7 +154,7 @@ export function calculateOverview(
     calculationVersion: "history-1",
     coverage: {
       accounts: coverage,
-      unresolvedCount: unresolved.length,
+      unresolvedCount: unresolved.length + awaitingInterpretation.length,
       unresolvedAmount: money(unresolved.reduce((sum, event) => sum + event.magnitude.minor, 0n)),
       unlinkedCredits: money(unlinked),
     },

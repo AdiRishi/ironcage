@@ -78,3 +78,29 @@ export function mergePeriods(intervals: readonly Period[]): Period[] {
   }
   return merged;
 }
+
+export function comparisonPeriod(
+  selection: PeriodSelection,
+  comparison: import("@repo/contracts/finance").AnalysisQuery["comparison"],
+  current: Period,
+): Period {
+  if (comparison.kind === "fixed")
+    return { start: comparison.start, endExclusive: comparison.endExclusive };
+  if (comparison.kind === "previousYear") {
+    const start = calendarShift(current.start, "year", -1);
+    const endExclusive = calendarShift(current.endExclusive, "year", -1);
+    return { start, endExclusive: endExclusive > start ? endExclusive : addDays(start, 1) };
+  }
+  if (selection.kind !== "calendar") {
+    const days = daysInPeriod(current);
+    return { start: addDays(current.start, -days), endExclusive: current.start };
+  }
+  const start = calendarShift(current.start, selection.unit, -selection.count);
+  const wholeEnd = calendarShift(start, selection.unit, selection.count);
+  const elapsedEnd = addDays(start, daysInPeriod(current));
+  return {
+    start,
+    endExclusive:
+      selection.alignment === "elapsed" && elapsedEnd < wholeEnd ? elapsedEnd : wholeEnd,
+  };
+}

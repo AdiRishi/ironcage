@@ -11,3 +11,5 @@ export * from "./model-cost.ts";
 export * from "./analysis/periods.ts";
 export * from "./analysis/decimal.ts";
 export * from "./analysis/measures.ts";
+export * from "./analysis/contributions.ts";
+export * from "./analysis/comparison.ts";

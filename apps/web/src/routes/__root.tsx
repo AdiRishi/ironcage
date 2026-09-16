@@ -26,6 +26,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 const navigation = [
   { to: "/", label: "Home", icon: House, exact: true },
   { to: "/overview", label: "Overview", icon: House },
+  { to: "/trends", label: "Trends", icon: List },
   { to: "/imports", label: "Imports", icon: Upload },
   { to: "/transactions", label: "Transactions", icon: List },
   { to: "/review", label: "Review", icon: ClipboardCheck },
