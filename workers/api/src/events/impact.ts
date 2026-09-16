@@ -48,7 +48,7 @@ export const previewPeriod = Effect.fn("previewPeriod")(function* (
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(MeasureFact))),
     );
   const accounts =
-    yield* sql`SELECT a.id, a.kind, EXISTS (SELECT 1 FROM source_coverage c WHERE c.account_id = a.id AND c.reconciled AND c.opening_minor IS NOT NULL AND c.closing_minor IS NOT NULL AND c.opening_on <= ${period.start}::date AND c.closing_on >= ${period.endExclusive}::date - 1) AS complete FROM accounts a WHERE currency = ${currency}`.pipe(
+    yield* sql`SELECT a.id, a.kind, COALESCE((SELECT range_agg(daterange(c.opening_on,c.closing_on,'[]')) @> daterange(${period.start}::date,${period.endExclusive}::date,'[)') FROM source_coverage c WHERE c.account_id = a.id AND c.reconciled AND c.opening_minor IS NOT NULL AND c.closing_minor IS NOT NULL AND c.opening_on IS NOT NULL AND c.closing_on IS NOT NULL),false) AS complete FROM accounts a WHERE currency = ${currency}`.pipe(
       Effect.flatMap(
         Schema.decodeUnknownEffect(
           Schema.Array(

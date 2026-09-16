@@ -1,3 +1,4 @@
+import { PgClient } from "@effect/sql-pg";
 import { AllocationId, CategoryId, CommandId, type EventChange } from "@repo/contracts/finance";
 import { Crypto, Effect } from "effect";
 import { expect } from "vitest";
@@ -149,5 +150,35 @@ test(
       })
       .pipe(Effect.result);
     expect(deletion._tag === "Failure" && deletion.failure.kind).toBe("conflict");
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "monthly previews combine consecutive statement coverage and reject a one-day gap",
+  Effect.gen(function* () {
+    const { event, posting, allocation } = yield* purchase;
+    const sql = yield* PgClient.PgClient;
+    const first = yield* source(posting.accountId);
+    const second = yield* source(posting.accountId);
+    yield* sql`INSERT INTO source_coverage(id,source_file_id,account_id,stated_start,stated_end,observed_start,observed_end,opening_minor,opening_on,closing_minor,closing_on,reconciled) VALUES
+    (gen_random_uuid(),${first.sourceFileId},${posting.accountId},'2026-09-01','2026-09-15','2026-09-01','2026-09-01',100000,'2026-09-01',85000,'2026-09-15',true),
+    (gen_random_uuid(),${second.sourceFileId},${posting.accountId},'2026-09-16','2026-09-30','2026-09-16','2026-09-30',85000,'2026-09-16',85000,'2026-09-30',true)`;
+    const corrections = yield* Corrections;
+    const input = {
+      change: {
+        eventId: event.id,
+        kind: event.kind,
+        purchaseOn: event.purchaseOn,
+        allocations: [allocation],
+      },
+    } satisfies Parameters<typeof corrections.preview>[0];
+    expect((yield* corrections.preview(input)).impact.before.cashChange).toEqual({
+      currency: "AUD",
+      minor: -15000n,
+    });
+    yield* sql`UPDATE source_coverage SET opening_on='2026-09-17',stated_start='2026-09-17',observed_start='2026-09-17' WHERE source_file_id=${second.sourceFileId}`;
+    const incomplete = yield* corrections.preview(input);
+    expect(incomplete.impact.before.cashChange).toBeNull();
+    expect(incomplete.impact.before.observedCashMovement.minor).toBe(-15000n);
   }).pipe(Effect.provide(services)),
 );
