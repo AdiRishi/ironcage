@@ -1,6 +1,12 @@
-import { CalendarDate, type AnalysisRowsInput } from "@repo/contracts/finance";
+import {
+  CategoryId,
+  CalendarDate,
+  type FinancialEvent,
+  type AnalysisRowsInput,
+} from "@repo/contracts/finance";
 import { expect, it } from "vitest";
 
+import { calculateContributors } from "../../src/analysis/comparison.ts";
 import { calculateRows } from "../../src/analysis/rows.ts";
 import { category, purchase, snapshot } from "./fixtures.ts";
 const periods = {
@@ -60,4 +66,60 @@ it("shows all 22 purchases with August marked current and positive cost beside s
     kind: "money",
     amount: { currency: "AUD", minor: 2500n },
   });
+});
+
+it("the ten largest contributors and remainder partition the total and the remainder opens its records", () => {
+  const categories = Array.from({ length: 12 }, (_, index) => ({
+    id: CategoryId.make(`20000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`),
+    name: `Category ${index + 1}`,
+    parentId: null,
+    archived: false,
+    version: 1,
+  }));
+  const data = snapshot(
+    categories.map((category, index) => {
+      const event = purchase(index + 1, BigInt(index + 1) * 100n);
+      return {
+        ...event,
+        allocations: [{ ...event.allocations[0], categoryId: category.id }],
+      } satisfies FinancialEvent;
+    }),
+  );
+  data.references = { ...data.references, categories };
+  const result = calculateContributors(
+    data,
+    input.query,
+    "category",
+    periods,
+    "2026-09-16T00:00:00.000Z",
+  );
+  expect(result.rows).toHaveLength(10);
+  expect(result.rows.map((row) => row.label)).toEqual([
+    "Category 12",
+    "Category 11",
+    "Category 10",
+    "Category 9",
+    "Category 8",
+    "Category 7",
+    "Category 6",
+    "Category 5",
+    "Category 4",
+    "Category 3",
+  ]);
+  expect(result.comparison.delta).toEqual({
+    kind: "money",
+    amount: { currency: "AUD", minor: 7800n },
+  });
+  expect(result.remainder).toEqual({ kind: "money", amount: { currency: "AUD", minor: 300n } });
+  const remainder = calculateRows(
+    data,
+    { ...input, groupKey: "remainder" },
+    periods,
+    "2026-09-16T00:00:00.000Z",
+  );
+  expect(remainder.headline.delta).toEqual(result.remainder);
+  expect(remainder.rows).toHaveLength(2);
+  expect(new Set(remainder.rows.map((row) => row.posting.amount.minor))).toEqual(
+    new Set([-100n, -200n]),
+  );
 });

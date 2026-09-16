@@ -65,3 +65,17 @@ it("keeps later refunds in the purchase period and excludes settlements and borr
   expect(result.purchaseCount).toBe(1);
   expect(result.loans[0]?.netPrincipalReduction?.minor).toBe(110000n);
 });
+
+it("coverage includes the magnitude of postings still awaiting interpretation", () => {
+  const data = snapshot([]);
+  data.postings = [
+    ...purchase(1, 1250n).postings,
+    ...purchase(2, 400n).postings.map((posting) => ({
+      ...posting,
+      amount: { currency: "AUD", minor: 400n },
+    })),
+  ];
+  const result = calculateOverview(data, input, period, "2026-09-16T00:00:00.000Z");
+  expect(result.coverage.unresolvedCount).toBe(2);
+  expect(result.coverage.unresolvedAmount.minor).toBe(1650n);
+});

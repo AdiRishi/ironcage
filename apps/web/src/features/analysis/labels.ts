@@ -17,6 +17,9 @@ export const groupLabels = {
   tag: "Tag",
   personalEvent: "Personal event",
 } satisfies Record<GroupBy, string>;
+export function formatDecimal(value: string): string {
+  return value.replace(/(\.\d*?[1-9])0+$|\.0+$/, "$1");
+}
 export function formatMetric(value: MetricValue): string {
   switch (value.kind) {
     case "money":
@@ -24,9 +27,9 @@ export function formatMetric(value: MetricValue): string {
     case "count":
       return String(value.count);
     case "percent":
-      return `${value.value}%`;
+      return `${formatDecimal(value.value)}%`;
     case "dailyAverage":
-      return `${value.amount.value} ${value.amount.currency}/day`;
+      return `${formatDecimal(value.amount.value)} ${value.amount.currency}/day`;
     case "unavailable":
       return "Unavailable";
   }

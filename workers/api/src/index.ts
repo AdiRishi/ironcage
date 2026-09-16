@@ -7,6 +7,7 @@ import { HttpRouter } from "effect/unstable/http";
 import { AccountHistory } from "./accounts/periods.ts";
 import { AccountResolution } from "./accounts/resolution.ts";
 import { Accounts } from "./accounts/service.ts";
+import { SavedAnalyses } from "./analysis/saved.ts";
 import { Analysis } from "./analysis/service.ts";
 import { ClassificationConfig } from "./classification/config.ts";
 import { Classification } from "./classification/service.ts";
@@ -34,6 +35,11 @@ import { SourceFiles } from "./sources/service.ts";
 // Declared explicitly because deriving it from `api` would make the infra Worker
 // class refer to itself through the bindings type.
 export type ApiOperations = {
+  saveAnalysis: SavedAnalyses["Service"]["save"];
+  getAnalysis: SavedAnalyses["Service"]["get"];
+  listAnalyses: () => SavedAnalyses["Service"]["list"];
+  renameAnalysis: SavedAnalyses["Service"]["rename"];
+  deleteAnalysis: SavedAnalyses["Service"]["remove"];
   overview: Analysis["Service"]["overview"];
   compare: Analysis["Service"]["compare"];
   rows: Analysis["Service"]["rows"];
@@ -105,6 +111,7 @@ export const api = Effect.fn("Api.initialize")(function* (
 ) {
   const services = Layer.mergeAll(
     Analysis.layer,
+    SavedAnalyses.layer,
     Accounts.layer,
     AccountHistory.layer,
     Events.layer,
@@ -146,6 +153,7 @@ export const api = Effect.fn("Api.initialize")(function* (
     ]),
   );
   return yield* Effect.gen(function* () {
+    const savedAnalyses = yield* SavedAnalyses;
     const analysis = yield* Analysis;
     const relationships = yield* Relationships;
     const interpretationReviews = yield* InterpretationReviews;
@@ -169,6 +177,11 @@ export const api = Effect.fn("Api.initialize")(function* (
       Layer.mergeAll(importHttpRoutes, exportHttpRoutes),
     );
     const operations = {
+      saveAnalysis: savedAnalyses.save,
+      getAnalysis: savedAnalyses.get,
+      listAnalyses: () => savedAnalyses.list,
+      renameAnalysis: savedAnalyses.rename,
+      deleteAnalysis: savedAnalyses.remove,
       overview: analysis.overview,
       compare: analysis.compare,
       rows: analysis.rows,

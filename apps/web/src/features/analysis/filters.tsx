@@ -1,17 +1,15 @@
 import {
-  CalendarDate,
   type AnalysisQuery,
-  GroupBy,
-  Measure,
+  type GroupBy,
   type Period,
   type ReferenceData,
 } from "@repo/contracts/finance";
-import { Schema, Struct } from "effect";
+import { Struct } from "effect";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+import { ComparisonPeriod } from "./comparison-period";
 import { measureLabels, groupLabels } from "./labels";
 import { Choice } from "./selection";
 export function TrendsFilters({
@@ -40,24 +38,20 @@ export function TrendsFilters({
             value,
             label: measureLabels[value],
           }))}
-          onChange={(value) => {
-            const measure = Schema.decodeOption(Measure)(value);
-            if (measure._tag === "Some") {
-              const movement =
-                measure.value === "cashBalanceChange" || measure.value === "netPrincipalReduction";
-              apply(
-                {
-                  ...query,
-                  measure: measure.value,
-                  normalization: "total",
-                  basis: movement ? "posted" : query.basis,
-                  filters: movement
-                    ? { categories: [], merchants: [], tags: [], personalEvents: [] }
-                    : query.filters,
-                },
-                movement ? "account" : groupBy,
-              );
-            }
+          onChange={(measure) => {
+            const movement = measure === "cashBalanceChange" || measure === "netPrincipalReduction";
+            apply(
+              {
+                ...query,
+                measure,
+                normalization: "total",
+                basis: movement ? "posted" : query.basis,
+                filters: movement
+                  ? { categories: [], merchants: [], tags: [], personalEvents: [] }
+                  : query.filters,
+              },
+              movement ? "account" : groupBy,
+            );
           }}
         />
         <Choice
@@ -91,10 +85,7 @@ export function TrendsFilters({
                 key === "account",
             )
             .map((value) => ({ value, label: groupLabels[value] }))}
-          onChange={(value) => {
-            const group = Schema.decodeOption(GroupBy)(value);
-            if (group._tag === "Some") apply(query, group.value);
-          }}
+          onChange={(group) => apply(query, group)}
         />
         <Choice
           label="Normalization"
@@ -109,24 +100,13 @@ export function TrendsFilters({
         />
       </div>
       {query.comparison.kind === "fixed" && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {(["start", "endExclusive"] as const).map((name) => (
-            <Label key={name} className="flex-col items-start">
-              {name === "start" ? "Comparison start" : "Comparison end, excluded"}
-              <Input
-                type="date"
-                value={query.comparison.kind === "fixed" ? query.comparison[name] : ""}
-                onChange={(event) => {
-                  const date = Schema.decodeOption(CalendarDate)(event.target.value);
-                  if (date._tag === "Some" && query.comparison.kind === "fixed") {
-                    const comparison = { ...query.comparison, [name]: date.value };
-                    if (comparison.start < comparison.endExclusive) apply({ ...query, comparison });
-                  }
-                }}
-              />
-            </Label>
-          ))}
-        </div>
+        <ComparisonPeriod
+          key={`${query.comparison.start}:${query.comparison.endExclusive}`}
+          period={query.comparison}
+          onApply={(period) =>
+            onChange({ ...query, comparison: { kind: "fixed", ...period } }, groupBy)
+          }
+        />
       )}
       {!["cashBalanceChange", "netPrincipalReduction"].includes(query.measure) && (
         <details>

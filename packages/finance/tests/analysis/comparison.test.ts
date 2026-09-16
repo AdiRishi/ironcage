@@ -3,7 +3,7 @@ import { expect, it } from "vitest";
 
 import { calculateContributors, calculateComparison } from "../../src/analysis/comparison.ts";
 import { comparisonPeriod, resolvePeriod } from "../../src/analysis/periods.ts";
-import { category, purchase, snapshot, card } from "./fixtures.ts";
+import { category, purchase, snapshot, card, deposit } from "./fixtures.ts";
 const periods = {
   current: {
     start: CalendarDate.make("2026-08-01"),
@@ -45,18 +45,31 @@ it("explains the delivery increase with exact frequency and average-cost contrib
   expect(row?.frequencyContribution?.minor).toBe(4500n);
   expect(row?.averageCostContribution?.minor).toBe(5500n);
 });
-it("allocates fractional and negative decomposition cents without losing the delta", () => {
-  const result = calculateContributors(
-    snapshot([purchase(1, 1n, "2026-07-02"), purchase(2, 1n), purchase(3, 1n)]),
-    query,
-    "category",
-    periods,
-    now,
-  );
-  expect(result.rows[0]?.frequencyContribution?.minor).toBe(1n);
-  expect(result.rows[0]?.averageCostContribution?.minor).toBe(0n);
-  expect(result.rows[0]?.delta).toEqual({ kind: "money", amount: { currency: "AUD", minor: 1n } });
-});
+it.each([
+  { previous: [1n], current: [1n, 2n], frequency: 1n, average: 1n, delta: 2n },
+  { previous: [1n, 2n], current: [1n], frequency: -1n, average: -1n, delta: -2n },
+  { previous: [1n], current: [2n, 2n], frequency: 1n, average: 2n, delta: 3n },
+])(
+  "allocates fractional decomposition cents, including negative values and stable ties: $delta",
+  ({ previous, current, frequency, average, delta }) => {
+    const result = calculateContributors(
+      snapshot([
+        ...previous.map((minor, index) => purchase(index + 1, minor, "2026-07-02")),
+        ...current.map((minor, index) => purchase(index + 100, minor, "2026-08-02")),
+      ]),
+      query,
+      "category",
+      periods,
+      now,
+    );
+    expect(result.rows[0]?.frequencyContribution?.minor).toBe(frequency);
+    expect(result.rows[0]?.averageCostContribution?.minor).toBe(average);
+    expect(result.rows[0]?.delta).toEqual({
+      kind: "money",
+      amount: { currency: "AUD", minor: delta },
+    });
+  },
+);
 it("selecting two tags counts a purchase once and marks overlapping breakdowns", () => {
   const one = TagId.make("00000000-0000-4000-8000-000000000030"),
     two = TagId.make("00000000-0000-4000-8000-000000000031");
@@ -150,4 +163,24 @@ it("elapsed comparisons align day counts and clamp month ends and leap years", (
       { start: CalendarDate.make("2024-02-29"), endExclusive: CalendarDate.make("2024-03-01") },
     ),
   ).toEqual({ start: "2023-02-28", endExclusive: "2023-03-01" });
+});
+
+it("an account contributor reports its own coverage when another selected account is missing dates", () => {
+  const data = snapshot([purchase(1, 31000n), purchase(2, 62000n, "2026-08-02", card)]);
+  data.sources = data.sources.filter((source) => source.accountId !== card);
+  const result = calculateContributors(
+    data,
+    { ...query, normalization: "dailyAverage" },
+    "account",
+    periods,
+    now,
+  );
+  expect(result.comparison.current.value.kind).toBe("unavailable");
+  const covered = result.rows.find((row) => row.key === deposit);
+  expect(covered?.current.value).toEqual({
+    kind: "dailyAverage",
+    amount: { currency: "AUD", value: "10.000000" },
+  });
+  expect(covered?.incomplete).toBe(false);
+  expect(result.rows.find((row) => row.key === card)?.current.value.kind).toBe("unavailable");
 });

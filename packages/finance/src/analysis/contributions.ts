@@ -174,3 +174,16 @@ export function groupLabel(snapshot: AnalysisSnapshot, groupBy: GroupBy, key: st
       return snapshot.references.personalEvents.find((item) => item.id === key)?.name ?? key;
   }
 }
+
+export function contributorSnapshot(
+  snapshot: AnalysisSnapshot,
+  groupBy: GroupBy,
+  keys: ReadonlySet<string>,
+): AnalysisSnapshot {
+  if (groupBy !== "account") return snapshot;
+  return {
+    ...snapshot,
+    accounts: snapshot.accounts.filter((account) => keys.has(account.id)),
+    postings: snapshot.postings.filter((posting) => keys.has(posting.accountId)),
+  };
+}

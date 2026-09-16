@@ -96,7 +96,14 @@ export const Contributor = Schema.Struct({
   averageCostContribution: Schema.NullOr(Money),
 });
 export type Contributor = typeof Contributor.Type;
-export const ContributorsInput = Schema.Struct({ query: AnalysisQuery, groupBy: GroupBy });
+export const ContributorsInput = Schema.Struct({ query: AnalysisQuery, groupBy: GroupBy }).check(
+  Schema.makeFilter(
+    (input) =>
+      !["cashBalanceChange", "netPrincipalReduction"].includes(input.query.measure) ||
+      input.groupBy === "account" ||
+      "Account movements can only be grouped by account.",
+  ),
+);
 export const ContributorsResult = Schema.Struct({
   comparison: ComparisonResult,
   groupBy: GroupBy,

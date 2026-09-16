@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { formatMetric, chartValue } from "./labels";
+import { formatDecimal, formatMetric, chartValue } from "./labels";
 const features = tableFeatures({});
 const column = createColumnHelper<typeof features, Contributor>();
 const columns = column.columns([
@@ -182,8 +182,16 @@ export function ContributorsView({ result }: { result: ContributorsResult }) {
                 <TableCell>{row.label}</TableCell>
                 <TableCell>{row.previous.purchaseCount}</TableCell>
                 <TableCell>{row.current.purchaseCount}</TableCell>
-                <TableCell>{row.previous.averagePurchase?.value ?? "Unavailable"}</TableCell>
-                <TableCell>{row.current.averagePurchase?.value ?? "Unavailable"}</TableCell>
+                <TableCell>
+                  {row.previous.averagePurchase
+                    ? `${formatDecimal(row.previous.averagePurchase.value)} ${row.previous.averagePurchase.currency}`
+                    : "Unavailable"}
+                </TableCell>
+                <TableCell>
+                  {row.current.averagePurchase
+                    ? `${formatDecimal(row.current.averagePurchase.value)} ${row.current.averagePurchase.currency}`
+                    : "Unavailable"}
+                </TableCell>
                 <TableCell>
                   {row.frequencyContribution
                     ? formatMoney(row.frequencyContribution)

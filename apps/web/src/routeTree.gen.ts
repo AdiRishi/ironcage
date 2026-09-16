@@ -24,6 +24,8 @@ import { Route as SettingsSuggestionsRouteImport } from './routes/settings_.sugg
 import { Route as SourcesSourceFileIdRouteImport } from './routes/sources/$sourceFileId'
 import { Route as TransactionsIndexRouteImport } from './routes/transactions/index'
 import { Route as TransactionsIdRouteImport } from './routes/transactions/$id'
+import { Route as TrendsAnalysisIdRouteImport } from './routes/trends_.$analysisId'
+import { Route as TrendsAnalysesRouteImport } from './routes/trends_.analyses'
 import { Route as TrendsRowsRouteImport } from './routes/trends_.rows'
 
 const IndexRoute = IndexRouteImport.update({
@@ -101,6 +103,16 @@ const TransactionsIdRoute = TransactionsIdRouteImport.update({
   path: '/transactions/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TrendsAnalysisIdRoute = TrendsAnalysisIdRouteImport.update({
+  id: '/trends_/$analysisId',
+  path: '/trends/$analysisId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrendsAnalysesRoute = TrendsAnalysesRouteImport.update({
+  id: '/trends_/analyses',
+  path: '/trends/analyses',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TrendsRowsRoute = TrendsRowsRouteImport.update({
   id: '/trends_/rows',
   path: '/trends/rows',
@@ -121,6 +133,8 @@ export interface FileRoutesByFullPath {
   '/settings/suggestions': typeof SettingsSuggestionsRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
+  '/trends/$analysisId': typeof TrendsAnalysisIdRoute
+  '/trends/analyses': typeof TrendsAnalysesRoute
   '/trends/rows': typeof TrendsRowsRoute
   '/imports/': typeof ImportsIndexRoute
   '/transactions/': typeof TransactionsIndexRoute
@@ -139,6 +153,8 @@ export interface FileRoutesByTo {
   '/settings/suggestions': typeof SettingsSuggestionsRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
+  '/trends/$analysisId': typeof TrendsAnalysisIdRoute
+  '/trends/analyses': typeof TrendsAnalysesRoute
   '/trends/rows': typeof TrendsRowsRoute
   '/imports': typeof ImportsIndexRoute
   '/transactions': typeof TransactionsIndexRoute
@@ -158,6 +174,8 @@ export interface FileRoutesById {
   '/settings_/suggestions': typeof SettingsSuggestionsRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
+  '/trends_/$analysisId': typeof TrendsAnalysisIdRoute
+  '/trends_/analyses': typeof TrendsAnalysesRoute
   '/trends_/rows': typeof TrendsRowsRoute
   '/imports/': typeof ImportsIndexRoute
   '/transactions/': typeof TransactionsIndexRoute
@@ -178,6 +196,8 @@ export interface FileRouteTypes {
     | '/settings/suggestions'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
+    | '/trends/$analysisId'
+    | '/trends/analyses'
     | '/trends/rows'
     | '/imports/'
     | '/transactions/'
@@ -196,6 +216,8 @@ export interface FileRouteTypes {
     | '/settings/suggestions'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
+    | '/trends/$analysisId'
+    | '/trends/analyses'
     | '/trends/rows'
     | '/imports'
     | '/transactions'
@@ -214,6 +236,8 @@ export interface FileRouteTypes {
     | '/settings_/suggestions'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
+    | '/trends_/$analysisId'
+    | '/trends_/analyses'
     | '/trends_/rows'
     | '/imports/'
     | '/transactions/'
@@ -233,6 +257,8 @@ export interface RootRouteChildren {
   SettingsSuggestionsRoute: typeof SettingsSuggestionsRoute
   SourcesSourceFileIdRoute: typeof SourcesSourceFileIdRoute
   TransactionsIdRoute: typeof TransactionsIdRoute
+  TrendsAnalysisIdRoute: typeof TrendsAnalysisIdRoute
+  TrendsAnalysesRoute: typeof TrendsAnalysesRoute
   TrendsRowsRoute: typeof TrendsRowsRoute
   ImportsIndexRoute: typeof ImportsIndexRoute
   TransactionsIndexRoute: typeof TransactionsIndexRoute
@@ -345,6 +371,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TransactionsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/trends_/$analysisId': {
+      id: '/trends_/$analysisId'
+      path: '/trends/$analysisId'
+      fullPath: '/trends/$analysisId'
+      preLoaderRoute: typeof TrendsAnalysisIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trends_/analyses': {
+      id: '/trends_/analyses'
+      path: '/trends/analyses'
+      fullPath: '/trends/analyses'
+      preLoaderRoute: typeof TrendsAnalysesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/trends_/rows': {
       id: '/trends_/rows'
       path: '/trends/rows'
@@ -369,6 +409,8 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsSuggestionsRoute: SettingsSuggestionsRoute,
   SourcesSourceFileIdRoute: SourcesSourceFileIdRoute,
   TransactionsIdRoute: TransactionsIdRoute,
+  TrendsAnalysisIdRoute: TrendsAnalysisIdRoute,
+  TrendsAnalysesRoute: TrendsAnalysesRoute,
   TrendsRowsRoute: TrendsRowsRoute,
   ImportsIndexRoute: ImportsIndexRoute,
   TransactionsIndexRoute: TransactionsIndexRoute,

@@ -1,12 +1,11 @@
 import {
   OverviewInput,
   type Account,
-  PeriodSelection,
-  Period,
-  CalendarDate,
+  type PeriodSelection,
+  type Period,
 } from "@repo/contracts/finance";
 import { useForm } from "@tanstack/react-form";
-import { Schema, DateTime } from "effect";
+import { Schema, Effect } from "effect";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -59,12 +58,16 @@ export function Choice<T extends string>({
     </div>
   );
 }
+type PeriodDraft = typeof PeriodSelection.Encoded;
+type OverviewDraft = typeof OverviewInput.Encoded;
 export function PeriodFields({
   value,
   onChange,
+  resolvedPeriod,
 }: {
-  value: PeriodSelection;
-  onChange: (value: PeriodSelection) => void;
+  value: PeriodDraft;
+  onChange: (value: PeriodDraft) => void;
+  resolvedPeriod: Period;
 }) {
   return (
     <div className="space-y-3">
@@ -82,7 +85,7 @@ export function PeriodFields({
               ? { kind, unit: "month", count: 1, offset: 0, alignment: "elapsed" }
               : kind === "rolling"
                 ? { kind, days: 30 }
-                : { ...defaultFixed, kind },
+                : { ...resolvedPeriod, kind },
           )
         }
       />
@@ -149,13 +152,7 @@ export function PeriodFields({
             <Input
               type="date"
               value={value.start}
-              onChange={(event) => {
-                const result = Schema.decodeOption(PeriodSelection)({
-                  ...value,
-                  start: event.target.value,
-                });
-                if (result._tag === "Some") onChange(result.value);
-              }}
+              onChange={(event) => onChange({ ...value, start: event.target.value })}
             />
           </Label>
           <Label className="flex-col items-start">
@@ -163,13 +160,7 @@ export function PeriodFields({
             <Input
               type="date"
               value={value.endExclusive}
-              onChange={(event) => {
-                const result = Schema.decodeOption(PeriodSelection)({
-                  ...value,
-                  endExclusive: event.target.value,
-                });
-                if (result._tag === "Some") onChange(result.value);
-              }}
+              onChange={(event) => onChange({ ...value, endExclusive: event.target.value })}
             />
           </Label>
         </div>
@@ -177,37 +168,25 @@ export function PeriodFields({
     </div>
   );
 }
-const defaultFixed = {
-  start: CalendarDate.make(
-    DateTime.formatIsoDateUtc(DateTime.startOf(DateTime.nowUnsafe(), "month")),
-  ),
-  endExclusive: CalendarDate.make(
-    DateTime.formatIsoDateUtc(
-      DateTime.add(DateTime.startOf(DateTime.nowUnsafe(), "month"), { months: 1 }),
-    ),
-  ),
-} satisfies Period;
-export const defaultOverview: OverviewInput = {
-  period: { kind: "calendar", unit: "month", count: 1, offset: 0, alignment: "elapsed" },
-  basis: "spending",
-  currency: "AUD",
-  accounts: [],
-};
 export function OverviewSelection({
   input,
   accounts,
   onApply,
   postedOnly = false,
+  resolvedPeriod,
 }: {
   postedOnly?: boolean;
+  resolvedPeriod: Period;
   input: OverviewInput;
   accounts: readonly Account[];
   onApply: (input: OverviewInput) => Promise<void>;
 }) {
+  const defaults: OverviewDraft = input;
   const form = useForm({
-    defaultValues: input,
-    validators: { onSubmit: Schema.toStandardSchemaV1(Schema.toType(OverviewInput)) },
-    onSubmit: ({ value }) => onApply(value),
+    defaultValues: defaults,
+    validators: { onSubmit: Schema.toStandardSchemaV1(OverviewInput) },
+    onSubmit: async ({ value }) =>
+      onApply(await Effect.runPromise(Schema.decodeEffect(OverviewInput)(value))),
   });
   return (
     <form
@@ -219,7 +198,13 @@ export function OverviewSelection({
     >
       <div className="grid gap-5 md:grid-cols-3">
         <form.Field name="period">
-          {(field) => <PeriodFields value={field.state.value} onChange={field.handleChange} />}
+          {(field) => (
+            <PeriodFields
+              value={field.state.value}
+              onChange={field.handleChange}
+              resolvedPeriod={resolvedPeriod}
+            />
+          )}
         </form.Field>
         <div className="space-y-4">
           <form.Field name="basis">
