@@ -70,16 +70,10 @@ export function periodMeasures({
     financing = 0n;
   const unresolved = new Set<typeof EventId.Type>();
   for (const fact of facts) {
-    if (fact.role === "purchase" || fact.role === "financingCost") {
-      gross += fact.amount.minor;
-      if (!fact.nonPersonal)
-        net +=
-          fact.amount.minor -
-          credits
-            .filter((link) => link.costAllocationId === fact.allocationId)
-            .reduce((sum, link) => sum + link.amount.minor, 0n);
-    }
-    if (fact.role === "income") income += fact.amount.minor;
+    const amounts = allocationMeasures(fact, credits);
+    gross += amounts.gross;
+    net += amounts.net;
+    income += amounts.income;
     if (fact.kind === "unresolved") unresolved.add(fact.eventId);
     if (loanAccountIds.includes(fact.accountId)) {
       if (fact.kind === "loanPayment") repayments += fact.amount.minor;
@@ -102,4 +96,18 @@ export function periodMeasures({
         : null,
     unresolvedCount: unresolved.size,
   };
+}
+
+export function allocationMeasures(
+  fact: Pick<MeasureFact, "role" | "amount" | "nonPersonal" | "allocationId">,
+  credits: ReadonlyArray<typeof CreditLink.Type>,
+) {
+  const gross = fact.role === "purchase" || fact.role === "financingCost" ? fact.amount.minor : 0n;
+  const net = fact.nonPersonal
+    ? 0n
+    : gross -
+      credits
+        .filter((link) => link.costAllocationId === fact.allocationId)
+        .reduce((sum, link) => sum + link.amount.minor, 0n);
+  return { gross, net, income: fact.role === "income" ? fact.amount.minor : 0n };
 }

@@ -197,7 +197,9 @@ export function OverviewSelection({
   input,
   accounts,
   onApply,
+  postedOnly = false,
 }: {
+  postedOnly?: boolean;
   input: OverviewInput;
   accounts: readonly Account[];
   onApply: (input: OverviewInput) => Promise<void>;
@@ -226,7 +228,7 @@ export function OverviewSelection({
                 label="Date basis"
                 value={field.state.value}
                 options={[
-                  { value: "spending", label: "Spending" },
+                  ...(!postedOnly ? [{ value: "spending" as const, label: "Spending" }] : []),
                   { value: "posted", label: "Posted" },
                 ]}
                 onChange={field.handleChange}

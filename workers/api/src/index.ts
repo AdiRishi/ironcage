@@ -35,6 +35,8 @@ import { SourceFiles } from "./sources/service.ts";
 // class refer to itself through the bindings type.
 export type ApiOperations = {
   overview: Analysis["Service"]["overview"];
+  compare: Analysis["Service"]["compare"];
+  contributors: Analysis["Service"]["contributors"];
   getEventRelationships: Relationships["Service"]["get"];
   listRelationshipCandidates: Relationships["Service"]["candidates"];
   previewRelationship: Relationships["Service"]["preview"];
@@ -167,6 +169,8 @@ export const api = Effect.fn("Api.initialize")(function* (
     );
     const operations = {
       overview: analysis.overview,
+      compare: analysis.compare,
+      contributors: analysis.contributors,
       getEventRelationships: relationships.get,
       listRelationshipCandidates: relationships.candidates,
       previewRelationship: relationships.preview,
