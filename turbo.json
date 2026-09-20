@@ -31,6 +31,10 @@
     },
     "test": {
       "cache": false
+    },
+    "@repo/web#test": {
+      "cache": false,
+      "passThroughEnv": ["VITEST_PW_DEBUG"]
     }
   }
 }
