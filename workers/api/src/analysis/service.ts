@@ -50,9 +50,10 @@ export class Analysis extends Context.Service<
         const today = CalendarDate.make(
           DateTime.formatIsoDate(DateTime.setZoneNamedUnsafe(now, settings.timezone)),
         );
+        const period = yield* Effect.fromResult(resolvePeriod(input.period, today));
         return {
           snapshot: yield* readAnalysisSnapshot(input),
-          period: resolvePeriod(input.period, today),
+          period,
           calculatedAt: DateTime.formatIso(now),
         };
       });
@@ -88,7 +89,9 @@ export class Analysis extends Context.Service<
               query,
               {
                 current: data.period,
-                previous: comparisonPeriod(query.period, query.comparison, data.period),
+                previous: yield* Effect.fromResult(
+                  comparisonPeriod(query.period, query.comparison, data.period),
+                ),
               },
               data.calculatedAt,
             );
@@ -114,10 +117,8 @@ export class Analysis extends Context.Service<
                 input.groupBy,
                 {
                   current: data.period,
-                  previous: comparisonPeriod(
-                    input.query.period,
-                    input.query.comparison,
-                    data.period,
+                  previous: yield* Effect.fromResult(
+                    comparisonPeriod(input.query.period, input.query.comparison, data.period),
                   ),
                 },
                 data.calculatedAt,
@@ -153,7 +154,9 @@ export class Analysis extends Context.Service<
               input,
               {
                 current: data.period,
-                previous: comparisonPeriod(input.query.period, input.query.comparison, data.period),
+                previous: yield* Effect.fromResult(
+                  comparisonPeriod(input.query.period, input.query.comparison, data.period),
+                ),
               },
               data.calculatedAt,
             );

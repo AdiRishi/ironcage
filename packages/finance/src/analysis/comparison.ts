@@ -5,6 +5,7 @@ import type {
   ContributorsResult,
   GroupBy,
   MetricValue,
+  OverviewResult,
   Period,
   PeriodResult,
 } from "@repo/contracts/finance";
@@ -55,13 +56,11 @@ function metric(query: AnalysisQuery, value: Rational | null, normalized: boolea
   };
 }
 function periodCalculation(
-  snapshot: AnalysisSnapshot,
+  overview: OverviewResult,
   query: AnalysisQuery,
-  period: Period,
   facts: readonly Contribution[],
-  calculatedAt: string,
 ) {
-  const overview = calculateOverview(snapshot, query, period, calculatedAt);
+  const period = overview.period;
   const purchaseIds = new Set(
     facts.filter((fact) => fact.kind === "purchase").map((fact) => fact.eventId),
   );
@@ -132,24 +131,29 @@ export function calculateComparison(
   calculatedAt: string,
   selected?: { current: readonly Contribution[]; previous: readonly Contribution[] },
 ): ComparisonResult {
-  const current = periodCalculation(
-    snapshot,
+  return compareOverviews(
     query,
-    periods.current,
-    selected?.current ?? selectContributions(snapshot, query, periods.current),
-    calculatedAt,
+    {
+      current: calculateOverview(snapshot, query, periods.current, calculatedAt),
+      previous: calculateOverview(snapshot, query, periods.previous, calculatedAt),
+    },
+    selected ?? {
+      current: selectContributions(snapshot, query, periods.current),
+      previous: selectContributions(snapshot, query, periods.previous),
+    },
   );
-  const previous = periodCalculation(
-    snapshot,
-    query,
-    periods.previous,
-    selected?.previous ?? selectContributions(snapshot, query, periods.previous),
-    calculatedAt,
-  );
+}
+function compareOverviews(
+  query: AnalysisQuery,
+  overviews: { current: OverviewResult; previous: OverviewResult },
+  selected: { current: readonly Contribution[]; previous: readonly Contribution[] },
+): ComparisonResult {
+  const current = periodCalculation(overviews.current, query, selected.current);
+  const previous = periodCalculation(overviews.previous, query, selected.previous);
   return {
     query,
-    accountIds: snapshot.accounts.map((account) => account.id),
-    calculatedAt,
+    accountIds: overviews.current.accountIds,
+    calculatedAt: overviews.current.calculatedAt,
     calculationVersion: "history-1",
     current: current.result,
     previous: previous.result,
@@ -200,7 +204,11 @@ export function calculateContributors(
 ): ContributorsResult {
   const current = selectContributions(snapshot, query, periods.current),
     previous = selectContributions(snapshot, query, periods.previous);
-  const comparison = calculateComparison(snapshot, query, periods, calculatedAt, {
+  const overviews = {
+    current: calculateOverview(snapshot, query, periods.current, calculatedAt),
+    previous: calculateOverview(snapshot, query, periods.previous, calculatedAt),
+  };
+  const comparison = compareOverviews(query, overviews, {
     current,
     previous,
   });
@@ -212,13 +220,16 @@ export function calculateContributors(
       current: current.filter((fact) => contributionGroups(fact, groupBy).includes(key)),
       previous: previous.filter((fact) => contributionGroups(fact, groupBy).includes(key)),
     };
-    const result = calculateComparison(
-      contributorSnapshot(snapshot, groupBy, new Set([key])),
-      query,
-      periods,
-      calculatedAt,
-      selected,
-    );
+    const result =
+      groupBy === "account"
+        ? calculateComparison(
+            contributorSnapshot(snapshot, groupBy, new Set([key])),
+            query,
+            periods,
+            calculatedAt,
+            selected,
+          )
+        : compareOverviews(query, overviews, selected);
     return {
       key,
       label: groupLabel(snapshot, groupBy, key),

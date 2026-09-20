@@ -1,5 +1,5 @@
 import { CalendarDate, CommandId, type AnalysisQuery } from "@repo/contracts/finance";
-import { Crypto, Effect } from "effect";
+import { Clock, Crypto, Effect } from "effect";
 import { expect } from "vitest";
 
 import { Analysis } from "../../src/analysis/service.ts";
@@ -8,6 +8,49 @@ import { Publication } from "../../src/imports/publication.ts";
 import { applicationTest } from "../support/application.ts";
 import { account, source, parsed, reset } from "../support/fixtures.ts";
 const { test, services } = applicationTest();
+test(
+  "analysis operations reject out-of-range current and comparison dates as invalid input",
+  Effect.gen(function* () {
+    yield* reset;
+    const analysis = yield* Analysis;
+    const clock = yield* Clock.Clock;
+    yield* Effect.gen(function* () {
+      for (const count of [2027, 1500]) {
+        const query: AnalysisQuery = {
+          period: { kind: "calendar", unit: "year", count, offset: 0, alignment: "full" },
+          comparison: { kind: "previous" },
+          measure: "netPersonalCosts",
+          basis: "spending",
+          currency: "AUD",
+          accounts: [],
+          filters: { categories: [], merchants: [], tags: [], personalEvents: [] },
+          normalization: "total",
+        };
+        if (count === 2027)
+          expect((yield* analysis.overview(query).pipe(Effect.flip)).kind).toBe("invalid");
+        expect((yield* analysis.compare(query).pipe(Effect.flip)).kind).toBe("invalid");
+        expect(
+          (yield* analysis.contributors({ query, groupBy: "category" }).pipe(Effect.flip)).kind,
+        ).toBe("invalid");
+        expect(
+          (yield* analysis
+            .rows({ query, groupBy: "category", groupKey: "unassigned" })
+            .pipe(Effect.flip)).kind,
+        ).toBe("invalid");
+      }
+    }).pipe(
+      Effect.provideService(Clock.Clock, {
+        currentTimeNanos: clock.currentTimeNanos,
+        currentTimeNanosUnsafe: () => clock.currentTimeNanosUnsafe(),
+        monotonicTimeNanos: clock.monotonicTimeNanos,
+        monotonicTimeNanosUnsafe: () => clock.monotonicTimeNanosUnsafe(),
+        sleep: (duration) => clock.sleep(duration),
+        currentTimeMillis: Effect.succeed(Date.parse("2026-09-20T00:00:00.000Z")),
+        currentTimeMillisUnsafe: () => Date.parse("2026-09-20T00:00:00.000Z"),
+      }),
+    );
+  }).pipe(Effect.provide(services)),
+);
 test(
   "the comparison API returns the delivery example with its consistent contributors",
   Effect.gen(function* () {

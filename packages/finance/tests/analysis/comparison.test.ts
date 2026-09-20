@@ -1,4 +1,5 @@
 import { CalendarDate, PersonalEventId, TagId, type AnalysisQuery } from "@repo/contracts/finance";
+import { Result } from "effect";
 import { expect, it } from "vitest";
 
 import { calculateContributors, calculateComparison } from "../../src/analysis/comparison.ts";
@@ -144,23 +145,27 @@ it("elapsed comparisons align day counts and clamp month ends and leap years", (
     offset: 0,
     alignment: "elapsed",
   } satisfies AnalysisQuery["period"];
-  const current = resolvePeriod(selection, CalendarDate.make("2026-08-20"));
-  expect(comparisonPeriod(selection, { kind: "previous" }, current)).toEqual({
+  const current = Result.getOrThrow(resolvePeriod(selection, CalendarDate.make("2026-08-20")));
+  expect(Result.getOrThrow(comparisonPeriod(selection, { kind: "previous" }, current))).toEqual({
     start: "2026-07-01",
     endExclusive: "2026-07-21",
   });
   expect(
-    comparisonPeriod(
-      selection,
-      { kind: "previous" },
-      resolvePeriod(selection, CalendarDate.make("2026-03-31")),
+    Result.getOrThrow(
+      comparisonPeriod(
+        selection,
+        { kind: "previous" },
+        Result.getOrThrow(resolvePeriod(selection, CalendarDate.make("2026-03-31"))),
+      ),
     ),
   ).toEqual({ start: "2026-02-01", endExclusive: "2026-03-01" });
   expect(
-    comparisonPeriod(
-      { kind: "rolling", days: 1 },
-      { kind: "previousYear" },
-      { start: CalendarDate.make("2024-02-29"), endExclusive: CalendarDate.make("2024-03-01") },
+    Result.getOrThrow(
+      comparisonPeriod(
+        { kind: "rolling", days: 1 },
+        { kind: "previousYear" },
+        { start: CalendarDate.make("2024-02-29"), endExclusive: CalendarDate.make("2024-03-01") },
+      ),
     ),
   ).toEqual({ start: "2023-02-28", endExclusive: "2023-03-01" });
 });

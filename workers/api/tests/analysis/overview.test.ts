@@ -11,6 +11,36 @@ import { applicationTest } from "../support/application.ts";
 import { account, source, parsed, reset } from "../support/fixtures.ts";
 const { test, services } = applicationTest();
 test(
+  "overview reads a history larger than PostgreSQL's bind-parameter limit",
+  Effect.gen(function* () {
+    yield* reset;
+    const owner = yield* account();
+    const sql = yield* PgClient.PgClient;
+    yield* sql`INSERT INTO postings(id,account_id,currency,amount_minor,posted_on,description)
+      SELECT gen_random_uuid(),${owner.id},'AUD',-100,'2026-09-01','Synthetic purchase'
+      FROM generate_series(1,65536)`;
+    yield* sql`INSERT INTO events(id,kind,currency,magnitude_minor,primary_posting_id,reporting_account_id)
+      SELECT id,'purchase','AUD',100,id,account_id FROM postings`;
+    yield* sql`INSERT INTO event_postings(event_id,posting_id) SELECT id,id FROM events`;
+    yield* sql`INSERT INTO allocations(id,event_id,role,amount_minor)
+      SELECT id,id,'purchase',100 FROM events`;
+    const analysis = yield* Analysis;
+    const result = yield* analysis.overview({
+      period: {
+        kind: "fixed",
+        start: CalendarDate.make("2026-09-01"),
+        endExclusive: CalendarDate.make("2026-10-01"),
+      },
+      basis: "spending",
+      currency: "AUD",
+      accounts: [owner.id],
+    });
+    expect(result.purchaseCount).toBe(65536);
+    expect(result.netPersonalCosts.minor).toBe(6553600n);
+    expect(result.coverage.unresolvedCount).toBe(0);
+  }).pipe(Effect.provide(services)),
+);
+test(
   "overview distinguishes recorded costs from missing coverage and preserves exact money",
   Effect.gen(function* () {
     yield* reset;

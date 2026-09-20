@@ -1,5 +1,5 @@
-import { CalendarDate, type Period, type PeriodSelection } from "@repo/contracts/finance";
-import { DateTime } from "effect";
+import { CalendarDate, FinanceError, Period, type PeriodSelection } from "@repo/contracts/finance";
+import { DateTime, Result, Schema } from "effect";
 
 export function addDays(on: CalendarDate, days: number) {
   return CalendarDate.make(
@@ -13,42 +13,57 @@ export function daysInPeriod(period: Period) {
     86400000
   );
 }
-export function calendarShift(
-  on: CalendarDate,
+function calendarShift(
+  on: DateTime.Utc,
   unit: "week" | "month" | "quarter" | "year",
   count: number,
 ) {
-  return CalendarDate.make(
-    DateTime.formatIsoDateUtc(
-      DateTime.add(
-        DateTime.makeUnsafe(on),
-        unit === "week"
-          ? { weeks: count }
-          : { months: count * (unit === "quarter" ? 3 : unit === "year" ? 12 : 1) },
-      ),
+  return DateTime.add(
+    on,
+    unit === "week"
+      ? { weeks: count }
+      : { months: count * (unit === "quarter" ? 3 : unit === "year" ? 12 : 1) },
+  );
+}
+function resolvedPeriod(start: DateTime.Utc, endExclusive: DateTime.Utc) {
+  return Schema.decodeResult(Period)({
+    start: DateTime.formatIsoDateUtc(start),
+    endExclusive: DateTime.formatIsoDateUtc(endExclusive),
+  }).pipe(
+    Result.mapError(
+      () =>
+        new FinanceError({
+          kind: "invalid",
+          message: "Choose a period and comparison whose dates fall between years 0001 and 9999.",
+        }),
     ),
   );
 }
-export function resolvePeriod(selection: PeriodSelection, today: CalendarDate): Period {
+export function resolvePeriod(
+  selection: PeriodSelection,
+  today: CalendarDate,
+): Result.Result<Period, FinanceError> {
   if (selection.kind === "fixed")
-    return { start: selection.start, endExclusive: selection.endExclusive };
+    return Result.succeed({ start: selection.start, endExclusive: selection.endExclusive });
+  const date = DateTime.makeUnsafe(today);
   if (selection.kind === "rolling")
-    return { start: addDays(today, 1 - selection.days), endExclusive: addDays(today, 1) };
-  const parts = DateTime.toPartsUtc(DateTime.makeUnsafe(today));
+    return resolvedPeriod(
+      DateTime.add(date, { days: 1 - selection.days }),
+      DateTime.add(date, { days: 1 }),
+    );
   const start =
-    selection.unit === "week"
-      ? addDays(today, -((parts.weekDay + 6) % 7))
-      : CalendarDate.make(
-          `${today.slice(0, 4)}-${String(selection.unit === "year" ? 1 : selection.unit === "quarter" ? Math.floor((parts.month - 1) / 3) * 3 + 1 : parts.month).padStart(2, "0")}-01`,
-        );
+    selection.unit === "quarter"
+      ? DateTime.add(DateTime.startOf(date, "month"), {
+          months: -((DateTime.toPartsUtc(date).month - 1) % 3),
+        })
+      : DateTime.startOf(date, selection.unit, { weekStartsOn: 1 });
   const endExclusive = calendarShift(start, selection.unit, selection.offset + 1);
-  return {
-    start: calendarShift(start, selection.unit, selection.offset + 1 - selection.count),
-    endExclusive:
-      selection.offset === 0 && selection.alignment === "elapsed"
-        ? addDays(today, 1)
-        : endExclusive,
-  };
+  return resolvedPeriod(
+    calendarShift(start, selection.unit, selection.offset + 1 - selection.count),
+    selection.offset === 0 && selection.alignment === "elapsed"
+      ? DateTime.add(date, { days: 1 })
+      : endExclusive,
+  );
 }
 export function missingPeriods(period: Period, intervals: readonly Period[]): Period[] {
   let cursor = period.start;
@@ -83,24 +98,24 @@ export function comparisonPeriod(
   selection: PeriodSelection,
   comparison: import("@repo/contracts/finance").AnalysisQuery["comparison"],
   current: Period,
-): Period {
+): Result.Result<Period, FinanceError> {
   if (comparison.kind === "fixed")
-    return { start: comparison.start, endExclusive: comparison.endExclusive };
+    return Result.succeed({ start: comparison.start, endExclusive: comparison.endExclusive });
+  const currentStart = DateTime.makeUnsafe(current.start);
   if (comparison.kind === "previousYear") {
-    const start = calendarShift(current.start, "year", -1);
-    const endExclusive = calendarShift(current.endExclusive, "year", -1);
-    return { start, endExclusive: endExclusive > start ? endExclusive : addDays(start, 1) };
+    const start = calendarShift(currentStart, "year", -1);
+    const endExclusive = calendarShift(DateTime.makeUnsafe(current.endExclusive), "year", -1);
+    return resolvedPeriod(start, DateTime.max(endExclusive, DateTime.add(start, { days: 1 })));
   }
   if (selection.kind !== "calendar") {
     const days = daysInPeriod(current);
-    return { start: addDays(current.start, -days), endExclusive: current.start };
+    return resolvedPeriod(DateTime.add(currentStart, { days: -days }), currentStart);
   }
-  const start = calendarShift(current.start, selection.unit, -selection.count);
+  const start = calendarShift(currentStart, selection.unit, -selection.count);
   const wholeEnd = calendarShift(start, selection.unit, selection.count);
-  const elapsedEnd = addDays(start, daysInPeriod(current));
-  return {
+  const elapsedEnd = DateTime.add(start, { days: daysInPeriod(current) });
+  return resolvedPeriod(
     start,
-    endExclusive:
-      selection.alignment === "elapsed" && elapsedEnd < wholeEnd ? elapsedEnd : wholeEnd,
-  };
+    selection.alignment === "elapsed" ? DateTime.min(elapsedEnd, wholeEnd) : wholeEnd,
+  );
 }
