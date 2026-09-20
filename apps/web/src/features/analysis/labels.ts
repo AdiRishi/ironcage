@@ -34,7 +34,7 @@ export function formatMetric(value: MetricValue): string {
       return "Unavailable";
   }
 }
-export function chartValue(value: MetricValue): number {
+export function chartValue(value: MetricValue): number | null {
   switch (value.kind) {
     case "money":
       return Number(value.amount.minor);
@@ -45,6 +45,6 @@ export function chartValue(value: MetricValue): number {
     case "dailyAverage":
       return Number(value.amount.value);
     case "unavailable":
-      return 0;
+      return null;
   }
 }

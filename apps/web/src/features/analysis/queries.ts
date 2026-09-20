@@ -8,6 +8,7 @@ export const overviewQuery = (input: OverviewInput) =>
     queryKey: ["analysis", "overview", normalizeOverview(input)],
     queryFn: () => overview({ data: input }),
     staleTime: 0,
+    refetchOnMount: false,
   });
 
 export const contributorsQuery = (input: typeof ContributorsInput.Type) =>
@@ -15,6 +16,7 @@ export const contributorsQuery = (input: typeof ContributorsInput.Type) =>
     queryKey: ["analysis", "contributors", { ...input, query: normalizeAnalysis(input.query) }],
     queryFn: () => contributors({ data: input }),
     staleTime: 0,
+    refetchOnMount: false,
   });
 
 export const analysisRowsQuery = (input: AnalysisRowsInput) =>
@@ -22,4 +24,5 @@ export const analysisRowsQuery = (input: AnalysisRowsInput) =>
     queryKey: ["analysis", "rows", { ...input, query: normalizeAnalysis(input.query) }],
     queryFn: () => rows({ data: input }),
     staleTime: 0,
+    refetchOnMount: false,
   });
