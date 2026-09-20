@@ -18,7 +18,7 @@ export const readEvents = Effect.fn("readEvents")(function* (
   const events =
     yield* sql`SELECT id, kind, ${money(sql, "currency", "magnitude_minor")} AS magnitude,
     primary_posting_id AS "primaryPostingId", reporting_account_id AS "reportingAccountId",
-    purchase_on::text AS "purchaseOn", active, version FROM events WHERE ${sql.in("id", eventIds)}`.pipe(
+    purchase_on::text AS "purchaseOn", active, version FROM events WHERE id = ANY(${eventIds}::uuid[])`.pipe(
       Effect.flatMap(
         Schema.decodeUnknownEffect(
           Schema.Array(
@@ -34,7 +34,7 @@ export const readEvents = Effect.fn("readEvents")(function* (
     al.category_id AS "categoryId", al.merchant_id AS "merchantId", al.non_personal AS "nonPersonal",
     ARRAY(SELECT tag_id FROM allocation_tags WHERE allocation_id = al.id ORDER BY tag_id) AS "tagIds",
     ARRAY(SELECT personal_event_id FROM allocation_personal_events WHERE allocation_id = al.id ORDER BY personal_event_id) AS "personalEventIds"
-    FROM allocations al JOIN events e ON e.id = al.event_id WHERE ${sql.in("al.event_id", eventIds)} ORDER BY al.id`.pipe(
+    FROM allocations al JOIN events e ON e.id = al.event_id WHERE al.event_id = ANY(${eventIds}::uuid[]) ORDER BY al.id`.pipe(
       Effect.flatMap(
         Schema.decodeUnknownEffect(
           Schema.Array(Schema.Struct({ ...Allocation.fields, eventId: EventId })),
@@ -43,7 +43,7 @@ export const readEvents = Effect.fn("readEvents")(function* (
     );
   const postings =
     yield* sql`SELECT ep.event_id AS "eventId", ${postingFields(sql)} FROM postings p JOIN accounts a ON a.id = p.account_id
-    JOIN event_postings ep ON ep.posting_id = p.id WHERE ${sql.in("ep.event_id", eventIds)} ORDER BY p.posted_on, p.id`.pipe(
+    JOIN event_postings ep ON ep.posting_id = p.id WHERE ep.event_id = ANY(${eventIds}::uuid[]) ORDER BY p.posted_on, p.id`.pipe(
       Effect.flatMap(
         Schema.decodeUnknownEffect(
           Schema.Array(Schema.Struct({ ...Posting.fields, eventId: EventId })),
