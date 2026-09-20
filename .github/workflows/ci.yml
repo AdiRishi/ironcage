@@ -23,4 +23,6 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm --filter @repo/web exec playwright install --with-deps chromium
       - run: pnpm test:unit
+        env:
+          VITEST_PW_DEBUG: "1"
       - run: pnpm build
