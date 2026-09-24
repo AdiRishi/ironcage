@@ -7,16 +7,17 @@ The web app is React, TanStack Start, TanStack Router, TanStack Query, Tailwind 
 
 ## Routes
 
-| Route                | Screen                                                       |
-| -------------------- | ------------------------------------------------------------ |
-| `/`                  | Overview for the selected period.                            |
-| `/spending`          | Category breakdown. `?category=` drills into a subtree.      |
-| `/spending/analyses` | Saved analyses. `/spending/analyses/$analysisId` opens one.  |
-| `/ledger`            | Transactions. `/ledger/$eventId` opens a detail sheet.       |
-| `/counterparties`    | Counterparties. `/counterparties/$counterpartyId` opens one. |
-| `/questions`         | Open questions and source reviews.                           |
-| `/sources`           | Imports, coverage, files, and export.                        |
-| `/settings/*`        | Accounts, categories, rules, AI, display, and data.          |
+| Route             | Screen                                                                                          |
+| ----------------- | ----------------------------------------------------------------------------------------------- |
+| `/`               | Overview for the selected period.                                                               |
+| `/spending`       | Category breakdown. `?category=` drills into a subtree.                                         |
+| `/ledger`         | Transactions. `/ledger/$id` opens one posting with its meaning and evidence.                    |
+| `/counterparties` | Counterparties paid or paid by in the period. `/counterparties/$counterpartyId` opens one.      |
+| `/questions`      | Computed questions, records to check, and movements to confirm. `?importId=` narrows to a file. |
+| `/sources`        | Upload, coverage, imports that need you, files, and export. `/sources/imports/$importId`.       |
+| `/settings`       | Accounts, account history, identification, and display. `/settings/categories` and `/rules`.    |
+
+The period strip shows on the overview, spending, ledger, and counterparties. Without a `?period=`, those screens read the current month, or redirect to the latest month with records when this month has none yet.
 
 Route modules own URLs and loaders. Feature modules under `src/features/` own server functions, query options, and views. Shared controls live in `src/components/ui`, and application-level components such as the period strip, amounts, and provenance marks live in `src/components/`.
 
@@ -24,7 +25,7 @@ Route modules own URLs and loaders. Feature modules under `src/features/` own se
 
 `src/global-styles/tailwind.css` defines the palette as CSS variables and maps them to Tailwind colors and to shadcn's semantic tokens: `background` is Polymer, `card` and `popover` are Sheet, `foreground` and `primary` are Intaglio. Components use the semantic names. Inflow, outflow, and attention are their own tokens: `inflow`, `outflow`, and `attention`. Category hues come from `src/lib/category-colors.ts`, keyed by top-level category slug.
 
-Archivo is loaded from `@fontsource-variable/archivo` with its width axis. Text styles are Tailwind utilities that set `font-variation-settings`, such as `text-figure` and `text-title`. Every numeric style enables `tabular-nums lining-nums`.
+Archivo is loaded from `@fontsource-variable/archivo` with its width axis. Text styles are Tailwind utilities that set width through `font-stretch`: `type-figure`, `type-figure-s`, `type-title`, `type-heading`, `type-body`, `type-small`, and `type-condensed`. Figures and `tabular` enable `tabular-nums lining-nums`.
 
 ## State
 
@@ -40,7 +41,7 @@ A change that affects money shows a preview first: the affected records, their v
 
 ## Amounts
 
-`src/components/amount.tsx` renders every money value from its `Money` minor units, never from a float. Outflows show a minus sign and inflows none. The value's color comes from its direction only in the flow and the headline. Tables use Intaglio for every amount so a column reads evenly.
+`src/components/amount.tsx` renders every money value from its `Money` minor units through `formatCurrency` in `@repo/finance`, never from a float. Outflows show a minus sign and inflows none. The value's color comes from its direction only in the flow and the headline. Tables use Intaglio for every amount so a column reads evenly.
 
 ## Charts
 
@@ -48,4 +49,4 @@ Charts use Recharts through the shadcn chart wrapper. The flow diagram uses Rech
 
 ## Accessibility
 
-Every action works at 390 pixels wide and by keyboard. Focus returns to the triggering control when a sheet or dialog closes. Loading is announced once. Provenance marks and flow streams have text equivalents. Reduced-motion preferences disable the flow draw and the sheet slide. Tables of amounts scroll within their container rather than the page.
+Every action works at 390 pixels wide and by keyboard. Focus returns to the triggering control when a sheet or dialog closes. Loading is announced once. Provenance marks and flow streams have text equivalents. Reduced-motion preferences disable the flow draw and the sheet slide. Tables of amounts scroll within their container rather than the page. A horizontal scroller is `relative`, so the absolutely positioned `sr-only` text inside it cannot widen the page.
