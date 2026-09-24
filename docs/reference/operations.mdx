@@ -56,6 +56,6 @@ Log operation IDs, import IDs, Workflow instance IDs, timings, and error kinds. 
 
 ## Deployment
 
-Alchemy owns the resource graph. Migrations are versioned SQL under `workers/api/migrations/`. Every test stage applies all of them to an empty database, and the restore drill applies them to a temporary PlanetScale database. No test applies a new migration to a database that already holds records. Only `pnpm dev` exercises that path, on the local database. A migration that old code cannot read ships with a coordinated deploy after a verified backup.
+Alchemy owns the resource graph. Migrations are versioned SQL under `workers/api/migrations/`. Every test stage applies all of them to an empty database, and the restore drill applies them to a temporary PlanetScale database. The populated migration test applies each migration newer than its fixture to a database that already holds synthetic records, as described in [Verification](/reference/verification#database). A migration that old code cannot read ships with a coordinated deploy after a verified backup.
 
 Before the first private deployment, confirm: Access blocks an unauthenticated request, a source download requires the session, a repeated upload creates nothing, a lost command response is recovered by its ID, and the restore drill above has been performed.
