@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Menu, X } from "lucide-react";
+import { Menu, Settings, X } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,15 @@ export function TopBar({ questionCount }: { questionCount: number }) {
               </span>
             )}
           </Link>
+          <Link
+            to="/settings"
+            aria-label="Settings"
+            title="Settings"
+            className="hidden rounded-md p-1.5 text-slate hover:text-intaglio md:block"
+            activeProps={{ className: "text-intaglio" }}
+          >
+            <Settings className="size-4.5" aria-hidden />
+          </Link>
           <Button variant="outline" size="sm" nativeButton={false} render={<Link to="/sources" />}>
             Upload
           </Button>
@@ -79,6 +88,16 @@ export function TopBar({ questionCount }: { questionCount: number }) {
                 </Link>
               </li>
             ))}
+            <li>
+              <Link
+                to="/settings"
+                onClick={() => setOpen(false)}
+                className="block py-2.5 text-slate"
+                activeProps={{ className: "text-intaglio font-[560]" }}
+              >
+                Settings
+              </Link>
+            </li>
           </ul>
         </nav>
       )}
