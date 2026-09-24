@@ -104,6 +104,7 @@ export const ReinterpretationSummary = Schema.Struct({
 
 export const QuestionKind = Schema.Literals([
   "counterparty",
+  "alias",
   "person",
   "ownAccount",
   "unresolved",
@@ -122,6 +123,9 @@ export const Question = Schema.Struct({
   kind: QuestionKind,
   aliasKey: Schema.NullOr(Schema.String),
   counterparty: Schema.NullOr(Counterparty),
+  // For an alias question: the model's confidence and reason that the alias belongs
+  // to the counterparty.
+  proposal: Schema.NullOr(Schema.Struct({ confidence: Schema.Finite, reason: Schema.String })),
   eventCount: Schema.Int,
   outflow: Money,
   inflow: Money,

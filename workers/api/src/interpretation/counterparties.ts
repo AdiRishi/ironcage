@@ -128,7 +128,7 @@ export class Counterparties extends Context.Service<
             yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
             return yield* summaries(
               input.search
-                ? sql`(c.name ILIKE ${search} OR c.brand ILIKE ${search} OR EXISTS (SELECT 1 FROM counterparty_aliases a WHERE a.counterparty_id = c.id AND a.alias_key ILIKE ${search}))`
+                ? sql`(c.name ILIKE ${search} OR c.brand ILIKE ${search} OR EXISTS (SELECT 1 FROM counterparty_aliases a WHERE a.counterparty_id = c.id AND a.status = 'applied' AND a.alias_key ILIKE ${search}))`
                 : sql`true`,
               input,
             );
@@ -164,7 +164,7 @@ export class Counterparties extends Context.Service<
                   ARRAY(SELECT DISTINCT d.counterparty_text FROM posting_descriptors d WHERE d.alias_key = a.alias_key AND d.counterparty_text IS NOT NULL LIMIT 3) AS samples,
                   (SELECT min(d.channel) FROM posting_descriptors d WHERE d.alias_key = a.alias_key) AS channel,
                   (SELECT count(*) FROM posting_descriptors d WHERE d.alias_key = a.alias_key)::int AS "eventCount"
-                FROM counterparty_aliases a WHERE a.counterparty_id = ${counterpartyId} ORDER BY a.alias_key`.pipe(
+                FROM counterparty_aliases a WHERE a.counterparty_id = ${counterpartyId} AND a.status = 'applied' ORDER BY a.alias_key`.pipe(
               Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(CounterpartyAlias))),
             );
             const months = yield* sql`SELECT to_char(p.posted_on, 'YYYY-MM') AS month,
@@ -198,7 +198,7 @@ export class Counterparties extends Context.Service<
                 aliasKeys = input.target.aliasKeys;
                 yield* sql`INSERT INTO counterparties (id, name, kind, brand, default_category_id, default_role, source, status) VALUES (${id}, ${fields.name}, ${fields.kind}, ${fields.brand}, ${fields.defaultCategoryId}, ${fields.defaultRole}, 'user', 'applied')`;
                 for (const aliasKey of aliasKeys)
-                  yield* sql`INSERT INTO counterparty_aliases (alias_key, counterparty_id, source) VALUES (${aliasKey}, ${id}, 'user') ON CONFLICT (alias_key) DO UPDATE SET counterparty_id = EXCLUDED.counterparty_id, source = 'user'`;
+                  yield* sql`INSERT INTO counterparty_aliases (alias_key, counterparty_id, source) VALUES (${aliasKey}, ${id}, 'user') ON CONFLICT (alias_key) DO UPDATE SET counterparty_id = EXCLUDED.counterparty_id, source = 'user', status = 'applied', confidence = NULL, reason = NULL`;
               } else {
                 id = input.target.id;
                 const current = yield* readCounterparty(id);
@@ -261,7 +261,7 @@ export class Counterparties extends Context.Service<
           execute: provide(
             Effect.gen(function* () {
               yield* readCounterparty(input.counterpartyId);
-              yield* sql`INSERT INTO counterparty_aliases (alias_key, counterparty_id, source) VALUES (${input.aliasKey}, ${input.counterpartyId}, 'user') ON CONFLICT (alias_key) DO UPDATE SET counterparty_id = EXCLUDED.counterparty_id, source = 'user'`;
+              yield* sql`INSERT INTO counterparty_aliases (alias_key, counterparty_id, source) VALUES (${input.aliasKey}, ${input.counterpartyId}, 'user') ON CONFLICT (alias_key) DO UPDATE SET counterparty_id = EXCLUDED.counterparty_id, source = 'user', status = 'applied', confidence = NULL, reason = NULL`;
               yield* reinterpret(
                 yield* affectedEvents({ counterpartyIds: [], aliasKeys: [input.aliasKey] }),
               );

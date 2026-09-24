@@ -100,7 +100,7 @@ const loadSubjects = Effect.fn("loadSubjects")(function* (scope: EventScope) {
     JOIN postings p ON p.id = e.primary_posting_id
     JOIN accounts a ON a.id = p.account_id
     LEFT JOIN posting_descriptors d ON d.posting_id = p.id
-    LEFT JOIN counterparty_aliases ca ON ca.alias_key = d.alias_key
+    LEFT JOIN counterparty_aliases ca ON ca.alias_key = d.alias_key AND ca.status = 'applied'
     WHERE e.active AND ${filter}`.pipe(
     Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Subject))),
   );

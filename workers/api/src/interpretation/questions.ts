@@ -20,6 +20,8 @@ const Group = Schema.Struct({
   kind: QuestionKind,
   aliasKey: Schema.NullOr(Schema.String),
   counterpartyId: Schema.NullOr(Schema.String),
+  proposalConfidence: Schema.NullOr(Schema.Finite),
+  proposalReason: Schema.NullOr(Schema.String),
   eventCount: Schema.Int,
   outflowMinor: Schema.BigIntFromString,
   inflowMinor: Schema.BigIntFromString,
@@ -43,12 +45,14 @@ export class Questions extends Context.Service<
           return yield* sql.withTransaction(
             Effect.gen(function* () {
               yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
-              // One question per person or proposed counterparty, per unknown own
-              // account, and per alias key of the remaining unresolved events.
+              // One question per person or proposed counterparty, per proposed alias, per
+              // unknown own account, and per alias key of the remaining unresolved events.
               const groups = yield* sql`WITH candidates AS (
                 SELECT e.id AS event_id, p.id AS posting_id, p.posted_on, p.description, p.amount_minor, p.currency,
-                  d.alias_key, d.own_account_suffix, c.id AS counterparty_id,
+                  d.alias_key, d.own_account_suffix, COALESCE(c.id, pa.counterparty_id) AS counterparty_id,
+                  pa.confidence::float8 AS proposal_confidence, pa.reason AS proposal_reason,
                   CASE
+                    WHEN c.id IS NULL AND pa.counterparty_id IS NOT NULL THEN 'alias'
                     WHEN c.kind = 'person' AND (c.default_role IS NULL OR c.status = 'proposed') THEN 'person'
                     WHEN c.status = 'proposed' THEN 'counterparty'
                     WHEN d.own_account_suffix IS NOT NULL AND c.id IS NULL THEN 'ownAccount'
@@ -58,12 +62,15 @@ export class Questions extends Context.Service<
                 JOIN postings p ON p.id = e.primary_posting_id
                 LEFT JOIN posting_descriptors d ON d.posting_id = p.id
                 LEFT JOIN counterparties c ON c.id = e.counterparty_id
+                LEFT JOIN counterparty_aliases pa ON pa.alias_key = d.alias_key AND pa.status = 'proposed'
                 WHERE e.active AND e.currency = ${currency}
-                  AND (e.kind = 'unresolved' OR c.status = 'proposed' OR (c.kind = 'person' AND c.default_role IS NULL))
+                  AND (e.kind = 'unresolved' OR c.status = 'proposed' OR (c.kind = 'person' AND c.default_role IS NULL)
+                    OR (c.id IS NULL AND pa.alias_key IS NOT NULL))
               ), keyed AS (
-                SELECT *, kind || ':' || COALESCE(counterparty_id::text, alias_key, event_id::text) AS key FROM candidates
+                SELECT *, kind || ':' || CASE WHEN kind = 'alias' THEN alias_key ELSE COALESCE(counterparty_id::text, alias_key, event_id::text) END AS key FROM candidates
               )
               SELECT key, min(kind) AS kind, min(alias_key) AS "aliasKey", min(counterparty_id::text) AS "counterpartyId",
+                min(proposal_confidence) AS "proposalConfidence", min(proposal_reason) AS "proposalReason",
                 count(*)::int AS "eventCount",
                 COALESCE(-sum(amount_minor) FILTER (WHERE amount_minor < 0), 0)::text AS "outflowMinor",
                 COALESCE(sum(amount_minor) FILTER (WHERE amount_minor > 0), 0)::text AS "inflowMinor",
@@ -99,6 +106,10 @@ export class Questions extends Context.Service<
                   aliasKey: group.aliasKey,
                   counterparty:
                     counterparties.find((row) => row.id === group.counterpartyId) ?? null,
+                  proposal:
+                    group.proposalConfidence === null || group.proposalReason === null
+                      ? null
+                      : { confidence: group.proposalConfidence, reason: group.proposalReason },
                   eventCount: group.eventCount,
                   outflow: money(group.outflowMinor),
                   inflow: money(group.inflowMinor),
@@ -109,6 +120,7 @@ export class Questions extends Context.Service<
                   kind: "ruleConflict",
                   aliasKey: null,
                   counterparty: null,
+                  proposal: null,
                   eventCount: 1,
                   outflow: money(subject.amountMinor < 0n ? -subject.amountMinor : 0n),
                   inflow: money(subject.amountMinor > 0n ? subject.amountMinor : 0n),

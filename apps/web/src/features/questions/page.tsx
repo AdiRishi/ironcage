@@ -1,7 +1,9 @@
 import {
   CommandId,
+  type Counterparty,
   type CounterpartyKind,
   type CounterpartyRole,
+  type MoveAlias,
   type Question,
   type QuestionKind,
   type ReferenceData,
@@ -16,7 +18,7 @@ import { CategorySelect } from "@/components/category-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { counterpartyKinds, counterpartyRoles } from "@/features/counterparties/choices";
-import { saveCounterparty } from "@/features/counterparties/functions";
+import { moveAlias, saveCounterparty } from "@/features/counterparties/functions";
 import { useCommand } from "@/lib/use-command";
 
 export type QuestionFilter = "who" | "people" | "accounts" | "rules";
@@ -26,7 +28,7 @@ const filters: ReadonlyArray<{
   label: string;
   kinds: readonly QuestionKind[];
 }> = [
-  { value: "who", label: "Who is this", kinds: ["counterparty", "unresolved"] },
+  { value: "who", label: "Who is this", kinds: ["counterparty", "alias", "unresolved"] },
   { value: "people", label: "People", kinds: ["person"] },
   { value: "accounts", label: "Accounts", kinds: ["ownAccount"] },
   { value: "rules", label: "Rule conflicts", kinds: ["ruleConflict"] },
@@ -135,8 +137,16 @@ function QuestionCard({
           )}
         </p>
       </header>
-      {question.counterparty?.source === "model" && question.counterparty.reason && (
-        <p className="type-small text-slate">The model: {question.counterparty.reason}</p>
+      {question.proposal ? (
+        <p className="type-small text-slate">
+          The model: {question.proposal.reason} {Math.round(question.proposal.confidence * 100)}%
+          sure.
+        </p>
+      ) : (
+        question.counterparty?.source === "model" &&
+        question.counterparty.reason && (
+          <p className="type-small text-slate">The model: {question.counterparty.reason}</p>
+        )
       )}
       <Samples question={question} />
       <Answer question={question} references={references} />
@@ -150,6 +160,8 @@ function title(question: Question) {
       return `What are payments with ${question.counterparty?.name ?? "this person"}?`;
     case "counterparty":
       return `Is this ${question.counterparty?.name ?? "right"}?`;
+    case "alias":
+      return `Is this ${question.counterparty?.name ?? "someone you know"}?`;
     case "ownAccount":
       return `Whose is account ${question.aliasKey?.replace("ACCOUNT ", "ending ") ?? ""}?`;
     case "unresolved":
@@ -194,14 +206,17 @@ function Answer({
     onSuccess: () => client.invalidateQueries(),
   });
   const counterparty = question.counterparty;
-  const submit = (fields: (typeof SaveCounterparty.Type)["fields"]) =>
-    save.submit({
-      commandId: CommandId.make(crypto.randomUUID()),
-      target: counterparty
-        ? { kind: "update", id: counterparty.id, expectedVersion: counterparty.version }
-        : { kind: "create", aliasKeys: question.aliasKey ? [question.aliasKey] : [] },
-      fields,
-    });
+  const saveAs =
+    (target: (typeof SaveCounterparty.Type)["target"]) =>
+    (fields: (typeof SaveCounterparty.Type)["fields"]) =>
+      save.submit({ commandId: CommandId.make(crypto.randomUUID()), target, fields });
+  const create = saveAs({
+    kind: "create",
+    aliasKeys: question.aliasKey ? [question.aliasKey] : [],
+  });
+  const submit = counterparty
+    ? saveAs({ kind: "update", id: counterparty.id, expectedVersion: counterparty.version })
+    : create;
   const busy = save.mutation.isPending;
   const status = save.mutation.error && (
     <p role="alert" className="type-small text-attention">
@@ -301,14 +316,100 @@ function Answer({
     return <OwnAccountAnswer question={question} busy={busy} onSave={submit} status={status} />;
   }
 
+  if (question.kind === "alias" && counterparty && question.aliasKey) {
+    return (
+      <AliasAnswer
+        question={question}
+        aliasKey={question.aliasKey}
+        counterparty={counterparty}
+        references={references}
+        busy={busy}
+        onCreate={create}
+        status={status}
+      />
+    );
+  }
+
   return (
     <Identify
       question={question}
+      counterparty={counterparty}
       references={references}
       busy={busy}
       onSave={submit}
       status={status}
     />
+  );
+}
+
+// Confirms that a descriptor belongs to the counterparty the model suggested, or names
+// the counterparty it really belongs to.
+function AliasAnswer({
+  question,
+  aliasKey,
+  counterparty,
+  references,
+  busy,
+  onCreate,
+  status,
+}: {
+  question: Question;
+  aliasKey: string;
+  counterparty: Counterparty;
+  references: typeof ReferenceData.Type;
+  busy: boolean;
+  onCreate: (fields: (typeof SaveCounterparty.Type)["fields"]) => void;
+  status: React.ReactNode;
+}) {
+  const client = useQueryClient();
+  const [someoneElse, setSomeoneElse] = useState(false);
+  const confirm = useCommand({
+    mutationFn: (data: typeof MoveAlias.Type) => moveAlias({ data }),
+    onSuccess: () => client.invalidateQueries(),
+  });
+  const pending = busy || confirm.mutation.isPending;
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          disabled={pending}
+          onClick={() =>
+            confirm.submit({
+              commandId: CommandId.make(crypto.randomUUID()),
+              aliasKey,
+              counterpartyId: counterparty.id,
+            })
+          }
+        >
+          Yes, it's {counterparty.name}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          aria-expanded={someoneElse}
+          onClick={() => setSomeoneElse(true)}
+        >
+          Someone else
+        </Button>
+      </div>
+      {someoneElse && (
+        <Identify
+          question={question}
+          counterparty={null}
+          references={references}
+          busy={pending}
+          onSave={onCreate}
+          status={status}
+        />
+      )}
+      {confirm.mutation.error && (
+        <p role="alert" className="type-small text-attention">
+          {confirm.mutation.error.message}
+        </p>
+      )}
+      {!someoneElse && status}
+    </div>
   );
 }
 
@@ -375,19 +476,20 @@ function OwnAccountAnswer({
 // payments still have no role.
 function Identify({
   question,
+  counterparty,
   references,
   busy,
   onSave,
   status,
 }: {
   question: Question;
+  counterparty: Counterparty | null;
   references: typeof ReferenceData.Type;
   busy: boolean;
   onSave: (fields: (typeof SaveCounterparty.Type)["fields"]) => void;
   status: React.ReactNode;
 }) {
   const id = useId();
-  const counterparty = question.counterparty;
   const [name, setName] = useState(counterparty?.name ?? question.samples[0]?.description ?? "");
   const [kind, setKind] = useState<CounterpartyKind>(counterparty?.kind ?? "business");
   const [role, setRole] = useState<typeof CounterpartyRole.Type | "">(

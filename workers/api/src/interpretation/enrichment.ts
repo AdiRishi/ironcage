@@ -138,7 +138,9 @@ const resolveCategory = Effect.fn("resolveCategory")(function* (key: string | nu
 
 // Links an alias to the counterparty the model named, creating it when needed. A
 // counterparty with the same name is reused, so aliases of one business resolved in
-// different batches still meet.
+// different batches still meet. Below the threshold, an alias that names an existing
+// counterparty is only proposed, so it becomes a question instead of taking that
+// counterparty's defaults.
 const applyResult = Effect.fn("applyEnrichmentResult")(function* ({
   result,
   model,
@@ -172,7 +174,9 @@ const applyResult = Effect.fn("applyEnrichmentResult")(function* ({
       VALUES (${counterpartyId}, ${result.name}, ${result.kind}, ${result.brand}, ${yield* resolveCategory(result.categoryKey)}, ${defaultRole},
         'model', ${applied ? "applied" : "proposed"}, ${model}, ${result.confidence}, ${result.reason})`;
   }
-  yield* sql`INSERT INTO counterparty_aliases (alias_key, counterparty_id, source) VALUES (${result.aliasKey}, ${counterpartyId}, 'model') ON CONFLICT (alias_key) DO NOTHING`;
+  const status = existing && result.confidence < threshold ? "proposed" : "applied";
+  yield* sql`INSERT INTO counterparty_aliases (alias_key, counterparty_id, source, status, confidence, reason)
+    VALUES (${result.aliasKey}, ${counterpartyId}, 'model', ${status}, ${result.confidence}, ${result.reason}) ON CONFLICT (alias_key) DO NOTHING`;
   if (result.proposedSubcategory) {
     const parentId = yield* resolveCategory(result.proposedSubcategory.parentKey);
     if (parentId)

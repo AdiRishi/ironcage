@@ -5,6 +5,7 @@ import { expect } from "vitest";
 
 import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
+import { Counterparties } from "../../src/interpretation/counterparties.ts";
 import { Enrichment } from "../../src/interpretation/enrichment.ts";
 import { Questions } from "../../src/interpretation/questions.ts";
 import { EnrichmentConfig, EnrichmentJobs } from "../../src/platform/services.ts";
@@ -133,6 +134,48 @@ test(
     expect((yield* (yield* Enrichment).proposals).map((row) => [row.parentName, row.name])).toEqual(
       [["Housing", "Room rent"]],
     );
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "an uncertain answer that names an existing counterparty asks before linking its descriptor",
+  Effect.gen(function* () {
+    const { event, complete } = yield* setup;
+    yield* complete([
+      result({ aliasKey: "WOOLWORTHS SYDNEY", name: "Woolworths", categoryKey: "food.groceries" }),
+      result({
+        aliasKey: "WOOLWORTHS METRO SURRY HILLS",
+        name: "Woolworths",
+        categoryKey: "food.groceries",
+        confidence: 0.5,
+        reason: "Probably the same supermarket chain.",
+      }),
+    ]);
+    const known = yield* event("WOOLWORTHS 1234 SYDNEY AU Card xx1234");
+    const uncertain = yield* event("WOOLWORTHS METRO 77 SURRY HILLS Card xx1234");
+    expect(known.counterpartyId).not.toBeNull();
+    expect(uncertain.counterpartyId).toBeNull();
+    expect(uncertain.allocations[0]?.categoryId).toBeNull();
+    const question = (yield* (yield* Questions).list({ currency: "AUD" })).find(
+      (row) => row.kind === "alias",
+    );
+    expect(question).toMatchObject({
+      aliasKey: "WOOLWORTHS METRO SURRY HILLS",
+      counterparty: { id: known.counterpartyId, name: "Woolworths" },
+      proposal: { confidence: 0.5, reason: "Probably the same supermarket chain." },
+      eventCount: 1,
+    });
+    yield* (yield* Counterparties).moveAlias({
+      commandId: yield* commandId,
+      aliasKey: "WOOLWORTHS METRO SURRY HILLS",
+      counterpartyId: known.counterpartyId!,
+    });
+    const confirmed = yield* event("WOOLWORTHS METRO 77 SURRY HILLS Card xx1234");
+    expect(confirmed.counterpartyId).toBe(known.counterpartyId);
+    expect(confirmed.allocations[0]?.categoryId).toBe(known.allocations[0]?.categoryId);
+    expect(
+      (yield* (yield* Questions).list({ currency: "AUD" })).some((row) => row.kind === "alias"),
+    ).toBe(false);
   }).pipe(Effect.provide(services)),
 );
 
