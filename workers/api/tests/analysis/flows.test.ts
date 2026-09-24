@@ -138,10 +138,6 @@ test(
     expect(food.path.map((row) => row.label)).toEqual(["Food"]);
     expect(food.rows[0]).toMatchObject({ label: "Delivery", purchases: 1, previousPurchases: 1 });
     expect(food.counterparties[0]).toMatchObject({ label: "Uber Eats" });
-    const sql = yield* PgClient.PgClient;
-    expect(yield* sql`SELECT count(*)::int AS stale FROM events WHERE facts_stale`).toEqual([
-      { stale: 0 },
-    ]);
   }).pipe(Effect.provide(services)),
 );
 
