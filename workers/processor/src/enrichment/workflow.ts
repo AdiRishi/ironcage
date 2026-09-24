@@ -6,6 +6,10 @@ import { Effect, Schema } from "effect";
 
 import { resolveAliases } from "./model.ts";
 
+// A single failed batch is usually a rate limit or a slow search; several in a row
+// mean the provider or its settings need attention.
+const maximumFailures = 3;
+
 export const runEnrichment = (
   api: Pick<Api, "nextEnrichmentBatch" | "completeEnrichmentBatch" | "failEnrichment">,
   gateway: Pick<AI.QueryGatewayClient, "raw" | "id">,
@@ -13,6 +17,7 @@ export const runEnrichment = (
   Effect.fn("EnrichmentWorkflow.run")(
     function* (input: typeof EnrichmentInput.Type) {
       let index = 0;
+      let failures = 0;
       while (true) {
         const batch = yield* Workflows.task(
           `read-${index}`,
@@ -47,7 +52,18 @@ export const runEnrichment = (
             })
             .pipe(Effect.orDie),
         );
-        if (report.status === "failed") return;
+        failures = report.status === "failed" ? failures + 1 : 0;
+        if (failures === maximumFailures)
+          return yield* Workflows.task(
+            "record-stop",
+            api
+              .failEnrichment({
+                runId: input.runId,
+                message:
+                  `${maximumFailures} batches in a row failed. ${report.failure ?? ""}`.trim(),
+              })
+              .pipe(Effect.orDie),
+          ).pipe(Effect.asVoid);
         index++;
       }
     },

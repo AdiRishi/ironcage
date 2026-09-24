@@ -39,7 +39,8 @@ const exampleCount = 20;
 
 const runColumns = (sql: PgClient.PgClient) =>
   sql`r.id, r.status, r.model, ${instant(sql, sql("r.created_at"))} AS "createdAt", r.requested,
-    (SELECT count(*)::int FROM enrichment_items i WHERE i.run_id = r.id AND i.status = 'resolved') AS resolved, r.failure`;
+    (SELECT count(*)::int FROM enrichment_items i WHERE i.run_id = r.id AND i.status = 'resolved') AS resolved,
+    (SELECT count(*)::int FROM enrichment_items i WHERE i.run_id = r.id AND i.status = 'failed') AS failed, r.failure`;
 
 const readRun = Effect.fn("readEnrichmentRun")(function* (runId: typeof EnrichmentRunId.Type) {
   const sql = yield* PgClient.PgClient;
@@ -377,9 +378,10 @@ export class Enrichment extends Context.Service<
                   ),
                 )).map((row) => row.aliasKey),
               );
+              // A failed batch leaves its aliases for a later run; the Workflow decides
+              // when repeated failures stop this one.
               if (report.status === "failed") {
                 yield* sql`UPDATE enrichment_items SET status = 'failed' WHERE run_id = ${input.runId} AND alias_key = ANY(${[...pending]}::text[])`;
-                yield* sql`UPDATE enrichment_runs SET status = 'failed', failure = ${report.failure} WHERE id = ${input.runId}`;
                 return true;
               }
               const resolved: string[] = [];

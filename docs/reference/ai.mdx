@@ -67,7 +67,7 @@ The statement parser runs first. A page it cannot read becomes a `value` source 
 
 Every batch writes a usage record with the task, model, time, reported tokens, web searches, and estimated cost. A request that failed without a reply stores unknown usage, not zero. A USD warning threshold blocks new calls once recorded usage reaches it. Delayed reports and concurrent calls can overshoot it, and Settings says so.
 
-Each call has an input limit, an output limit, and a two-minute timeout. The SDK handles transient retries, and the Workflow does not repeat a call after an exhausted retry.
+Each batch has an output limit and a ten-minute Workflow step timeout. The request retries rate limits itself, and the Workflow never repeats a batch whose retries ran out. A failed batch leaves its aliases unresolved and the run moves on; three failed batches in a row stop the run. The next run picks up every alias still without a counterparty, including the failed ones.
 
 Logs carry operation IDs and timings, never prompts, completions, or descriptions.
 

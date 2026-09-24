@@ -138,7 +138,7 @@ test(
 );
 
 test(
-  "a failed batch records its usage, fails the run, and leaves its aliases for another run",
+  "a failed batch records its usage and leaves its aliases for a later run while this one goes on",
   Effect.gen(function* () {
     const { enrichment, run, batch } = yield* setup;
     yield* enrichment.complete({
@@ -155,7 +155,13 @@ test(
         failure: "The model declined this batch. Its aliases stay unresolved.",
       },
     });
-    expect((yield* enrichment.runs)[0]).toMatchObject({ status: "failed", resolved: 0 });
+    expect((yield* enrichment.runs)[0]).toMatchObject({ status: "running", failed: 4 });
+    expect((yield* enrichment.batch({ runId: run.id })).aliases).toEqual([]);
+    expect((yield* enrichment.runs)[0]).toMatchObject({
+      status: "completed",
+      resolved: 0,
+      failed: 4,
+    });
     const sql = yield* PgClient.PgClient;
     expect(yield* sql`SELECT task, status, input_tokens AS "inputTokens" FROM model_usage`).toEqual(
       [{ task: "enrichment", status: "failed", inputTokens: null }],

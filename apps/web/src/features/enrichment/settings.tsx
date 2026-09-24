@@ -56,8 +56,8 @@ export function EnrichmentSection() {
             <li key={run.id} className="space-y-0.5 py-2">
               <p>
                 <span className="font-[600]">{runStatusLabels[run.status]}</span>{" "}
-                {run.resolved.toLocaleString()} of {run.requested.toLocaleString()} names
-                identified.
+                {run.resolved.toLocaleString()} of {run.requested.toLocaleString()} names identified
+                {run.failed > 0 && `, ${run.failed.toLocaleString()} left for the next run`}.
               </p>
               {run.failure && (
                 <p role="alert" className="text-attention">

@@ -40,6 +40,7 @@ export const EnrichmentRun = Schema.Struct({
   createdAt: Instant,
   requested: Schema.Int,
   resolved: Schema.Int,
+  failed: Schema.Int,
   failure: Schema.NullOr(Schema.String),
 });
 export const EnrichmentRuns = Schema.Array(EnrichmentRun);
