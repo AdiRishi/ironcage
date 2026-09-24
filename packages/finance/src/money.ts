@@ -48,3 +48,21 @@ export function formatDecimal({ minor, currency }: Money) {
   const absolute = minor < 0n ? -minor : minor;
   return `${minor < 0n ? "-" : ""}${absolute / scale}${exponent === 0 ? "" : `.${(absolute % scale).toString().padStart(exponent, "0")}`}`;
 }
+
+// "$6,380" or "$6,380.45", with a real minus sign. Whole amounts round half up.
+export function formatCurrency({ minor, currency }: Money, { cents = true } = {}) {
+  const exponent = currencyExponent(currency);
+  const scale = 10n ** BigInt(exponent);
+  const absolute = minor < 0n ? -minor : minor;
+  const whole = cents ? absolute / scale : (absolute + scale / 2n) / scale;
+  const symbol = new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency,
+    currencyDisplay: "narrowSymbol",
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+  }).format(whole);
+  const fraction =
+    cents && exponent > 0 ? `.${(absolute % scale).toString().padStart(exponent, "0")}` : "";
+  return `${minor < 0n ? "−" : ""}${symbol}${fraction}`;
+}
