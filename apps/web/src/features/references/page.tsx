@@ -74,11 +74,11 @@ export function ReferencesPage() {
   }>;
   return (
     <div className="max-w-4xl space-y-8">
-      <header>
-        <Link to="/settings" className="underline underline-offset-4">
+      <header className="space-y-2">
+        <Link to="/settings" className="type-small text-slate hover:text-intaglio">
           Settings
         </Link>
-        <h1 className="mt-3 type-title">Categories and labels</h1>
+        <h1 className="type-title">Categories and labels</h1>
       </header>
       {draft && (
         <ReferenceEditor
@@ -131,13 +131,13 @@ export function ReferencesPage() {
               }
             />
           ) : (
-            <ul className="divide-y rounded-lg border">
+            <ul className="divide-y divide-rule border-y border-rule">
               {records
                 .filter((record) => record.kind === section.kind)
                 .map((record) => (
                   <li
                     key={record.target.kind === "update" ? record.target.id : record.kind}
-                    className="flex flex-wrap items-center justify-between gap-3 p-4"
+                    className="flex flex-wrap items-center justify-between gap-3 py-2"
                   >
                     <div>
                       <p className="font-medium">{record.name}</p>
@@ -149,11 +149,12 @@ export function ReferencesPage() {
                       )}
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" onClick={() => setDraft(record)}>
-                        Edit {record.name}
+                      <Button variant="ghost" size="sm" onClick={() => setDraft(record)}>
+                        Edit<span className="sr-only"> {record.name}</span>
                       </Button>
                       <Button
                         variant="ghost"
+                        size="sm"
                         disabled={mutation.isPending || uncertain}
                         onClick={() => {
                           if (record.target.kind !== "update") return;
@@ -194,7 +195,7 @@ export function ReferencesPage() {
                           }
                         }}
                       >
-                        Delete {record.name}
+                        Delete<span className="sr-only"> {record.name}</span>
                       </Button>
                     </div>
                   </li>
