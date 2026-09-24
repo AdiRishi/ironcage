@@ -5,19 +5,19 @@ description: Accounts, categories, rules, AI, display, and data.
 
 ## Accounts
 
-Each account has a label and a kind: deposit, card, or loan. Bank identifiers appear once a file has established them. An offset relationship between a deposit account and the home loan can be recorded with the dates it applies.
+Each account has a label and a kind: deposit, card, or loan. Bank identifiers appear once a file has established them. An offset relationship between a deposit account and the home loan can be recorded with the dates it applies. A label period names an account's transactions for a stretch of dates, such as "joint account while renting".
 
 ## Categories
 
-The spending and income trees, two levels deep. Rename, move, add, or archive a category. A category keeps its identity through renames and moves, so history stays comparable. When the model finds a group of transactions that fits no category well, it proposes a new subcategory in [Questions](/product/questions), where you add it or dismiss it.
+The spending and income trees, two levels deep, with tags and personal events on the same page. Rename, move, add, or archive a category. A category keeps its identity through renames and moves, so history stays comparable. When the model finds a group of transactions that fits no category well, it proposes a new subcategory in [Questions](/product/questions), where you add it or dismiss it.
 
 ## Rules
 
-A rule applies a category or role to transactions that match a condition, such as a counterparty, an account, or text in the description. It previews the transactions it would change and lists the exceptions you set by hand. Most of what rules used to do is now done by counterparty defaults, so rules are for the cases a counterparty cannot express, such as "transfers to this account on the 1st are rent".
+A rule applies a category or role to transactions that match its conditions: an account, a role, a counterparty, a payment channel, and text in the description. It previews the transactions it would change and lists the exceptions you set by hand. Most of what rules used to do is now done by counterparty defaults, so rules are for the cases a counterparty cannot express, such as "transfers from the joint account whose description contains Rent are housing". When two rules match one transaction and disagree, it becomes a question.
 
 ## AI
 
-Whether the model runs, which model it is, and exactly what it receives: descriptor text and category names, never amounts, balances, dates, or account numbers. Usage and cost so far. A confidence threshold decides which assignments apply automatically and which become questions.
+Whether the model runs, off until you turn it on, which model it is, and exactly what it receives: descriptor text, payment channels, whether money went out or came in, account kinds, transaction counts, category names, existing counterparty names, and your own earlier answers as examples. Never amounts, balances, dates, or account numbers. A confidence threshold decides which answers apply automatically and which become questions, and a warning amount in US dollars stops new runs once recorded usage reaches it. A button starts a run over every descriptor without a counterparty, and the recent runs are listed with how many names they identified. Usage and cost so far are shown below.
 
 ## Display
 
@@ -25,4 +25,4 @@ Timezone, defaulting to Australia/Sydney, and reporting currency, defaulting to 
 
 ## Data
 
-Export, source files, and a statement of where backups and original files are kept.
+A statement of where backups and original files are kept. Export and source files are on [Sources](/product/sources).

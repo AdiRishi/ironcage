@@ -7,20 +7,31 @@ The overview is the home screen. It reads the selected period, which is the curr
 
 ## Headline
 
-Two figures lead the page: what came in and what went out. Money moved between your own accounts is in neither. A month in progress is labelled with the number of days elapsed. If an account's records stop partway through the period, the headline names the account and the missing dates.
+Three figures lead the page: what came in, what went out, and what was left over, or the shortfall when more went out than came in. Money moved between your own accounts is in none of them; a line under the flow says how much moved. Under what went out, a line says how much of the spending rests on the model's judgement. A month in progress is labelled with the number of days elapsed. If an account's records stop partway through the period, the headline names the account and the missing dates.
 
 ## Flow
 
-A flow diagram sits below the headline. Inflows enter from the left, grouped by source: salary, interest, refunds, and reimbursements. Outflows leave to the right, grouped by destination:
+A flow diagram sits below the headline. Inflows enter from the left, grouped by source:
 
-- spending, split into top-level categories
-- loan repayments, split into principal and interest
-- savings and investments held outside the four accounts
-- anything not yet interpreted, shown as its own stream
+- income, split by income category, such as salary and interest
+- money borrowed
+- money from accounts outside the four
+- anything not yet interpreted
+
+Outflows leave to the right, grouped by destination:
+
+- spending, split into top-level categories, with anything not yet categorised as its own stream
+- loan principal: repayments less the interest already counted as spending
+- money sent to accounts outside the four, such as savings and investments
+- anything not yet interpreted
+
+Refunds and reimbursements are not inflows. They reduce the spending they return, so a $300 dinner with $200 repaid is $100 of dining. Loan interest is spending in its category, not part of a loan stream.
+
+When more came in than went out, a "Kept" stream on the right balances the two sides. When more went out, a "From savings" stream on the left does. A button switches the diagram to a table of the same streams, and on a phone the streams are stacked bars.
 
 The streams are proportional. Selecting a stream opens it: a spending category opens [Spending](/product/spending) at that category, and any other stream opens the [Ledger](/product/ledger) filtered to its records.
 
-Surplus is inflow minus outflow. It is shown beside the flow, not as available cash.
+The left-over figure is inflow minus outflow. It is not available cash.
 
 ## What changed
 

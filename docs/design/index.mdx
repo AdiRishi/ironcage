@@ -24,7 +24,20 @@ The visual material comes from the subject itself: Australian polymer banknotes.
 
 Spending is not judged. Outflow is gold, not red, and a rise in a category is never colored as bad. Waratah appears only when you need to act.
 
-Categories take their hues from a categorical palette derived from the same inks. Each top-level category keeps its hue everywhere: in the flow, in charts, and in its swatch. Subcategories use tints of their parent's hue.
+Categories take their hues from a categorical palette of eight, validated in this order so that neighbours stay distinct for colour-blind readers and each hue holds 3:1 contrast on Polymer and Sheet. Stacks and flows use the same order.
+
+| Order | Category      | Hue       |
+| ----- | ------------- | --------- |
+| 1     | Housing       | `#5B4BAF` |
+| 2     | Food          | `#C8402F` |
+| 3     | Transport     | `#2F6FCF` |
+| 4     | Shopping      | `#C9681A` |
+| 5     | Bills         | `#1A86AD` |
+| 6     | Health        | `#3E8A2E` |
+| 7     | Entertainment | `#C0467F` |
+| 8     | Travel        | `#8A6D00` |
+
+Every other top-level category shares the neutral `#8C9A96` and is told apart by its label. Each top-level category keeps its hue everywhere: in the flow, in charts, and in its swatch. Subcategories use their parent's hue. The hues identify a category; they never judge it, so Food's red says nothing about how much was spent.
 
 ## Type
 

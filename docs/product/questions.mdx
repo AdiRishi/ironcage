@@ -7,16 +7,18 @@ Questions collect everything that needs a decision from you, largest amount firs
 
 ## Kinds of question
 
-| Question             | Example                                                                                             |
-| -------------------- | --------------------------------------------------------------------------------------------------- |
-| Who is this?         | `SQ *BLUE BOTTLE 0412` could be a café or a market stall. Proposed: Blue Bottle Coffee, café.       |
-| What is this person? | Twelve monthly payments of $1,840 to Jane Smith. Proposed: rent.                                    |
-| Is this yours?       | $5,000 to an account ending 9921 that is not one of the four. Proposed: your own account elsewhere. |
-| Which category?      | A counterparty the model could not place confidently.                                               |
-| Which account?       | A CSV file that does not name its account.                                                          |
-| Which row is which?  | Two same-day, same-amount rows the importer cannot pair on its own.                                 |
-| A new subcategory?   | Several pet shops sit in Shopping, General. Proposed: Shopping, Pets.                               |
-| Is this a movement?  | $2,000 out of one account and into another the same day. Proposed: a transfer between them.         |
+| Question             | Example                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Who is this?         | `SQ *BLUE BOTTLE 0412` could be a café or a market stall. Proposed: Blue Bottle Coffee, café.                 |
+| Is this the same?    | `WOOLWORTHS METRO SURRY HILLS` probably belongs to the Woolworths you already have. Proposed: yes.            |
+| What is this person? | Twelve monthly payments of $1,840 to Jane Smith. Proposed: rent.                                              |
+| Is this yours?       | $5,000 to an account ending 9921 that is not one of the four. Proposed: your own account elsewhere.           |
+| Which category?      | A counterparty the model could not place confidently. Confirming it confirms its category too.                |
+| Which account?       | A CSV file that does not name its account.                                                                    |
+| Which row is which?  | Two same-day, same-amount rows the importer cannot pair on its own.                                           |
+| A new subcategory?   | Several pet shops sit in Shopping, General. Proposed: Shopping, Pets.                                         |
+| Is this a movement?  | $2,000 out of one account and into another the same day. Proposed: a transfer between them.                   |
+| Two rules disagree   | Two of your rules match one transaction and set different roles or categories. You choose on the transaction. |
 
 A question about a counterparty is asked once, not once per transaction. Answering it applies to every transaction from that counterparty that you have not set by hand.
 
@@ -24,4 +26,4 @@ A question about a counterparty is asked once, not once per transaction. Answeri
 
 Accept applies the proposal. Choosing something else records your answer as a correction and teaches the counterparty. Skip leaves it open. The overview shows how much money open questions affect in the selected period.
 
-Counterparty questions come first, as cards you answer in place. Suggested subcategories, records to check from the importer (which account a CSV belongs to, which row matches which), and movements to confirm follow in their own sections. The count in the top bar is the counterparty questions.
+Counterparty questions come first, as cards you answer in place, and chips narrow them to one kind: who is this, people, accounts, or rule conflicts. Suggested subcategories, records to check from the importer (which account a CSV belongs to, which row matches which), and movements to confirm follow in their own sections. The count in the top bar is the counterparty questions.
