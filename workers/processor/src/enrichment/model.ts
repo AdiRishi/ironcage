@@ -32,7 +32,7 @@ const responseFormat = {
   type: "json_schema",
   json_schema: {
     name: "enrichment",
-    schema: Schema.toJsonSchemaDocument(EnrichmentOutput).schema,
+    schema: Schema.toJsonSchemaDocument(EnrichmentOutput, { onExcessProperty: "error" }).schema,
     strict: true,
   },
 } satisfies Model["inputs"]["response_format"];

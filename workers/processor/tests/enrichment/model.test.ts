@@ -85,6 +85,23 @@ describe("resolveAliases", () => {
     }),
   );
 
+  it.effect("asks for output that allows no properties beyond the contract", () =>
+    Effect.gen(function* () {
+      let format: Parameters<Runner>[0]["response_format"];
+      yield* resolveAliases(async (input) => {
+        format = input.response_format;
+        return reply(JSON.stringify({ results: [answer] }));
+      }, batch);
+      expect(format?.type).toBe("json_schema");
+      const schema = JSON.stringify(format?.type === "json_schema" ? format.json_schema : null);
+      expect(schema.match(/"additionalProperties":(true|false)/g)).toEqual([
+        '"additionalProperties":false',
+        '"additionalProperties":false',
+        '"additionalProperties":false',
+      ]);
+    }),
+  );
+
   it.effect("fails a batch whose answer was cut off, keeping its usage", () =>
     Effect.gen(function* () {
       const report = yield* resolveAliases(answering('{"results":[', "length"), batch);
