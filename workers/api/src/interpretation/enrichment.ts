@@ -26,7 +26,12 @@ import { Context, Crypto, Effect, Layer, Schema } from "effect";
 import { instant } from "../database/columns.ts";
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
-import { EnrichmentConfig, EnrichmentJobs } from "../platform/services.ts";
+import {
+  EnrichmentConfig,
+  EnrichmentJobs,
+  ensureWorkflowStatus,
+  workflowEnded,
+} from "../platform/services.ts";
 import { reinterpret } from "./engine.ts";
 
 const batchSize = 25;
@@ -211,6 +216,22 @@ export class Enrichment extends Context.Service<
 
       const settings = readSettings.pipe(provide, toFinanceError);
 
+      // A run whose Workflow ended without finishing its aliases failed; a start that
+      // was lost after the run committed is recovered, since creating is idempotent.
+      const refresh = Effect.fn("Enrichment.refresh")(function* (run: typeof EnrichmentRun.Type) {
+        if (run.status !== "pending" && run.status !== "running") return run;
+        const state = yield* ensureWorkflowStatus(jobs, { runId: run.id }, run.id);
+        if (!state || !workflowEnded(state)) return run;
+        yield* sql`UPDATE enrichment_runs SET status = 'failed', failure = ${state.failure ?? "Identification stopped before it finished. Run it again to continue."}
+          WHERE id = ${run.id} AND status IN ('pending', 'running')`;
+        return yield* readRun(run.id).pipe(Effect.provideService(PgClient.PgClient, sql));
+      });
+      const activeRuns =
+        sql`SELECT ${runColumns(sql)} FROM enrichment_runs r WHERE r.status IN ('pending', 'running')`.pipe(
+          Effect.flatMap(Schema.decodeUnknownEffect(EnrichmentRuns)),
+          Effect.flatMap((rows) => Effect.forEach(rows, refresh)),
+        );
+
       const configure = Effect.fn("Enrichment.configure")(function* (
         input: typeof UpdateEnrichmentSettings.Type,
       ) {
@@ -243,6 +264,11 @@ export class Enrichment extends Context.Service<
       const request = Effect.fn("Enrichment.request")(function* (
         input: typeof RequestEnrichment.Type,
       ) {
+        if ((yield* activeRuns).some((run) => run.status === "pending" || run.status === "running"))
+          return yield* new FinanceError({
+            kind: "conflict",
+            message: "Counterparty identification is already running.",
+          });
         const run = yield* commands.run({
           commandId: input.commandId,
           input: { operation: "requestEnrichment", ...input },
@@ -278,6 +304,7 @@ export class Enrichment extends Context.Service<
       const runs =
         sql`SELECT ${runColumns(sql)} FROM enrichment_runs r ORDER BY r.created_at DESC, r.id DESC LIMIT 20`.pipe(
           Effect.flatMap(Schema.decodeUnknownEffect(EnrichmentRuns)),
+          Effect.flatMap((rows) => Effect.forEach(rows, refresh, { concurrency: 4 })),
           toFinanceError,
         );
 

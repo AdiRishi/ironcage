@@ -1,12 +1,13 @@
 import { PgClient } from "@effect/sql-pg";
 import { CommandId, type EnrichmentResult } from "@repo/contracts/finance";
-import { Crypto, Effect } from "effect";
+import { Crypto, Effect, Layer } from "effect";
 import { expect } from "vitest";
 
 import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Enrichment } from "../../src/interpretation/enrichment.ts";
 import { Questions } from "../../src/interpretation/questions.ts";
+import { EnrichmentConfig, EnrichmentJobs } from "../../src/platform/services.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { applicationTest } from "../support/application.ts";
 import { account, parsed, reset, source } from "../support/fixtures.ts";
@@ -160,5 +161,41 @@ test(
       [{ task: "enrichment", status: "failed", inputTokens: null }],
     );
     expect((yield* enrichment.request({ commandId: yield* commandId })).requested).toBe(4);
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "a run whose Workflow stopped is marked failed, and a new run picks up its aliases",
+  Effect.gen(function* () {
+    const { enrichment, run } = yield* setup;
+    const stopped = yield* Enrichment.pipe(
+      Effect.provide(
+        Layer.fresh(Enrichment.layer).pipe(
+          Layer.provide([
+            Layer.succeed(EnrichmentJobs, {
+              start: () => Effect.void,
+              status: () => Effect.succeed({ status: "errored", failure: "Worker restarted." }),
+            }),
+            Layer.succeed(EnrichmentConfig, {
+              provider: yield* enrichment.settings.pipe(Effect.map((row) => row.provider)),
+            }),
+          ]),
+        ),
+      ),
+    );
+    expect((yield* stopped.runs).find((row) => row.id === run.id)).toMatchObject({
+      status: "failed",
+      failure: "Worker restarted.",
+    });
+    expect((yield* enrichment.request({ commandId: yield* commandId })).requested).toBe(4);
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "a second run cannot start while one is still working",
+  Effect.gen(function* () {
+    const { enrichment } = yield* setup;
+    const second = yield* enrichment.request({ commandId: yield* commandId }).pipe(Effect.result);
+    expect(second._tag === "Failure" && second.failure.kind).toBe("conflict");
   }).pipe(Effect.provide(services)),
 );
