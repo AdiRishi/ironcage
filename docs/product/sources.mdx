@@ -1,0 +1,22 @@
+---
+title: Sources
+description: Upload files, see what they covered, and find what is missing.
+---
+
+## Uploading
+
+Drop one file or many: CommBank CSV, OFX, or PDF statements. Each file is handled on its own, so a bad file does not hold up the others. A CSV does not name its account, so Ironcage asks which account it belongs to before processing. OFX files and statements name their account themselves.
+
+Each file shows its progress, then a summary: rows read, new transactions, transactions already recorded from another file, and questions raised. The same file uploaded again, under any name, is recognized and changes nothing. A failed file shows why and offers Retry.
+
+## Coverage
+
+A timeline per account shows which dates have records, which reconcile against printed or running balances, and which are missing. Selecting a gap says which file would fill it, for example "The Mastercard statement for 11 July to 9 August is missing."
+
+## Files
+
+Every uploaded file with its account, dates, size, and status. From a file you can open the transactions it supports and download the original. Removing a file's bytes keeps every transaction and source row. Uploading the same bytes again restores the original.
+
+## Export
+
+A download of every table as JSON with a manifest, optionally including the original files. It names what it contains and when it was made.

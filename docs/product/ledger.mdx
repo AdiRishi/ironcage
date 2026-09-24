@@ -1,0 +1,41 @@
+---
+title: Ledger
+description: Every transaction, what it means, and the evidence behind it.
+---
+
+## The list
+
+Every posting from every account in one list, newest first. Each row shows the date, the counterparty (or the bank's description when none is known), the category, the account, and the signed amount. Rows the model assigned show a small mark. Rows waiting on a question show a different one.
+
+Filters cover account, dates, amount, text, counterparty, category, role, provenance, and open questions. Filters live in the URL.
+
+## The detail
+
+Opening a transaction shows three layers, top to bottom.
+
+1. **What it means.** Counterparty, role, category, tags, and personal event, each with its provenance. For a model assignment: the confidence and the one-line reason, for example "Woolworths is a supermarket chain". Linked postings appear here: the other side of a transfer, the refund applied to a purchase.
+2. **What the bank booked.** Account, posted date, value date, description, and signed amount. These never change.
+3. **Where it came from.** Every source row that supports the posting: the file, the row or statement page, the literal text, and the original file. A removed original is marked unavailable, with a Reupload action.
+
+## Changing what it means
+
+You can change the counterparty, role, category, tags, personal event, or purchase date. You can split a purchase into parts that add up, link a refund or reimbursement to the purchase, link two sides of a movement, or undo a change.
+
+When you change the category of a transaction whose counterparty has other transactions, Ironcage asks where the change applies:
+
+- **Only this one.** For example, one Bunnings trip was a gift.
+- **Everything from this counterparty.** This sets the counterparty's default. Future and past transactions follow it, except those you set by hand.
+
+A change that affects spending, income, cash, or debt shows its effect before it is saved. History lists every change with its time and scope. Nothing is erased.
+
+## Money counted once
+
+| Records                                                | Spending        | Accounts                                                 |
+| ------------------------------------------------------ | --------------- | -------------------------------------------------------- |
+| $100 groceries on the card, then a $100 card payment   | $100 groceries  | Card up $100 then down $100; deposit account down $100.  |
+| $2,000 moved from the spending account to savings      | Nothing         | Both movements visible.                                  |
+| $1,840 "Transfer To" the landlord                      | $1,840 rent     | The payment on its date.                                 |
+| $300 dinner, $200 repaid by friends                    | $100 dining out | The payment and the repayment on their own dates.        |
+| $3,900 mortgage repayment, $2,800 interest, same month | $2,800 interest | $3,900 out of the deposit account; loan down $1,100 net. |
+
+A transfer is internal only when the other side is one of your own accounts. A payment to a person is spending until you say otherwise.

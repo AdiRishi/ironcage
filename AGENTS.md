@@ -1,30 +1,38 @@
 # Working in this repository
 
-Read `docs/stages/starting-point.mdx` first. It says what the repository
-contains today and what stage 1 deletes and adds.
+Ironcage is a private finance application that explains one person's money. Read
+`docs/vision.mdx` for the intent and `docs/roadmap.mdx` for what is being built
+now.
 
-Then read the selected stage page in `docs/stages/`. Stage 1 is the default. The
-stage page owns its milestones, screens, tables, operations, worked examples, and
-verification checklist. Its "Also read" section names the reference pages under
-`docs/technical/` it depends on. Build the milestones in order, commit at each
-one, and stop after the stage. `docs/glossary.mdx` fixes the vocabulary.
+Before changing a domain, read its reference page in `docs/reference/`. Update
+that page in the same commit as the code; reference pages describe the code as
+it is.
 
-Use installed libraries and Cloudflare platform features before writing custom
-code. Check the installed source and official documentation before choosing an
-API. Keep exact money and date rules in shared code that every consumer imports.
+- Financial schemas or the write protocol: `ledger.mdx`.
+- Descriptors, counterparties, roles, categories, provenance: `interpretation.mdx`.
+- Measures, the flow, ledger facts: `analysis.mdx`.
+- Model calls and enrichment: `ai.mdx`.
+- Test layout: `verification.mdx`.
+- A new workspace or infrastructure: `architecture.mdx`. Infrastructure belongs in
+  service-owned modules under `infra/`, composed by `infra/src/worker-bindings.ts`.
 
-When implementing imports or matching, inspect the real CommBank files in
-`fixtures/commbank/`. That directory is git-ignored. Never copy its rows into
-tracked files, snapshots, or logs.
+Screens follow `docs/product/` for behavior and `docs/design/index.mdx` for the
+visual language. `docs/glossary.mdx` fixes the vocabulary.
 
-Before changing financial schemas or the write protocol, read
-`docs/technical/financial-model.mdx`. Before changing test layout, read
-`docs/technical/verification.mdx`. Before adding a workspace or changing
-infrastructure, read `docs/technical/architecture.mdx`; infrastructure belongs in
-service-owned modules under `infra/`, composed by `infra/src/worker-bindings.ts`.
+Keep exact money, date, descriptor, and measure rules in `packages/finance`,
+imported by every consumer. Use installed libraries and Cloudflare platform
+features before writing custom code, and check the installed source and official
+documentation before choosing an API.
 
-`docs/` is a Blume site. Run `pnpm docs:dev` to browse it and `pnpm docs:build`
-after changing pages or `blume.config.ts`.
+`fixtures/commbank/` holds the real CommBank corpus and is git-ignored. Inspect it
+when working on imports, descriptors, or enrichment. Report only aggregate counts
+from it; its rows never go into tracked files, snapshots, or logs.
+
+The local stack (`pnpm dev`) and its Docker database are disposable. Destroy,
+recreate, and reimport the corpus freely.
+
+`docs/` is a Blume site. Run `pnpm docs:build` after changing pages or
+`blume.config.ts`.
 
 Run `pnpm check`, `pnpm typecheck`, and `pnpm test` before committing.
 

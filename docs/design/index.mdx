@@ -1,19 +1,97 @@
 ---
 title: Design
-description: Product screens by delivery stage.
-sidebar:
-  label: Overview
+description: Palette, type, layout, and interaction for Ironcage.
 ---
 
-Click an image to enlarge it. Stage requirements define which features to build.
+## Brief
 
-![Trends workspace showing a July-to-August spending comparison with account coverage and expanded Food contributors.](./screens/01-trends.png)
+Ironcage is a private instrument for reading one person's money. You use it for years, often for a few minutes at a time, to answer a specific question. Its job is to make the answer the first thing you see and the evidence one selection away.
 
-- [1. Record transactions](/design/record-transactions)
-- [2. Import historical files](/design/historical-imports)
-- [3. Interpret transactions](/design/interpret-transactions)
-- [4. Explore spending](/design/explore-spending)
-- [5. Plan costs](/design/plan-costs)
-- [6. Investigate with the analyst](/design/analyst)
-- [7. Follow through](/design/follow-through)
-- [Mobile layouts](/design/responsive)
+The visual material comes from the subject itself: Australian polymer banknotes. Their substrate is cool and mineral, their inks are deep and saturated, and their numerals are engraved wide and confident. Ironcage takes those three things and leaves everything else out. There is no card grid, no gradient, and no decoration that does not carry information.
+
+## Palette
+
+| Name     | Hex       | Use                                                                       |
+| -------- | --------- | ------------------------------------------------------------------------- |
+| Polymer  | `#EDF0EB` | Page ground. Cool and mineral, like the note substrate.                   |
+| Sheet    | `#F9FAF7` | Surfaces that hold an object you work on: the ledger, a detail, a dialog. |
+| Intaglio | `#16323A` | Text, primary strokes, primary actions. A deep blue-green ink.            |
+| Slate    | `#5A6A6E` | Secondary text and quiet marks.                                           |
+| Rule     | `#D2D9D1` | Dividers and control borders.                                             |
+| Eucalypt | `#2E7D6B` | Inflow.                                                                   |
+| Wattle   | `#C58F14` | Outflow.                                                                  |
+| Waratah  | `#B0364A` | Something needs you: a question, a failure, a destructive action.         |
+
+Spending is not judged. Outflow is gold, not red, and a rise in a category is never colored as bad. Waratah appears only when you need to act.
+
+Categories take their hues from a categorical palette derived from the same inks. Each top-level category keeps its hue everywhere: in the flow, in charts, and in its swatch. Subcategories use tints of their parent's hue.
+
+## Type
+
+One family: **Archivo**, a grotesque with a width axis from 62 to 125. Width carries the hierarchy, so the page needs no second typeface.
+
+| Role      | Width | Weight | Size / line | Notes                                                                   |
+| --------- | ----- | ------ | ----------- | ----------------------------------------------------------------------- |
+| Figure    | 125   | 560    | 56 / 60     | The period's headline numbers. Tabular, lining figures.                 |
+| Figure S  | 118   | 540    | 28 / 32     | Secondary numbers, such as a category total.                            |
+| Title     | 112   | 640    | 24 / 30     | Page titles, such as "August 2026".                                     |
+| Heading   | 106   | 620    | 18 / 24     | Section headings.                                                       |
+| Body      | 100   | 420    | 15 / 24     | Prose and controls.                                                     |
+| Small     | 100   | 440    | 13 / 18     | Secondary facts, in Slate.                                              |
+| Condensed | 72    | 600    | 13 / 16     | Dense labels inside charts, such as month initials on the period strip. |
+
+All figures use tabular lining numerals so columns of money align. Prose lines stay under 72 characters. Labels are sentence case. Nothing is set in all caps, and there is no monospace type.
+
+## Layout
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ ironcage   Overview  Spending  Ledger  Counterparties  Sources   Questions 6   Upload │
+├──────────────────────────────────────────────────────────────────────┤
+│ ▂▃▅▂▃▆▃▂▄▅▃▂▃▅▂▃▆▃▂▄▅▃▂▃ ▇  period strip: one bar per month, scrolls     │
+├──────────────────────────────────────────────────────────────────────┤
+│ August 2026                                                            │
+│ $8,500 in       $6,380 out        surplus $2,120                       │
+│                                                                        │
+│  Salary ════════╗                ╔══════ Housing                       │
+│  Interest ══════╬════════════════╬══════ Food                          │
+│  Repaid ════════╝                ╠══════ Transport                     │
+│                                  ╚══════ Loan principal                │
+│ ────────────────────────────────────────────────────────────────────── │
+│ What changed                          │ Needs your eye                  │
+│ Dining out rose $310 to $720 ...      │ 6 questions affect $1,420       │
+│                                       │ Coverage  ▬▬▬▬▬▬▬▬▬▬▬ ▬▬        │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+- A top bar replaces the side rail, so the flow and the ledger get the full width.
+- The period strip sits under the top bar on every screen except Settings. Each month is a short bar of its outflow, and the selected period is inked in Intaglio. It is both the period control and a year-at-a-glance chart.
+- Content is left aligned on a 12-column grid, with a maximum width of 1280 pixels. Numbers in tables align right.
+- Sections are separated by space and, at most, one Rule line. Surfaces are reserved for objects you work on. A section is never boxed just to look like a section.
+- On a phone, the top bar condenses to the wordmark, Questions, and a menu. The period strip scrolls horizontally. The flow becomes two stacked bars, in and out, because a flow diagram is unreadable at that width.
+
+## Provenance marks
+
+Every assignment shows who made it, with a small mark beside the value:
+
+- a solid Intaglio dot for you or a rule
+- a hollow Slate ring for the model
+- a Waratah ring for an open question
+
+Hovering or focusing the mark shows the reason and confidence. Totals show the model's share as a short phrase, such as "$410 of this is model-assigned".
+
+## Motion
+
+One orchestrated moment: when the overview loads, the flow streams draw from left to right over 600 milliseconds. Changing the period crossfades the figures. Opening a detail slides its sheet in from the right. Nothing else moves by itself. Reduced-motion settings replace all of these with instant changes.
+
+## Writing
+
+- Name things by what they are to you: Questions, not review items. Counterparties, not merchants or entities.
+- Buttons say what happens: "Apply to all Woolworths transactions", not "Submit".
+- Numbers carry their period: "$720 on dining out in August", not "$720".
+- Errors say what happened and what to do, without apologizing: "The file is not a CommBank export. Upload a CSV, OFX, or PDF statement from NetBank."
+- Empty screens invite the next action: "No transactions in March yet. Upload the March statements."
+
+## Quality floor
+
+Every flow works at 390 pixels wide and by keyboard alone. Focus is always visible as a 2 pixel Intaglio ring with a 2 pixel offset. Color never carries meaning alone: inflow and outflow also differ by position and sign, and provenance marks differ by shape. Text contrast meets WCAG AA on Polymer and Sheet. Every chart has a table view.

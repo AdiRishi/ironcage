@@ -1,0 +1,94 @@
+---
+title: Verification
+description: Test layout, the invariants the system protects, and the regression cases with known answers.
+---
+
+This page holds the test layout, the invariants, and the regression cases with known answers.
+
+Test through public operations with real in-process collaborators and independently known expected values. Replace only true external seams: the model provider, and Cloudflare bindings when running outside the local runtime. Enrichment tests use recorded model responses, and the evaluation runs the real model against your answers. Before writing a test, name the user-visible regression it catches.
+
+## Layout
+
+| Workspace            | Tool                                 | Covers                                                                     |
+| -------------------- | ------------------------------------ | -------------------------------------------------------------------------- |
+| `packages/finance`   | `@effect/vitest`                     | Money, dates, matching, calculations, with fixture tables of known values. |
+| `packages/contracts` | `@effect/vitest`                     | Schema round-trips and rejection cases.                                    |
+| `workers/processor`  | `@effect/vitest`                     | Parsers on synthetic files and, locally, on the corpus.                    |
+| `workers/api`        | `@effect/vitest` with local Postgres | Publication, commands, concurrency, queries.                               |
+| `apps/web`           | Vitest Browser Mode                  | Components and server function error mapping.                              |
+| `infra`              | `alchemy/Test/Vitest`, Playwright    | Bindings in the local Cloudflare runtime, end-to-end browser flows.        |
+
+Tests live under each workspace's `tests/` mirroring `src/`, with their own `tsconfig.json`. `pnpm test` runs everything locally. `pnpm test:unit` skips infra, as CI does. `pnpm test:infra-live` deploys an isolated stage on Cloudflare.
+
+Corpus-backed tests read `fixtures/commbank/` and skip when it is absent, so CI runs on synthetic fixtures. They report aggregate counts only.
+
+## Database
+
+Concurrency and publication tests run on real Postgres with the production migrations. Cover: two overlapping imports publishing at once, two commands claiming the same remaining credit, a repeated command ID, a stale preview, a failure injected before commit, and a committed write whose response is lost. A read after a commit through Hyperdrive sees the commit.
+
+Migration tests run from empty and from a populated database.
+
+## Financial invariants
+
+| Regression to prevent                                                                 |
+| ------------------------------------------------------------------------------------- |
+| Reupload or overlapping exports duplicate postings.                                   |
+| Two real identical rows collapse into one posting.                                    |
+| An empty or reused `FITID` causes a false match or rejects valid rows.                |
+| A file without an opening anchor is labelled reconciled.                              |
+| A failed or repeated publication leaves partial rows.                                 |
+| PDF decoding shifts a date, a decimal point, a sign, or a row count.                  |
+| A split creates or loses money. A repeated credit link over-applies a credit.         |
+| A transfer between owned accounts or a card settlement counts as spending or income.  |
+| A payment to a person disappears from spending because the bank called it a transfer. |
+| Reinterpretation, enrichment, or a counterparty default overwrites a value you set.   |
+| Ledger facts disagree with the events they project after any command.                 |
+| A headline and its rows come from different data.                                     |
+| Contributor totals, counts, and averages disagree with each other.                    |
+| The flow's inflows minus outflows differ from surplus plus external transfers.        |
+
+## Regression cases
+
+Each case has a known answer that does not come from the implementation.
+
+| Case                                                                                 | Expected                                                                                      |
+| ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| OFX row with `FITID` on account A, then the same `FITID` on account B.               | Two postings. IDs are scoped to the account.                                                  |
+| CSV row with a value-date suffix and its OFX row with `DTUSER`.                      | One posting, `valueOn` set, description without the suffix, both literals in `raw`.           |
+| `DTASOF` of `20260831140000` with display timezone Australia/Sydney.                 | Anchor date 31 August. The timezone does not move it.                                         |
+| Two identical rows on one day in file A, then file B with the same two rows.         | Two postings, four observations.                                                              |
+| File B with one of two identical rows and no running balance.                        | One `duplicate` review item listing two candidates.                                           |
+| A reparse that changes a description on an accepted row.                             | `source_conflict` review item, posting unchanged.                                             |
+| `Transfer to xx5678 CommBank app` where 5678 ends one of your account numbers.       | Descriptor own suffix `5678`; role `transfer`; no spending.                                   |
+| `Transfer To Jane Smith NetBank Rent` for $1,840 with no counterparty default.       | Counterparty `Jane Smith`, kind `person`; a `person` question; counted as unresolved outflow. |
+| The same payment after Jane Smith's default is set to Housing, then Rent.            | $1,840 spending in Housing, then Rent, with source `counterparty`.                            |
+| `WOOLWORTHS 1234 SYDNEY AU Card xx1234` and `WOOLWORTHS 5678 SYDNEY AU Card xx1234`. | One alias key, `WOOLWORTHS SYDNEY AU`.                                                        |
+| A counterparty default changes after one of its events was corrected by hand.        | Every event follows the new default except the corrected one.                                 |
+| $120 purchase in Clothing in March, $40 refund in April, unlinked.                   | March Clothing $120, April Clothing −$40.                                                     |
+| The same refund linked to the purchase.                                              | March Clothing $80, April nothing.                                                            |
+| Cost 30000, credit 20000 applied, then another 20000.                                | Remaining 10000; second application fails with `conflict`.                                    |
+| Interest on 31 August, repayment on 2 September, linked.                             | August cost 280000, September repayment 390000, interest date unchanged.                      |
+| Split 10000 into 4000, 3500, 2600.                                                   | Rejected.                                                                                     |
+| Daily average over a month with three uncovered days.                                | Average unavailable, total and denominator shown.                                             |
+| Rolling 30-day saved analysis opened a week later.                                   | Dates advanced by seven days. A fixed analysis keeps its dates.                               |
+
+## Browser flows
+
+Playwright covers upload to transaction detail, a question answered, a source review resolved, retry after a failed file, and refresh during processing. Every flow runs at desktop and phone width and once by keyboard only.
+
+## Hosted checks
+
+Local success does not prove hosted behavior. `pnpm test:infra-live` checks bindings, Access, Hyperdrive, R2, and Workflows on a disposable stage.
+
+The platform suite runs the same synthetic upload, command replay, PDF, export,
+and source-removal checks locally and when hosted. Its driver reaches the private
+API through a service binding. Private corpus cases run only locally. The hosted
+suite also checks that application, source, and export requests without a session
+redirect to Access. Each test stage is destroyed after the suite.
+
+The separate managed restore suite creates a temporary PlanetScale database,
+applies production migrations and a synthetic resolved-review fixture, takes a
+backup, and restores it into an independent branch. It checks the exact postings,
+saved resolution, and the original file's hash against the independent archive,
+then deletes the temporary resources. Run only that drill with
+`pnpm --filter @repo/infra test:live tests/database-restore.live.test.ts`.

@@ -1,0 +1,41 @@
+---
+title: Reference
+description: How the system works. Each page changes in the same commit as the code it describes.
+---
+
+<CardGroup cols={2}>
+  <Card title="Architecture" href="/reference/architecture" icon="network">
+    Workers, shared packages, the RPC chain, and boundary rules.
+  </Card>
+  <Card title="Ledger" href="/reference/ledger" icon="database">
+    Value types, identity, the write protocol, and postings.
+  </Card>
+  <Card title="Imports" href="/reference/imports" icon="files">
+    CSV, OFX, and PDF parsing, matching, reconciliation, and publication.
+  </Card>
+  <Card title="Interpretation" href="/reference/interpretation" icon="tags">
+    Descriptors, counterparties, roles, categories, provenance, and questions.
+  </Card>
+  <Card title="Analysis" href="/reference/analysis" icon="calculator">
+    Measures, the flow of money, ledger facts, and comparisons.
+  </Card>
+  <Card title="AI" href="/reference/ai" icon="sparkles">
+    Enrichment, document extraction, evaluation, and limits.
+  </Card>
+  <Card title="Frontend" href="/reference/frontend" icon="panels-top-left">
+    Routes, tokens, state, commands, and accessibility.
+  </Card>
+  <Card title="Operations" href="/reference/operations" icon="shield-check">
+    Access, database, backups, exports, and deployment.
+  </Card>
+  <Card title="Verification" href="/reference/verification" icon="flask-conical">
+    Test layout, invariants, and regression cases with known answers.
+  </Card>
+  <Card title="Decisions" href="/reference/decisions" icon="scale">
+    Why the architecture looks the way it does.
+  </Card>
+</CardGroup>
+
+## Platform
+
+Effect, Alchemy, Cloudflare Workers, TanStack Start, and shadcn. PlanetScale Postgres through Hyperdrive for financial records, R2 for original files, Cloudflare Workflows for imports, enrichment, and exports, and the Workers AI binding with AI Gateway for models. Library versions come from the pnpm catalog and lockfile.

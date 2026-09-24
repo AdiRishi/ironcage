@@ -1,0 +1,61 @@
+---
+title: Operations
+description: Access, database, backups, retention, and the checks to run before private data goes in.
+---
+
+## Access
+
+Production runs at `wealth.arishi.dev` under the existing `arishi.dev` zone. The web module in `infra/src/web-application.ts` owns the domain and the Cloudflare Access application. Access allows exactly one identity. Staging gets its own hostname and Access application before it goes live.
+
+The web Worker validates the Access JWT on every request: signature against the team's public keys, issuer, audience, and expiry. [Access token validation](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/). Internal Workers have no public hostname. Mutation handlers also check the request origin.
+
+## Database
+
+PlanetScale Postgres, reached from the API through a Hyperdrive binding with query caching disabled. Effect SQL with the existing composition. A database transaction uses one connection for its whole life. Separate application and migration roles, TLS, and secrets in the stack. Local development, CI, and tests use a disposable local Postgres of the same major version with the same migrations.
+
+Production, staging, and test stages have separate databases and buckets. Choose region, size, and plan when provisioning, from the measured workload.
+
+## Workflows
+
+Imports run as `ImportWorkflow` instances with a small number of steps and the platform's retry policy. The processor exposes instance status to the API. Input size and step timeouts are configured from the corpus measurements. Measure the largest file's publication before changing the design.
+
+For processing imports and exports, status reads first ensure the Workflow exists using the saved instance ID and the platform's idempotent `createBatch` operation. This recovers a request interrupted after its database commit but before Workflow creation. Reuploading an existing source performs the same check. A temporary Workflow service outage leaves the stored processing record readable; a later status read retries recovery. Terminal Workflow failures still become failed records.
+
+## Backups and retention
+
+Enable PlanetScale's managed backups and point-in-time recovery, and record the retention period. [Back up and restore](https://planetscale.com/docs/postgres/backups). Database backups do not include R2 objects, so keep an independent copy of every original file outside Cloudflare, either the user's own archive or a second bucket. Record where that copy lives.
+
+Before the first private import into a hosted stage, restore a backup into an isolated stage and confirm postings and review resolutions are present and original files can be retrieved from the independent copy. The settings screen states the retention period and the independent-copy arrangement. Source deletion removes data from the live system, not from retained backups, and the screen says so.
+
+Temporary export objects expire on a lifecycle rule. Lifecycle rules never touch the sources bucket.
+
+## Exports
+
+An export is a zip containing JSON files per record type plus a manifest naming the format version, included record types, counts, and time. Original files are an optional addition. Large exports run as a Workflow and produce a temporary download. A failed export is requested again.
+
+The API takes one repeatable-read snapshot of every public base table, including
+command receipts and migrations. BIGINT and NUMERIC columns are decimal strings;
+dates and UTC instants retain their database meaning. `manifest.json` records the
+snapshot time and each table's count. The export's own row reflects its state at
+that time, before generation finished. Available originals use source IDs as ZIP
+paths, with filenames recorded in the manifest.
+
+`ExportWorkflow` calls the API to stream a compressed ZIP into multipart R2
+uploads using a 5 MiB buffer. The separate temporary exports bucket expires
+objects after seven days, and the API stops downloads at their recorded expiry.
+Missing original bytes cause the export to fail visibly. Request a new export
+after addressing the source availability.
+
+## Models
+
+Called through the Workers AI binding and AI Gateway. Settings names the provider and what each task sends. Routing through a gateway does not keep inference inside Cloudflare, and the settings text does not claim it does. [AI](/reference/ai) owns limits, usage records, and the on/off control.
+
+## Observability
+
+Log operation IDs, import IDs, Workflow instance IDs, timings, and error kinds. Never log prompts, completions, descriptions, or account numbers. Workers observability and PlanetScale metrics are the diagnostic tools.
+
+## Deployment
+
+Alchemy owns the resource graph. Migrations are versioned SQL under `workers/api/migrations/` and run from an empty database and from a populated one. A migration that old code cannot read ships with a coordinated deploy after a verified backup.
+
+Before the first private deployment, confirm: Access blocks an unauthenticated request, a source download requires the session, a repeated upload creates nothing, a lost command response is recovered by its ID, and the restore drill above has been performed.

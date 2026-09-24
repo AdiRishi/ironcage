@@ -1,0 +1,68 @@
+---
+title: AI
+description: Where models are used, what they receive, how their output is applied, and what they can never do.
+---
+
+Models are used in three places:
+
+- **Enrichment**, which resolves counterparties and their defaults.
+- **Document extraction** for a statement page the parser cannot read. No page in the corpus needs it.
+- **The analyst**, which is on the [roadmap](/roadmap).
+
+A model never computes a total and never changes a booked field.
+
+## Access
+
+Every model call goes through the Workers AI binding with a stage-specific AI Gateway. Third-party models, including Anthropic's, are billed through AI Gateway Unified Billing, so the application holds no provider key. The gateway has authentication on, and request logging and response caching off. `infra/src/enrichment.ts` owns the gateway, the model ID, and the price table used for usage estimates.
+
+The enrichment model is chosen by the evaluation below, not by default. A candidate must support structured output and, for unknown descriptors, Anthropic's server-side web search tool.
+
+## Enrichment
+
+Enrichment runs as a Cloudflare Workflow in the processor. It turns alias keys that have no counterparty into counterparties with defaults.
+
+1. **Collect.** The API returns alias keys without a counterparty, largest total outflow first. Each key comes with up to three descriptor samples, the channel, the direction, the account kinds, and the number of transactions.
+2. **Resolve.** A batch of up to 25 aliases goes to the model with the current taxonomy and the list of existing counterparty names. For each alias, the model returns:
+   - whether it belongs to an existing counterparty or a new one
+   - the counterparty's name, kind, brand, and default category slug
+   - a default role for people and institutions, if it can tell
+   - a confidence from 0 to 1, and a one-line reason
+     The model may search the web for a descriptor it does not recognize.
+3. **Apply.** The API validates the response against the current taxonomy and counterparties, then applies it in one command:
+   - A confidence at or above the auto-apply threshold (0.8 by default) creates or links the counterparty with `model` provenance, and its defaults apply to events immediately.
+   - A lower confidence, or any person counterparty, creates the counterparty and a question with the model's proposal.
+
+Rerunning enrichment only touches aliases without a counterparty, and counterparties whose provenance is still `model`. A counterparty you edited is never sent back to the model.
+
+### What the model receives
+
+- The descriptor samples with card suffixes, own-account suffixes, PayIDs, references, and value dates removed
+- The channel, the direction, and the transaction count
+- The taxonomy's slugs and names
+- Existing counterparty names
+
+It never receives amounts, balances, dates, account numbers, or notes. Settings shows this list.
+
+### Learning from corrections
+
+When you correct a counterparty created by the model, the correction becomes an example. The next enrichment prompt includes up to 20 recent corrections as `descriptor → your answer` pairs, so the model follows your conventions, such as "Bunnings is Home and furniture, not Maintenance".
+
+### Evaluation
+
+Your answers form the evaluation set: every counterparty you created or corrected, with its descriptors and your answer. `pnpm --filter @repo/processor eval:enrichment` runs a candidate model and prompt against that set locally. It reports name agreement, category agreement at both levels, kind agreement, and how calibrated confidence was: of the answers above the threshold, the share that matched. A model or prompt change ships only if it does at least as well as the current one.
+
+## Document extraction
+
+The statement parser runs first. A page it cannot read becomes a `value` source review showing the page. If a statement ever needs it, one model call per page can extract rows with page locators. The result goes through the same candidate validation, reconciliation, and matching as parser output. There is no switch for this until a statement needs it.
+
+## Usage and limits
+
+Every call writes a usage record with the task, model, time, reported tokens, and estimated cost. A failed call with no report stores unknown usage. A USD warning threshold blocks new calls once recorded usage reaches it. Delayed reports and concurrent calls can overshoot it, and Settings says so.
+
+Each call has an input limit, an output limit, and a two-minute timeout. The SDK handles transient retries, and the Workflow does not repeat a call after an exhausted retry.
+
+Logs carry operation IDs and timings, never prompts, completions, or descriptions.
+
+## Safety
+
+Descriptors and model output are untrusted data. Model output is validated against a schema and against current records before anything is written. Text in a description has no authority. A model can propose a correction, but only your action applies one.

@@ -1,0 +1,25 @@
+---
+title: Questions
+description: What Ironcage needs you to confirm, ordered by how much money it affects.
+---
+
+Questions collect everything that needs a decision from you, largest amount first. Each one says what Ironcage thinks, why, and what it affects. You answer with one selection.
+
+## Kinds of question
+
+| Question             | Example                                                                                             |
+| -------------------- | --------------------------------------------------------------------------------------------------- |
+| Who is this?         | `SQ *BLUE BOTTLE 0412` could be a café or a market stall. Proposed: Blue Bottle Coffee, café.       |
+| What is this person? | Twelve monthly payments of $1,840 to Jane Smith. Proposed: rent.                                    |
+| Is this yours?       | $5,000 to an account ending 9921 that is not one of the four. Proposed: your own account elsewhere. |
+| Which category?      | A counterparty the model could not place confidently.                                               |
+| Which account?       | A CSV file that does not name its account.                                                          |
+| Which row is which?  | Two same-day, same-amount rows the importer cannot pair on its own.                                 |
+
+A question about a counterparty is asked once, not once per transaction. Answering it applies to every transaction from that counterparty that you have not set by hand.
+
+## Answering
+
+Accept applies the proposal. Choosing something else records your answer as a correction and teaches the counterparty. Skip leaves it open. The overview shows how much money open questions affect in the selected period.
+
+Source reviews from the importer, such as which account a CSV belongs to or which row matches which, appear in the same list and resolve the same way.

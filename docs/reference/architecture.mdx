@@ -1,0 +1,93 @@
+---
+title: Architecture
+description: Three Workers, one database writer, and the ownership rules that keep them apart.
+---
+
+## System split
+
+| Part      | Workspace           | Responsibility                                                                                            |
+| --------- | ------------------- | --------------------------------------------------------------------------------------------------------- |
+| Web       | `apps/web`          | Cloudflare Access validation, TanStack Start routes and server functions, query state, UI.                |
+| API       | `workers/api`       | Postgres records, R2 sources, matching and publication, interpretation, ledger facts, commands, exports.  |
+| Processor | `workers/processor` | Workflows: parse one file and publish it through the API, run enrichment with a model, and build exports. |
+| Analyst   | `workers/analyst`   | Planned. An `AIChatAgent` Durable Object with read-only tools over the API.                               |
+
+```mermaid
+flowchart LR
+    Browser --> Web
+    Web --> API[Financial API]
+    Web --> Analyst
+    API --> DB[(PlanetScale Postgres)]
+    API --> Sources[(R2 sources)]
+    API --> Processor
+    Processor --> API
+    Processor --> Sources
+    Analyst --> API
+```
+
+The API is the only Worker that writes financial records and the only one with a database binding. The processor reads R2 and calls the API. The analyst stores conversation messages in its own Durable Object storage through the SDK and reads financial data through the API.
+
+## Shared packages
+
+| Package              | Contents                                                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `packages/contracts` | Effect schemas for values and payloads that two workspaces exchange. Branded IDs, Money, filters, results.                                 |
+| `packages/finance`   | Deterministic money, date, matching, descriptor, interpretation, and calculation functions. Imported by the API, the processor, and tests. |
+| `infra`              | The Alchemy stack. One module per service under `infra/src/`, composed by `infra/src/worker-bindings.ts`.                                  |
+
+File parsers live in the processor, because they carry large libraries such as PDF.js. Descriptor parsing is a pure function over one posting and lives in `packages/finance`, so the API can run it inside a transaction. SQL lives in the API. UI lives in the web app. A Worker never imports another Worker's internals. Shared packages never import a Worker, a route, or infrastructure. Add a package when two workspaces need the same runtime code, and a Worker when there is a distinct execution or storage requirement.
+
+## RPC chain
+
+1. A Worker's `index.ts` composes its Effect services and returns a handler object.
+2. Its Alchemy Worker class in `infra/src/` picks the exposed methods with `Pick`. The bridge infers argument, success, and tagged failure types for callers.
+3. `infra/src/worker-bindings.ts` gives each Worker its bindings, including service bindings to other Workers.
+4. The web app's server functions validate browser input with the contracts schemas and call the API through the typed binding.
+
+Method signatures are defined once, in the implementation. Payload schemas are shared where two sides need them. There is no generated HTTP client and no handwritten interface file.
+
+## Boundary rules
+
+- The web Worker validates the Access JWT's signature, issuer, audience, and expiry on every request, including downloads, server functions, and analyst WebSocket upgrades. Local development uses a local identity only when the stage is `dev`.
+- The API and processor have no public routes. Service bindings are the only way in.
+- Responses carry what a screen or tool needs: record fields and evidence references. They never carry storage keys, credentials, or full bank account numbers beyond what the account settings screen shows.
+- Browser input, stored JSON, and model output are validated at the boundary. Inside a Worker, decoded types are trusted.
+
+## Effect service lifetime
+
+The API builds its application layers during Worker initialization. Platform
+adapters capture Alchemy's `RuntimeContext` there, so domain services expose only
+their results and typed failures. Binding clients defer I/O until a handler runs;
+initialization must not open connections or perform storage operations.
+
+Alchemy's `PostgresLayer` creates the pool lazily within the current execution
+scope and closes it when that scope ends. Application code does not keep a pool
+or a `ManagedRuntime` across Worker requests. No-argument service reads are
+Effect values; the RPC boundary exposes them as callable methods.
+
+Cloudflare Workflow tasks report native failures as defects. Workflow recovery
+handles those defects without converting interruption into successful work.
+Multipart exports bracket acquisition and cleanup with `Effect.acquireUseRelease`,
+so failure or cancellation aborts an unfinished upload.
+
+## Background work
+
+Cloudflare Workflows runs imports with a few steps and the platform's bounded retries. The API keeps a small import status and the Workflow instance ID; it asks the platform for instance status when the import has no summary yet. There is no application job table.
+
+A failed step is visible on its owning screen with a retry action that starts new work. A retry may reparse a file or repeat a model call; publication and commands are what make repeats safe.
+
+## Infrastructure ownership
+
+Each service module under `infra/src/` declares the resources that service owns: the API declares Postgres, Hyperdrive, and the sources bucket; the processor declares the Workflow; the analyst declares its Durable Object namespace; the web module declares the site, domain, and Access application. Deployment values and secrets stay in the stack and never enter a runtime bundle. Runtime entry points may import their inferred binding types from `@repo/infra/worker-bindings` as type-only imports.
+
+The processor's enrichment service owns an AI Gateway in `infra/src/enrichment.ts`,
+and `infra/src/worker-bindings.ts` composes its binding into the enrichment
+workflow. Authentication is enabled, and gateway logging and caching are disabled.
+Development uses a real stage-specific gateway. Local infrastructure tests replace
+only the gateway's cloud resource provider and make no model calls.
+
+## Local development
+
+`pnpm dev` runs the whole stack locally against a Docker Postgres on host port 54329, which stays fixed so a Docker restart does not strand the recorded connection. Test stages let Docker choose their ports.
+
+`pnpm dev` uses the Cloudflare runtime’s supported registry polling mode. The native directory watcher failed to propagate API worker registrations to the separate Vite process on macOS; polling restores service bindings. This changes local discovery only. Hosted workers use Cloudflare service bindings.

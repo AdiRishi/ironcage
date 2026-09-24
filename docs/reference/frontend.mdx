@@ -1,0 +1,51 @@
+---
+title: Frontend
+description: Routes, design tokens, query state, commands, and accessibility.
+---
+
+The web app is React, TanStack Start, TanStack Router, TanStack Query, Tailwind CSS, and shadcn components built on Base UI. [Product](/product) describes each screen, and [Design](/design) describes the visual language.
+
+## Routes
+
+| Route                | Screen                                                       |
+| -------------------- | ------------------------------------------------------------ |
+| `/`                  | Overview for the selected period.                            |
+| `/spending`          | Category breakdown. `?category=` drills into a subtree.      |
+| `/spending/analyses` | Saved analyses. `/spending/analyses/$analysisId` opens one.  |
+| `/ledger`            | Transactions. `/ledger/$eventId` opens a detail sheet.       |
+| `/counterparties`    | Counterparties. `/counterparties/$counterpartyId` opens one. |
+| `/questions`         | Open questions and source reviews.                           |
+| `/sources`           | Imports, coverage, files, and export.                        |
+| `/settings/*`        | Accounts, categories, rules, AI, display, and data.          |
+
+Route modules own URLs and loaders. Feature modules under `src/features/` own server functions, query options, and views. Shared controls live in `src/components/ui`, and application-level components such as the period strip, amounts, and provenance marks live in `src/components/`.
+
+## Design tokens
+
+`src/global-styles/tailwind.css` defines the palette as CSS variables and maps them to Tailwind colors and to shadcn's semantic tokens: `background` is Polymer, `card` and `popover` are Sheet, `foreground` and `primary` are Intaglio. Components use the semantic names. Inflow, outflow, and attention are their own tokens: `inflow`, `outflow`, and `attention`. Category hues come from `src/lib/category-colors.ts`, keyed by top-level category slug.
+
+Archivo is loaded from `@fontsource-variable/archivo` with its width axis. Text styles are Tailwind utilities that set `font-variation-settings`, such as `text-figure` and `text-title`. Every numeric style enables `tabular-nums lining-nums`.
+
+## State
+
+The period, comparison, filters, and drill-down path live in validated search parameters, so the back button and bookmarks restore a view. The period is shared by every screen: navigating keeps the current `period` parameter. Query keys are the operation name plus its normalized input. Loaders call `ensureQueryData` so a route renders with data.
+
+Server functions call the API through the typed binding. They validate input with the contracts schemas first.
+
+## Commands
+
+A write generates a `commandId` with `crypto.randomUUID()` when you confirm, sends it with the expected versions, and shows a pending state until the server responds. On a network failure, Retry resends the same `commandId`. On `stale`, the form keeps your input, shows the current record, and asks again. On success, the queries the write affects are invalidated: the record, the lists that contain it, and any result that reads it. A change to a counterparty default invalidates every period result.
+
+A change that affects money shows a preview first: the affected records, their versions, and the financial impact. Accepting sends those versions.
+
+## Amounts
+
+`src/components/amount.tsx` renders every money value from its `Money` minor units, never from a float. Outflows show a minus sign and inflows none. The value's color comes from its direction only in the flow and the headline. Tables use Intaglio for every amount so a column reads evenly.
+
+## Charts
+
+Charts use Recharts through the shadcn chart wrapper. The flow diagram uses Recharts' Sankey with custom node and link renderers. Every chart has a title, a text summary, and a table view. Chart coordinates may be floats; displayed amounts come from the result's `Money` values.
+
+## Accessibility
+
+Every action works at 390 pixels wide and by keyboard. Focus returns to the triggering control when a sheet or dialog closes. Loading is announced once. Provenance marks and flow streams have text equivalents. Reduced-motion preferences disable the flow draw and the sheet slide. Tables of amounts scroll within their container rather than the page.

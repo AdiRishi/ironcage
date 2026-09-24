@@ -1,0 +1,31 @@
+---
+title: Roadmap
+description: What is built, what is being built, and what comes later.
+sidebar:
+  icon: map
+---
+
+## Built
+
+- **Ledger and imports.** CommBank CSV, OFX, and PDF statements import without duplicates in any order. Every posting keeps its source rows, reconciled coverage, and original file. The whole corpus imports: 99 files, 9,224 postings.
+- **Financial events.** Postings group into events with roles and allocations. The model supports splits, credit links, movement links, corrections with history and undo, and rules with preview.
+- **Historical comparison.** Period comparisons, contributors, drill-down to records, and saved analyses.
+- **Exports and source removal.** A full ZIP export, and removing original file bytes without changing any posting.
+
+## Being built
+
+Each item gets a working screen before the next item starts.
+
+1. **Understanding.** Descriptors, counterparties, and a two-level taxonomy. A model resolves counterparties and assigns roles and categories, applying what it is confident about with provenance and asking about the rest. Corrections teach the counterparty and apply everywhere. See [Interpretation](/reference/interpretation) and [AI](/reference/ai).
+2. **A new application design.** The [design language](/design), a new layout, and screens rebuilt around the month, the flow of money, spending, the ledger, counterparties, and questions. See [Product](/product).
+3. **The analysis projection.** Ledger facts written with each interpretation change. Every period query reads only its period. See [Analysis](/reference/analysis#ledger-facts).
+4. **The analyst.** Conversation over the same read operations the screens use, with every claim linked to records. Monthly briefings written from computed facts.
+
+## Later
+
+Described as intent only. Tables and operations are designed when real use shows what is needed.
+
+- **Recurring payments and planning.** Detected subscriptions and bills, what an ordinary month costs, and a short-range outlook.
+- **Noticing change.** Prompts when something material changes, such as a subscription price rise, a new recurring cost, or a category trending up.
+- **Growing money.** Investment accounts, contributions, performance, and savings goals, built on the same flow model. Money moved to a broker is already an outflow to investments, not spending.
+- **Deployment.** A private hosted deployment behind Cloudflare Access, with verified backups.
