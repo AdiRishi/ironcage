@@ -1,4 +1,10 @@
-import { EnrichmentInput, ExportInput, FinanceError, ImportId } from "@repo/contracts/finance";
+import {
+  EnrichmentInput,
+  ExportInput,
+  FactsRebuildInput,
+  FinanceError,
+  ImportId,
+} from "@repo/contracts/finance";
 import type { processorBindings } from "@repo/infra/worker-bindings";
 import type { WorkflowInstanceStatus } from "alchemy/Cloudflare/Workflows";
 import { Effect } from "effect";
@@ -44,6 +50,18 @@ export const processor = (bindings: Effect.Success<ReturnType<typeof processorBi
     }) {
       yield* bindings.imports.createBatch([{ id: instanceId, params: { importId, instanceId } }]);
     }, unavailable("Import processing could not start. Retry the import.")),
+    startFactsRebuild: Effect.fn("Processor.startFactsRebuild")(function* (
+      input: typeof FactsRebuildInput.Type,
+    ) {
+      yield* bindings.facts.createBatch([{ id: input.rebuildId, params: input }]);
+    }, unavailable("Recalculating totals could not start.")),
+    getFactsRebuildInstance: Effect.fn("Processor.getFactsRebuildInstance")(function* ({
+      instanceId,
+    }: {
+      instanceId: string;
+    }) {
+      return describe(yield* (yield* bindings.facts.get(instanceId)).status());
+    }, unavailable("Recalculation status is unavailable.")),
     getImportInstance: Effect.fn("Processor.getImportInstance")(function* ({
       instanceId,
     }: {

@@ -11,6 +11,7 @@ import { AccountHistory } from "../../src/accounts/periods.ts";
 import { AccountResolution } from "../../src/accounts/resolution.ts";
 import { Accounts } from "../../src/accounts/service.ts";
 import { Flows } from "../../src/analysis/flows.ts";
+import { FactRebuilds } from "../../src/analysis/rebuild.ts";
 import { Commands } from "../../src/database/commands.ts";
 import { Corrections } from "../../src/events/corrections.ts";
 import { Events } from "../../src/events/service.ts";
@@ -18,7 +19,7 @@ import { Publication } from "../../src/imports/publication.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
 import { Enrichment } from "../../src/interpretation/enrichment.ts";
 import { Questions } from "../../src/interpretation/questions.ts";
-import { EnrichmentConfig, EnrichmentJobs } from "../../src/platform/services.ts";
+import { EnrichmentConfig, EnrichmentJobs, FactJobs } from "../../src/platform/services.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { References } from "../../src/references/service.ts";
 import { InterpretationReviews } from "../../src/relationships/reviews.ts";
@@ -65,6 +66,7 @@ export const applicationServices = <E>(
 ) =>
   Layer.mergeAll(
     Flows.layer,
+    FactRebuilds.layer,
     Accounts.layer,
     AccountHistory.layer,
     Events.layer,
@@ -93,6 +95,12 @@ export const applicationServices = <E>(
           cachedInputMicrousdPerMillion: 30_000n,
           outputMicrousdPerMillion: 500_000n,
         },
+      }),
+    ),
+    Layer.provide(
+      Layer.succeed(FactJobs, {
+        start: () => Effect.void,
+        status: () => Effect.succeed({ status: "running", failure: null }),
       }),
     ),
     Layer.provide(

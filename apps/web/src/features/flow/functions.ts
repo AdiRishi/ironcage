@@ -13,3 +13,6 @@ export const getMonthlyFlow = createServerFn({ method: "GET" })
 export const getSpending = createServerFn({ method: "GET" })
   .validator(Schema.toStandardSchemaV1(SpendingInput))
   .handler(({ data }) => callApiRpc((client) => client.getSpending(data)));
+export const getFactsStatus = createServerFn({ method: "GET" }).handler(() =>
+  callApiRpc((client) => client.getFactsStatus()),
+);

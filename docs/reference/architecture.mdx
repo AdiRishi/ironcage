@@ -5,12 +5,12 @@ description: Three Workers, one database writer, and the ownership rules that ke
 
 ## System split
 
-| Part      | Workspace           | Responsibility                                                                                            |
-| --------- | ------------------- | --------------------------------------------------------------------------------------------------------- |
-| Web       | `apps/web`          | Cloudflare Access validation, TanStack Start routes and server functions, query state, UI.                |
-| API       | `workers/api`       | Postgres records, R2 sources, matching and publication, interpretation, ledger facts, commands, exports.  |
-| Processor | `workers/processor` | Workflows: parse one file and publish it through the API, run enrichment with a model, and build exports. |
-| Analyst   | `workers/analyst`   | Planned. An `AIChatAgent` Durable Object with read-only tools over the API.                               |
+| Part      | Workspace           | Responsibility                                                                                                                  |
+| --------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Web       | `apps/web`          | Cloudflare Access validation, TanStack Start routes and server functions, query state, UI.                                      |
+| API       | `workers/api`       | Postgres records, R2 sources, matching and publication, interpretation, ledger facts, commands, exports.                        |
+| Processor | `workers/processor` | Workflows: parse one file and publish it through the API, run enrichment with a model, build exports, and rebuild ledger facts. |
+| Analyst   | `workers/analyst`   | Planned. An `AIChatAgent` Durable Object with read-only tools over the API.                                                     |
 
 ```mermaid
 flowchart LR
@@ -78,7 +78,7 @@ A failed step is visible on its owning screen with a retry action that starts ne
 
 ## Infrastructure ownership
 
-Each service module under `infra/src/` declares the resources that service owns. The API in `infra/src/api.ts` declares Postgres, Hyperdrive, the sources bucket, and the `TemporaryExports` bucket with its seven-day expiry. The processor in `infra/src/processor.ts` declares three Workflows: `ImportWorkflow`, `ExportWorkflow`, and `EnrichmentWorkflow`. The web module declares the site, domain, and Access application. The planned analyst will declare its Durable Object namespace. Deployment values and secrets stay in the stack and never enter a runtime bundle. Runtime entry points may import their inferred binding types from `@repo/infra/worker-bindings` as type-only imports.
+Each service module under `infra/src/` declares the resources that service owns. The API in `infra/src/api.ts` declares Postgres, Hyperdrive, the sources bucket, and the `TemporaryExports` bucket with its seven-day expiry. The processor in `infra/src/processor.ts` declares four Workflows: `ImportWorkflow`, `ExportWorkflow`, `EnrichmentWorkflow`, and `FactsWorkflow`. The web module declares the site, domain, and Access application. The planned analyst will declare its Durable Object namespace. Deployment values and secrets stay in the stack and never enter a runtime bundle. Runtime entry points may import their inferred binding types from `@repo/infra/worker-bindings` as type-only imports.
 
 The processor's enrichment service owns an AI Gateway in `infra/src/enrichment.ts`,
 and `infra/src/worker-bindings.ts` composes its binding into the enrichment

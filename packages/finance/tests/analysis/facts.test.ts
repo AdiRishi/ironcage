@@ -80,7 +80,7 @@ const facts = (
     event: value,
     accountKinds,
     counterparty: null,
-    credits: [],
+    links: [],
     topCategory,
     ...extra,
   });
@@ -104,25 +104,46 @@ describe("eventLedgerFacts", () => {
     ]);
   });
 
-  it("moves a linked credit to the purchase's period and keeps the rest on its own date", () => {
-    const refund = event(3, { kind: "refund", minor: 5000n, categoryId: null });
-    const result = facts(refund, {
-      credits: [
-        {
-          creditAllocationId: refund.allocations[0].id,
-          amountMinor: 4000n,
-          categoryId: clothing,
-          accountId: deposit,
-          postedOn: CalendarDate.make("2026-03-10"),
-          spendingOn: CalendarDate.make("2026-03-09"),
-          counterpartyId: null,
-        },
-      ],
+  it("reduces the linked purchase in its own category and period, and keeps the rest of the credit on its own date", () => {
+    const purchase = event(3, {
+      minor: -12000n,
+      categoryId: clothing,
+      purchaseOn: CalendarDate.make("2026-03-09"),
     });
-    expect(result).toMatchObject([
+    const refund = event(7, { kind: "refund", minor: 5000n, categoryId: null });
+    const links = [
+      {
+        creditAllocationId: refund.allocations[0].id,
+        costAllocationId: purchase.allocations[0].id,
+        amount: { currency: "AUD", minor: 4000n },
+      },
+    ];
+    expect(facts(purchase, { links })).toMatchObject([
+      { measure: "spending", amountMinor: 12000n, spendingOn: "2026-03-09", categoryId: clothing },
       { measure: "spending", amountMinor: -4000n, spendingOn: "2026-03-09", categoryId: clothing },
+    ]);
+    expect(facts(refund, { links })).toMatchObject([
       { measure: "unresolvedIn", amountMinor: 1000n },
     ]);
+  });
+
+  it("drops a credit linked to a non-personal cost from every measure", () => {
+    const purchase = event(8, { minor: -12000n, categoryId: clothing });
+    const [allocation] = purchase.allocations;
+    const workDinner: FinancialEvent = {
+      ...purchase,
+      allocations: [{ ...allocation, nonPersonal: true }],
+    };
+    const refund = event(9, { kind: "reimbursement", minor: 12000n, categoryId: clothing });
+    const links = [
+      {
+        creditAllocationId: refund.allocations[0].id,
+        costAllocationId: allocation.id,
+        amount: { currency: "AUD", minor: 12000n },
+      },
+    ];
+    expect(facts(workDinner, { links })).toEqual([]);
+    expect(facts(refund, { links })).toEqual([]);
   });
 
   it("counts a loan repayment once, from the account the cash left", () => {

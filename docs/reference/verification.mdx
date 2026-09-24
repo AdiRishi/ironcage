@@ -46,6 +46,8 @@ Migrations are also tested against data. `workers/api/tests/fixtures/populated.j
 | A payment to a person disappears from spending because the bank called it a transfer. |
 | Reinterpretation, enrichment, or a counterparty default overwrites a value you set.   |
 | Ledger facts lag behind a correction, a counterparty default, or a reviewed date.     |
+| A linked credit stays in a purchase's old category after the purchase changes.        |
+| Facts kept by commands differ from facts rebuilt from scratch.                        |
 | A headline and its rows come from different data.                                     |
 | A change's purchases part and average part do not sum to the change.                  |
 | Cash out counts loan interest twice, as spending and again inside the repayment.      |

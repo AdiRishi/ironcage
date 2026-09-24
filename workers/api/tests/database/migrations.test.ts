@@ -6,6 +6,7 @@ import { Effect, Layer, Redacted, Schema } from "effect";
 import { expect } from "vitest";
 
 import { Flows } from "../../src/analysis/flows.ts";
+import { FactRebuilds } from "../../src/analysis/rebuild.ts";
 import { applicationServices, applicationTest } from "../support/application.ts";
 import {
   PopulatedFixture,
@@ -69,6 +70,8 @@ test(
       // July's spending, counted by hand from the fixture: rent 1,840.00, groceries
       // 84.50, dinner 300.00 less the 200.00 linked repayment, two 120.00 purchases,
       // and 2,800.00 loan interest.
+      const rebuilds = yield* FactRebuilds;
+      expect(yield* rebuilds.rebuild).toBe(0);
       const flows = yield* Flows;
       const july = yield* flows.period({
         period: {

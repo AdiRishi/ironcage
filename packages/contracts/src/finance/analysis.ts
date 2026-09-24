@@ -48,3 +48,8 @@ export const AccountCoverage = Schema.Struct({
   latestImportAt: Schema.NullOr(Instant),
 });
 export type AccountCoverage = typeof AccountCoverage.Type;
+
+// Events whose ledger facts an older derivation built, and whether a background
+// rebuild is working through them.
+export const FactsStatus = Schema.Struct({ outdated: Schema.Int, rebuilding: Schema.Boolean });
+export const FactsRebuildInput = Schema.Struct({ rebuildId: Schema.String.check(Schema.isUUID()) });

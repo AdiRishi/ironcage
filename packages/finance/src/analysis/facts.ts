@@ -6,6 +6,7 @@ import type {
   CategoryId,
   CounterpartyId,
   CounterpartyKind,
+  CreditLink,
   EventId,
   FinancialEvent,
 } from "@repo/contracts/finance";
@@ -37,31 +38,31 @@ export type LedgerFact = {
   modelAssigned: boolean;
 };
 
-// The side of a linked credit that receives it: the purchase's category, dates, and account.
-export type CreditTarget = {
-  creditAllocationId: typeof AllocationId.Type;
-  amountMinor: bigint;
-  categoryId: typeof CategoryId.Type | null;
-  accountId: typeof AccountId.Type;
-  postedOn: CalendarDate;
-  spendingOn: CalendarDate;
-  counterpartyId: typeof CounterpartyId.Type | null;
-};
+// Bump when eventLedgerFacts changes what it produces. Events whose facts were built
+// by an older version are rebuilt in the background.
+export const factsVersion = 2;
+
+export type FactLink = Pick<
+  typeof CreditLink.Type,
+  "creditAllocationId" | "costAllocationId" | "amount"
+>;
 
 // Turns one event into what it contributes to each measure. Spending is positive for
-// costs and negative for credits. A credit linked to a purchase lands in that
-// purchase's category and period; the rest lands on its own date.
+// costs and negative for credits. A credit linked to a purchase reduces that purchase:
+// the purchase's event emits the reduction in its own category and period, so the facts
+// of an event depend only on its own rows and the links that touch it. The rest of a
+// credit lands on its own date.
 export function eventLedgerFacts({
   event,
   accountKinds,
   counterparty,
-  credits,
+  links,
   topCategory,
 }: {
   event: FinancialEvent;
   accountKinds: ReadonlyMap<string, typeof AccountKind.Type>;
   counterparty: { kind: CounterpartyKind; source: "user" | "model" } | null;
-  credits: readonly CreditTarget[];
+  links: readonly FactLink[];
   topCategory: (id: typeof CategoryId.Type) => typeof CategoryId.Type | null;
 }): LedgerFact[] {
   const primary = event.postings.find((posting) => posting.id === event.primaryPostingId);
@@ -99,31 +100,30 @@ export function eventLedgerFacts({
       case "financingCost":
         return allocation.nonPersonal
           ? []
-          : [{ ...fact, measure: "spending", amountMinor: amount }];
+          : [
+              { ...fact, measure: "spending", amountMinor: amount },
+              ...links
+                .filter((link) => link.costAllocationId === allocation.id)
+                .map((link): LedgerFact => ({
+                  ...fact,
+                  measure: "spending",
+                  amountMinor: -link.amount.minor,
+                })),
+            ];
       case "income":
         return [{ ...fact, measure: "income", amountMinor: amount }];
       case "refund":
       case "reimbursement": {
-        const linked = credits.filter((credit) => credit.creditAllocationId === allocation.id);
-        const rest = amount - linked.reduce((sum, credit) => sum + credit.amountMinor, 0n);
+        const rest =
+          amount -
+          links
+            .filter((link) => link.creditAllocationId === allocation.id)
+            .reduce((sum, link) => sum + link.amount.minor, 0n);
+        if (rest <= 0n) return [];
         return [
-          ...linked.map((credit): LedgerFact => ({
-            ...fact,
-            accountId: credit.accountId,
-            categoryId: credit.categoryId,
-            topCategoryId: credit.categoryId ? topCategory(credit.categoryId) : null,
-            postedOn: credit.postedOn,
-            spendingOn: credit.spendingOn,
-            measure: "spending",
-            amountMinor: -credit.amountMinor,
-          })),
-          ...(rest > 0n
-            ? [
-                categoryId
-                  ? { ...fact, measure: "spending" as const, amountMinor: -rest }
-                  : { ...fact, measure: "unresolvedIn" as const, amountMinor: rest },
-              ]
-            : []),
+          categoryId
+            ? { ...fact, measure: "spending", amountMinor: -rest }
+            : { ...fact, measure: "unresolvedIn", amountMinor: rest },
         ];
       }
       case "transfer":

@@ -16,6 +16,7 @@ import type { Statement } from "effect/unstable/sql";
 import { instant } from "../database/columns.ts";
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
+import { writeTransaction } from "../database/transactions.ts";
 import { ImportJobs, ensureWorkflowStatus, workflowEnded } from "../platform/services.ts";
 
 const pageSize = 100;
@@ -61,11 +62,9 @@ export class Imports extends Context.Service<
         failure,
         instanceId,
       }: typeof FailImport.Type) {
-        yield* sql.withTransaction(
-          Effect.gen(function* () {
-            yield* sql`SELECT pg_advisory_xact_lock(1)`;
-            yield* sql`UPDATE imports SET status = 'failed', failure = ${sql.json(failure)}, version = version + 1, updated_at = now() WHERE id = ${importId} AND status = 'processing' AND workflow_instance_id = ${instanceId}`;
-          }),
+        yield* writeTransaction(
+          sql,
+          sql`UPDATE imports SET status = 'failed', failure = ${sql.json(failure)}, version = version + 1, updated_at = now() WHERE id = ${importId} AND status = 'processing' AND workflow_instance_id = ${instanceId}`,
         );
       }, toFinanceError);
       // An import stays `processing` until publication reports, so a Workflow that
