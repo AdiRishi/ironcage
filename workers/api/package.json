@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tests",
-    "test": "vitest run"
+    "test": "vitest run",
+    "fixture:populated": "vitest run --config vitest.fixture.config.ts"
   },
   "dependencies": {
     "@effect/platform-browser": "catalog:",
@@ -25,6 +26,8 @@
     "@repo/processor": "workspace:*",
     "@repo/tsconfig": "workspace:*",
     "@types/node": "catalog:",
+    "@types/pg": "catalog:",
+    "pg": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

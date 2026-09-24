@@ -29,6 +29,8 @@ Corpus-backed tests read `fixtures/commbank/` and skip when it is absent, so CI 
 
 Concurrency and publication tests run on real Postgres. Each test stage starts a fresh Docker Postgres and applies the production migrations to it. The tests cover two overlapping imports publishing at once, two commands claiming the same remaining credit, a repeated command ID, a stale preview, a failure injected before commit, and a committed write whose response is lost.
 
+Migrations are also tested against data. `workers/api/tests/fixtures/populated.json` is a synthetic database captured at one migration: three account kinds, counterparties you set, a rule, a split, a credit link, and a card settlement, all written through the public operations. `workers/api/tests/database/migrations.test.ts` applies migrations up to the captured one with the deployment migrator, loads the rows, applies every later migration, and checks posting totals, allocation conservation, and a month's spending and income counted by hand. Before adding a migration, run `pnpm --filter @repo/api fixture:populated` so the fixture holds data written by the code before it.
+
 ## Financial invariants
 
 | Regression to prevent                                                                 |
@@ -77,7 +79,6 @@ Each case has a known answer that does not come from the implementation.
 These checks are planned and have no test yet:
 
 - Playwright flows from upload to transaction detail, a question answered, a source review resolved, retry after a failed file, and refresh during processing, at desktop and phone width and by keyboard only.
-- Migrations applied to a database that already holds records. Every test stage applies them to an empty one.
 - An evaluation of enrichment against the real model and your answers.
 - An OFX `FITID` reused on a second account. Matching reads only the postings of the file's account, but no test pins it.
 

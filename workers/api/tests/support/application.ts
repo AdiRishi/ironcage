@@ -5,6 +5,7 @@ import { localDatabaseProviders } from "@repo/infra/database/providers";
 import * as Alchemy from "alchemy";
 import * as Test from "alchemy/Test/Vitest";
 import { Effect, Layer, Redacted } from "effect";
+import type { SqlClient } from "effect/unstable/sql";
 
 import { AccountHistory } from "../../src/accounts/periods.ts";
 import { AccountResolution } from "../../src/accounts/resolution.ts";
@@ -55,7 +56,14 @@ export function applicationTest() {
       }),
     ),
   );
-  const services = Layer.mergeAll(
+  const services = applicationServices(database);
+  return { test, services, stack };
+}
+
+export const applicationServices = <E>(
+  database: Layer.Layer<PgClient.PgClient | SqlClient.SqlClient, E>,
+) =>
+  Layer.mergeAll(
     Flows.layer,
     Accounts.layer,
     AccountHistory.layer,
@@ -95,6 +103,3 @@ export function applicationTest() {
     ),
     Layer.provideMerge(NodeCrypto.layer),
   );
-
-  return { test, services };
-}
