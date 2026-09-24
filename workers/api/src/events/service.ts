@@ -5,7 +5,6 @@ import {
   EventInput,
   FinancialEvent,
   FinanceError,
-  InterpretationSummary,
   ReferenceData,
   ReinterpretationSummary,
   ReinterpretPostings,
@@ -28,7 +27,6 @@ export class Events extends Context.Service<
     readonly forPosting: (
       input: typeof EventForPosting.Type,
     ) => Effect.Effect<FinancialEvent | null, FinanceError>;
-    readonly summary: Effect.Effect<typeof InterpretationSummary.Type, FinanceError>;
     readonly references: Effect.Effect<typeof ReferenceData.Type, FinanceError>;
   }
 >()("@repo/api/events/Events") {
@@ -38,19 +36,6 @@ export class Events extends Context.Service<
       const sql = yield* PgClient.PgClient;
       const commands = yield* Commands;
       const crypto = yield* Crypto.Crypto;
-      const summary = Effect.gen(function* () {
-        const counts =
-          yield* sql`SELECT kind AS role, count(*)::int AS count FROM events WHERE active GROUP BY kind ORDER BY kind`.pipe(
-            Effect.flatMap(Schema.decodeUnknownEffect(InterpretationSummary.fields.counts)),
-          );
-        const [row] =
-          yield* sql`SELECT count(*)::int AS remaining FROM postings p WHERE NOT EXISTS (SELECT 1 FROM event_postings ep WHERE ep.posting_id = p.id AND ep.active)`.pipe(
-            Effect.flatMap(
-              Schema.decodeUnknownEffect(Schema.Tuple([Schema.Struct({ remaining: Schema.Int })])),
-            ),
-          );
-        return { created: 0, counts, remaining: row.remaining };
-      });
       const interpret = Effect.fn("Events.interpret")(function* (
         input: typeof ReinterpretPostings.Type,
       ) {
@@ -110,14 +95,6 @@ export class Events extends Context.Service<
         interpret,
         get,
         forPosting,
-        summary: sql
-          .withTransaction(
-            Effect.gen(function* () {
-              yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
-              return yield* summary;
-            }),
-          )
-          .pipe(toFinanceError),
         references,
       });
     }),

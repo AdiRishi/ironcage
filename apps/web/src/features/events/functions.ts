@@ -14,9 +14,6 @@ export const getEvent = createServerFn({ method: "GET" })
 export const getEventForPosting = createServerFn({ method: "GET" })
   .validator(Schema.toStandardSchemaV1(EventForPosting))
   .handler(({ data }) => callApiRpc((client) => client.getEventForPosting(data)));
-export const getInterpretationSummary = createServerFn({ method: "GET" }).handler(() =>
-  callApiRpc((client) => client.getInterpretationSummary()),
-);
 export const getReferenceData = createServerFn({ method: "GET" }).handler(() =>
   callApiRpc((client) => client.getReferenceData()),
 );

@@ -91,7 +91,6 @@ export type ApiOperations = {
   resolveCategoryProposal: Enrichment["Service"]["resolveProposal"];
   getEvent: Events["Service"]["get"];
   getEventForPosting: Events["Service"]["forPosting"];
-  getInterpretationSummary: () => Events["Service"]["summary"];
   getReferenceData: () => Events["Service"]["references"];
   listSourceFiles: () => SourceFiles["Service"]["list"];
   removeSourceBytes: SourceFiles["Service"]["remove"];
@@ -247,7 +246,6 @@ export const api = Effect.fn("Api.initialize")(function* (
       resolveCategoryProposal: enrichment.resolveProposal,
       getEvent: events.get,
       getEventForPosting: events.forPosting,
-      getInterpretationSummary: () => events.summary,
       getReferenceData: () => events.references,
       listSourceFiles: () => sourceFiles.list,
       removeSourceBytes: sourceFiles.remove,

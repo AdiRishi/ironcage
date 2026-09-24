@@ -19,12 +19,12 @@ test(
     const input = parsed(["Grocer Card xx1234", "Unknown payment", "Account Fee"]);
     yield* publication.publish({ ...input, importId: file.importId });
     const events = yield* Events;
-    expect((yield* events.summary).counts).toEqual([
-      { role: "financingCost", count: 1 },
-      { role: "purchase", count: 1 },
-      { role: "unresolved", count: 1 },
-    ]);
     const postings = yield* Postings;
+    expect(
+      (yield* postings.ledger({ filter: {} })).rows
+        .flatMap((row) => (row.role ? [row.role] : []))
+        .toSorted((a, b) => a.localeCompare(b)),
+    ).toEqual(["financingCost", "purchase", "unresolved"]);
     const [purchase] = (yield* postings.list({ filter: { role: "purchase" } })).rows;
     if (!purchase) return yield* Effect.die("Expected purchase");
     const original = yield* events.forPosting({ postingId: purchase.id });
