@@ -8,7 +8,7 @@ import {
   type EnrichmentReport,
 } from "@repo/contracts/finance";
 import { estimateModelCost } from "@repo/finance";
-import { Effect, Schedule, Schema } from "effect";
+import { Data, Effect, Option, Schedule, Schema } from "effect";
 
 const system = `You identify who is behind Australian bank transaction descriptors for one person's private finance application. The bank is CommBank.
 
@@ -93,6 +93,15 @@ const Reply = Schema.Struct({
   usage: Usage,
 });
 const RawContent = Schema.Struct({ content: Schema.Array(Schema.Unknown) });
+const ErrorBody = Schema.Struct({
+  error: Schema.Struct({
+    type: Schema.optionalKey(Schema.String),
+    message: Schema.optionalKey(Schema.String),
+  }),
+});
+
+class RequestFailed extends Data.TaggedError("RequestFailed")<{ readonly reason: string }> {}
+
 const decodeOutput = Schema.decodeUnknownEffect(Schema.fromJsonString(EnrichmentOutput));
 
 // Web search can pause a long turn; the request is resumed with what came back.
@@ -147,16 +156,36 @@ export const resolveAliases = (run: Runner, batch: typeof EnrichmentBatch.Type) 
       },
     ];
     for (let turn = 0; turn < maximumTurns; turn++) {
-      const raw = yield* Effect.tryPromise(() =>
+      const { raw, reply } = yield* Effect.tryPromise({
         // Opus 5 thinks adaptively by default; the gateway rejects an explicit setting.
-        run({
-          max_tokens: 16000,
-          output_config: { format: { type: "json_schema", schema: outputSchema } },
-          tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 8 }],
-          system,
-          messages,
-        }),
-      ).pipe(
+        try: () =>
+          run({
+            max_tokens: 16000,
+            output_config: { format: { type: "json_schema", schema: outputSchema } },
+            tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 8 }],
+            system,
+            messages,
+          }),
+        catch: (cause) => new RequestFailed({ reason: String(cause).slice(0, 300) }),
+      }).pipe(
+        // A reply that is not a message, such as an error body, counts as a failed request.
+        Effect.flatMap((raw) =>
+          Schema.decodeUnknownEffect(Reply)(raw).pipe(
+            Effect.map((reply) => ({ raw, reply })),
+            // An error body names its type and message; anything else is described by
+            // its keys only, since a malformed reply could still carry model output.
+            Effect.mapError(
+              () =>
+                new RequestFailed({
+                  reason: Option.match(Schema.decodeUnknownOption(ErrorBody)(raw), {
+                    onSome: ({ error }) =>
+                      [error.type, error.message].filter(Boolean).join(": ").slice(0, 300),
+                    onNone: () => `unexpected reply with keys ${Object.keys(raw).join(", ")}`,
+                  }),
+                }),
+            ),
+          ),
+        ),
         // Unified Billing rate-limits bursts; a later attempt usually succeeds.
         Effect.retry({ schedule: Schedule.exponential("15 seconds"), times: 3 }),
         Effect.tapError((error) =>
@@ -164,14 +193,11 @@ export const resolveAliases = (run: Runner, batch: typeof EnrichmentBatch.Type) 
             unknownUsage = true;
           }).pipe(
             Effect.andThen(
-              Effect.logWarning("Enrichment model request failed", {
-                reason: String(error.cause).slice(0, 300),
-              }),
+              Effect.logWarning("Enrichment model request failed", { reason: error.reason }),
             ),
           ),
         ),
       );
-      const reply = yield* Schema.decodeUnknownEffect(Reply)(raw);
       inputTokens += BigInt(
         reply.usage.input_tokens +
           (reply.usage.cache_creation_input_tokens ?? 0) +
@@ -202,8 +228,11 @@ export const resolveAliases = (run: Runner, batch: typeof EnrichmentBatch.Type) 
     }
     return report("failed", [], "The model did not finish this batch within its turn limit.");
   }).pipe(
+    Effect.catchTag("RequestFailed", (error) =>
+      Effect.succeed(report("failed", [], `The provider did not answer: ${error.reason}`)),
+    ),
     Effect.orElseSucceed(() =>
-      report("failed", [], "The model could not identify this batch. Its aliases stay unresolved."),
+      report("failed", [], "The model's answer did not match the expected format."),
     ),
   );
 };

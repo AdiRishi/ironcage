@@ -198,7 +198,11 @@ test(
         failure: "The model declined this batch. Its aliases stay unresolved.",
       },
     });
-    expect((yield* enrichment.runs)[0]).toMatchObject({ status: "running", failed: 4 });
+    expect((yield* enrichment.runs)[0]).toMatchObject({
+      status: "running",
+      failed: 4,
+      failure: "The model declined this batch. Its aliases stay unresolved.",
+    });
     expect((yield* enrichment.batch({ runId: run.id })).aliases).toEqual([]);
     expect((yield* enrichment.runs)[0]).toMatchObject({
       status: "completed",

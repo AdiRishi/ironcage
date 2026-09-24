@@ -107,6 +107,37 @@ describe("resolveAliases", () => {
     }),
   );
 
+  it.effect("retries a reply that is an error body, then uses the next answer", () =>
+    Effect.gen(function* () {
+      const replies: object[] = [
+        { type: "error", error: { type: "overloaded_error", message: "Overloaded" } },
+        reply("end_turn", [{ type: "text", text: JSON.stringify({ results: [answer] }) }]),
+      ];
+      const fiber = yield* resolveAliases(async () => {
+        const next = replies.shift();
+        if (!next) throw new Error("No reply left");
+        return next;
+      }, batch).pipe(Effect.forkChild);
+      yield* TestClock.adjust("1 minute");
+      expect(yield* Fiber.join(fiber)).toMatchObject({ status: "success", results: [answer] });
+    }),
+  );
+
+  it.effect("names the provider's error when every attempt returns one", () =>
+    Effect.gen(function* () {
+      const fiber = yield* resolveAliases(
+        async () => ({ type: "error", error: { type: "overloaded_error", message: "Overloaded" } }),
+        batch,
+      ).pipe(Effect.forkChild);
+      yield* TestClock.adjust("10 minutes");
+      expect(yield* Fiber.join(fiber)).toMatchObject({
+        status: "failed",
+        inputTokens: null,
+        failure: "The provider did not answer: overloaded_error: Overloaded",
+      });
+    }),
+  );
+
   it.effect("rejects output that does not match the result schema", () =>
     Effect.gen(function* () {
       const report = yield* resolveAliases(

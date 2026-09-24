@@ -385,10 +385,11 @@ export class Enrichment extends Context.Service<
                   ),
                 )).map((row) => row.aliasKey),
               );
-              // A failed batch leaves its aliases for a later run; the Workflow decides
-              // when repeated failures stop this one.
+              // A failed batch leaves its aliases for a later run and its reason on the
+              // run; the Workflow decides when repeated failures stop the run.
               if (report.status === "failed") {
                 yield* sql`UPDATE enrichment_items SET status = 'failed' WHERE run_id = ${input.runId} AND alias_key = ANY(${[...pending]}::text[])`;
+                yield* sql`UPDATE enrichment_runs SET failure = ${report.failure} WHERE id = ${input.runId}`;
                 return true;
               }
               const resolved: string[] = [];

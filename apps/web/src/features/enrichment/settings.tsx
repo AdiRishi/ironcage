@@ -59,11 +59,14 @@ export function EnrichmentSection() {
                 {run.resolved.toLocaleString()} of {run.requested.toLocaleString()} names identified
                 {run.failed > 0 && `, ${run.failed.toLocaleString()} left for the next run`}.
               </p>
-              {run.failure && (
-                <p role="alert" className="text-attention">
-                  {run.failure}
-                </p>
-              )}
+              {run.failure &&
+                (run.status === "failed" ? (
+                  <p role="alert" className="text-attention">
+                    {run.failure}
+                  </p>
+                ) : (
+                  <p className="text-slate">A batch failed. {run.failure}</p>
+                ))}
             </li>
           ))}
         </ul>
