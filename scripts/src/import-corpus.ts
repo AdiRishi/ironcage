@@ -35,8 +35,8 @@ const ImportState = Schema.Struct({
 const command = Command.make(
   "corpus:import",
   {
-    web: Flag.string("web").pipe(Flag.withDefault("http://localhost:1337")),
-    database: Flag.string("database").pipe(
+    web: Flag.String("web").pipe(Flag.withDefault("http://localhost:1337")),
+    database: Flag.String("database").pipe(
       Flag.withDefault("postgres://ironcage:local-development@127.0.0.1:54329/ironcage"),
     ),
   },
