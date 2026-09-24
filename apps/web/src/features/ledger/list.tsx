@@ -69,7 +69,7 @@ function LedgerLine({ row }: { row: LedgerRow }) {
       <Amount
         value={row.amount}
         signed
-        className={`row-span-2 row-start-1 self-center text-right sm:row-span-1 ${inflow ? "text-inflow" : ""}`}
+        className={`col-start-2 row-span-2 row-start-1 self-center text-right whitespace-nowrap sm:col-start-4 sm:row-span-1 ${inflow ? "text-inflow" : ""}`}
       />
     </Link>
   );

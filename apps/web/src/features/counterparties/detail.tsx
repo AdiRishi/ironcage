@@ -156,7 +156,7 @@ function History({
           </>
         )}
       </p>
-      <ol className="flex gap-[3px] overflow-x-auto pb-1" aria-label="Amount by month">
+      <ol className="relative flex gap-[3px] overflow-x-auto pb-1" aria-label="Amount by month">
         {months.map((row, index) => {
           const amount = row.outflow.minor + row.inflow.minor;
           const label = `${monthLabel(row.month)}: ${formatCurrency({ currency, minor: amount }, { cents: false })}`;

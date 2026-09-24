@@ -27,6 +27,7 @@ export function OverviewPage({
   questions: readonly Question[];
 }) {
   const previousLabel = comparisonLabel(period);
+  const recordsEnd = lastRecordedDay(flow);
   const surplus = money(flow.currency, flow.totals.inflow.minor - flow.totals.outflow.minor);
   return (
     <div className="space-y-12">
@@ -37,6 +38,16 @@ export function OverviewPage({
             <p className="mt-1 type-small text-slate">
               {days(flow.period.start, flow.period.endExclusive)} days so far, compared with the
               same days of {previousLabel}.
+            </p>
+          )}
+          {recordsEnd && (
+            <p className="mt-1 type-small text-intaglio">
+              <span
+                aria-hidden
+                className="mr-1.5 inline-block size-2 rounded-full border-[1.5px] border-outflow"
+              />
+              Your records stop on {recordsEnd}, so this {period.unit} is incomplete. Upload later
+              statements to finish it.
             </p>
           )}
         </div>
@@ -119,6 +130,21 @@ export function OverviewPage({
       </div>
     </div>
   );
+}
+
+// The last day any account has records for, when that is before the period ends.
+function lastRecordedDay(flow: PeriodFlow) {
+  const end = flow.coverage
+    .flatMap((item) => item.observed.map((interval) => interval.endExclusive))
+    .filter((date) => date > flow.period.start)
+    .toSorted()
+    .at(-1);
+  if (!end || end >= flow.period.endExclusive) return null;
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  }).format(Date.parse(end) - 86_400_000);
 }
 
 function comparisonLabel(period: ResolvedPeriod) {

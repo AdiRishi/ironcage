@@ -15,9 +15,13 @@ export function PeriodStrip({
   months: typeof MonthlyFlow.Type;
   period: ResolvedPeriod;
 }) {
+  const list = useRef<HTMLOListElement>(null);
   const selected = useRef<HTMLAnchorElement>(null);
   useEffect(() => {
-    selected.current?.scrollIntoView({ block: "nearest", inline: "center" });
+    const container = list.current?.getBoundingClientRect();
+    const item = selected.current?.getBoundingClientRect();
+    if (!list.current || !container || !item) return;
+    list.current.scrollLeft += item.left - container.left - (container.width - item.width) / 2;
   }, [period.key]);
   const largest = months.reduce(
     (max, month) => (month.outflow.minor > max ? month.outflow.minor : max),
@@ -31,7 +35,7 @@ export function PeriodStrip({
   return (
     <nav aria-label="Period" className="border-b border-rule">
       <div className="mx-auto max-w-[1280px] px-5 md:px-8">
-        <ol className="flex [scrollbar-width:none] gap-4 overflow-x-auto pt-3 pb-2">
+        <ol ref={list} className="flex [scrollbar-width:none] gap-4 overflow-x-auto pt-3 pb-2">
           {years.map((year) => (
             <li key={year} className="flex shrink-0 flex-col gap-1">
               <ol className="flex items-end gap-[3px]">
@@ -84,6 +88,7 @@ export function PeriodStrip({
               <Link
                 to="."
                 search={(previous) => ({ ...previous, period: year })}
+                ref={period.unit === "year" && String(period.year) === year ? selected : undefined}
                 aria-current={
                   period.unit === "year" && String(period.year) === year ? "true" : undefined
                 }

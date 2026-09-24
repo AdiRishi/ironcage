@@ -131,7 +131,7 @@ export function CounterpartiesPage({
                   <Amount
                     value={amount(row)}
                     cents={false}
-                    className="row-span-2 row-start-1 text-right sm:row-span-1"
+                    className="col-start-2 row-span-2 row-start-1 text-right whitespace-nowrap sm:col-start-4 sm:row-span-1"
                   />
                 </Link>
               </li>

@@ -19,6 +19,7 @@ export function SpendingPage({
   parents: ReadonlySet<string>;
 }) {
   const scope = breakdown.path.at(-1);
+  const paid = breakdown.counterparties.filter((row) => row.current.minor > 0n);
   const delta = breakdown.total.minor - breakdown.previousTotal.minor;
   const largest = breakdown.rows.reduce(
     (max, row) => (row.current.minor > max ? row.current.minor : max),
@@ -84,7 +85,7 @@ export function SpendingPage({
         {breakdown.rows.length === 0 ? (
           <p className="text-slate">No spending here in {period.label}.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-rule text-left type-small text-slate">
@@ -126,7 +127,7 @@ export function SpendingPage({
         )}
       </section>
 
-      {breakdown.counterparties.length > 0 && (
+      {paid.length > 0 && (
         <section
           aria-labelledby="counterparties-heading"
           className="space-y-3 border-t border-rule pt-8"
@@ -135,7 +136,7 @@ export function SpendingPage({
             Who it went to
           </h2>
           <ul className="grid gap-x-10 sm:grid-cols-2">
-            {breakdown.counterparties.map((row) => (
+            {paid.map((row) => (
               <li
                 key={row.counterpartyId ?? "none"}
                 className="flex items-baseline justify-between gap-4 border-b border-rule py-2"
