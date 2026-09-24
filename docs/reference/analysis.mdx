@@ -70,7 +70,7 @@ Statement triggers note which events a transaction changed. Any change to an eve
 
 A test in `workers/api/tests/analysis/facts.test.ts` runs a sequence of commands, then rebuilds every event from scratch and requires the same rows. It protects the rule that no change can leave a fact behind.
 
-A refresh recomputes facts from the event as it is stored. That leaves one known gap. A reviewed correction that changes a posting's amount or currency rewrites the posting but not the event's magnitude or allocations, which are set only when the event is created. The refreshed facts keep the old allocation amounts, so the flow and spending disagree with the posting. No command recomputes the magnitude, and a correction's allocations must still sum to the old magnitude.
+A reviewed correction that changes a posting's amount or currency changes its event too. `syncEventAmounts` in `workers/api/src/interpretation/engine.ts` runs in the same transaction. An event with one posting and one allocation takes the new magnitude and allocation amount. An event that is split, linked to a credit, or joined to another posting by a movement cannot be divided again without you, so the correction fails with `conflict` until you undo that change.
 
 ## Flow
 
