@@ -146,7 +146,7 @@ export const writeEvent = Effect.fn("writeEvent")(function* (event: FinancialEve
     event.allocations.map((allocation) => allocation.id),
   )})`;
   for (const allocation of event.allocations) {
-    yield* sql`INSERT INTO allocations (id, event_id, role, amount_minor, category_id, category_source, non_personal) VALUES (${allocation.id}, ${event.id}, ${allocation.role}, ${allocation.amount.minor.toString()}, ${allocation.categoryId}, ${allocation.categorySource}, ${allocation.nonPersonal}) ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, amount_minor = EXCLUDED.amount_minor, category_id = EXCLUDED.category_id, category_source = EXCLUDED.category_source, non_personal = EXCLUDED.non_personal`;
+    yield* sql`INSERT INTO allocations (id, event_id, role, amount_minor, category_id, category_source, non_personal) VALUES (${allocation.id}, ${event.id}, ${allocation.role}, ${allocation.amount.minor}, ${allocation.categoryId}, ${allocation.categorySource}, ${allocation.nonPersonal}) ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, amount_minor = EXCLUDED.amount_minor, category_id = EXCLUDED.category_id, category_source = EXCLUDED.category_source, non_personal = EXCLUDED.non_personal`;
     yield* sql`DELETE FROM allocation_tags WHERE allocation_id = ${allocation.id}`;
     yield* sql`DELETE FROM allocation_personal_events WHERE allocation_id = ${allocation.id}`;
     for (const tagId of new Set(allocation.tagIds))

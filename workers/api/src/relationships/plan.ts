@@ -150,7 +150,7 @@ export const planRelationship = Effect.fn("planRelationship")(function* (
       const before: readonly [FinancialEvent, ...FinancialEvent[]] = [credit, cost];
       const after = before.map(bump);
       const execute = Effect.gen(function* () {
-        yield* sql`INSERT INTO credit_links(id,credit_allocation_id,cost_allocation_id,amount_minor) VALUES (${link.id},${link.creditAllocationId},${link.costAllocationId},${link.amount.minor.toString()})`;
+        yield* sql`INSERT INTO credit_links(id,credit_allocation_id,cost_allocation_id,amount_minor) VALUES (${link.id},${link.creditAllocationId},${link.costAllocationId},${link.amount.minor})`;
         yield* touch(after);
       });
       return { before, after, credits: { before: credits, after: [...credits, link] }, execute };

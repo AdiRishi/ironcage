@@ -110,7 +110,7 @@ export const refreshStaleFacts = Effect.gen(function* () {
           posted_on: fact.postedOn,
           spending_on: fact.spendingOn,
           currency: fact.currency,
-          amount_minor: fact.amountMinor.toString(),
+          amount_minor: fact.amountMinor,
           purchase: fact.purchase,
           model_assigned: fact.modelAssigned,
         })),

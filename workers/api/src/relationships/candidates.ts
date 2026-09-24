@@ -21,7 +21,7 @@ export const relationshipCandidates = Effect.fn("relationshipCandidates")(functi
       ? sql`e.kind IN ('purchase','financingCost')`
       : input.kind === "purchase"
         ? sql`e.kind='purchase'`
-        : sql`NOT EXISTS (SELECT 1 FROM movement_links m WHERE m.event_id=e.id) AND (SELECT count(*) FROM event_postings ep WHERE ep.event_id=e.id AND ep.active)=1 AND p.account_id<>${primary?.accountId ?? event.reportingAccountId} AND p.amount_minor=${(-(primary?.amount.minor ?? 0n)).toString()}`;
+        : sql`NOT EXISTS (SELECT 1 FROM movement_links m WHERE m.event_id=e.id) AND (SELECT count(*) FROM event_postings ep WHERE ep.event_id=e.id AND ep.active)=1 AND p.account_id<>${primary?.accountId ?? event.reportingAccountId} AND p.amount_minor=${-(primary?.amount.minor ?? 0n)}`;
   const cursor = input.cursor
     ? sql`AND (p.posted_on,p.id)<(${input.cursor.postedOn}::date,${input.cursor.id}::uuid)`
     : sql``;

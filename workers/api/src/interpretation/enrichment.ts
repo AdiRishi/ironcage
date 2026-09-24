@@ -257,7 +257,7 @@ export class Enrichment extends Context.Service<
           result: Schema.Boolean,
           execute: Effect.gen(function* () {
             const rows =
-              yield* sql`UPDATE enrichment_settings SET enabled = ${input.enabled}, warning_minor = ${input.warning?.minor.toString() ?? null},
+              yield* sql`UPDATE enrichment_settings SET enabled = ${input.enabled}, warning_minor = ${input.warning?.minor ?? null},
                 auto_apply_confidence = ${input.autoApplyConfidence}, version = version + 1 WHERE id = 1 AND version = ${input.expectedVersion} RETURNING id`;
             if (rows.length === 0)
               return yield* new FinanceError({
@@ -374,8 +374,8 @@ export class Enrichment extends Context.Service<
               const settings = yield* readSettings;
               const report = input.report;
               yield* sql`INSERT INTO model_usage (id, task, model, input_tokens, output_tokens, cost_minor, cost_currency, status)
-                VALUES (${yield* crypto.randomUUIDv4}, 'enrichment', ${run.model}, ${report.inputTokens?.toString() ?? null}, ${report.outputTokens?.toString() ?? null},
-                  ${report.cost?.minor.toString() ?? null}, ${report.cost?.currency ?? null}, ${report.status})`;
+                VALUES (${yield* crypto.randomUUIDv4}, 'enrichment', ${run.model}, ${report.inputTokens}, ${report.outputTokens},
+                  ${report.cost?.minor ?? null}, ${report.cost?.currency ?? null}, ${report.status})`;
               const pending = new Set(
                 (yield* sql`SELECT alias_key AS "aliasKey" FROM enrichment_items WHERE run_id = ${input.runId} AND status = 'pending' AND ${sql.in("alias_key", input.aliasKeys)}`.pipe(
                   Effect.flatMap(
