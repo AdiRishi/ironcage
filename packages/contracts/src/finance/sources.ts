@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 
 import { Import } from "./imports.ts";
-import { CommandId, SourceFileId, Version } from "./values.ts";
+import { AccountId, CalendarDate, CommandId, SourceFileId, Version } from "./values.ts";
 
 export const SourceFile = Schema.Struct({
   id: SourceFileId,
@@ -13,6 +13,9 @@ export const SourceFile = Schema.Struct({
   format: Import.fields.format,
   status: Import.fields.status,
   postingCount: Schema.Int,
+  accountId: Schema.NullOr(AccountId),
+  firstOn: Schema.NullOr(CalendarDate),
+  lastOn: Schema.NullOr(CalendarDate),
 });
 export type SourceFile = typeof SourceFile.Type;
 export const RemoveSourceBytes = Schema.Struct({

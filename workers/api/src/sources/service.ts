@@ -22,7 +22,15 @@ const make = Effect.gen(function* () {
   const sources = yield* Sources;
   const commands = yield* Commands;
   const list =
-    sql`SELECT s.id, s.file_name AS "fileName", s.byte_size::text AS "byteSize", s.bytes_available AS "bytesAvailable", s.version, i.id AS "importId", i.format, i.status, (SELECT count(DISTINCT posting_id)::integer FROM observations WHERE source_file_id = s.id) AS "postingCount" FROM source_files s JOIN imports i ON i.source_file_id = s.id ORDER BY s.uploaded_at DESC, s.id DESC`.pipe(
+    sql`SELECT s.id, s.file_name AS "fileName", s.byte_size::text AS "byteSize", s.bytes_available AS "bytesAvailable", s.version, i.id AS "importId", i.format, i.status,
+        count(DISTINCT o.posting_id)::integer AS "postingCount",
+        COALESCE(i.account_id, min(p.account_id::text)::uuid) AS "accountId",
+        min(p.posted_on)::text AS "firstOn", max(p.posted_on)::text AS "lastOn"
+      FROM source_files s JOIN imports i ON i.source_file_id = s.id
+      LEFT JOIN observations o ON o.source_file_id = s.id
+      LEFT JOIN postings p ON p.id = o.posting_id
+      GROUP BY s.id, i.id
+      ORDER BY max(p.posted_on) DESC NULLS FIRST, s.uploaded_at DESC, s.id DESC`.pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(SourceFile))),
       toFinanceError,
       Effect.withSpan("SourceFiles.list"),

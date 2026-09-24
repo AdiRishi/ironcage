@@ -113,6 +113,7 @@ export type ApiOperations = {
   createAccount: Accounts["Service"]["create"];
   updateAccount: Accounts["Service"]["update"];
   listPostings: Postings["Service"]["list"];
+  listLedger: Postings["Service"]["ledger"];
   getPosting: Postings["Service"]["get"];
   retryImport: Imports["Service"]["retry"];
   listImports: Imports["Service"]["list"];
@@ -269,6 +270,7 @@ export const api = Effect.fn("Api.initialize")(function* (
       createAccount: accounts.create,
       updateAccount: accounts.update,
       listPostings: postings.list,
+      listLedger: postings.ledger,
       getPosting: postings.get,
       retryImport: imports.retry,
       listImports: imports.list,

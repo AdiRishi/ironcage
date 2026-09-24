@@ -9,7 +9,7 @@ export const readReferenceData = Effect.gen(function* () {
       Effect.flatMap(Schema.decodeUnknownEffect(ReferenceData.fields.categories)),
     );
   const counterparties =
-    yield* sql`SELECT id, name, kind FROM counterparties ORDER BY name, id`.pipe(
+    yield* sql`SELECT id, name, kind, version FROM counterparties ORDER BY name, id`.pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(ReferenceData.fields.counterparties)),
     );
   const tags = yield* sql`SELECT id, name, version FROM tags ORDER BY name, id`.pipe(

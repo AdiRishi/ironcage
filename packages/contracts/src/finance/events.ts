@@ -64,7 +64,12 @@ export const ReferenceData = Schema.Struct({
     }),
   ),
   counterparties: Schema.Array(
-    Schema.Struct({ id: CounterpartyId, name: Schema.String, kind: CounterpartyKind }),
+    Schema.Struct({
+      id: CounterpartyId,
+      name: Schema.String,
+      kind: CounterpartyKind,
+      version: Version,
+    }),
   ),
   tags: Schema.Array(Schema.Struct({ id: TagId, name: Schema.String, version: Version })),
   personalEvents: Schema.Array(

@@ -7,6 +7,7 @@ import {
   CounterpartyId,
   CounterpartyInput,
   CounterpartyList,
+  CounterpartyMonth,
   CounterpartySummary,
   EventId,
   FinanceError,
@@ -166,7 +167,15 @@ export class Counterparties extends Context.Service<
                 FROM counterparty_aliases a WHERE a.counterparty_id = ${counterpartyId} ORDER BY a.alias_key`.pipe(
               Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(CounterpartyAlias))),
             );
-            return { counterparty, aliases };
+            const months = yield* sql`SELECT to_char(p.posted_on, 'YYYY-MM') AS month,
+                  jsonb_build_object('currency', ${settings.currency}::text, 'minor', COALESCE(-sum(p.amount_minor) FILTER (WHERE p.amount_minor < 0), 0)::text) AS outflow,
+                  jsonb_build_object('currency', ${settings.currency}::text, 'minor', COALESCE(sum(p.amount_minor) FILTER (WHERE p.amount_minor > 0), 0)::text) AS inflow
+                FROM events e JOIN postings p ON p.id = e.primary_posting_id
+                WHERE e.active AND e.counterparty_id = ${counterpartyId} AND p.currency = ${settings.currency}
+                GROUP BY 1 ORDER BY 1`.pipe(
+              Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(CounterpartyMonth))),
+            );
+            return { counterparty, aliases, months };
           }),
         );
       }, toFinanceError);

@@ -1,7 +1,13 @@
 import { Schema } from "effect";
 
 import { Candidate, Locator } from "./imports.ts";
-import { InterpretationFilter } from "./interpretation.ts";
+import {
+  CategoryId,
+  CounterpartyId,
+  EventId,
+  FinancialRole,
+  InterpretationFilter,
+} from "./interpretation.ts";
 import {
   AccountId,
   CalendarDate,
@@ -61,3 +67,23 @@ export const Evidence = Schema.Struct({
   matchMethod: Schema.NullOr(MatchMethod),
 });
 export const PostingDetail = Schema.Struct({ posting: Posting, evidence: Schema.Array(Evidence) });
+
+// A posting with what it means, for the ledger list.
+export const LedgerRow = Schema.Struct({
+  ...Posting.fields,
+  eventId: Schema.NullOr(EventId),
+  role: Schema.NullOr(FinancialRole),
+  counterpartyId: Schema.NullOr(CounterpartyId),
+  counterpartyName: Schema.NullOr(Schema.String),
+  categoryId: Schema.NullOr(CategoryId),
+  categoryName: Schema.NullOr(Schema.String),
+  categorySlug: Schema.NullOr(Schema.String),
+  split: Schema.Boolean,
+  assignedBy: Schema.Literals(["you", "rule", "model", "bank", "none"]),
+  question: Schema.Boolean,
+});
+export type LedgerRow = typeof LedgerRow.Type;
+export const LedgerPage = Schema.Struct({
+  rows: Schema.Array(LedgerRow),
+  nextCursor: Schema.NullOr(PostingCursor),
+});

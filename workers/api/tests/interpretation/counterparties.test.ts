@@ -10,7 +10,7 @@ import { Counterparties } from "../../src/interpretation/counterparties.ts";
 import { Questions } from "../../src/interpretation/questions.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { applicationTest } from "../support/application.ts";
-import { account, parsed, reset, source } from "../support/fixtures.ts";
+import { account, parsed, parsedRows, reset, source } from "../support/fixtures.ts";
 
 const { test, services } = applicationTest();
 const commandId = Crypto.Crypto.use((crypto) => crypto.randomUUIDv4).pipe(
@@ -165,5 +165,111 @@ test(
         (row) => row.aliasKey === "ACCOUNT 9921",
       ),
     ).toMatchObject({ kind: "ownAccount", eventCount: 1 });
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "the ledger and a counterparty's history read what each transaction was interpreted as",
+  Effect.gen(function* () {
+    yield* reset;
+    const owner = yield* account();
+    const file = yield* source(owner.id);
+    yield* (yield* Publication).publish({
+      ...parsedRows([
+        {
+          description: "WOOLWORTHS 1234 SYDNEY AU Card xx1234",
+          postedOn: "2026-07-03",
+          minor: -1000n,
+        },
+        {
+          description: "WOOLWORTHS 1234 SYDNEY AU Card xx1234",
+          postedOn: "2026-08-04",
+          minor: -2500n,
+        },
+        {
+          description: "WOOLWORTHS 5678 SYDNEY AU Card xx1234",
+          postedOn: "2026-08-09",
+          minor: 500n,
+        },
+        {
+          description: "Transfer To Jane Smith NetBank Rent",
+          postedOn: "2026-08-10",
+          minor: -90000n,
+        },
+      ]),
+      importId: file.importId,
+    });
+    const groceries = (yield* (yield* Events).references).categories.find(
+      (row) => row.slug === "food.groceries",
+    );
+    if (!groceries) return yield* Effect.die("Expected the groceries category");
+    const counterparties = yield* Counterparties;
+    const woolworths = yield* counterparties.save({
+      commandId: yield* commandId,
+      target: { kind: "create", aliasKeys: ["WOOLWORTHS SYDNEY"] },
+      fields: {
+        name: "Woolworths",
+        kind: "business",
+        brand: null,
+        defaultCategoryId: groceries.id,
+        defaultRole: null,
+      },
+    });
+    const ledger = yield* (yield* Postings).ledger({ filter: {} });
+    expect(
+      ledger.rows.map((row) => ({
+        postedOn: row.postedOn,
+        role: row.role,
+        counterpartyName: row.counterpartyName,
+        categorySlug: row.categorySlug,
+        assignedBy: row.assignedBy,
+        question: row.question,
+      })),
+    ).toEqual([
+      {
+        postedOn: "2026-08-10",
+        role: "unresolved",
+        counterpartyName: null,
+        categorySlug: null,
+        assignedBy: "none",
+        question: true,
+      },
+      {
+        postedOn: "2026-08-09",
+        role: "refund",
+        counterpartyName: "Woolworths",
+        categorySlug: "food.groceries",
+        assignedBy: "you",
+        question: false,
+      },
+      {
+        postedOn: "2026-08-04",
+        role: "purchase",
+        counterpartyName: "Woolworths",
+        categorySlug: "food.groceries",
+        assignedBy: "you",
+        question: false,
+      },
+      {
+        postedOn: "2026-07-03",
+        role: "purchase",
+        counterpartyName: "Woolworths",
+        categorySlug: "food.groceries",
+        assignedBy: "you",
+        question: false,
+      },
+    ]);
+    expect((yield* counterparties.get({ counterpartyId: woolworths.id })).months).toEqual([
+      {
+        month: "2026-07",
+        outflow: { currency: "AUD", minor: 1000n },
+        inflow: { currency: "AUD", minor: 0n },
+      },
+      {
+        month: "2026-08",
+        outflow: { currency: "AUD", minor: 2500n },
+        inflow: { currency: "AUD", minor: 500n },
+      },
+    ]);
   }).pipe(Effect.provide(services)),
 );

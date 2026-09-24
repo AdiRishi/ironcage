@@ -1,7 +1,11 @@
 import { PgClient } from "@effect/sql-pg";
 import {
+  CalendarDate,
   FinanceError,
+  LedgerPage,
+  LedgerRow,
   ListPostings,
+  PostingId,
   Posting,
   PostingDetail,
   PostingInput,
@@ -19,6 +23,9 @@ export class Postings extends Context.Service<
     readonly list: (
       input: typeof ListPostings.Type,
     ) => Effect.Effect<typeof PostingPage.Type, FinanceError>;
+    readonly ledger: (
+      input: typeof ListPostings.Type,
+    ) => Effect.Effect<typeof LedgerPage.Type, FinanceError>;
     readonly get: (
       input: typeof PostingInput.Type,
     ) => Effect.Effect<typeof PostingDetail.Type, FinanceError>;
@@ -29,10 +36,7 @@ export class Postings extends Context.Service<
     Effect.gen(function* () {
       const sql = yield* PgClient.PgClient;
       const fields = postingFields(sql);
-      const list = Effect.fn("Postings.list")(function* ({
-        filter,
-        cursor,
-      }: typeof ListPostings.Type) {
+      const predicatesFor = ({ filter, cursor }: typeof ListPostings.Type) => {
         const predicates = [sql`true`];
         if (filter.role)
           predicates.push(
@@ -85,17 +89,58 @@ export class Postings extends Context.Service<
           predicates.push(
             sql`(p.posted_on, p.id) < (${cursor.postedOn}::date, ${cursor.id}::uuid)`,
           );
+        return predicates;
+      };
+      const page = <A extends { postedOn: string; id: string }>(rows: readonly A[]) => {
+        const shown = rows.slice(0, pageSize);
+        const last = shown.at(-1);
+        return {
+          rows: shown,
+          nextCursor:
+            rows.length > pageSize && last
+              ? { postedOn: CalendarDate.make(last.postedOn), id: PostingId.make(last.id) }
+              : null,
+        };
+      };
+      const list = Effect.fn("Postings.list")(function* (input: typeof ListPostings.Type) {
         const rows =
-          yield* sql`SELECT ${fields} FROM postings p JOIN accounts a ON a.id = p.account_id WHERE ${sql.and(predicates)} ORDER BY p.posted_on DESC, p.id DESC LIMIT ${pageSize + 1}`.pipe(
+          yield* sql`SELECT ${fields} FROM postings p JOIN accounts a ON a.id = p.account_id WHERE ${sql.and(predicatesFor(input))} ORDER BY p.posted_on DESC, p.id DESC LIMIT ${pageSize + 1}`.pipe(
             Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Posting))),
           );
-        const page = rows.slice(0, pageSize);
-        const last = page.at(-1);
-        return {
-          rows: page,
-          nextCursor:
-            rows.length > pageSize && last ? { postedOn: last.postedOn, id: last.id } : null,
-        };
+        return page(rows);
+      }, toFinanceError);
+      const ledger = Effect.fn("Postings.ledger")(function* (input: typeof ListPostings.Type) {
+        const rows =
+          yield* sql`SELECT ${fields}, x."eventId", x.role, x."counterpartyId", x."counterpartyName", x."categoryId",
+              x."categoryName", x."categorySlug", COALESCE(x.split, false) AS split,
+              CASE
+                WHEN x."eventId" IS NULL THEN 'none'
+                WHEN x.split OR x."roleSource" = 'user' OR x."categorySource" = 'user' THEN 'you'
+                WHEN x."roleSource" = 'rule' OR x."categorySource" = 'rule' THEN 'rule'
+                WHEN (x."roleSource" = 'counterparty' OR x."categorySource" = 'counterparty') AND x."counterpartySource" = 'model' THEN 'model'
+                WHEN x."roleSource" = 'counterparty' OR x."categorySource" = 'counterparty' THEN 'you'
+                WHEN x."roleSource" = 'bank' THEN 'bank'
+                ELSE 'none'
+              END AS "assignedBy",
+              COALESCE(x.question, false) AS question
+            FROM postings p JOIN accounts a ON a.id = p.account_id
+            LEFT JOIN LATERAL (
+              SELECT e.id AS "eventId", e.kind AS role, e.role_source AS "roleSource", c.id AS "counterpartyId",
+                c.name AS "counterpartyName", c.source AS "counterpartySource", al.category_id AS "categoryId",
+                k.name AS "categoryName", COALESCE(k.slug, parent.slug) AS "categorySlug", al.category_source AS "categorySource",
+                (SELECT count(*) FROM allocations x WHERE x.event_id = e.id) > 1 AS split,
+                (e.kind = 'unresolved' OR c.status = 'proposed' OR (c.kind = 'person' AND c.default_role IS NULL)) AS question
+              FROM event_postings ep JOIN events e ON e.id = ep.event_id AND e.active
+              LEFT JOIN counterparties c ON c.id = e.counterparty_id
+              LEFT JOIN LATERAL (SELECT * FROM allocations WHERE event_id = e.id ORDER BY id LIMIT 1) al ON true
+              LEFT JOIN categories k ON k.id = al.category_id
+              LEFT JOIN categories parent ON parent.id = k.parent_id
+              WHERE ep.posting_id = p.id AND ep.active LIMIT 1
+            ) x ON true
+            WHERE ${sql.and(predicatesFor(input))} ORDER BY p.posted_on DESC, p.id DESC LIMIT ${pageSize + 1}`.pipe(
+            Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(LedgerRow))),
+          );
+        return page(rows);
       }, toFinanceError);
       const get = Effect.fn("Postings.get")(function* ({ postingId }: typeof PostingInput.Type) {
         return yield* sql.withTransaction(
@@ -118,7 +163,7 @@ export class Postings extends Context.Service<
           }),
         );
       }, toFinanceError);
-      return Postings.of({ list, get });
+      return Postings.of({ list, ledger, get });
     }),
   );
 }

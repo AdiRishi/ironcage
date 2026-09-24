@@ -49,9 +49,15 @@ export const CounterpartyAlias = Schema.Struct({
   channel: Schema.NullOr(Channel),
   eventCount: Schema.Int,
 });
+export const CounterpartyMonth = Schema.Struct({
+  month: Schema.String,
+  outflow: Money,
+  inflow: Money,
+});
 export const CounterpartyDetail = Schema.Struct({
   counterparty: CounterpartySummary,
   aliases: Schema.Array(CounterpartyAlias),
+  months: Schema.Array(CounterpartyMonth),
 });
 export const CounterpartyInput = Schema.Struct({ counterpartyId: CounterpartyId });
 
