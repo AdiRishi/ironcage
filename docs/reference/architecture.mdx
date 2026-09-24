@@ -41,7 +41,7 @@ File parsers live in the processor, because they carry large libraries such as P
 
 1. A Worker's `index.ts` composes its Effect services and returns a handler object.
 2. Its Alchemy Worker class in `infra/src/` names the exposed methods. `infra/src/api.ts` uses `ApiOperations`, a type map written by hand in `workers/api/src/index.ts` that points each operation at its service method's type. Deriving the type from the handler would make the Worker class refer to itself through its bindings. `infra/src/processor.ts` picks the processor's methods with `Pick`. The bridge infers argument, success, and tagged failure types for callers.
-3. `infra/src/worker-bindings.ts` gives each Worker its bindings, including service bindings to other Workers.
+3. `infra/src/worker-bindings.ts` gives each Worker its bindings: the API its storage, Hyperdrive, and processor binding, the processor its Workflows, and the web app its API binding. Each Workflow in `infra/src/processor.ts` binds the API itself with `Cloudflare.Workers.bindWorker(Api)`.
 4. The web app's server functions validate browser input with the contracts schemas and call the API through the typed binding. `apps/web/src/server/api-client.server.ts` keeps its own `Pick` list of the `Api` methods the web calls. It leaves out operations the web does not call, such as `publishImport`.
 
 Method signatures come from the service implementations. Each `ApiOperations` entry refers to a service's type instead of restating it, apart from `getRetention`, so a changed service signature reaches every caller. Payload schemas are shared where two sides need them. There is no generated HTTP client.
