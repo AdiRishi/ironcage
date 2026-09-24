@@ -1,4 +1,4 @@
-import { ExportInput, FinanceError, ImportId } from "@repo/contracts/finance";
+import { EnrichmentInput, ExportInput, FinanceError, ImportId } from "@repo/contracts/finance";
 import type { processorBindings } from "@repo/infra/worker-bindings";
 import type { WorkflowInstanceStatus } from "alchemy/Cloudflare/Workflows";
 import { Effect } from "effect";
@@ -13,6 +13,18 @@ const describe = (instance: WorkflowInstanceStatus) => ({
 
 export const processor = (bindings: Effect.Success<ReturnType<typeof processorBindings>>) =>
   Effect.succeed({
+    startEnrichment: Effect.fn("Processor.startEnrichment")(function* (
+      input: typeof EnrichmentInput.Type,
+    ) {
+      yield* bindings.enrichment.createBatch([{ id: input.runId, params: input }]);
+    }, unavailable("Counterparty identification could not start. Run it again.")),
+    getEnrichmentInstance: Effect.fn("Processor.getEnrichmentInstance")(function* ({
+      instanceId,
+    }: {
+      instanceId: string;
+    }) {
+      return describe(yield* (yield* bindings.enrichment.get(instanceId)).status());
+    }, unavailable("Counterparty identification status is unavailable.")),
     startExport: Effect.fn("Processor.startExport")(function* (input: typeof ExportInput.Type) {
       yield* bindings.exports.createBatch([{ id: input.exportId, params: input }]);
     }, unavailable("Export processing could not start. Request a new export.")),

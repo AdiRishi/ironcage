@@ -6,7 +6,8 @@ import { Effect } from "effect";
 import type { Api, financialStorage } from "./api.ts";
 import { retentionPolicy } from "./database/retention.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
-import { ExportWorkflow, ImportWorkflow, Processor } from "./processor.ts";
+import { EnrichmentGateway, enrichmentProvider } from "./enrichment.ts";
+import { EnrichmentWorkflow, ExportWorkflow, ImportWorkflow, Processor } from "./processor.ts";
 
 export const apiBindings = Effect.fn("ApplicationPlatform.ApiBindings")(function* (
   storage: Effect.Success<typeof financialStorage>,
@@ -15,6 +16,7 @@ export const apiBindings = Effect.fn("ApplicationPlatform.ApiBindings")(function
   const sources = yield* Cloudflare.R2.ReadWriteBucket(storage.sources);
   const processor = yield* Cloudflare.Workers.bindWorker(Processor);
   return {
+    enrichmentProvider,
     retention: yield* retentionPolicy,
     sources,
     exports: yield* Cloudflare.R2.ReadWriteBucket(storage.exports),
@@ -24,7 +26,10 @@ export const apiBindings = Effect.fn("ApplicationPlatform.ApiBindings")(function
 });
 export const processorBindings = Effect.fn("ApplicationPlatform.ProcessorBindings")(function* () {
   const imports = yield* ImportWorkflow;
-  return { imports, exports: yield* ExportWorkflow };
+  return { imports, exports: yield* ExportWorkflow, enrichment: yield* EnrichmentWorkflow };
+});
+export const enrichmentBindings = Effect.fn("ApplicationPlatform.EnrichmentBindings")(function* () {
+  return yield* Cloudflare.AI.QueryGateway(EnrichmentGateway);
 });
 export const websiteBindings = (
   environment: DeploymentConfig["environment"],

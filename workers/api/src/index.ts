@@ -19,9 +19,17 @@ import { Publication } from "./imports/publication.ts";
 import { Imports } from "./imports/service.ts";
 import { Uploads } from "./imports/uploads.ts";
 import { Counterparties } from "./interpretation/counterparties.ts";
+import { Enrichment } from "./interpretation/enrichment.ts";
 import { Questions } from "./interpretation/questions.ts";
 import { Models } from "./models/service.ts";
-import { ExportJobs, TemporaryExports, ImportJobs, Sources } from "./platform/services.ts";
+import {
+  EnrichmentConfig,
+  EnrichmentJobs,
+  ExportJobs,
+  TemporaryExports,
+  ImportJobs,
+  Sources,
+} from "./platform/services.ts";
 import { Postings } from "./postings/service.ts";
 import { References } from "./references/service.ts";
 import { InterpretationReviews } from "./relationships/reviews.ts";
@@ -72,6 +80,14 @@ export type ApiOperations = {
   moveAlias: Counterparties["Service"]["moveAlias"];
   assignEventCounterparty: Counterparties["Service"]["assignEvent"];
   listQuestions: Questions["Service"]["list"];
+  getEnrichmentSettings: () => Enrichment["Service"]["settings"];
+  updateEnrichmentSettings: Enrichment["Service"]["configure"];
+  requestEnrichment: Enrichment["Service"]["request"];
+  listEnrichmentRuns: () => Enrichment["Service"]["runs"];
+  nextEnrichmentBatch: Enrichment["Service"]["batch"];
+  completeEnrichmentBatch: Enrichment["Service"]["complete"];
+  failEnrichment: Enrichment["Service"]["fail"];
+  listCategoryProposals: () => Enrichment["Service"]["proposals"];
   getEvent: Events["Service"]["get"];
   getEventForPosting: Events["Service"]["forPosting"];
   getInterpretationSummary: () => Events["Service"]["summary"];
@@ -121,6 +137,7 @@ export const api = Effect.fn("Api.initialize")(function* (
     Models.layer,
     Counterparties.layer,
     Questions.layer,
+    Enrichment.layer,
     Reviews.layer,
     Postings.layer,
     Uploads.layer,
@@ -131,6 +148,11 @@ export const api = Effect.fn("Api.initialize")(function* (
     Layer.provide([Commands.layer, AccountResolution.layer]),
     Layer.provide([
       bindings.database,
+      Layer.succeed(EnrichmentConfig, { provider: bindings.enrichmentProvider }),
+      EnrichmentJobs.layer({
+        start: bindings.processor.startEnrichment,
+        status: bindings.processor.getEnrichmentInstance,
+      }),
       BrowserCrypto.layer,
       Sources.layer(bindings.sources),
       TemporaryExports.layer(bindings.exports),
@@ -157,6 +179,7 @@ export const api = Effect.fn("Api.initialize")(function* (
     const sourceFiles = yield* SourceFiles;
     const counterparties = yield* Counterparties;
     const questions = yield* Questions;
+    const enrichment = yield* Enrichment;
     const models = yield* Models;
     const exports = yield* Exports;
     const settings = yield* Settings;
@@ -208,6 +231,14 @@ export const api = Effect.fn("Api.initialize")(function* (
       moveAlias: counterparties.moveAlias,
       assignEventCounterparty: counterparties.assignEvent,
       listQuestions: questions.list,
+      getEnrichmentSettings: () => enrichment.settings,
+      updateEnrichmentSettings: enrichment.configure,
+      requestEnrichment: enrichment.request,
+      listEnrichmentRuns: () => enrichment.runs,
+      nextEnrichmentBatch: enrichment.batch,
+      completeEnrichmentBatch: enrichment.complete,
+      failEnrichment: enrichment.fail,
+      listCategoryProposals: () => enrichment.proposals,
       getEvent: events.get,
       getEventForPosting: events.forPosting,
       getInterpretationSummary: () => events.summary,

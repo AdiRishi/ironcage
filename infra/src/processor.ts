@@ -1,12 +1,13 @@
 import * as Cloudflare from "alchemy/Cloudflare";
 import { Effect } from "effect";
 
+import { runEnrichment } from "../../workers/processor/src/enrichment/workflow.ts";
 import { runExport } from "../../workers/processor/src/exports/workflow.ts";
 import { runImport } from "../../workers/processor/src/imports/workflow.ts";
 import { processor } from "../../workers/processor/src/index.ts";
 import { Api, financialStorage } from "./api.ts";
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
-import { processorBindings } from "./worker-bindings.ts";
+import { enrichmentBindings, processorBindings } from "./worker-bindings.ts";
 
 export class ImportWorkflow extends Cloudflare.Workflow<ImportWorkflow>()(
   "ImportWorkflow",
@@ -25,11 +26,23 @@ export class ExportWorkflow extends Cloudflare.Workflow<ExportWorkflow>()(
   }),
 ) {}
 
+export class EnrichmentWorkflow extends Cloudflare.Workflow<EnrichmentWorkflow>()(
+  "EnrichmentWorkflow",
+  Effect.gen(function* () {
+    return runEnrichment(yield* Cloudflare.Workers.bindWorker(Api), yield* enrichmentBindings());
+  }).pipe(Effect.provide(Cloudflare.AI.QueryGatewayBinding)),
+) {}
+
 export class Processor extends Cloudflare.Worker<
   Processor,
   Pick<
     Effect.Success<ReturnType<typeof processor>>,
-    "getImportInstance" | "startImport" | "startExport" | "getExportInstance"
+    | "getImportInstance"
+    | "startImport"
+    | "startExport"
+    | "getExportInstance"
+    | "startEnrichment"
+    | "getEnrichmentInstance"
   >
 >()("ProcessorWorker") {}
 

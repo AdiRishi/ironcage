@@ -15,24 +15,32 @@ A model never computes a total and never changes a booked field.
 
 Every model call goes through the Workers AI binding with a stage-specific AI Gateway. Third-party models, including Anthropic's, are billed through AI Gateway Unified Billing, so the application holds no provider key. The gateway has authentication on, and request logging and response caching off. `infra/src/enrichment.ts` owns the gateway, the model ID, and the price table used for usage estimates.
 
-The enrichment model is chosen by the evaluation below, not by default. A candidate must support structured output and, for unknown descriptors, Anthropic's server-side web search tool.
+Enrichment uses `anthropic/claude-opus-5` with Anthropic's Messages format, structured output against a JSON Schema, and the `web_search_20260209` server tool. The request shape comes from `@anthropic-ai/sdk` types. Cloudflare's gateway adds three constraints, found by testing it:
+
+- `system` must be a string, so the stable taxonomy is the first user content block and carries the cache breakpoint.
+- An explicit `thinking` setting is refused; Opus 5 thinks adaptively by default.
+- Anthropic's server-side `fallbacks` parameter is not accepted. A refusal fails the batch visibly instead.
+
+Unified Billing rate-limits bursts, so each request retries three times with exponential backoff from 15 seconds.
 
 ## Enrichment
 
 Enrichment runs as a Cloudflare Workflow in the processor. It turns alias keys that have no counterparty into counterparties with defaults.
 
-1. **Collect.** The API returns alias keys without a counterparty, largest total outflow first. Each key comes with up to three descriptor samples, the channel, the direction, the account kinds, and the number of transactions.
-2. **Resolve.** A batch of up to 25 aliases goes to the model with the current taxonomy and the list of existing counterparty names. For each alias, the model returns:
+1. **Collect.** Requesting a run records every alias key without a counterparty, largest total amount first. The amounts order the work and never reach the model. Each batch carries up to three descriptor samples per alias, its channels, directions, account kinds, and transaction count.
+2. **Resolve.** A batch of up to 25 aliases goes to the model with the taxonomy, each category keyed by its slug (or ID for a category you created), and the existing counterparties. For each alias, the model returns:
    - whether it belongs to an existing counterparty or a new one
    - the counterparty's name, kind, brand, and default category slug
    - a default role for people and institutions, if it can tell
    - a confidence from 0 to 1, and a one-line reason
-     The model may search the web for a descriptor it does not recognize.
+     The model may search the web for a descriptor it does not recognize, and may propose a subcategory that does not exist yet.
 3. **Apply.** The API validates the response against the current taxonomy and counterparties, then applies it in one command:
    - A confidence at or above the auto-apply threshold (0.8 by default) creates or links the counterparty with `model` provenance and status `applied`, and its defaults apply to events immediately.
    - A lower confidence, or any person counterparty, creates the counterparty with status `proposed`, which raises a question with the model's proposal.
 
-Rerunning enrichment only touches aliases without a counterparty, and counterparties whose provenance is still `model`. A counterparty you edited is never sent back to the model.
+A counterparty with the same name as the model's answer is reused, so aliases of one business resolved in different batches still meet. Proposed subcategories are stored for you to accept. Rerunning enrichment only touches aliases without a counterparty. A counterparty you edited is never sent back to the model.
+
+On the corpus, the first run sent 1,203 aliases in 49 batches.
 
 ### What the model receives
 
@@ -45,7 +53,7 @@ It never receives amounts, balances, dates, account numbers, or notes. Settings 
 
 ### Learning from corrections
 
-When you correct a counterparty created by the model, the correction becomes an example. The next enrichment prompt includes up to 20 recent corrections as `descriptor → your answer` pairs, so the model follows your conventions, such as "Bunnings is Home and furniture, not Maintenance".
+Every counterparty you created or edited becomes an example. Each batch includes up to 20 recent ones as descriptor samples with your answer, so the model follows your conventions, such as "Bunnings is Home and furniture, not Maintenance".
 
 ### Evaluation
 
@@ -57,7 +65,7 @@ The statement parser runs first. A page it cannot read becomes a `value` source 
 
 ## Usage and limits
 
-Every call writes a usage record with the task, model, time, reported tokens, and estimated cost. A failed call with no report stores unknown usage. A USD warning threshold blocks new calls once recorded usage reaches it. Delayed reports and concurrent calls can overshoot it, and Settings says so.
+Every batch writes a usage record with the task, model, time, reported tokens, web searches, and estimated cost. A request that failed without a reply stores unknown usage, not zero. A USD warning threshold blocks new calls once recorded usage reaches it. Delayed reports and concurrent calls can overshoot it, and Settings says so.
 
 Each call has an input limit, an output limit, and a two-minute timeout. The SDK handles transient retries, and the Workflow does not repeat a call after an exhausted retry.
 

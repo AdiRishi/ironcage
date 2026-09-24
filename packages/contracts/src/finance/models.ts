@@ -7,6 +7,7 @@ export const ModelProvider = Schema.Struct({
   model: Schema.String,
   inputMicrousdPerMillion: Schema.BigIntFromString,
   outputMicrousdPerMillion: Schema.BigIntFromString,
+  searchMicrousd: Schema.BigIntFromString,
 });
 export type ModelProvider = typeof ModelProvider.Type;
 export const ModelUsage = Schema.Struct({

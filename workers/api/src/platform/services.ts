@@ -1,4 +1,10 @@
-import { ExportId, FinanceError, ImportId } from "@repo/contracts/finance";
+import {
+  EnrichmentRunId,
+  ExportId,
+  FinanceError,
+  ImportId,
+  type ModelProvider,
+} from "@repo/contracts/finance";
 import type { ReadWriteBucketClient } from "alchemy/Cloudflare/R2";
 import { RuntimeContext } from "alchemy/RuntimeContext";
 import { Context, Effect, Layer } from "effect";
@@ -88,3 +94,16 @@ export class ExportJobs extends Context.Service<
   static readonly layer = (client: JobClient<{ exportId: typeof ExportId.Type }>) =>
     Layer.effect(ExportJobs, jobService(client));
 }
+
+export class EnrichmentJobs extends Context.Service<
+  EnrichmentJobs,
+  Effect.Success<ReturnType<typeof jobService<{ runId: typeof EnrichmentRunId.Type }>>>
+>()("@repo/api/platform/EnrichmentJobs") {
+  static readonly layer = (client: JobClient<{ runId: typeof EnrichmentRunId.Type }>) =>
+    Layer.effect(EnrichmentJobs, jobService(client));
+}
+
+export class EnrichmentConfig extends Context.Service<
+  EnrichmentConfig,
+  { readonly provider: ModelProvider }
+>()("@repo/api/platform/EnrichmentConfig") {}

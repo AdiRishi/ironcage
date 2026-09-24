@@ -10,6 +10,7 @@ import { ExportsSection } from "@/features/exports/section";
 import { SourceFilesSection } from "@/features/sources/section";
 
 import { AccountPeriodsSection } from "../accounts/periods";
+import { EnrichmentSection } from "../enrichment/settings";
 import { DisplaySettings } from "./display-settings";
 import { ModelUsageSection } from "./model-usage";
 import { settingsQueryOptions, retentionQueryOptions } from "./queries";
@@ -69,6 +70,7 @@ export function SettingsPage() {
       </section>
       <AccountPeriodsSection accounts={accounts} />
       <ExportsSection timezone={settings.timezone} />
+      <EnrichmentSection />
       <ModelUsageSection />
       <SourceFilesSection />
       <section className="space-y-3 rounded-lg border p-5 sm:p-6">

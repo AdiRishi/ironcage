@@ -16,7 +16,9 @@ import { Corrections } from "../../src/events/corrections.ts";
 import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
+import { Enrichment } from "../../src/interpretation/enrichment.ts";
 import { Questions } from "../../src/interpretation/questions.ts";
+import { EnrichmentConfig, EnrichmentJobs } from "../../src/platform/services.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { References } from "../../src/references/service.ts";
 import { InterpretationReviews } from "../../src/relationships/reviews.ts";
@@ -70,11 +72,29 @@ export function applicationTest() {
     Settings.layer,
     Counterparties.layer,
     Questions.layer,
+    Enrichment.layer,
   ).pipe(
     Layer.provideMerge(Publication.layer),
     Layer.provideMerge(Commands.layer),
     Layer.provide(AccountResolution.layer),
     Layer.provideMerge(database),
+    Layer.provide(
+      Layer.succeed(EnrichmentConfig, {
+        provider: {
+          name: "Synthetic provider",
+          model: "synthetic",
+          inputMicrousdPerMillion: 5_000_000n,
+          outputMicrousdPerMillion: 25_000_000n,
+          searchMicrousd: 10_000n,
+        },
+      }),
+    ),
+    Layer.provide(
+      Layer.succeed(EnrichmentJobs, {
+        start: () => Effect.void,
+        status: () => Effect.succeed({ status: "running", failure: null }),
+      }),
+    ),
     Layer.provideMerge(NodeCrypto.layer),
   );
 

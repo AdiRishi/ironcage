@@ -7,6 +7,7 @@ packages:
   - workers/*
 
 catalog:
+  "@anthropic-ai/sdk": 0.128.0
   cn: 0.3.0
   recharts: 3.8.0
   uuid: 14.0.2
