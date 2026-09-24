@@ -3,7 +3,7 @@ title: AI
 description: Where models are used, what they receive, how their output is applied, and what they can never do.
 ---
 
-Enrichment is the only model call. It resolves counterparties and their defaults. Document extraction is not built: the statement parser reads every page, and a page it cannot read becomes a `value` source review. The analyst is on the [roadmap](/roadmap).
+Enrichment is the only kind of model call. It resolves counterparties and their defaults, or scores the model against your answers. Document extraction is not built: the statement parser reads every page, and a page it cannot read becomes a `value` source review. The analyst is on the [roadmap](/roadmap).
 
 A model never computes a total and never changes a booked field.
 
@@ -58,7 +58,9 @@ Every counterparty you created or edited becomes an example. Each batch includes
 
 ### Evaluation
 
-There is no evaluation yet. The intended set is your answers: every counterparty you created or corrected, with its descriptors and your answer. A candidate model or prompt would be scored on name agreement, category agreement at both levels, kind agreement, and calibration: of the answers above the auto-apply threshold, the share that matched.
+Check the model against your answers in Settings. `requestEvaluation` starts an enrichment run with the purpose `evaluate`. It asks about every alias of a counterparty you set, and copies your answer into `enrichment_evaluations` when the run starts. The run uses the same Workflow, batches, usage records, and warning threshold as identification. Each batch leaves out the counterparties whose aliases it asks about, from both the existing counterparties and the examples, so the model cannot copy your answer. The replies are stored beside your answers and never applied.
+
+`scoreEvaluation` in `packages/finance/src/evaluation.ts` scores the replies. It counts agreement on name, kind, category, and top-level category. Names agree when their words match regardless of case, order, punctuation, and legal suffixes such as Pty Ltd. It also groups answers by confidence, from 0 to 50%, 50 to 70%, 70 to 80%, 80 to 90%, and 90% up, and counts how many in each band were right. An answer is right when both the name and the category match, which is what the model's confidence claims. Settings shows the scores and how many answers at or above the auto-apply threshold were right, which is the evidence for choosing the threshold.
 
 ## Usage and limits
 

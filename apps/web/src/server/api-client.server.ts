@@ -41,6 +41,7 @@ type ApiMethods = Pick<
   | "getEnrichmentSettings"
   | "updateEnrichmentSettings"
   | "requestEnrichment"
+  | "requestEvaluation"
   | "listEnrichmentRuns"
   | "listCategoryProposals"
   | "resolveCategoryProposal"

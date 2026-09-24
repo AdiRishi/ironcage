@@ -293,3 +293,86 @@ test(
     expect(second._tag === "Failure" && second.failure.kind).toBe("conflict");
   }).pipe(Effect.provide(services)),
 );
+
+test(
+  "a check against your answers hides them from the model and scores its replies without applying them",
+  Effect.gen(function* () {
+    yield* reset;
+    const owner = yield* account();
+    const file = yield* source(owner.id);
+    yield* (yield* Publication).publish({
+      ...parsed(["WOOLWORTHS 1234 SYDNEY AU Card xx1234", "SQ *NEW CAFE 0412 Card xx1234"]),
+      importId: file.importId,
+    });
+    const groceries = (yield* (yield* Events).references).categories.find(
+      (row) => row.slug === "food.groceries",
+    );
+    const coffee = (yield* (yield* Events).references).categories.find(
+      (row) => row.slug === "food.coffee",
+    );
+    if (!groceries || !coffee) return yield* Effect.die("Expected seeded categories");
+    const counterparties = yield* Counterparties;
+    for (const [aliasKey, name, categoryId] of [
+      ["WOOLWORTHS SYDNEY", "Woolworths", groceries.id],
+      ["SQ NEW CAFE", "New Cafe", coffee.id],
+    ] as const)
+      yield* counterparties.save({
+        commandId: yield* commandId,
+        target: { kind: "create", aliasKeys: [aliasKey] },
+        fields: {
+          name,
+          kind: "business",
+          brand: null,
+          defaultCategoryId: categoryId,
+          defaultRole: null,
+        },
+      });
+    const enrichment = yield* Enrichment;
+    const run = yield* enrichment.evaluate({ commandId: yield* commandId });
+    expect(run).toMatchObject({ purpose: "evaluate", requested: 2 });
+    const batch = yield* enrichment.batch({ runId: run.id });
+    expect(batch.aliases.map((alias) => alias.aliasKey).toSorted()).toEqual([
+      "SQ NEW CAFE",
+      "WOOLWORTHS SYDNEY",
+    ]);
+    expect(batch.counterparties).toEqual([]);
+    expect(batch.examples).toEqual([]);
+    yield* enrichment.complete({
+      commandId: yield* commandId,
+      runId: run.id,
+      aliasKeys: batch.aliases.map((alias) => alias.aliasKey),
+      report: {
+        status: "success",
+        results: [
+          result({
+            aliasKey: "WOOLWORTHS SYDNEY",
+            name: "WOOLWORTHS",
+            categoryKey: "food.groceries",
+          }),
+          result({
+            aliasKey: "SQ NEW CAFE",
+            name: "New Cafe",
+            categoryKey: "food.dining-out",
+            confidence: 0.6,
+          }),
+        ],
+        inputTokens: 1000n,
+        outputTokens: 200n,
+        cost: { currency: "USD", minor: 2n },
+        failure: null,
+      },
+    });
+    const [checked] = yield* enrichment.runs;
+    expect(checked?.evaluation).toMatchObject({
+      asked: 2,
+      answered: 2,
+      name: 2,
+      category: 1,
+      topCategory: 2,
+      confident: 1,
+      confidentRight: 1,
+    });
+    const cafe = (yield* counterparties.list({ search: "Cafe", currency: "AUD", period: null }))[0];
+    expect(cafe?.defaultCategoryId).toBe(coffee.id);
+  }).pipe(Effect.provide(services)),
+);

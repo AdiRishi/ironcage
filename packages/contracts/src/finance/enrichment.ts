@@ -34,8 +34,33 @@ export const UpdateEnrichmentSettings = Schema.Struct({
   expectedVersion: Version,
 });
 
+// What the model said about one alias you answered, beside your answer. Category keys
+// are slugs, or IDs for categories you created.
+export const EvaluationAnswer = Schema.Struct({
+  name: Schema.String,
+  kind: CounterpartyKind,
+  categoryKey: Schema.NullOr(Schema.String),
+  topCategoryKey: Schema.NullOr(Schema.String),
+});
+// How often the model agreed with your answers, and how often its confident answers
+// were right: the evidence for the auto-apply threshold.
+export const EvaluationScore = Schema.Struct({
+  asked: Schema.Int,
+  answered: Schema.Int,
+  name: Schema.Int,
+  kind: Schema.Int,
+  category: Schema.Int,
+  topCategory: Schema.Int,
+  bands: Schema.Array(
+    Schema.Struct({ from: Confidence, to: Confidence, answered: Schema.Int, right: Schema.Int }),
+  ),
+  threshold: Confidence,
+  confident: Schema.Int,
+  confidentRight: Schema.Int,
+});
 export const EnrichmentRun = Schema.Struct({
   id: EnrichmentRunId,
+  purpose: Schema.Literals(["identify", "evaluate"]),
   status: Schema.Literals(["pending", "running", "completed", "failed"]),
   model: Schema.String,
   createdAt: Instant,
@@ -43,9 +68,11 @@ export const EnrichmentRun = Schema.Struct({
   resolved: Schema.Int,
   failed: Schema.Int,
   failure: Schema.NullOr(Schema.String),
+  evaluation: Schema.NullOr(EvaluationScore),
 });
 export const EnrichmentRuns = Schema.Array(EnrichmentRun);
 export const RequestEnrichment = Schema.Struct({ commandId: CommandId });
+export const RequestEvaluation = Schema.Struct({ commandId: CommandId });
 export const EnrichmentInput = Schema.Struct({ runId: EnrichmentRunId });
 
 // What the model sees for one alias: descriptor text only, never amounts, dates,

@@ -82,6 +82,7 @@ export type ApiOperations = {
   getEnrichmentSettings: () => Enrichment["Service"]["settings"];
   updateEnrichmentSettings: Enrichment["Service"]["configure"];
   requestEnrichment: Enrichment["Service"]["request"];
+  requestEvaluation: Enrichment["Service"]["evaluate"];
   listEnrichmentRuns: () => Enrichment["Service"]["runs"];
   nextEnrichmentBatch: Enrichment["Service"]["batch"];
   completeEnrichmentBatch: Enrichment["Service"]["complete"];
@@ -237,6 +238,7 @@ export const api = Effect.fn("Api.initialize")(function* (
       getEnrichmentSettings: () => enrichment.settings,
       updateEnrichmentSettings: enrichment.configure,
       requestEnrichment: enrichment.request,
+      requestEvaluation: enrichment.evaluate,
       listEnrichmentRuns: () => enrichment.runs,
       nextEnrichmentBatch: enrichment.batch,
       completeEnrichmentBatch: enrichment.complete,
