@@ -3,6 +3,7 @@ import {
   ExportId,
   type FactsRebuildInput,
   FinanceError,
+  type Retention,
   ImportId,
   type ModelProvider,
 } from "@repo/contracts/finance";
@@ -110,6 +111,10 @@ export class FactJobs extends Context.Service<
   static readonly layer = (client: JobClient<typeof FactsRebuildInput.Type>) =>
     Layer.effect(FactJobs, jobService(client));
 }
+
+export class RetentionPolicy extends Context.Service<RetentionPolicy, typeof Retention.Type>()(
+  "@repo/api/platform/RetentionPolicy",
+) {}
 
 export class EnrichmentConfig extends Context.Service<
   EnrichmentConfig,
