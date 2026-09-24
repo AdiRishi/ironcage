@@ -1,4 +1,4 @@
-import type { PgClient } from "@effect/sql-pg";
+import { type PgClient, PgTypes } from "@effect/sql-pg";
 import {
   Candidate,
   ImportId,
@@ -35,16 +35,18 @@ export const saveObservations = Effect.fn("saveObservations")(function* (
     observations,
     Effect.fnUntraced(function* (observation) {
       const encoded = yield* Schema.encodeEffect(ParsedObservation)(observation);
+      // Typed parameters rather than sql.json fragments: a fragment nested in an
+      // insert row is not resolved by Alchemy's deferred PostgreSQL client.
       return {
         id: yield* crypto.randomUUIDv4,
         import_id: importId,
         source_file_id: sourceFileId,
         locator_key: encoded.locatorKey,
-        locator: sql.json(encoded.locator),
-        raw: sql.json(encoded.raw),
-        candidate: sql.json(encoded.candidate),
-        parsed_candidate: sql.json(encoded.candidate),
-        issue: sql.json(encoded.issue),
+        locator: PgTypes.jsonb(encoded.locator),
+        raw: PgTypes.jsonb(encoded.raw),
+        candidate: PgTypes.jsonb(encoded.candidate),
+        parsed_candidate: PgTypes.jsonb(encoded.candidate),
+        issue: PgTypes.jsonb(encoded.issue),
       };
     }),
   );
