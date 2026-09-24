@@ -106,7 +106,6 @@ export const EnrichmentReport = Schema.Struct({
   results: Schema.Array(EnrichmentResult),
   inputTokens: Schema.NullOr(Schema.BigIntFromString),
   outputTokens: Schema.NullOr(Schema.BigIntFromString),
-  searches: Schema.Int,
   cost: Schema.NullOr(Money),
   failure: Schema.NullOr(Schema.String),
 });

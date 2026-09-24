@@ -1,4 +1,9 @@
-import { EnrichmentBatch, EnrichmentInput, EnrichmentReport } from "@repo/contracts/finance";
+import {
+  EnrichmentBatch,
+  EnrichmentInput,
+  EnrichmentReport,
+  enrichmentModel,
+} from "@repo/contracts/finance";
 import type { Api } from "@repo/infra/api";
 import { Workflows } from "alchemy/Cloudflare";
 import type { AI } from "alchemy/Cloudflare";
@@ -6,8 +11,8 @@ import { Effect, Schema } from "effect";
 
 import { resolveAliases } from "./model.ts";
 
-// A single failed batch is usually a rate limit or a slow search; several in a row
-// mean the provider or its settings need attention.
+// A single failed batch can be a passing model error; several in a row mean the
+// model or its settings need attention.
 const maximumFailures = 3;
 
 export const runEnrichment = (
@@ -32,8 +37,8 @@ export const runEnrichment = (
             const ai = yield* gateway.raw;
             const id = yield* gateway.id;
             return yield* resolveAliases(
-              (body) =>
-                ai.run(batch.provider.model, body, {
+              (input) =>
+                ai.run(enrichmentModel, input, {
                   gateway: { id, skipCache: true, collectLog: false },
                 }),
               batch,

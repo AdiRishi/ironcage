@@ -13,15 +13,11 @@ A model never computes a total and never changes a booked field.
 
 ## Access
 
-Every model call goes through the Workers AI binding with a stage-specific AI Gateway. Third-party models, including Anthropic's, are billed through AI Gateway Unified Billing, so the application holds no provider key. The gateway has authentication on, and request logging and response caching off. `infra/src/enrichment.ts` owns the gateway, the model ID, and the price table used for usage estimates.
+Every model call goes through the Workers AI binding with a stage-specific AI Gateway, billed to the Cloudflare account, so the application holds no provider key. The gateway has authentication on, and request logging and response caching off. The model ID lives in `packages/contracts/src/finance/models.ts`, and `infra/src/enrichment.ts` owns the gateway and the price table used for usage estimates.
 
-Enrichment uses `anthropic/claude-opus-5` with Anthropic's Messages format, structured output against a JSON Schema, and the `web_search_20260209` server tool. The request shape comes from `@anthropic-ai/sdk` types. Cloudflare's gateway adds three constraints, found by testing it:
+Enrichment uses `@cf/zai-org/glm-5.3-flash` at $0.15 per million input tokens, $0.03 per million cached input tokens, and $0.50 per million output tokens. The request and reply types come from `@cloudflare/workers-types`. The request asks for JSON matching a JSON Schema generated from the `EnrichmentOutput` contract, and the answer is decoded against that same contract. The model has no web search, so a descriptor it does not recognise gets a low confidence and becomes a question.
 
-- `system` must be a string, so the stable taxonomy is the first user content block and carries the cache breakpoint.
-- An explicit `thinking` setting is refused; Opus 5 thinks adaptively by default.
-- Anthropic's server-side `fallbacks` parameter is not accepted. A refusal fails the batch visibly instead.
-
-Unified Billing rate-limits bursts, so each request retries three times with exponential backoff from 15 seconds.
+A request that fails is retried three times with exponential backoff from 5 seconds. A reply that arrives is never retried, even when it fails to decode, because the answer was already billed.
 
 ## Enrichment
 
@@ -33,14 +29,14 @@ Enrichment runs as a Cloudflare Workflow in the processor. It turns alias keys t
    - the counterparty's name, kind, brand, and default category slug
    - a default role for people and institutions, if it can tell
    - a confidence from 0 to 1, and a one-line reason
-     The model may search the web for a descriptor it does not recognize, and may propose a subcategory that does not exist yet.
+     The model may propose a subcategory that does not exist yet.
 3. **Apply.** The API validates the response against the current taxonomy and counterparties, then applies it in one command:
    - A confidence at or above the auto-apply threshold (0.8 by default) creates or links the counterparty with `model` provenance and status `applied`, and its defaults apply to events immediately.
    - A lower confidence, or any person counterparty, creates the counterparty with status `proposed`, which raises a question with the model's proposal.
 
 A counterparty with the same name as the model's answer is reused, so aliases of one business resolved in different batches still meet. Proposed subcategories appear in Questions. Accepting one creates it and moves the counterparties the model placed in its parent, or in a sibling subcategory, into it. Counterparties you set are never moved. Rerunning enrichment only touches aliases without a counterparty. A counterparty you edited is never sent back to the model.
 
-On the corpus, the first run sent 1,203 aliases in 49 batches.
+The corpus has 1,203 alias keys, which is 49 batches.
 
 ### What the model receives
 
@@ -57,7 +53,7 @@ Every counterparty you created or edited becomes an example. Each batch includes
 
 ### Evaluation
 
-Your answers form the evaluation set: every counterparty you created or corrected, with its descriptors and your answer. `pnpm --filter @repo/processor eval:enrichment` runs a candidate model and prompt against that set locally. It reports name agreement, category agreement at both levels, kind agreement, and how calibrated confidence was: of the answers above the threshold, the share that matched. A model or prompt change ships only if it does at least as well as the current one.
+There is no evaluation yet. The intended set is your answers: every counterparty you created or corrected, with its descriptors and your answer. A candidate model or prompt would be scored on name agreement, category agreement at both levels, kind agreement, and calibration: of the answers above the auto-apply threshold, the share that matched.
 
 ## Document extraction
 
@@ -65,9 +61,9 @@ The statement parser runs first. A page it cannot read becomes a `value` source 
 
 ## Usage and limits
 
-Every batch writes a usage record with the task, model, time, reported tokens, web searches, and estimated cost. A request that failed without a reply stores unknown usage, not zero. A USD warning threshold blocks new calls once recorded usage reaches it. Delayed reports and concurrent calls can overshoot it, and Settings says so.
+Every batch writes a usage record with the task, model, time, reported tokens, and estimated cost. The estimate prices cached input tokens at the cached rate. A batch without a usable usage report stores unknown usage, not zero. A USD warning threshold blocks new calls once recorded usage reaches it. Delayed reports and concurrent calls can overshoot it, and Settings says so.
 
-Each batch has an output limit and a ten-minute Workflow step timeout. The request retries rate limits itself, and the Workflow never repeats a batch whose retries ran out. A failed batch leaves its aliases unresolved and the run moves on; three failed batches in a row stop the run. The next run picks up every alias still without a counterparty, including the failed ones.
+Each batch has a 16,000-token output limit and a ten-minute Workflow step timeout. The Workflow never repeats a batch whose retries ran out. A failed batch leaves its aliases unresolved and the run moves on; three failed batches in a row stop the run. The next run picks up every alias still without a counterparty, including the failed ones.
 
 Logs carry operation IDs and timings, never prompts, completions, or descriptions.
 

@@ -23,7 +23,6 @@
     "unpdf": "catalog:"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "catalog:",
     "@cloudflare/workers-types": "catalog:",
     "@effect/vitest": "catalog:",
     "@repo/infra": "workspace:*",

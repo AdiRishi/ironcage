@@ -1,4 +1,4 @@
-import type { ModelProvider } from "@repo/contracts/finance";
+import { enrichmentModel, type ModelProvider } from "@repo/contracts/finance";
 import * as Cloudflare from "alchemy/Cloudflare";
 
 export const EnrichmentGateway = Cloudflare.AI.Gateway("EnrichmentGateway", {
@@ -7,12 +7,12 @@ export const EnrichmentGateway = Cloudflare.AI.Gateway("EnrichmentGateway", {
   cacheTtl: null,
 });
 
-// Anthropic list prices for Claude Opus 5, billed through AI Gateway Unified Billing.
-// Web search is priced per request.
+// Workers AI list prices for GLM-5.3-Flash:
+// https://developers.cloudflare.com/workers-ai/models/glm-5.3-flash/
 export const enrichmentProvider = {
-  name: "Anthropic through Cloudflare AI Gateway",
-  model: "anthropic/claude-opus-5",
-  inputMicrousdPerMillion: 5_000_000n,
-  outputMicrousdPerMillion: 25_000_000n,
-  searchMicrousd: 10_000n,
+  name: "Cloudflare Workers AI",
+  model: enrichmentModel,
+  inputMicrousdPerMillion: 150_000n,
+  cachedInputMicrousdPerMillion: 30_000n,
+  outputMicrousdPerMillion: 500_000n,
 } satisfies ModelProvider;

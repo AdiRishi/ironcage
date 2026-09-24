@@ -81,9 +81,9 @@ export function applicationTest() {
         provider: {
           name: "Synthetic provider",
           model: "synthetic",
-          inputMicrousdPerMillion: 5_000_000n,
-          outputMicrousdPerMillion: 25_000_000n,
-          searchMicrousd: 10_000n,
+          inputMicrousdPerMillion: 150_000n,
+          cachedInputMicrousdPerMillion: 30_000n,
+          outputMicrousdPerMillion: 500_000n,
         },
       }),
     ),
