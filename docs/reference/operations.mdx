@@ -3,9 +3,11 @@ title: Operations
 description: Access, database, backups, retention, and the checks to run before private data goes in.
 ---
 
+This page is the runbook for hosted stages. It describes what the stack creates, and lists the checks to run before private data goes into a hosted stage. The app has not been deployed yet, so those checks have not been run.
+
 ## Access
 
-Production runs at `wealth.arishi.dev` under the existing `arishi.dev` zone. The web module in `infra/src/web-application.ts` owns the domain and the Cloudflare Access application. Access allows exactly one identity. Staging gets its own hostname and Access application before it goes live.
+Production runs at the hostname in `infra/src/deployment-config.ts`. The web module in `infra/src/web-application.ts` owns the domain and the Cloudflare Access application. Access allows exactly one identity. Staging gets its own hostname and Access application before it goes live.
 
 The web Worker validates the Access JWT on every request: signature against the team's public keys, issuer, audience, and expiry. [Access token validation](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/). Internal Workers have no public hostname. Mutation handlers also check the request origin.
 

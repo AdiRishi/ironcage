@@ -181,7 +181,7 @@ Reuploading identical bytes writes a new object under a new upload ID, points `o
 
 Measured on the private corpus in `fixtures/commbank/`. The parsers are built for these files. Never copy rows from the corpus into tracked files, snapshots, or logs.
 
-- 99 files for four accounts: 26 CSV and OFX pairs and 47 PDF statements. Statements reach back to 2019 for the spending account; the card and loan histories are shorter.
+- 99 files: 26 CSV and OFX pairs and 47 PDF statements, across deposit, card, and loan accounts.
 - CSV rows have four fields, no header, no byte order mark, and no thousands separators. Rows are newest first. Deposit and loan rows carry a running balance; card rows do not. Each CSV has exactly the rows of its OFX pair.
 - OFX is 1.02 SGML with `CHARSET:1252`. `NAME` is never present and `MEMO` always is. Deposit rows have a `FITID`; card and loan `FITID` tags are empty. `DTASOF`, `DTSTART`, and `DTEND` have no offset and are read as GMT.
 - All 26 OFX `LEDGERBAL` dates are later than the exported rows, and 21 of those balances differ from the paired CSV's newest running balance.
