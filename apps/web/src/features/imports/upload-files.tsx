@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/select";
 import { CreateAccountDialog } from "@/features/accounts/create-account";
 import { accountsQueryOptions } from "@/features/accounts/queries";
-import { invalidatePublishedRecords } from "@/lib/invalidate-records";
 
 type UploadProgress =
   | { status: "uploading" | "failed"; message: string }
@@ -79,7 +78,7 @@ export function UploadFiles() {
           message: result.existing ? "Original available. Records already imported." : "Uploaded",
           importId: result.importId,
         });
-        await invalidatePublishedRecords(client);
+        await client.invalidateQueries();
       }),
     );
   }
