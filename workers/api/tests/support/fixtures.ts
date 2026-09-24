@@ -14,7 +14,7 @@ import { Accounts } from "../../src/accounts/service.ts";
 
 export const reset = Effect.gen(function* () {
   const sql = yield* PgClient.PgClient;
-  yield* sql`TRUNCATE saved_analyses, rules, command_receipts, review_items, source_coverage, observations, postings, imports, source_files, accounts, exports, model_usage, counterparties, enrichment_runs, category_proposals CASCADE`;
+  yield* sql`TRUNCATE rules, command_receipts, review_items, source_coverage, observations, postings, imports, source_files, accounts, exports, model_usage, counterparties, enrichment_runs, category_proposals CASCADE`;
   yield* sql`UPDATE enrichment_settings SET enabled = true, warning_minor = 2000, auto_apply_confidence = 0.8, version = 1 WHERE id = 1`;
 });
 export const account = Effect.fn("fixtureAccount")(function* () {

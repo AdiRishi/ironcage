@@ -44,7 +44,7 @@ Migration tests run from empty and from a populated database.
 | Reinterpretation, enrichment, or a counterparty default overwrites a value you set.   |
 | Ledger facts disagree with the events they project after any command.                 |
 | A headline and its rows come from different data.                                     |
-| Contributor totals, counts, and averages disagree with each other.                    |
+| A change's purchases part and average part do not sum to the change.                  |
 | The flow's inflows minus outflows differ from surplus plus external transfers.        |
 
 ## Regression cases
@@ -69,8 +69,6 @@ Each case has a known answer that does not come from the implementation.
 | Cost 30000, credit 20000 applied, then another 20000.                                | Remaining 10000; second application fails with `conflict`.                                    |
 | Interest on 31 August, repayment on 2 September, linked.                             | August cost 280000, September repayment 390000, interest date unchanged.                      |
 | Split 10000 into 4000, 3500, 2600.                                                   | Rejected.                                                                                     |
-| Daily average over a month with three uncovered days.                                | Average unavailable, total and denominator shown.                                             |
-| Rolling 30-day saved analysis opened a week later.                                   | Dates advanced by seven days. A fixed analysis keeps its dates.                               |
 
 ## Browser flows
 

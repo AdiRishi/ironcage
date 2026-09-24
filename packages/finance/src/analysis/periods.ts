@@ -1,4 +1,10 @@
-import { CalendarDate, FinanceError, Period, type PeriodSelection } from "@repo/contracts/finance";
+import {
+  CalendarDate,
+  type ComparisonSelection,
+  FinanceError,
+  Period,
+  type PeriodSelection,
+} from "@repo/contracts/finance";
 import { DateTime, Result, Schema } from "effect";
 
 export function addDays(on: CalendarDate, days: number) {
@@ -6,7 +12,7 @@ export function addDays(on: CalendarDate, days: number) {
     DateTime.formatIsoDateUtc(DateTime.add(DateTime.makeUnsafe(on), { days })),
   );
 }
-export function daysInPeriod(period: Period) {
+function daysInPeriod(period: Period) {
   return (
     (DateTime.toEpochMillis(DateTime.makeUnsafe(period.endExclusive)) -
       DateTime.toEpochMillis(DateTime.makeUnsafe(period.start))) /
@@ -78,10 +84,6 @@ export function missingPeriods(period: Period, intervals: readonly Period[]): Pe
     missing.push({ start: cursor, endExclusive: period.endExclusive });
   return missing;
 }
-export function inPeriod(on: CalendarDate, period: Period) {
-  return on >= period.start && on < period.endExclusive;
-}
-
 export function mergePeriods(intervals: readonly Period[]): Period[] {
   const merged: Period[] = [];
   for (const interval of [...intervals].sort((a, b) => a.start.localeCompare(b.start))) {
@@ -96,7 +98,7 @@ export function mergePeriods(intervals: readonly Period[]): Period[] {
 
 export function comparisonPeriod(
   selection: PeriodSelection,
-  comparison: import("@repo/contracts/finance").AnalysisQuery["comparison"],
+  comparison: typeof ComparisonSelection.Type,
   current: Period,
 ): Result.Result<Period, FinanceError> {
   if (comparison.kind === "fixed")

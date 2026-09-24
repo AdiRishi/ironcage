@@ -8,8 +8,6 @@ import { AccountHistory } from "./accounts/periods.ts";
 import { AccountResolution } from "./accounts/resolution.ts";
 import { Accounts } from "./accounts/service.ts";
 import { Flows } from "./analysis/flows.ts";
-import { SavedAnalyses } from "./analysis/saved.ts";
-import { Analysis } from "./analysis/service.ts";
 import { Commands } from "./database/commands.ts";
 import { Corrections } from "./events/corrections.ts";
 import { Events } from "./events/service.ts";
@@ -43,18 +41,9 @@ import { SourceFiles } from "./sources/service.ts";
 // Declared explicitly because deriving it from `api` would make the infra Worker
 // class refer to itself through the bindings type.
 export type ApiOperations = {
-  saveAnalysis: SavedAnalyses["Service"]["save"];
-  getAnalysis: SavedAnalyses["Service"]["get"];
-  listAnalyses: () => SavedAnalyses["Service"]["list"];
-  renameAnalysis: SavedAnalyses["Service"]["rename"];
-  deleteAnalysis: SavedAnalyses["Service"]["remove"];
-  overview: Analysis["Service"]["overview"];
   getPeriodFlow: Flows["Service"]["period"];
   getMonthlyFlow: Flows["Service"]["monthly"];
   getSpending: Flows["Service"]["spending"];
-  compare: Analysis["Service"]["compare"];
-  rows: Analysis["Service"]["rows"];
-  contributors: Analysis["Service"]["contributors"];
   getEventRelationships: Relationships["Service"]["get"];
   listRelationshipCandidates: Relationships["Service"]["candidates"];
   previewRelationship: Relationships["Service"]["preview"];
@@ -127,9 +116,7 @@ export const api = Effect.fn("Api.initialize")(function* (
   bindings: Effect.Success<ReturnType<typeof apiBindings>>,
 ) {
   const services = Layer.mergeAll(
-    Analysis.layer,
     Flows.layer,
-    SavedAnalyses.layer,
     Accounts.layer,
     AccountHistory.layer,
     Events.layer,
@@ -173,8 +160,6 @@ export const api = Effect.fn("Api.initialize")(function* (
     ]),
   );
   return yield* Effect.gen(function* () {
-    const savedAnalyses = yield* SavedAnalyses;
-    const analysis = yield* Analysis;
     const flows = yield* Flows;
     const relationships = yield* Relationships;
     const interpretationReviews = yield* InterpretationReviews;
@@ -200,18 +185,9 @@ export const api = Effect.fn("Api.initialize")(function* (
       Layer.mergeAll(importHttpRoutes, exportHttpRoutes),
     );
     const operations = {
-      saveAnalysis: savedAnalyses.save,
-      getAnalysis: savedAnalyses.get,
-      listAnalyses: () => savedAnalyses.list,
-      renameAnalysis: savedAnalyses.rename,
-      deleteAnalysis: savedAnalyses.remove,
-      overview: analysis.overview,
       getPeriodFlow: flows.period,
       getMonthlyFlow: flows.monthly,
       getSpending: flows.spending,
-      compare: analysis.compare,
-      rows: analysis.rows,
-      contributors: analysis.contributors,
       getEventRelationships: relationships.get,
       listRelationshipCandidates: relationships.candidates,
       previewRelationship: relationships.preview,

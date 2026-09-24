@@ -1,7 +1,12 @@
 import { Schema } from "effect";
 
-import { AccountCoverage, DateBasis, Period, PeriodSelection } from "./analysis.ts";
-import { ComparisonSelection } from "./comparisons.ts";
+import {
+  AccountCoverage,
+  ComparisonSelection,
+  DateBasis,
+  Period,
+  PeriodSelection,
+} from "./analysis.ts";
 import { CategoryId, CounterpartyId } from "./interpretation.ts";
 import { Currency, Instant, Money } from "./values.ts";
 

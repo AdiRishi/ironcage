@@ -39,7 +39,7 @@ Magnitude is the absolute amount of the primary posting. A linked pair counts th
 
 A refund or reimbursement reduces spending in its own category on its own date. When a credit link applies it to a specific purchase, the linked amount reduces spending in the purchase's category and period instead. Unlinked credits without a category reduce nothing and are listed as unresolved inflow.
 
-Every result names its measure, period, date basis, accounts, currency, calculation time, and coverage. Coverage reports observed dates, reconciled intervals, missing accounts or periods, and the count and amount of unresolved events.
+Every flow and spending result names its period, comparison period, date basis, currency, and calculation time. The flow also reports coverage for each account: observed dates, reconciled intervals, missing periods, and the latest import.
 
 ## Ledger facts
 
@@ -74,26 +74,16 @@ The overview's list of changes is the six subcategories whose spending changed m
 
 ## Comparisons
 
-A query is `{ measure, period, comparison, basis, currency, accounts, filters }`. Filters within one dimension combine with OR, dimensions with AND, and a category includes its descendants.
+The flow and spending operations take `{ period, comparison, basis, currency }` and sum ledger facts for both periods in one query. Spending also takes a category, and a null category means all spending.
 
 ### Periods
 
-Periods are `[start, endExclusive)`. Relative selections support rolling day counts and calendar weeks, months, quarters, and years. Weeks start on Monday. A relative selection resolves once per request in the settings timezone. A period in progress compares with the same number of elapsed days of the comparison period, clamped at month end. Fixed dates never move. Neither alignment fills unobserved days with zero; missing coverage is reported.
+Periods are `[start, endExclusive)`. Relative selections support rolling day counts and calendar weeks, months, quarters, and years. Weeks start on Monday. A relative selection resolves once per request in the settings timezone. The comparison is the previous period, the same period a year earlier, or fixed dates. A period in progress compares with the same number of elapsed days of the comparison period, clamped at month end. Fixed dates never move. Neither alignment fills unobserved days with zero; missing coverage is reported.
 
-### Deltas and contributors
+### Changes
 
 Absolute change is current minus previous. Relative change is the absolute change over previous, only when previous is nonzero. A zero previous gives no percentage, and the UI says "new".
 
-Contributors sort by absolute change descending, then by group key. Category, counterparty, and account partition the total, so the view shows ten rows and a remainder. Tags and personal events overlap, so their rows show no remainder.
-
-The purchases part of a change is `(n1 - n0) * (p0 + p1) / 2` and the average part is `(p1 - p0) * (n0 + n1) / 2`, where `n` is the purchase count and `p` the average purchase. The two sum exactly to the change. Intermediate values are exact rationals. Rounded parts use largest-remainder allocation with a stable key, so they sum to the rounded change: floor each part to cents, then give the remaining cents to the parts with the largest remainders.
+The purchases part of a change is `(n1 - n0) * (p0 + p1) / 2` and the average part is `(p1 - p0) * (n0 + n1) / 2`, where `n` is the purchase count and `p` the average purchase. The two sum exactly to the change. Intermediate values are exact rationals. `purchaseDecomposition` floors each part to cents and gives the remaining cent to the part with the larger remainder, so the parts sum to the change.
 
 Example: 10 delivery orders totalling $200 in July, 12 totalling $300 in August. The change is $100. The purchases part is `(12 - 10) * (20 + 25) / 2 = $45`, and the average part is `(25 - 20) * (10 + 12) / 2 = $55`.
-
-### Daily average
-
-A daily average divides a period's total by its calendar days after alignment. Missing coverage anywhere in the period makes the average unavailable, while the total and the day count stay visible.
-
-## Saved analyses
-
-A saved analysis stores a name and a query. Opening it runs the query against current records. Relative dates resolve at that time, and fixed dates stay fixed. Results are not stored.

@@ -10,8 +10,6 @@ import { AccountHistory } from "../../src/accounts/periods.ts";
 import { AccountResolution } from "../../src/accounts/resolution.ts";
 import { Accounts } from "../../src/accounts/service.ts";
 import { Flows } from "../../src/analysis/flows.ts";
-import { SavedAnalyses } from "../../src/analysis/saved.ts";
-import { Analysis } from "../../src/analysis/service.ts";
 import { Commands } from "../../src/database/commands.ts";
 import { Corrections } from "../../src/events/corrections.ts";
 import { Events } from "../../src/events/service.ts";
@@ -58,9 +56,7 @@ export function applicationTest() {
     ),
   );
   const services = Layer.mergeAll(
-    Analysis.layer,
     Flows.layer,
-    SavedAnalyses.layer,
     Accounts.layer,
     AccountHistory.layer,
     Events.layer,

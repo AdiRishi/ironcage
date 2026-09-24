@@ -410,7 +410,6 @@ test(
       "rule_applications",
       "rule_exceptions",
       "rules",
-      "saved_analyses",
       "settings",
       "source_coverage",
       "source_files",
