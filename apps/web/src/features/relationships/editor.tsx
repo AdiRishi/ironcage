@@ -6,7 +6,7 @@ import {
   type PostingCursor,
   type ListRelationshipCandidates,
 } from "@repo/contracts/finance";
-import { formatDecimal, formatMoney, parseMoney } from "@repo/finance";
+import { formatCurrency, formatDecimal, parseMoney } from "@repo/finance";
 import { useForm } from "@tanstack/react-form";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Effect } from "effect";
@@ -164,7 +164,7 @@ export function RelationshipEditor({
       </div>
       {selected && (
         <p className="text-sm">
-          Selected {selected.posting.description} · {formatMoney(selected.remaining)} remaining
+          Selected {selected.posting.description} · {formatCurrency(selected.remaining)} remaining
         </p>
       )}
       <div className="max-h-64 space-y-2 overflow-y-auto">
@@ -185,7 +185,7 @@ export function RelationshipEditor({
                 {candidate.posting.postedOn} · {candidate.posting.accountLabel} ·{" "}
                 {candidate.posting.description}
                 <br />
-                {formatMoney(candidate.remaining)}
+                {formatCurrency(candidate.remaining)}
                 {mode === "cost" ? " uncredited" : ""}
               </span>
             </Button>

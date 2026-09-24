@@ -1,5 +1,5 @@
 import { CommandId, type SourceFile, type RemoveSourceBytes } from "@repo/contracts/finance";
-import { formatMoney } from "@repo/finance";
+import { formatCurrency } from "@repo/finance";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
@@ -78,7 +78,7 @@ export function RemoveSourceDialog({ file }: { file: SourceFile }) {
                     >
                       {posting.postedOn} · {posting.description}
                     </Link>
-                    <span className="shrink-0 font-mono">{formatMoney(posting.amount)}</span>
+                    <span className="shrink-0 font-mono">{formatCurrency(posting.amount)}</span>
                   </li>
                 ))}
               </ul>

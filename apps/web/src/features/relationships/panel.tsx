@@ -5,7 +5,7 @@ import {
   type FinancialEvent,
   RelationshipChange,
 } from "@repo/contracts/finance";
-import { formatMoney } from "@repo/finance";
+import { formatCurrency } from "@repo/finance";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Effect, Schema } from "effect";
@@ -32,7 +32,7 @@ export function RelatedEvent({ eventId }: { eventId: typeof EventId.Type }) {
       params={{ id: event.primaryPostingId }}
     >
       {event.postings.find((posting) => posting.id === event.primaryPostingId)?.description} ·{" "}
-      {formatMoney(event.magnitude)}
+      {formatCurrency(event.magnitude)}
     </Link>
   ) : (
     <span>{query.error?.message ?? "Loading related event…"}</span>
@@ -85,7 +85,7 @@ export function RelationshipsPanel({ event }: { event: FinancialEvent }) {
           {event.postings.map((posting) => (
             <p key={posting.id}>
               <Link className="underline" to="/ledger/$id" params={{ id: posting.id }}>
-                {posting.postedOn} · {posting.description} · {formatMoney(posting.amount)}
+                {posting.postedOn} · {posting.description} · {formatCurrency(posting.amount)}
               </Link>
             </p>
           ))}
@@ -100,7 +100,7 @@ export function RelationshipsPanel({ event }: { event: FinancialEvent }) {
       {relationships?.credits.map((link) => (
         <div className="space-y-2" key={link.id}>
           <p>
-            {formatMoney(link.amount)}{" "}
+            {formatCurrency(link.amount)}{" "}
             {link.creditEventId === event.id ? "applied to" : "credited from"}{" "}
             <RelatedEvent
               eventId={link.creditEventId === event.id ? link.costEventId : link.creditEventId}
@@ -114,11 +114,15 @@ export function RelationshipsPanel({ event }: { event: FinancialEvent }) {
           </Button>
         </div>
       ))}
-      {relationships?.remaining.map((row, index) => (
-        <p className="type-small text-slate" key={row.allocationId}>
-          Allocation {index + 1}: {formatMoney(row.amount)} remaining
-        </p>
-      ))}
+      {relationships &&
+        relationships.credits.length > 0 &&
+        relationships.remaining.map((row, index) => (
+          <p className="type-small text-slate" key={row.allocationId}>
+            {formatCurrency(row.amount)}
+            {relationships.remaining.length > 1 && ` of part ${index + 1}`} still counts after
+            credits.
+          </p>
+        ))}
       {relationships?.fees.map((fee) => (
         <div className="space-y-2" key={fee.feeEventId}>
           <p>

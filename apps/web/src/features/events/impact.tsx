@@ -1,5 +1,5 @@
 import type { MeasureImpact } from "@repo/contracts/finance";
-import { formatMoney } from "@repo/finance";
+import { formatCurrency } from "@repo/finance";
 import { Record } from "effect";
 
 import {
@@ -47,11 +47,11 @@ export function ImpactTable({ impact }: { impact: typeof MeasureImpact.Type }) {
             return (
               <TableRow key={key}>
                 <TableCell>{label}</TableCell>
-                <TableCell>{before ? formatMoney(before) : "Incomplete coverage"}</TableCell>
-                <TableCell>{after ? formatMoney(after) : "Incomplete coverage"}</TableCell>
+                <TableCell>{before ? formatCurrency(before) : "Incomplete coverage"}</TableCell>
+                <TableCell>{after ? formatCurrency(after) : "Incomplete coverage"}</TableCell>
                 <TableCell>
                   {before && after
-                    ? formatMoney({ ...after, minor: after.minor - before.minor })
+                    ? formatCurrency({ ...after, minor: after.minor - before.minor })
                     : "Unavailable"}
                 </TableCell>
               </TableRow>
@@ -65,7 +65,7 @@ export function ImpactTable({ impact }: { impact: typeof MeasureImpact.Type }) {
         </p>
       )}
       <p className="type-small text-slate">
-        Observed deposit movement: {formatMoney(impact.after.observedCashMovement)}. Bank records
+        Observed deposit movement: {formatCurrency(impact.after.observedCashMovement)}. Bank records
         stay unchanged.
       </p>
     </section>

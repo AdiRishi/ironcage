@@ -3,7 +3,7 @@ import {
   type ReviewItem,
   type ReviewObservation,
 } from "@repo/contracts/finance";
-import { formatMoney } from "@repo/finance";
+import { formatCurrency } from "@repo/finance";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -41,7 +41,7 @@ export function RowChoice({
     automaticTarget,
     ...review.candidates.map((posting) => ({
       value: posting.id,
-      label: `${posting.postedOn} · ${formatMoney(posting.amount)} · ${posting.description}`,
+      label: `${posting.postedOn} · ${formatCurrency(posting.amount)} · ${posting.description}`,
     })),
   ];
   return (
@@ -74,14 +74,15 @@ export function RowChoice({
       </dl>
       {row.candidate && (
         <p className="text-sm">
-          Decoded as {row.candidate.postedOn} · {formatMoney(row.candidate.amount)} ·{" "}
+          Decoded as {row.candidate.postedOn} · {formatCurrency(row.candidate.amount)} ·{" "}
           {row.candidate.description}
         </p>
       )}
       {accepted && row.postingId && (
         <div className="space-y-2 rounded-md border bg-background p-4">
           <p className="text-sm">
-            Accepted: {accepted.postedOn} · {formatMoney(accepted.amount)} · {accepted.description}
+            Accepted: {accepted.postedOn} · {formatCurrency(accepted.amount)} ·{" "}
+            {accepted.description}
           </p>
           <Button
             variant="outline"
@@ -104,7 +105,7 @@ export function RowChoice({
               className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-background p-3"
             >
               <Link to="/ledger/$id" params={{ id: posting.id }} className="text-sm underline">
-                {posting.postedOn} · {formatMoney(posting.amount)} · {posting.description}
+                {posting.postedOn} · {formatCurrency(posting.amount)} · {posting.description}
               </Link>
               <div className="w-full space-y-1 text-xs">
                 {posting.sources.map((source) =>
