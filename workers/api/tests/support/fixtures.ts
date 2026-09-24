@@ -66,3 +66,28 @@ export const parsed = (descriptions: ReadonlyArray<string>): ParsedFile => ({
     },
   })),
 });
+export const parsedRows = (
+  rows: ReadonlyArray<{ description: string; postedOn: string; minor: bigint }>,
+): ParsedFile => ({
+  ...parsed([]),
+  observations: rows.map((row, index) => ({
+    locatorKey: `csvLine:${index + 1}`,
+    locator: { kind: "csvLine", line: index + 1 },
+    raw: {
+      date: row.postedOn,
+      amount: row.minor.toString(),
+      description: row.description,
+      balance: "",
+    },
+    issue: null,
+    candidate: {
+      postedOn: CalendarDate.make(row.postedOn),
+      valueOn: null,
+      amount: { currency: "AUD", minor: row.minor },
+      description: row.description,
+      bankId: null,
+      balance: null,
+      originalMoney: null,
+    },
+  })),
+});

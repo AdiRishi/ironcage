@@ -16,3 +16,6 @@ export * from "./analysis/measures.ts";
 export * from "./analysis/contributions.ts";
 export * from "./analysis/comparison.ts";
 export * from "./analysis/rows.ts";
+export * from "./analysis/facts.ts";
+export * from "./analysis/decomposition.ts";
+export * from "./analysis/flow.ts";

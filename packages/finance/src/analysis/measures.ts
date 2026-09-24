@@ -36,7 +36,10 @@ export function eventDate(event: FinancialEvent, basis: OverviewInput["basis"]) 
     ? event.purchaseOn
     : event.postings.find((posting) => posting.id === event.primaryPostingId)?.postedOn;
 }
-export function accountCoverage(snapshot: AnalysisSnapshot, period: Period): AccountCoverage[] {
+export function accountCoverage(
+  snapshot: Pick<AnalysisSnapshot, "accounts" | "sources" | "imports">,
+  period: Period,
+): AccountCoverage[] {
   return snapshot.accounts.map((account) => {
     const sources = snapshot.sources.filter((source) => source.accountId === account.id);
     const observed = sources.flatMap((source) =>

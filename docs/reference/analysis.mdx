@@ -41,36 +41,36 @@ A refund or reimbursement reduces spending in its own category on its own date. 
 
 Every result names its measure, period, date basis, accounts, currency, calculation time, and coverage. Coverage reports observed dates, reconciled intervals, missing accounts or periods, and the count and amount of unresolved events.
 
-## Flow
-
-The flow of a period partitions every allocation on the selected accounts into exactly one stream:
-
-| Side    | Stream                                                                                                                                                 |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| In      | Income by income category. Refunds and reimbursements are netted into the spending category they belong to.                                            |
-| Out     | Spending by top-level category. Loan principal (`loanPayment` minus interest). Transfers to external own accounts and investments. Unresolved outflow. |
-| Neither | Transfers, card settlements, and loan payments between accounts in the ledger. Reported as a count and amount, never drawn as flow.                    |
-
-Total in minus total out equals surplus plus external transfers. The flow never shows a stream it cannot account for; unresolved money has its own stream.
-
 ## Ledger facts
 
-Analysis reads a projection, not the event tables. `ledger_facts` has one row per allocation per effect:
+Analysis reads a projection, not the event tables. `ledger_facts` holds one row per allocation per effect, computed by `eventLedgerFacts` in `packages/finance/src/analysis/facts.ts`:
 
-| Column                           | Meaning                                                                                 |
-| -------------------------------- | --------------------------------------------------------------------------------------- |
-| `allocation_id`, `event_id`      | The source allocation.                                                                  |
-| `account_id`                     | The reporting account.                                                                  |
-| `posted_on`, `spending_on`       | The date on each basis. A credit-linked amount carries its purchase's dates.            |
-| `measure`                        | `spending`, `income`, `transfer`, `loanPrincipal`, `externalTransfer`, or `unresolved`. |
-| `category_id`, `top_category_id` | The category and its top-level ancestor.                                                |
-| `counterparty_id`                | The event's counterparty.                                                               |
-| `amount_minor`, `currency`       | The signed contribution to the measure. Credits are negative spending.                  |
-| `model_assigned`                 | Whether the value that placed this row came from a model-set counterparty.              |
+| Measure                         | Rows                                                                                                            |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `spending`                      | Purchases and financing costs, positive. Refunds and reimbursements, negative. Non-personal parts are left out. |
+| `income`                        | Income allocations.                                                                                             |
+| `internal`                      | Transfers between ledger accounts, card settlements, and the loan side of a repayment.                          |
+| `externalOut`, `externalIn`     | Transfers to and from a counterparty of kind `ownAccount`.                                                      |
+| `loanRepayment`                 | A repayment, counted once from the account the cash left.                                                       |
+| `borrowing`                     | A drawdown, counted once from the loan side.                                                                    |
+| `unresolvedOut`, `unresolvedIn` | Unresolved events by direction, and credits with no category or link.                                           |
 
-The command transaction that changes an event, allocation, credit link, counterparty default, or category rewrites that event's facts before commit. `packages/finance` owns the function that turns an event into facts, so the projection and every measure share one definition. A query sums facts for its period with indexes on `(measure, spending_on)` and `(measure, posted_on)`. It never loads history outside its period.
+Each row carries its account, counterparty, category and top-level category, posted and spending dates, amount, whether it is a purchase, and whether the value that placed it came from a model-set counterparty. A credit linked to a purchase carries the purchase's category, dates, and account.
 
-A migration that changes the fact function rebuilds the table from events in one transaction.
+Triggers keep the projection honest. Any change to an event, its allocations, a credit link, a counterparty's kind or source, or a category's parent marks the affected events stale. `Commands.run` refreshes stale events before it writes its receipt, inside the same transaction, so no write path can leave the projection behind. Period queries sum facts over indexes on `(currency, measure, spending_on)` and `(currency, measure, posted_on)`.
+
+## Flow
+
+`summarizeFlow` in `packages/finance/src/analysis/flow.ts` turns summed facts into streams:
+
+| Side | Streams                                                                                                                             |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| In   | Income by income category, borrowing, transfers from your other accounts, and credits not yet understood.                           |
+| Out  | Spending by top-level category in taxonomy order, loan principal, transfers to your other accounts, and outflow not yet understood. |
+
+Loan principal is repayments minus the interest and fees charged on loan accounts in the same period, never below zero. Interest is already spending, so cash out equals spending plus principal. Movements between ledger accounts are reported as a total and never drawn.
+
+The overview's list of changes is the six subcategories whose spending changed most, each split into a purchases part and an average part.
 
 ## Comparisons
 

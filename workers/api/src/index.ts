@@ -7,6 +7,7 @@ import { HttpRouter } from "effect/unstable/http";
 import { AccountHistory } from "./accounts/periods.ts";
 import { AccountResolution } from "./accounts/resolution.ts";
 import { Accounts } from "./accounts/service.ts";
+import { Flows } from "./analysis/flows.ts";
 import { SavedAnalyses } from "./analysis/saved.ts";
 import { Analysis } from "./analysis/service.ts";
 import { Commands } from "./database/commands.ts";
@@ -48,6 +49,9 @@ export type ApiOperations = {
   renameAnalysis: SavedAnalyses["Service"]["rename"];
   deleteAnalysis: SavedAnalyses["Service"]["remove"];
   overview: Analysis["Service"]["overview"];
+  getPeriodFlow: Flows["Service"]["period"];
+  getMonthlyFlow: Flows["Service"]["monthly"];
+  getSpending: Flows["Service"]["spending"];
   compare: Analysis["Service"]["compare"];
   rows: Analysis["Service"]["rows"];
   contributors: Analysis["Service"]["contributors"];
@@ -123,6 +127,7 @@ export const api = Effect.fn("Api.initialize")(function* (
 ) {
   const services = Layer.mergeAll(
     Analysis.layer,
+    Flows.layer,
     SavedAnalyses.layer,
     Accounts.layer,
     AccountHistory.layer,
@@ -169,6 +174,7 @@ export const api = Effect.fn("Api.initialize")(function* (
   return yield* Effect.gen(function* () {
     const savedAnalyses = yield* SavedAnalyses;
     const analysis = yield* Analysis;
+    const flows = yield* Flows;
     const relationships = yield* Relationships;
     const interpretationReviews = yield* InterpretationReviews;
     const accountHistory = yield* AccountHistory;
@@ -199,6 +205,9 @@ export const api = Effect.fn("Api.initialize")(function* (
       renameAnalysis: savedAnalyses.rename,
       deleteAnalysis: savedAnalyses.remove,
       overview: analysis.overview,
+      getPeriodFlow: flows.period,
+      getMonthlyFlow: flows.monthly,
+      getSpending: flows.spending,
       compare: analysis.compare,
       rows: analysis.rows,
       contributors: analysis.contributors,

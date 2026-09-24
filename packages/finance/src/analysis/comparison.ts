@@ -19,6 +19,7 @@ import {
   type Contribution,
 } from "./contributions.ts";
 import { decimalRatio, roundHalfEven } from "./decimal.ts";
+import { purchaseDecomposition } from "./decomposition.ts";
 import { calculateOverview, type AnalysisSnapshot } from "./measures.ts";
 import { daysInPeriod } from "./periods.ts";
 
@@ -175,24 +176,11 @@ function decomposition(
     [...current, ...previous].some((fact) => fact.kind !== "purchase")
   )
     return { frequencyContribution: null, averageCostContribution: null };
-  const t1 = sum(current),
-    t0 = sum(previous),
-    denominator = 2n * n0 * n1;
-  const frequency = (n1 - n0) * (t0 * n1 + t1 * n0);
-  const average = (t1 - t0) * denominator - frequency;
-  const floor = (numerator: bigint) =>
-    numerator / denominator - (numerator < 0n && numerator % denominator !== 0n ? 1n : 0n);
-  let frequencyMinor = floor(frequency);
-  let averageMinor = floor(average);
-  const remaining = t1 - t0 - frequencyMinor - averageMinor;
-  if (remaining > 0n) {
-    if (frequency - frequencyMinor * denominator > average - averageMinor * denominator)
-      frequencyMinor += remaining;
-    else averageMinor += remaining;
-  }
+  const parts = purchaseDecomposition({ n0, n1, t0: sum(previous), t1: sum(current) });
+  if (!parts) return { frequencyContribution: null, averageCostContribution: null };
   return {
-    frequencyContribution: { currency: query.currency, minor: frequencyMinor },
-    averageCostContribution: { currency: query.currency, minor: averageMinor },
+    frequencyContribution: { currency: query.currency, minor: parts.purchases },
+    averageCostContribution: { currency: query.currency, minor: parts.average },
   };
 }
 export function calculateContributors(

@@ -398,6 +398,7 @@ test(
       "exports",
       "fee_associations",
       "imports",
+      "ledger_facts",
       "model_usage",
       "movement_links",
       "observations",

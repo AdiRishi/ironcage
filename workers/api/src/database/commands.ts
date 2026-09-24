@@ -4,6 +4,7 @@ import { Context, Crypto, Effect, Encoding, Layer, Schema } from "effect";
 import type { PlatformError } from "effect/PlatformError";
 import type { SqlError } from "effect/unstable/sql";
 
+import { refreshStaleFacts } from "../analysis/facts.ts";
 import { toFinanceError } from "./failures.ts";
 
 interface Command<A, R> {
@@ -58,6 +59,7 @@ export class Commands extends Context.Service<
               return yield* Schema.decodeEffect(command.result)(receipt.result);
             }
             const result = yield* command.execute;
+            yield* refreshStaleFacts.pipe(Effect.provideService(PgClient.PgClient, sql));
             const encoded = yield* Schema.encodeEffect(command.result)(result);
             yield* sql`INSERT INTO command_receipts (command_id, input_hash, result) VALUES (${command.commandId}, ${hash}, ${sql.json(encoded)})`;
             return result;
