@@ -1,4 +1,5 @@
 import {
+  AllocationId,
   CalendarDate,
   CommandId,
   type FlowInput,
@@ -9,6 +10,8 @@ import { Crypto, Effect } from "effect";
 import { expect } from "vitest";
 
 import { Flows } from "../../src/analysis/flows.ts";
+import { Corrections } from "../../src/events/corrections.ts";
+import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { Reviews } from "../../src/review/service.ts";
@@ -210,5 +213,84 @@ test(
     });
     expect(yield* outflow(month("2026-09-01", "2026-10-01"))).toBe(0n);
     expect(yield* outflow(month("2026-08-01", "2026-09-01"))).toBe(450n);
+  }).pipe(Effect.provide(services)),
+);
+
+const reviewedAmount = Effect.gen(function* () {
+  yield* reset;
+  const owner = yield* account();
+  const ofx = yield* source(owner.id, "ofx");
+  const csv = yield* source(owner.id, "csv");
+  const publication = yield* Publication;
+  const file = parsed(["Coffee"]);
+  yield* publication.publish({ ...file, importId: ofx.importId });
+  yield* publication.publish({ ...file, importId: csv.importId });
+  const candidate = { ...correction(), amount: { currency: "AUD", minor: -550n } };
+  yield* publication.publish({
+    ...file,
+    parserVersion: "test-2",
+    importId: csv.importId,
+    observations: file.observations.map((row) => ({ ...row, candidate })),
+  });
+  const review = yield* pending;
+  const decision = {
+    kind: "correct",
+    candidate,
+    postingId: review.observations[0]!.postingId,
+  } as const;
+  const [posting] = (yield* (yield* Postings).list({ filter: {} })).rows;
+  const event = posting ? yield* (yield* Events).forPosting({ postingId: posting.id }) : null;
+  if (!event) return yield* Effect.die("Expected the synthetic event");
+  return { review, decision, event };
+});
+const september = {
+  period: {
+    kind: "fixed",
+    start: CalendarDate.make("2026-09-01"),
+    endExclusive: CalendarDate.make("2026-10-01"),
+  },
+  comparison: { kind: "previous" },
+  basis: "posted",
+  currency: "AUD",
+} satisfies FlowInput;
+
+test(
+  "a reviewed correction to a transaction's amount carries through to its event and the flow",
+  Effect.gen(function* () {
+    const { review, decision, event } = yield* reviewedAmount;
+    yield* resolve(review, decision);
+    const corrected = yield* (yield* Events).get({ eventId: event.id });
+    expect(corrected.magnitude.minor).toBe(550n);
+    expect(corrected.allocations.map((allocation) => allocation.amount.minor)).toEqual([550n]);
+    expect((yield* (yield* Flows).period(september)).totals.outflow.minor).toBe(550n);
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "a reviewed amount correction to a split transaction asks you to undo the split first",
+  Effect.gen(function* () {
+    const { review, decision, event } = yield* reviewedAmount;
+    const [allocation] = event.allocations;
+    yield* (yield* Corrections).apply({
+      commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
+      expectedVersions: [{ eventId: event.id, version: event.version }],
+      change: {
+        eventId: event.id,
+        kind: "purchase",
+        purchaseOn: null,
+        allocations: [
+          { ...allocation, role: "purchase", amount: { currency: "AUD", minor: 300n } },
+          {
+            ...allocation,
+            id: AllocationId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
+            role: "purchase",
+            amount: { currency: "AUD", minor: 150n },
+          },
+        ],
+      },
+    });
+    const refused = yield* resolve(review, decision).pipe(Effect.result);
+    expect(refused._tag === "Failure" && refused.failure).toMatchObject({ kind: "conflict" });
+    expect((yield* (yield* Flows).period(september)).totals.outflow.minor).toBe(450n);
   }).pipe(Effect.provide(services)),
 );

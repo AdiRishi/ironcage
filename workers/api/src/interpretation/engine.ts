@@ -13,6 +13,7 @@ import {
   CounterpartySource,
   type Descriptor,
   EventId,
+  FinanceError,
   FinancialRole,
   PostingId,
   Rule,
@@ -387,10 +388,52 @@ const readRules = Effect.gen(function* () {
   );
 });
 
+// A reviewed correction can change what the bank booked after the event was
+// interpreted. An event with one posting and one allocation follows the new amount. An
+// event whose amount is split, linked to a credit, or shared by a movement cannot be
+// divided again without you, so the correction fails until you undo that first.
+const syncEventAmounts = Effect.gen(function* () {
+  const sql = yield* PgClient.PgClient;
+  const changed = yield* sql`SELECT e.id, abs(p.amount_minor)::text AS "magnitudeMinor", p.currency,
+        (SELECT count(*) FROM allocations a WHERE a.event_id = e.id)::int AS allocations,
+        (SELECT count(*) FROM event_postings ep WHERE ep.event_id = e.id AND ep.active)::int AS postings,
+        EXISTS (SELECT 1 FROM credit_links l JOIN allocations a ON a.id IN (l.credit_allocation_id, l.cost_allocation_id)
+          WHERE a.event_id = e.id) AS linked
+      FROM events e JOIN postings p ON p.id = e.primary_posting_id
+      WHERE e.active AND (e.magnitude_minor <> abs(p.amount_minor) OR e.currency <> p.currency)`.pipe(
+    Effect.flatMap(
+      Schema.decodeUnknownEffect(
+        Schema.Array(
+          Schema.Struct({
+            id: EventId,
+            magnitudeMinor: Schema.String,
+            currency: Schema.String,
+            allocations: Schema.Int,
+            postings: Schema.Int,
+            linked: Schema.Boolean,
+          }),
+        ),
+      ),
+    ),
+  );
+  if (changed.some((row) => row.allocations !== 1 || row.postings !== 1 || row.linked))
+    return yield* new FinanceError({
+      kind: "conflict",
+      message:
+        "This correction changes the amount of a transaction that is split, linked to a refund, or part of a movement. Undo that first, then correct the amount.",
+    });
+  for (const batch of Arr.chunksOf(changed, 500)) {
+    const records = sql`jsonb_to_recordset(${sql.json(batch)}) AS x(id uuid, "magnitudeMinor" bigint, currency text)`;
+    yield* sql`UPDATE events e SET magnitude_minor = x."magnitudeMinor", currency = x.currency, version = e.version + 1 FROM ${records} WHERE e.id = x.id`;
+    yield* sql`UPDATE allocations a SET amount_minor = x."magnitudeMinor" FROM ${records} WHERE a.event_id = x.id`;
+  }
+});
+
 // Descriptors for new or outdated postings, events for postings without one, rule
 // claims for new events, then derivation. Runs inside the caller's transaction.
 export const interpretPending = Effect.gen(function* () {
   const sql = yield* PgClient.PgClient;
+  yield* syncEventAmounts;
   const described = yield* writeDescriptors;
   const created = yield* createEvents;
   yield* reinterpret(created);

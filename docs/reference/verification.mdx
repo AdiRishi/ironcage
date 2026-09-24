@@ -76,6 +76,8 @@ Each case has a known answer that does not come from the implementation.
 | A dinner with a linked repayment moved from July to August and into Delivery, previewed and then saved. | The preview has July and August, and July spending falls from $5,064.50 to $4,964.50. After saving, each month on the overview equals the preview. |
 | A $5.00 refund from Woolworths in August after a $25.00 purchase that month.                            | Woolworths went out $20.00 in August and nothing came in.                                                                                          |
 | Split a $150 purchase into $100 and $50, then into allocations totalling $151.                          | The first split keeps spending at $150. The second fails with `conflict`.                                                                          |
+| A reviewed correction changes a $4.50 coffee to $5.50.                                                  | The event and its allocation become $5.50, and September's outflow is $5.50.                                                                       |
+| The same correction after the coffee was split into $3.00 and $1.50.                                    | The review fails with `conflict` and September's outflow stays $4.50.                                                                              |
 
 ## Not built yet
 
