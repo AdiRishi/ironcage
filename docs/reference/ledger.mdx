@@ -34,11 +34,11 @@ Boundary schemas validate imported bytes, browser input, stored JSON payloads on
 
 Every write of financial records is a command with a client-generated `commandId`. The API runs each command like this:
 
-1. Open a database transaction and take the transaction-level advisory lock `pg_advisory_xact_lock(1)`. One user, one lock; writes are short and serialized.
+1. Open a `SERIALIZABLE` transaction through `writeTransaction` in `workers/api/src/database/transactions.ts`. Writes that touch different records run at the same time. When two writes would not give the same result one after the other, Postgres aborts one with a serialization failure and the helper runs it again from the start, up to eight times with jittered backoff. A command therefore does nothing outside the database until its transaction commits.
 2. Look up `command_receipts` by `commandId`. If the input hash matches, return the stored result. If it differs, fail with `conflict`.
 3. Read the records the command touches. Compare each `expectedVersion`. Any mismatch fails with `stale` and changes nothing.
 4. Validate business preconditions against current records: allocation conservation, remaining credit, matching decisions.
-5. Write the change, its correction history, the affected [ledger facts](/reference/analysis#ledger-facts), and the receipt. Commit.
+5. Write the change, its correction history, and the receipt. Refresh the [ledger facts](/reference/analysis#ledger-facts) of every event the transaction changed. Commit.
 
 Parsing, model calls, and uploads to R2 happen before the transaction opens. Source removal deletes from R2 after the transaction, using the key saved in its receipt. A repeat completes that delete before returning, as defined in [Source removal](/reference/imports#source-removal). A client that loses the response repeats the same command with the same ID and gets the first result. A network error alone does not prove the write rolled back.
 

@@ -40,7 +40,7 @@ Files fit in memory; the corpus's largest file is 2.6 MiB. The upload endpoint i
 4. The Workflow calls `publishImport`. The API resolves the account, matches observations against current postings, reconciles balances, and commits postings, coverage, review items, and the summary in one transaction.
 5. The UI shows the summary and any review items. Resolving an item reruns step 4 for that import.
 
-Steps 1 to 3 run outside any database transaction. Step 4 is one transaction under the write lock. Parsing and the publication RPC share one durable Workflow step in `workers/processor/src/imports/workflow.ts`. The step returns null when publication succeeds, or the failure message when the file or the API rejects it, so the parsed file is never a step result. The step retries only an `unavailable` failure, twice. The largest decoded PDF, including positioned source text, exceeds Cloudflare’s 1 MiB non-stream step-result limit. Publication receipts make repeating that step safe without a separate parsed-file store. A Workflow that fails in step 3 or 4 reports `failed`; retry starts a new instance on the same bytes.
+Steps 1 to 3 run outside any database transaction. Step 4 is one serializable write transaction. Parsing and the publication RPC share one durable Workflow step in `workers/processor/src/imports/workflow.ts`. The step returns null when publication succeeds, or the failure message when the file or the API rejects it, so the parsed file is never a step result. The step retries only an `unavailable` failure, twice. The largest decoded PDF, including positioned source text, exceeds Cloudflare’s 1 MiB non-stream step-result limit. Publication receipts make repeating that step safe without a separate parsed-file store. A Workflow that fails in step 3 or 4 reports `failed`; retry starts a new instance on the same bytes.
 
 ## Observations
 
@@ -105,7 +105,7 @@ The match key is `(accountId, currency, postedOn, amountMinor)`. Description and
 
 ## Matching
 
-Matching runs inside the publication transaction with the write lock held. It sees every committed posting. It relies on one property of CommBank exports: a file contains every posting of its account for every date it covers. Statement periods and export windows are whole days.
+Matching runs inside the serializable publication transaction. It sees every posting committed before it, and a publication that overlaps a concurrent write to the same account is aborted and run again. It relies on one property of CommBank exports: a file contains every posting of its account for every date it covers. Statement periods and export windows are whole days.
 
 For each observation `O` of file `F`, in file order:
 
@@ -133,7 +133,7 @@ A file with every required value decoded but anchors that do not reconcile publi
 
 ## Publication transaction
 
-1. Take the write lock. Derive the publication command ID from the import ID, the parser version, and a SHA-256 hash of the whole encoded `PublishImport` input, and look up its receipt. A repeat returns the stored summary whatever the import's status is now. Otherwise load the import. A new parser version may dispute an accepted source row; it must go through matching and review.
+1. Open the write transaction. Derive the publication command ID from the import ID, the parser version, and a SHA-256 hash of the whole encoded `PublishImport` input, and look up its receipt. A repeat returns the stored summary whatever the import's status is now. Otherwise load the import. A new parser version may dispute an accepted source row; it must go through matching and review.
 2. Resolve the account: from the OFX envelope, from the upload's `accountId`, or by creating an `account` review item when neither exists. A candidate amount in a currency other than the account's fails publication with `invalid`, which rolls the transaction back and marks the import `failed`.
 3. Upsert observations by `(source_file_id, locator_key)`.
 4. Run matching. Collect new postings, links, and review items.
@@ -153,9 +153,9 @@ Every row's disposition is in one transaction: accepted rows are committed toget
 | `duplicate`       | Which existing posting, if any, does this row represent?     | Match a listed posting, or declare a distinct posting.                                              |
 | `source_conflict` | The parser now reads an accepted row differently.            | Keep the accepted posting, or accept the new reading as a bank-field correction with this evidence. |
 
-Resolving applies the decision to the observations, then reruns steps 4 to 6 of publication for the import under the same lock. Decisions persist in `observations.decision`, so a later reparse reproduces them. `parsed_candidate` retains the latest parser reading while `candidate` retains the accepted reading. A disputed reparse cannot overwrite accepted evidence. A correction that changes a posting's date, value date, account, currency, or amount marks the facts of its events stale, through the trigger in migration `0019_posting_facts_stale.sql`, so measures read the corrected posting.
+Resolving applies the decision to the observations, then reruns steps 4 to 6 of publication for the import in the same transaction. Decisions persist in `observations.decision`, so a later reparse reproduces them. `parsed_candidate` retains the latest parser reading while `candidate` retains the accepted reading. A disputed reparse cannot overwrite accepted evidence. A correction that changes a posting's date, value date, account, currency, or amount notes its events for a fact refresh, through the posting trigger in migration `0022_serializable_writes.sql`, so measures read the corrected posting.
 
-A correction without a chosen posting runs through normal matching. It does not declare a distinct posting. If matching still needs review, the corrected candidate stays visible and is retained in the subsequent match or distinct decision. Across supporting files, the most recently resolved value correction or keep decision supplies the posting's accepted fields. Resolution times are recorded after acquiring the write lock. Source-format preference applies only when no value decision takes precedence.
+A correction without a chosen posting runs through normal matching. It does not declare a distinct posting. If matching still needs review, the corrected candidate stays visible and is retained in the subsequent match or distinct decision. Across supporting files, the most recently resolved value correction or keep decision supplies the posting's accepted fields. Resolution times are recorded inside the write transaction. Source-format preference applies only when no value decision takes precedence.
 
 ## PDF statements
 

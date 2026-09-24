@@ -113,19 +113,24 @@ export const refreshFacts = Effect.fn("refreshFacts")(function* (
   const sql = yield* PgClient.PgClient;
   for (const ids of Arr.chunksOf(eventIds, batchSize)) {
     yield* writeFacts(ids, yield* deriveFacts(yield* readEvents(ids)));
-    yield* sql`UPDATE events SET facts_stale = false, facts_version = ${factsVersion} WHERE id = ANY(${ids}::uuid[])`;
+    yield* sql`UPDATE events SET facts_version = ${factsVersion} WHERE id = ANY(${ids}::uuid[])`;
   }
   return eventIds.length;
 });
 
-// Rewrites ledger facts for every event a trigger marked stale. Runs at the end of
-// each command, inside its transaction, so a committed change is always projected.
-export const refreshStaleFacts = Effect.gen(function* () {
+// Rebuilds the facts of every event this transaction's statements changed, as noted by
+// the triggers in migration 0022. A write transaction runs this before it commits, so a
+// committed write leaves no fact behind.
+export const refreshNotedFacts = Effect.gen(function* () {
   const sql = yield* PgClient.PgClient;
-  const stale = yield* sql`SELECT id FROM events WHERE facts_stale ORDER BY id`.pipe(
-    Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: EventId })))),
-  );
-  return yield* refreshFacts(stale.map((row) => row.id));
+  const noted =
+    yield* sql`SELECT DISTINCT unnest(string_to_array(NULLIF(current_setting('ironcage.fact_events', true), ''), ','))::uuid AS id ORDER BY id`.pipe(
+      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: EventId })))),
+    );
+  if (noted.length === 0) return 0;
+  yield* refreshFacts(noted.map((row) => row.id));
+  yield* sql`SELECT set_config('ironcage.fact_events', '', true)`;
+  return noted.length;
 });
 
 // Events whose facts an older derivation built.

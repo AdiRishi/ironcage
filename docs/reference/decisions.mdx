@@ -5,6 +5,14 @@ description: Why the architecture looks the way it does.
 
 Each entry records a decision, the reason, and what would change it. Newer entries come first.
 
+## Serializable writes instead of one lock
+
+**Decision.** Every write runs as a `SERIALIZABLE` transaction and runs again when Postgres reports a serialization failure. The events a transaction changed are noted in a transaction-local setting and their facts refreshed before commit.
+
+**Why.** One advisory lock serialized every write, so a long publication or a large recategorisation blocked every other write, and background writers make that worse as history grows. Serializable isolation keeps the guarantee the lock gave, a result equal to some serial order, while writes to different records run at once. A stale flag on events would have been a shared marker every write reads, which makes any two concurrent writes conflict.
+
+**Would change if** retries become frequent enough to cost more than waiting, for example several background writers working on the same account.
+
 ## Model assignments apply automatically, with provenance
 
 **Decision.** Enrichment applies counterparty identities and defaults when the model's confidence reaches the threshold, and asks about the rest. Every assignment records its source.
@@ -37,7 +45,7 @@ Each entry records a decision, the reason, and what would change it. Newer entri
 
 **Decision.** Web, API, and processor are separate Workers. Only the API has a database binding.
 
-**Why.** One writer makes the write protocol, receipts, and the advisory lock the single place consistency is enforced. PDF.js stays out of the writer's bundle and CPU budget. Model calls run in the processor's enrichment Workflow through the Workers AI binding, so a slow or failed call never holds a write transaction open. The analyst will get its own Durable Object runtime.
+**Why.** One writer makes the write protocol, receipts, and serializable transactions the single place consistency is enforced. PDF.js stays out of the writer's bundle and CPU budget. Model calls run in the processor's enrichment Workflow through the Workers AI binding, so a slow or failed call never holds a write transaction open. The analyst will get its own Durable Object runtime.
 
 ## Postgres for financial records
 
