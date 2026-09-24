@@ -9,17 +9,24 @@ sidebar:
 
 - **Ledger and imports.** CommBank CSV, OFX, and PDF statements import without duplicates in any order. Every posting keeps its source rows, reconciled coverage, and original file. The whole corpus imports: 99 files, 9,224 postings.
 - **Financial events.** Postings group into events with roles and allocations. The model supports splits, credit links, movement links, corrections with history and undo, and rules with preview.
-- **Historical comparison.** The flow and spending views compare any period with an earlier one and drill down to the records behind each amount.
+- **Understanding.** Descriptors, counterparties, and a two-level taxonomy. GLM-5.3-Flash on Workers AI names counterparties and their defaults when you start a run from Settings. It applies what it is confident about with provenance and asks about the rest. Answering a question or editing a counterparty applies to every transaction from it. See [Interpretation](/reference/interpretation) and [AI](/reference/ai).
+- **The analysis projection.** Ledger facts are rewritten inside every command that changes what they read. The flow and spending read only the facts of their period. See [Analysis](/reference/analysis#ledger-facts).
+- **Historical comparison.** The flow and spending compare a month or a year with the one before. Spending rows open their subcategories, and a leaf opens its transactions in the ledger.
 - **Exports and source removal.** A full ZIP export, and removing original file bytes without changing any posting.
 
 ## Being built
 
 Each item gets a working screen before the next item starts.
 
-1. **Understanding.** Descriptors, counterparties, and a two-level taxonomy. A model resolves counterparties and assigns roles and categories, applying what it is confident about with provenance and asking about the rest. Corrections teach the counterparty and apply everywhere. See [Interpretation](/reference/interpretation) and [AI](/reference/ai).
-2. **A new application design.** The [design language](/design), a new layout, and screens rebuilt around the month, the flow of money, spending, the ledger, counterparties, and questions. See [Product](/product).
-3. **The analysis projection.** Ledger facts written with each interpretation change. Every period query reads only its period. See [Analysis](/reference/analysis#ledger-facts).
-4. **The analyst.** Conversation over the same read operations the screens use, with every claim linked to records. Monthly briefings written from computed facts.
+1. **Finishing the application design.** The [design language](/design), the layout, and the screens for the month, the flow of money, spending, the ledger, counterparties, questions, sources, and settings are in place. What remains, measured against [Product](/product):
+   - Flow streams open the records behind them.
+   - Spending drills from a subcategory to its counterparties and then their transactions, and the ledger it opens reads the same date basis as spending.
+   - Questions can be skipped, answered in place, and show a proposed answer for people.
+   - Counterparties can take a descriptor from another counterparty, and a transaction can move to a different counterparty. Counterparty amounts come from ledger facts, so they match Spending. Counterparty-level changes appear in history and can be undone.
+   - A correction to a posting's amount carries through to its event.
+   - Other comparisons: the same period last year and a chosen range.
+   - Guidance on first use.
+2. **The analyst.** Conversation over the same read operations the screens use, with every claim linked to records. Monthly briefings written from computed facts.
 
 ## Later
 
