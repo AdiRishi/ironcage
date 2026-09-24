@@ -6,6 +6,7 @@ import type { SqlError } from "effect/unstable/sql";
 
 import { refreshStaleFacts } from "../analysis/facts.ts";
 import { toFinanceError } from "./failures.ts";
+import { writeTransaction } from "./transactions.ts";
 
 interface Command<A, R> {
   readonly commandId: typeof CommandId.Type;
@@ -42,9 +43,9 @@ export class Commands extends Context.Service<
         const hash = yield* fingerprint(command.input).pipe(
           Effect.provideService(Crypto.Crypto, crypto),
         );
-        return yield* sql.withTransaction(
+        return yield* writeTransaction(
+          sql,
           Effect.gen(function* () {
-            yield* sql`SELECT pg_advisory_xact_lock(1)`;
             const receipts =
               yield* sql`SELECT input_hash AS "inputHash", result FROM command_receipts WHERE command_id = ${command.commandId}`.pipe(
                 Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Receipt))),

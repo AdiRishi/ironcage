@@ -8,6 +8,7 @@ import { AccountHistory } from "./accounts/periods.ts";
 import { AccountResolution } from "./accounts/resolution.ts";
 import { Accounts } from "./accounts/service.ts";
 import { Flows } from "./analysis/flows.ts";
+import { FactRebuilds } from "./analysis/rebuild.ts";
 import { Commands } from "./database/commands.ts";
 import { Corrections } from "./events/corrections.ts";
 import { Events } from "./events/service.ts";
@@ -25,6 +26,7 @@ import {
   EnrichmentConfig,
   EnrichmentJobs,
   ExportJobs,
+  FactJobs,
   TemporaryExports,
   ImportJobs,
   Sources,
@@ -44,6 +46,8 @@ export type ApiOperations = {
   getPeriodFlow: Flows["Service"]["period"];
   getMonthlyFlow: Flows["Service"]["monthly"];
   getSpending: Flows["Service"]["spending"];
+  getFactsStatus: () => FactRebuilds["Service"]["status"];
+  rebuildFactsBatch: () => FactRebuilds["Service"]["rebuild"];
   getEventRelationships: Relationships["Service"]["get"];
   listRelationshipCandidates: Relationships["Service"]["candidates"];
   previewRelationship: Relationships["Service"]["preview"];
@@ -118,6 +122,7 @@ export const api = Effect.fn("Api.initialize")(function* (
 ) {
   const services = Layer.mergeAll(
     Flows.layer,
+    FactRebuilds.layer,
     Accounts.layer,
     AccountHistory.layer,
     Events.layer,
@@ -154,6 +159,10 @@ export const api = Effect.fn("Api.initialize")(function* (
         start: bindings.processor.startExport,
         status: bindings.processor.getExportInstance,
       }),
+      FactJobs.layer({
+        start: bindings.processor.startFactsRebuild,
+        status: bindings.processor.getFactsRebuildInstance,
+      }),
       ImportJobs.layer({
         start: bindings.processor.startImport,
         status: bindings.processor.getImportInstance,
@@ -162,6 +171,7 @@ export const api = Effect.fn("Api.initialize")(function* (
   );
   return yield* Effect.gen(function* () {
     const flows = yield* Flows;
+    const factRebuilds = yield* FactRebuilds;
     const relationships = yield* Relationships;
     const interpretationReviews = yield* InterpretationReviews;
     const accountHistory = yield* AccountHistory;
@@ -189,6 +199,8 @@ export const api = Effect.fn("Api.initialize")(function* (
       getPeriodFlow: flows.period,
       getMonthlyFlow: flows.monthly,
       getSpending: flows.spending,
+      getFactsStatus: () => factRebuilds.status,
+      rebuildFactsBatch: () => factRebuilds.rebuild,
       getEventRelationships: relationships.get,
       listRelationshipCandidates: relationships.candidates,
       previewRelationship: relationships.preview,

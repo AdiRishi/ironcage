@@ -7,7 +7,13 @@ import type { Api, financialStorage } from "./api.ts";
 import { retentionPolicy } from "./database/retention.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
 import { EnrichmentGateway, enrichmentProvider } from "./enrichment.ts";
-import { EnrichmentWorkflow, ExportWorkflow, ImportWorkflow, Processor } from "./processor.ts";
+import {
+  EnrichmentWorkflow,
+  ExportWorkflow,
+  FactsWorkflow,
+  ImportWorkflow,
+  Processor,
+} from "./processor.ts";
 
 export const apiBindings = Effect.fn("ApplicationPlatform.ApiBindings")(function* (
   storage: Effect.Success<typeof financialStorage>,
@@ -26,7 +32,12 @@ export const apiBindings = Effect.fn("ApplicationPlatform.ApiBindings")(function
 });
 export const processorBindings = Effect.fn("ApplicationPlatform.ProcessorBindings")(function* () {
   const imports = yield* ImportWorkflow;
-  return { imports, exports: yield* ExportWorkflow, enrichment: yield* EnrichmentWorkflow };
+  return {
+    imports,
+    exports: yield* ExportWorkflow,
+    enrichment: yield* EnrichmentWorkflow,
+    facts: yield* FactsWorkflow,
+  };
 });
 export const enrichmentBindings = Effect.fn("ApplicationPlatform.EnrichmentBindings")(function* () {
   return yield* Cloudflare.AI.QueryGateway(EnrichmentGateway);

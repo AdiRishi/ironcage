@@ -14,9 +14,15 @@ import { Effect, Schema } from "effect";
 import { money } from "../database/columns.ts";
 import { readEvent } from "../events/repository.ts";
 
-export const readCredits = Effect.fn("readCredits")(function* () {
+// Every credit link, or only those touching the given events on either side.
+export const readCredits = Effect.fn("readCredits")(function* (
+  eventIds?: readonly (typeof EventId.Type)[],
+) {
   const sql = yield* PgClient.PgClient;
-  return yield* sql`SELECT l.id, l.credit_allocation_id AS "creditAllocationId", l.cost_allocation_id AS "costAllocationId", c.event_id AS "creditEventId", a.event_id AS "costEventId", ${money(sql, "e.currency", "l.amount_minor")} AS amount FROM credit_links l JOIN allocations c ON c.id=l.credit_allocation_id JOIN allocations a ON a.id=l.cost_allocation_id JOIN events e ON e.id=c.event_id`.pipe(
+  const touching = eventIds
+    ? sql`WHERE c.event_id = ANY(${eventIds}::uuid[]) OR a.event_id = ANY(${eventIds}::uuid[])`
+    : sql``;
+  return yield* sql`SELECT l.id, l.credit_allocation_id AS "creditAllocationId", l.cost_allocation_id AS "costAllocationId", c.event_id AS "creditEventId", a.event_id AS "costEventId", ${money(sql, "e.currency", "l.amount_minor")} AS amount FROM credit_links l JOIN allocations c ON c.id=l.credit_allocation_id JOIN allocations a ON a.id=l.cost_allocation_id JOIN events e ON e.id=c.event_id ${touching}`.pipe(
     Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(CreditLink))),
   );
 });

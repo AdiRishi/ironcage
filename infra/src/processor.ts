@@ -1,6 +1,7 @@
 import * as Cloudflare from "alchemy/Cloudflare";
 import { Effect } from "effect";
 
+import { runFactsRebuild } from "../../workers/processor/src/analysis/workflow.ts";
 import { runEnrichment } from "../../workers/processor/src/enrichment/workflow.ts";
 import { runExport } from "../../workers/processor/src/exports/workflow.ts";
 import { runImport } from "../../workers/processor/src/imports/workflow.ts";
@@ -33,6 +34,13 @@ export class EnrichmentWorkflow extends Cloudflare.Workflow<EnrichmentWorkflow>(
   }).pipe(Effect.provide(Cloudflare.AI.QueryGatewayBinding)),
 ) {}
 
+export class FactsWorkflow extends Cloudflare.Workflow<FactsWorkflow>()(
+  "FactsWorkflow",
+  Effect.gen(function* () {
+    return runFactsRebuild(yield* Cloudflare.Workers.bindWorker(Api));
+  }),
+) {}
+
 export class Processor extends Cloudflare.Worker<
   Processor,
   Pick<
@@ -43,6 +51,8 @@ export class Processor extends Cloudflare.Worker<
     | "getExportInstance"
     | "startEnrichment"
     | "getEnrichmentInstance"
+    | "startFactsRebuild"
+    | "getFactsRebuildInstance"
   >
 >()("ProcessorWorker") {}
 

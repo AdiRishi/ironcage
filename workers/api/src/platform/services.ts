@@ -1,6 +1,7 @@
 import {
   EnrichmentRunId,
   ExportId,
+  type FactsRebuildInput,
   FinanceError,
   ImportId,
   type ModelProvider,
@@ -100,6 +101,14 @@ export class EnrichmentJobs extends Context.Service<
 >()("@repo/api/platform/EnrichmentJobs") {
   static readonly layer = (client: JobClient<{ runId: typeof EnrichmentRunId.Type }>) =>
     Layer.effect(EnrichmentJobs, jobService(client));
+}
+
+export class FactJobs extends Context.Service<
+  FactJobs,
+  Effect.Success<ReturnType<typeof jobService<typeof FactsRebuildInput.Type>>>
+>()("@repo/api/platform/FactJobs") {
+  static readonly layer = (client: JobClient<typeof FactsRebuildInput.Type>) =>
+    Layer.effect(FactJobs, jobService(client));
 }
 
 export class EnrichmentConfig extends Context.Service<

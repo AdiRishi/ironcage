@@ -13,6 +13,7 @@ import { Schema } from "effect";
 
 import { RouteError } from "@/components/route-error";
 import { PeriodStrip } from "@/components/shell/period-strip";
+import { Recalculating } from "@/components/shell/recalculating";
 import { TopBar } from "@/components/shell/top-bar";
 import { monthlyFlowQuery } from "@/features/flow/queries";
 import { questionsQuery } from "@/features/questions/queries";
@@ -81,6 +82,7 @@ function Layout() {
         Skip to content
       </a>
       <TopBar questionCount={questions.length} />
+      <Recalculating />
       {showStrip && months.length > 0 && <PeriodStrip months={months} period={period} />}
       <main id="main" className="mx-auto max-w-[1280px] px-5 py-8 md:px-8 md:py-10">
         <Outlet />

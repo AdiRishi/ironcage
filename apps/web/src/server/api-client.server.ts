@@ -35,6 +35,7 @@ type ApiMethods = Pick<
   | "getPeriodFlow"
   | "getMonthlyFlow"
   | "getSpending"
+  | "getFactsStatus"
   | "getEnrichmentSettings"
   | "updateEnrichmentSettings"
   | "requestEnrichment"

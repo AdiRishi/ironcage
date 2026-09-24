@@ -11,6 +11,7 @@ import {
 import { Context, Crypto, Effect, Encoding, Layer, Schema } from "effect";
 
 import { toFinanceError } from "../database/failures.ts";
+import { writeTransaction } from "../database/transactions.ts";
 import { ImportJobs, Sources } from "../platform/services.ts";
 import { Imports } from "./service.ts";
 
@@ -81,9 +82,9 @@ export class Uploads extends Context.Service<
         yield* sources.put(objectKey, input.bytes, { httpMetadata: { contentType: mediaType } });
         const importId = ImportId.make(yield* crypto.randomUUIDv4);
         const sourceFileId = SourceFileId.make(yield* crypto.randomUUIDv4);
-        const result = yield* sql.withTransaction(
+        const result = yield* writeTransaction(
+          sql,
           Effect.gen(function* () {
-            yield* sql`SELECT pg_advisory_xact_lock(1)`;
             const found = yield* findBySha(hash);
             if (found) {
               if (!found.bytesAvailable)

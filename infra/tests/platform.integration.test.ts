@@ -396,6 +396,7 @@ test(
       "event_postings",
       "events",
       "exports",
+      "fact_rebuilds",
       "fee_associations",
       "imports",
       "ledger_facts",
