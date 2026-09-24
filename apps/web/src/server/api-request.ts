@@ -10,7 +10,7 @@ export const runApiRequest = <A, E>(effect: Effect.Effect<A, E>, signal: AbortSi
       Effect.catchCause((cause) => {
         if (Cause.hasInterruptsOnly(cause)) return Effect.interrupt;
         const failure = Cause.squash(cause);
-        if (Schema.is(Schema.Struct(FinanceError.fields))(failure))
+        if (Schema.is(FinanceError)(failure))
           return Effect.fail(new AppRequestError(failure.kind, failure.message));
         const error =
           failure instanceof RpcCallError || Cause.isTimeoutError(failure)

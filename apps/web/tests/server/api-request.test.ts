@@ -63,17 +63,20 @@ test("an expired RPC deadline becomes a retryable unavailable error", async () =
 });
 
 test("financial conflicts retain their message across the native RPC error envelope", async () => {
-  const client = makeRpcStub<{ write: () => Effect.Effect<never, FinanceError> }>({
-    write: async () => ({
-      _tag: ErrorTag,
-      error: encodeRpcError(
-        new FinanceError({
-          kind: "conflict",
-          message: "Allocations must sum to the booked magnitude.",
-        }),
-      ),
-    }),
-  });
+  const client = makeRpcStub<{ write: () => Effect.Effect<never, FinanceError> }>(
+    {
+      write: async () => ({
+        _tag: ErrorTag,
+        error: encodeRpcError(
+          new FinanceError({
+            kind: "conflict",
+            message: "Allocations must sum to the booked magnitude.",
+          }),
+        ),
+      }),
+    },
+    { errors: [FinanceError] },
+  );
   await expect(runApiRequest(client.write(), signal())).rejects.toEqual(
     new AppRequestError("conflict", "Allocations must sum to the booked magnitude."),
   );
