@@ -1,5 +1,5 @@
 import { FinanceError } from "@repo/contracts/finance";
-import type { Api } from "@repo/infra/api";
+import type { Api, WebOperation } from "@repo/infra/api";
 import { getRequest } from "@tanstack/react-start/server";
 import { makeRpcStub, type RpcCallError } from "alchemy/Cloudflare/Bridge";
 import { env } from "cloudflare:workers";
@@ -7,72 +7,7 @@ import { Effect } from "effect";
 
 import { runApiRequest } from "./api-request";
 
-type ApiMethods = Pick<
-  Api,
-  | "getEventRelationships"
-  | "listRelationshipCandidates"
-  | "previewRelationship"
-  | "applyRelationship"
-  | "listInterpretationReviews"
-  | "proposeRelationships"
-  | "dismissInterpretationReview"
-  | "listAccountPeriods"
-  | "saveAccountPeriod"
-  | "deleteAccountPeriod"
-  | "listRules"
-  | "getRuleExceptions"
-  | "previewRule"
-  | "saveRule"
-  | "deleteRule"
-  | "reinterpretPostings"
-  | "listCounterparties"
-  | "getCounterparty"
-  | "saveCounterparty"
-  | "mergeCounterparties"
-  | "moveAlias"
-  | "saveReferenceDefault"
-  | "deleteReferenceDefault"
-  | "assignEventCounterparty"
-  | "listQuestions"
-  | "getPeriodFlow"
-  | "getMonthlyFlow"
-  | "getSpending"
-  | "getFactsStatus"
-  | "getEnrichmentSettings"
-  | "updateEnrichmentSettings"
-  | "requestEnrichment"
-  | "requestEvaluation"
-  | "listEnrichmentRuns"
-  | "listCategoryProposals"
-  | "resolveCategoryProposal"
-  | "previewCorrection"
-  | "applyCorrection"
-  | "undoCorrection"
-  | "getCorrectionHistory"
-  | "saveReference"
-  | "deleteReference"
-  | "getEvent"
-  | "getEventForPosting"
-  | "getReferenceData"
-  | "listSourceFiles"
-  | "removeSourceBytes"
-  | "getModelUsage"
-  | "listExports"
-  | "requestExport"
-  | "listReviewItems"
-  | "resolveReview"
-  | "listAccounts"
-  | "createAccount"
-  | "updateAccount"
-  | "listLedger"
-  | "getPosting"
-  | "listImports"
-  | "getImport"
-  | "retryImport"
-  | "getSettings"
-  | "getRetention"
-  | "updateSettings"
->;
+type ApiMethods = Pick<Api, WebOperation>;
 
 // The remote Worker supplies RuntimeContext; only results and failures cross the binding.
 type ApiClient = {

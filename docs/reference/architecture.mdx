@@ -39,12 +39,12 @@ File parsers live in the processor, because they carry large libraries such as P
 
 ## RPC chain
 
-1. A Worker's `index.ts` composes its Effect services and returns a handler object.
-2. Its Alchemy Worker class in `infra/src/` names the exposed methods. `infra/src/api.ts` uses `ApiOperations`, a type map written by hand in `workers/api/src/index.ts` that points each operation at its service method's type. Deriving the type from the handler would make the Worker class refer to itself through its bindings. `infra/src/processor.ts` picks the processor's methods with `Pick`. The bridge infers argument, success, and tagged failure types for callers.
+1. `operations` in `workers/api/src/index.ts` is one Effect that yields the API's services and returns every operation as a method of one of them. `ApiOperations` is its success type, so adding an operation is one entry there. It depends only on service types, not on the Worker's bindings, so the infra Worker class can use it without referring to itself.
+2. `infra/src/api.ts` declares the API Worker class with `ApiOperations`, and `infra/src/processor.ts` picks the processor's methods with `Pick`. The bridge infers argument, success, and tagged failure types for callers.
 3. `infra/src/worker-bindings.ts` gives each Worker its bindings: the API its storage, Hyperdrive, and processor binding, the processor its Workflows, and the web app its API binding. Each Workflow in `infra/src/processor.ts` binds the API itself with `Cloudflare.Workers.bindWorker(Api)`.
-4. The web app's server functions validate browser input with the contracts schemas and call the API through the typed binding. `apps/web/src/server/api-client.server.ts` keeps its own `Pick` list of the `Api` methods the web calls. It leaves out operations the web does not call, such as `publishImport`.
+4. The web app's server functions validate browser input with the contracts schemas and call the API through the typed binding. `apps/web/src/server/api-client.server.ts` exposes `WebOperation`: every operation except `InternalOperation`, the ones only the processor and tests call, such as `publishImport`.
 
-Method signatures come from the service implementations. Each `ApiOperations` entry refers to a service's type instead of restating it, apart from `getRetention`, so a changed service signature reaches every caller. Payload schemas are shared where two sides need them. There is no generated HTTP client.
+Method signatures come from the service implementations, so a changed service signature reaches every caller. Payload schemas are shared where two sides need them. There is no generated HTTP client.
 
 ## Boundary rules
 

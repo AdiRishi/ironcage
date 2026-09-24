@@ -6,6 +6,8 @@ import { RuntimeContext } from "alchemy/RuntimeContext";
 import { Effect } from "effect";
 
 import { api, type ApiOperations } from "../../workers/api/src/index.ts";
+
+export type { WebOperation } from "../../workers/api/src/index.ts";
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
 import { localPostgres } from "./database/local.ts";
 import { apiBindings } from "./worker-bindings.ts";
