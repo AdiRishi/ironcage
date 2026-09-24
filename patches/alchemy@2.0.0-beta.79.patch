@@ -1,5 +1,5 @@
 diff --git a/lib/Docker/Container.js b/lib/Docker/Container.js
-index f6d8130edf2fd487229498372adfa0ebc71ec671..a2bf62478d827a7c725a8e4e59f7416bf945a751 100644
+index eda60bf..e663ab9 100644
 --- a/lib/Docker/Container.js
 +++ b/lib/Docker/Container.js
 @@ -185,7 +185,7 @@ export const ContainerProvider = () => Provider.effect(Container, Effect.gen(fun
@@ -21,7 +21,7 @@ index f6d8130edf2fd487229498372adfa0ebc71ec671..a2bf62478d827a7c725a8e4e59f7416b
                  : info.Config.Image);
              if (output)
 diff --git a/lib/Docker/Volume.js b/lib/Docker/Volume.js
-index a70f35d206f20de6c97103c1a9a60b60bf3b3b5e..8dafc3423742db265c2ae4a4709d107243fcee04 100644
+index a70f35d..8dafc34 100644
 --- a/lib/Docker/Volume.js
 +++ b/lib/Docker/Volume.js
 @@ -58,7 +58,7 @@ export const VolumeProvider = () => Provider.effect(Volume, Effect.gen(function*
@@ -34,7 +34,7 @@ index a70f35d206f20de6c97103c1a9a60b60bf3b3b5e..8dafc3423742db265c2ae4a4709d1072
              const info = yield* docker.volume
                  .inspect(name, context)
 diff --git a/src/Docker/Container.ts b/src/Docker/Container.ts
-index 856128b6534d3fed017070bd6c83f178ebb6c66a..320548701054fbad6a15c405752ff63076640944 100644
+index 366e659..9dc9489 100644
 --- a/src/Docker/Container.ts
 +++ b/src/Docker/Container.ts
 @@ -348,7 +348,7 @@ export const ContainerProvider = () =>
@@ -56,7 +56,7 @@ index 856128b6534d3fed017070bd6c83f178ebb6c66a..320548701054fbad6a15c405752ff630
                : info.Config.Image,
            );
 diff --git a/src/Docker/Volume.ts b/src/Docker/Volume.ts
-index 560ceb56b997c1c2d264c86d950920ab19b06344..01cfd4a75ea8a32ee7bb46f30658e8426b54ef22 100644
+index 560ceb5..01cfd4a 100644
 --- a/src/Docker/Volume.ts
 +++ b/src/Docker/Volume.ts
 @@ -116,7 +116,7 @@ export const VolumeProvider = () =>
