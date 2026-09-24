@@ -1,10 +1,10 @@
-import type { Money, SpendingBreakdown, SpendingRow } from "@repo/contracts/finance";
+import type { MonthTotal, Money, SpendingBreakdown, SpendingRow } from "@repo/contracts/finance";
 import { formatCurrency } from "@repo/finance";
 import { Link } from "@tanstack/react-router";
 
 import { Amount } from "@/components/amount";
 import { categoryColor } from "@/lib/category-colors";
-import { monthLabel, type ResolvedPeriod } from "@/lib/period";
+import { monthInitial, monthLabel, type ResolvedPeriod } from "@/lib/period";
 
 const money = (currency: string, minor: bigint): Money => ({ currency, minor });
 
@@ -12,9 +12,12 @@ export function SpendingPage({
   breakdown,
   period,
   parents,
+  coverage,
 }: {
   breakdown: SpendingBreakdown;
   period: ResolvedPeriod;
+  // Whether each month of the history has complete records, keyed by YYYY-MM.
+  coverage: ReadonlyMap<string, (typeof MonthTotal.Type)["coverage"]>;
   // Categories that have subcategories, so a row can open further.
   parents: ReadonlySet<string>;
 }) {
@@ -27,55 +30,67 @@ export function SpendingPage({
   );
   return (
     <div className="space-y-10">
-      <header className="space-y-5">
-        <nav aria-label="Category path" className="type-small text-slate">
-          <ol className="flex flex-wrap items-center gap-x-2">
-            <li>
-              <Link to="/spending" search={{ category: undefined }} className="hover:text-intaglio">
-                All spending
-              </Link>
-            </li>
-            {breakdown.path.map((item) => (
-              <li key={item.id} className="flex items-center gap-x-2">
-                <span aria-hidden>/</span>
+      <header className="grid gap-x-12 gap-y-6 lg:grid-cols-[1fr_auto] lg:items-end">
+        <div className="space-y-5">
+          <nav aria-label="Category path" className="type-small text-slate">
+            <ol className="flex flex-wrap items-center gap-x-2">
+              <li>
                 <Link
                   to="/spending"
-                  search={{ category: item.id }}
+                  search={{ category: undefined }}
                   className="hover:text-intaglio"
-                  aria-current={item.id === scope?.id ? "page" : undefined}
                 >
-                  {item.label}
+                  All spending
                 </Link>
               </li>
-            ))}
-          </ol>
-        </nav>
-        <div>
-          <h1 className="type-title">
-            {scope ? scope.label : "Spending"} in {period.label}
-          </h1>
-          <p className="mt-2 type-figure">{formatCurrency(breakdown.total, { cents: false })}</p>
-          <p className="mt-1 type-small text-slate">
-            {delta === 0n ? (
-              "The same as the period before."
-            ) : (
-              <>
-                <Amount
-                  value={money(breakdown.currency, delta < 0n ? -delta : delta)}
-                  cents={false}
-                />{" "}
-                {delta > 0n ? "more" : "less"} than the period before, which was{" "}
-                <Amount value={breakdown.previousTotal} cents={false} />.
-              </>
-            )}{" "}
-            {breakdown.modelAmount.minor > 0n && (
-              <>
-                <Amount value={breakdown.modelAmount} cents={false} /> of it rests on the model's
-                judgement.
-              </>
-            )}
-          </p>
+              {breakdown.path.map((item) => (
+                <li key={item.id} className="flex items-center gap-x-2">
+                  <span aria-hidden>/</span>
+                  <Link
+                    to="/spending"
+                    search={{ category: item.id }}
+                    className="hover:text-intaglio"
+                    aria-current={item.id === scope?.id ? "page" : undefined}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ol>
+          </nav>
+          <div>
+            <h1 className="type-title">
+              {scope ? scope.label : "Spending"} in {period.label}
+            </h1>
+            <p className="mt-2 type-figure">{formatCurrency(breakdown.total, { cents: false })}</p>
+            <p className="mt-1 type-small text-slate">
+              {delta === 0n ? (
+                "The same as the period before."
+              ) : (
+                <>
+                  <Amount
+                    value={money(breakdown.currency, delta < 0n ? -delta : delta)}
+                    cents={false}
+                  />{" "}
+                  {delta > 0n ? "more" : "less"} than the period before, which was{" "}
+                  <Amount value={breakdown.previousTotal} cents={false} />.
+                </>
+              )}{" "}
+              {breakdown.modelAmount.minor > 0n && (
+                <>
+                  <Amount value={breakdown.modelAmount} cents={false} /> of it rests on the model's
+                  judgement.
+                </>
+              )}
+            </p>
+          </div>
         </div>
+        <ScopeHistory
+          breakdown={breakdown}
+          coverage={coverage}
+          color={scope ? categoryColor(scope.slug) : "var(--wattle)"}
+          label={scope ? scope.label : "Spending"}
+        />
       </header>
 
       <section aria-labelledby="rows-heading" className="space-y-3">
@@ -164,6 +179,65 @@ export function SpendingPage({
         </section>
       )}
     </div>
+  );
+}
+
+// The open scope over the twelve months that end with the selected period. The rows
+// partition the scope, so their monthly amounts sum to it.
+function ScopeHistory({
+  breakdown,
+  coverage,
+  color,
+  label,
+}: {
+  breakdown: SpendingBreakdown;
+  coverage: ReadonlyMap<string, (typeof MonthTotal.Type)["coverage"]>;
+  color: string;
+  label: string;
+}) {
+  const totals = breakdown.months.map((month, index) => ({
+    month: month.slice(0, 7),
+    amount: money(
+      breakdown.currency,
+      breakdown.rows.reduce((sum, row) => sum + (row.months[index]?.minor ?? 0n), 0n),
+    ),
+  }));
+  const largest = totals.reduce(
+    (max, item) => (item.amount.minor > max ? item.amount.minor : max),
+    1n,
+  );
+  return (
+    <figure className="space-y-2">
+      <figcaption className="type-small text-slate">{label}, last twelve months</figcaption>
+      <ol className="flex items-end gap-1.5">
+        {totals.map((item, index) => {
+          const missing = coverage.get(item.month) === "missing";
+          const text = `${monthLabel(item.month)}: ${missing ? "no records" : formatCurrency(item.amount, { cents: false })}`;
+          return (
+            <li key={item.month} className="flex w-6 flex-col items-center gap-1" title={text}>
+              <span className="flex h-20 w-full items-end">
+                {missing ? (
+                  <span className="h-2 w-full rounded-t-[3px] border border-b-0 border-dashed border-slate/60" />
+                ) : (
+                  <span
+                    className="w-full rounded-t-[3px]"
+                    style={{
+                      height: `${Math.max(2, Number((item.amount.minor * 100n) / largest))}%`,
+                      background: color,
+                      opacity: index === totals.length - 1 ? 1 : 0.45,
+                    }}
+                  />
+                )}
+              </span>
+              <span aria-hidden className="type-condensed text-slate">
+                {monthInitial(item.month)}
+              </span>
+              <span className="sr-only">{text}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </figure>
   );
 }
 

@@ -4,7 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Schema } from "effect";
 
 import { referenceDataQuery } from "@/features/events/queries";
-import { spendingQuery } from "@/features/flow/queries";
+import { monthlyFlowQuery, spendingQuery } from "@/features/flow/queries";
 import { settingsQueryOptions } from "@/features/settings/queries";
 import { SpendingPage } from "@/features/spending/page";
 import { flowInput, resolvePeriodKey } from "@/lib/period";
@@ -43,5 +43,9 @@ function Spending() {
   const parents = new Set<string>(
     references.categories.flatMap((category) => (category.parentId ? [category.parentId] : [])),
   );
-  return <SpendingPage breakdown={breakdown} period={period} parents={parents} />;
+  const { data: months } = useSuspenseQuery(monthlyFlowQuery(settings.reportingCurrency));
+  const coverage = new Map(months.map((month) => [month.month, month.coverage]));
+  return (
+    <SpendingPage breakdown={breakdown} period={period} parents={parents} coverage={coverage} />
+  );
 }
