@@ -33,7 +33,7 @@ export const saveObservations = Effect.fn("saveObservations")(function* (
 ) {
   const rows = yield* Effect.forEach(
     observations,
-    Effect.fn(function* (observation) {
+    Effect.fnUntraced(function* (observation) {
       const encoded = yield* Schema.encodeEffect(ParsedObservation)(observation);
       return {
         id: yield* crypto.randomUUIDv4,

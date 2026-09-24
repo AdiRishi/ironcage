@@ -66,15 +66,14 @@ export const ensureWorkflowStatus = Effect.fn("ensureWorkflowStatus")(
     () => Effect.succeed(null),
   ),
 );
-const jobService = <Start>(client: JobClient<Start>) =>
-  Effect.gen(function* () {
-    const runtime = yield* RuntimeContext;
-    const provide = Effect.provideService(RuntimeContext, runtime);
-    return {
-      start: (input: Start) => client.start(input).pipe(provide),
-      status: (input: { instanceId: string }) => client.status(input).pipe(provide),
-    };
-  });
+const jobService = Effect.fnUntraced(function* <Start>(client: JobClient<Start>) {
+  const runtime = yield* RuntimeContext;
+  const provide = Effect.provideService(RuntimeContext, runtime);
+  return {
+    start: (input: Start) => client.start(input).pipe(provide),
+    status: (input: { instanceId: string }) => client.status(input).pipe(provide),
+  };
+});
 
 export class ImportJobs extends Context.Service<
   ImportJobs,

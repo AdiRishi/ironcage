@@ -14,7 +14,7 @@ export const currencyExponent = (currency: string) => {
   return exponent;
 };
 
-export const parseMoney = Effect.fn("parseMoney")(function* (text: string, currency: string) {
+export const parseMoney = Effect.fnUntraced(function* (text: string, currency: string) {
   if (!/^[+-]?\d+(?:\.\d+)?$/.test(text))
     return yield* new FinanceError({ kind: "invalid", message: "Invalid decimal amount." });
   const exponent = currencyExponent(currency);
