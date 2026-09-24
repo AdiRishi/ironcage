@@ -49,7 +49,7 @@ A change that affects money shows a preview first: the affected records, their v
 
 ## Charts
 
-The flow diagram uses Recharts' `Sankey` directly, with custom node and link renderers, in `src/features/overview/flow-diagram.tsx`. Below the `md` breakpoint it shows bars instead. It has a text summary, a screen-reader table, and a button that shows the table in place of the diagram. The other charts, such as the spending bars and 12-month sparklines, are hand-built HTML and SVG with screen-reader text and no table view. The shadcn chart wrapper in `src/components/ui/chart.tsx` is unused. Chart coordinates may be floats; displayed amounts come from the result's `Money` values.
+The flow diagram uses Recharts' `Sankey` directly, with custom node and link renderers, in `src/features/overview/flow-diagram.tsx`. Below the `md` breakpoint it shows bars instead. It has a text summary, a screen-reader table, and a button that shows the table in place of the diagram. The other charts, such as the spending bars and 12-month sparklines, are hand-built HTML and SVG with screen-reader text and no table view. Chart coordinates may be floats; displayed amounts come from the result's `Money` values.
 
 ## Accessibility
 

@@ -53,7 +53,6 @@ type ApiMethods = Pick<
   | "deleteReference"
   | "getEvent"
   | "getEventForPosting"
-  | "getInterpretationSummary"
   | "getReferenceData"
   | "listSourceFiles"
   | "removeSourceBytes"

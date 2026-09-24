@@ -43,11 +43,6 @@ export const FinancialEvent = Schema.Struct({
   postings: Schema.Array(Posting),
 });
 export type FinancialEvent = typeof FinancialEvent.Type;
-export const InterpretationSummary = Schema.Struct({
-  created: Schema.Int,
-  counts: Schema.Array(Schema.Struct({ role: FinancialRole, count: Schema.Int })),
-  remaining: Schema.Int,
-});
 export const EventInput = Schema.Struct({ eventId: EventId });
 export const EventForPosting = Schema.Struct({ postingId: PostingId });
 export const ReferenceData = Schema.Struct({
