@@ -228,7 +228,7 @@ export const writeDerivation = Effect.fn("writeDerivation")(function* (
 ) {
   const sql = yield* PgClient.PgClient;
   for (const batch of Arr.chunksOf(changes, 500)) {
-    const records = sql`jsonb_to_recordset(${sql.json({ rows: batch })}::jsonb->'rows') AS x("eventId" uuid, kind text, "roleSource" text, "counterpartyId" uuid, "counterpartySource" text, "allocationId" uuid, role text, "categoryId" uuid, "categorySource" text)`;
+    const records = sql`jsonb_to_recordset(${sql.json(batch)}) AS x("eventId" uuid, kind text, "roleSource" text, "counterpartyId" uuid, "counterpartySource" text, "allocationId" uuid, role text, "categoryId" uuid, "categorySource" text)`;
     yield* sql`UPDATE events e SET kind = x.kind, role_source = x."roleSource", counterparty_id = x."counterpartyId", counterparty_source = x."counterpartySource", purchase_on = CASE WHEN x.kind = 'purchase' THEN e.purchase_on END, version = e.version + 1 FROM ${records} WHERE e.id = x."eventId"`;
     yield* sql`UPDATE allocations a SET role = x.role, category_id = x."categoryId", category_source = x."categorySource" FROM ${records} WHERE a.id = x."allocationId"`;
   }
@@ -277,7 +277,7 @@ export const claimRules = Effect.fn("claimRules")(function* ({
     claimed.push(subject.id);
     if (next.length === 0) yield* sql`DELETE FROM rule_applications WHERE event_id = ${subject.id}`;
     else
-      yield* sql`INSERT INTO rule_applications (event_id, applied_rules) VALUES (${subject.id}, ${sql.json({ rules: next })}::jsonb->'rules') ON CONFLICT (event_id) DO UPDATE SET applied_rules = EXCLUDED.applied_rules`;
+      yield* sql`INSERT INTO rule_applications (event_id, applied_rules) VALUES (${subject.id}, ${sql.json(next)}) ON CONFLICT (event_id) DO UPDATE SET applied_rules = EXCLUDED.applied_rules`;
   }
   return claimed;
 });

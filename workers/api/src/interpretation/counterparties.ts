@@ -53,7 +53,7 @@ const affectedEvents = Effect.fn("affectedEvents")(function* ({
   const sql = yield* PgClient.PgClient;
   const rows =
     yield* sql`SELECT e.id FROM events e LEFT JOIN posting_descriptors d ON d.posting_id = e.primary_posting_id
-      WHERE e.active AND (e.counterparty_id = ANY(${counterpartyIds}::uuid[]) OR d.alias_key = ANY(${aliasKeys}::text[]))`.pipe(
+      WHERE e.active AND (${sql.in("e.counterparty_id", counterpartyIds)} OR ${sql.in("d.alias_key", aliasKeys)})`.pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: EventId })))),
     );
   return rows.map((row) => row.id);

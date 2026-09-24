@@ -40,11 +40,11 @@ export const saveObservations = Effect.fn("saveObservations")(function* (
         import_id: importId,
         source_file_id: sourceFileId,
         locator_key: encoded.locatorKey,
-        locator: encoded.locator,
-        raw: encoded.raw,
-        candidate: encoded.candidate,
-        parsed_candidate: encoded.candidate,
-        issue: encoded.issue,
+        locator: sql.json(encoded.locator),
+        raw: sql.json(encoded.raw),
+        candidate: sql.json(encoded.candidate),
+        parsed_candidate: sql.json(encoded.candidate),
+        issue: sql.json(encoded.issue),
       };
     }),
   );

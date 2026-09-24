@@ -377,7 +377,7 @@ export class Enrichment extends Context.Service<
                 VALUES (${yield* crypto.randomUUIDv4}, 'enrichment', ${run.model}, ${report.inputTokens?.toString() ?? null}, ${report.outputTokens?.toString() ?? null},
                   ${report.cost?.minor.toString() ?? null}, ${report.cost?.currency ?? null}, ${report.status})`;
               const pending = new Set(
-                (yield* sql`SELECT alias_key AS "aliasKey" FROM enrichment_items WHERE run_id = ${input.runId} AND status = 'pending' AND alias_key = ANY(${input.aliasKeys}::text[])`.pipe(
+                (yield* sql`SELECT alias_key AS "aliasKey" FROM enrichment_items WHERE run_id = ${input.runId} AND status = 'pending' AND ${sql.in("alias_key", input.aliasKeys)}`.pipe(
                   Effect.flatMap(
                     Schema.decodeUnknownEffect(
                       Schema.Array(Schema.Struct({ aliasKey: Schema.String })),
@@ -388,7 +388,7 @@ export class Enrichment extends Context.Service<
               // A failed batch leaves its aliases for a later run and its reason on the
               // run; the Workflow decides when repeated failures stop the run.
               if (report.status === "failed") {
-                yield* sql`UPDATE enrichment_items SET status = 'failed' WHERE run_id = ${input.runId} AND alias_key = ANY(${[...pending]}::text[])`;
+                yield* sql`UPDATE enrichment_items SET status = 'failed' WHERE run_id = ${input.runId} AND ${sql.in("alias_key", [...pending])}`;
                 yield* sql`UPDATE enrichment_runs SET failure = ${report.failure} WHERE id = ${input.runId}`;
                 return true;
               }
@@ -402,8 +402,8 @@ export class Enrichment extends Context.Service<
                 });
                 resolved.push(result.aliasKey);
               }
-              yield* sql`UPDATE enrichment_items SET status = CASE WHEN alias_key = ANY(${resolved}::text[]) THEN 'resolved' ELSE 'skipped' END
-                WHERE run_id = ${input.runId} AND alias_key = ANY(${[...pending]}::text[])`;
+              yield* sql`UPDATE enrichment_items SET status = CASE WHEN ${sql.in("alias_key", resolved)} THEN 'resolved' ELSE 'skipped' END
+                WHERE run_id = ${input.runId} AND ${sql.in("alias_key", [...pending])}`;
               const affected =
                 resolved.length === 0
                   ? []
