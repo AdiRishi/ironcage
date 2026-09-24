@@ -138,6 +138,49 @@ test(
 );
 
 test(
+  "accepting a suggested subcategory moves the model's counterparty and its transactions into it",
+  Effect.gen(function* () {
+    const { enrichment, event, complete } = yield* setup;
+    yield* complete([
+      result({
+        aliasKey: "WOOLWORTHS SYDNEY",
+        name: "Woolworths",
+        categoryKey: "food.groceries",
+        proposedSubcategory: { parentKey: "food", name: "Supermarkets" },
+      }),
+    ]);
+    const [proposal] = yield* enrichment.proposals;
+    if (!proposal) return yield* Effect.die("Expected a suggested subcategory");
+    expect(proposal.counterparties.map((row) => row.name)).toEqual(["Woolworths"]);
+    const outcome = yield* enrichment.resolveProposal({
+      commandId: yield* commandId,
+      proposalId: proposal.id,
+      decision: "accept",
+    });
+    expect(outcome.moved).toBe(1);
+    const categories = (yield* (yield* Events).references).categories;
+    expect(categories.find((row) => row.id === outcome.categoryId)).toMatchObject({
+      name: "Supermarkets",
+      parentId: categories.find((row) => row.slug === "food")?.id,
+      tree: "spending",
+    });
+    expect((yield* event("WOOLWORTHS 1234 SYDNEY AU Card xx1234")).allocations[0]).toMatchObject({
+      categoryId: outcome.categoryId,
+      categorySource: "counterparty",
+    });
+    expect(yield* enrichment.proposals).toEqual([]);
+    const again = yield* enrichment
+      .resolveProposal({
+        commandId: yield* commandId,
+        proposalId: proposal.id,
+        decision: "dismiss",
+      })
+      .pipe(Effect.result);
+    expect(again._tag === "Failure" && again.failure.kind).toBe("stale");
+  }).pipe(Effect.provide(services)),
+);
+
+test(
   "a failed batch records its usage and leaves its aliases for a later run while this one goes on",
   Effect.gen(function* () {
     const { enrichment, run, batch } = yield* setup;

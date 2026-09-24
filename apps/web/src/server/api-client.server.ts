@@ -39,6 +39,7 @@ type ApiMethods = Pick<
   | "requestEnrichment"
   | "listEnrichmentRuns"
   | "listCategoryProposals"
+  | "resolveCategoryProposal"
   | "previewCorrection"
   | "applyCorrection"
   | "undoCorrection"

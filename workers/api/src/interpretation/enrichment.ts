@@ -1,5 +1,7 @@
 import { PgClient } from "@effect/sql-pg";
 import {
+  CategoryId,
+  CategoryProposalOutcome,
   CategoryProposals,
   CommandId,
   CompleteEnrichmentBatch,
@@ -18,10 +20,12 @@ import {
   FailEnrichment,
   type EnrichmentResult,
   RequestEnrichment,
+  ResolveCategoryProposal,
   UpdateEnrichmentSettings,
   CounterpartyId,
 } from "@repo/contracts/finance";
 import { Context, Crypto, Effect, Layer, Schema } from "effect";
+import type { Statement } from "effect/unstable/sql";
 
 import { instant } from "../database/columns.ts";
 import { Commands } from "../database/commands.ts";
@@ -196,6 +200,9 @@ export class Enrichment extends Context.Service<
     ) => Effect.Effect<boolean, FinanceError>;
     readonly fail: (input: typeof FailEnrichment.Type) => Effect.Effect<boolean, FinanceError>;
     readonly proposals: Effect.Effect<typeof CategoryProposals.Type, FinanceError>;
+    readonly resolveProposal: (
+      input: typeof ResolveCategoryProposal.Type,
+    ) => Effect.Effect<typeof CategoryProposalOutcome.Type, FinanceError>;
   }
 >()("@repo/api/interpretation/Enrichment") {
   static readonly layer = Layer.effect(
@@ -416,12 +423,87 @@ export class Enrichment extends Context.Service<
         return true;
       }, toFinanceError);
 
+      // Counterparties the model placed in the proposal's parent or one of its
+      // subcategories, reached through the aliases that prompted the proposal.
+      const movable = (proposalId: Statement.Fragment) =>
+        sql`SELECT DISTINCT cp.id, cp.name FROM category_proposals q
+          JOIN counterparty_aliases a ON a.alias_key = ANY(q.alias_keys)
+          JOIN counterparties cp ON cp.id = a.counterparty_id
+          JOIN categories dc ON dc.id = cp.default_category_id
+          WHERE q.id = ${proposalId} AND cp.source = 'model'
+            AND (dc.id = q.parent_id OR dc.parent_id = q.parent_id)`;
+
       const proposals =
-        sql`SELECT p.id, p.parent_id AS "parentId", c.name AS "parentName", p.name, p.reason, p.alias_keys AS "aliasKeys", ${instant(sql, sql("p.created_at"))} AS "createdAt"
+        sql`SELECT p.id, p.parent_id AS "parentId", c.name AS "parentName", p.name, p.reason, p.alias_keys AS "aliasKeys",
+            COALESCE((SELECT jsonb_agg(jsonb_build_object('id', m.id, 'name', m.name) ORDER BY m.name) FROM (${movable(sql`p.id`)}) m), '[]'::jsonb) AS counterparties,
+            ${instant(sql, sql("p.created_at"))} AS "createdAt"
           FROM category_proposals p JOIN categories c ON c.id = p.parent_id WHERE p.status = 'proposed' ORDER BY cardinality(p.alias_keys) DESC, p.created_at`.pipe(
           Effect.flatMap(Schema.decodeUnknownEffect(CategoryProposals)),
           toFinanceError,
         );
+
+      // Accepting creates the subcategory and moves the model's counterparties into it;
+      // their transactions follow unless you categorised one yourself.
+      const resolveProposal = Effect.fn("Enrichment.resolveProposal")(function* (
+        input: typeof ResolveCategoryProposal.Type,
+      ) {
+        return yield* commands.run({
+          commandId: input.commandId,
+          input: { operation: "resolveCategoryProposal", ...input },
+          result: CategoryProposalOutcome,
+          execute: provide(
+            Effect.gen(function* () {
+              const [proposal] =
+                yield* sql`SELECT p.parent_id AS "parentId", p.name, c.tree FROM category_proposals p JOIN categories c ON c.id = p.parent_id
+                  WHERE p.id = ${input.proposalId} AND p.status = 'proposed' FOR UPDATE OF p`.pipe(
+                  Effect.flatMap(
+                    Schema.decodeUnknownEffect(
+                      Schema.Array(
+                        Schema.Struct({
+                          parentId: CategoryId,
+                          name: Schema.String,
+                          tree: Schema.String,
+                        }),
+                      ),
+                    ),
+                  ),
+                );
+              if (!proposal)
+                return yield* new FinanceError({
+                  kind: "stale",
+                  message: "This suggestion was already answered. Refresh the list.",
+                });
+              if (input.decision === "dismiss") {
+                yield* sql`UPDATE category_proposals SET status = 'dismissed' WHERE id = ${input.proposalId}`;
+                return { categoryId: null, moved: 0 };
+              }
+              const categoryId = CategoryId.make(yield* crypto.randomUUIDv4);
+              yield* sql`INSERT INTO categories (id, name, tree, parent_id) VALUES (${categoryId}, ${proposal.name}, ${proposal.tree}, ${proposal.parentId})`;
+              const moved =
+                yield* sql`UPDATE counterparties SET default_category_id = ${categoryId}, version = version + 1, updated_at = now()
+                  WHERE id IN (SELECT m.id FROM (${movable(sql`${input.proposalId}::uuid`)}) m) RETURNING id`.pipe(
+                  Effect.flatMap(
+                    Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: CounterpartyId }))),
+                  ),
+                );
+              yield* sql`UPDATE category_proposals SET status = 'accepted' WHERE id = ${input.proposalId}`;
+              const affected =
+                moved.length === 0
+                  ? []
+                  : yield* sql`SELECT id FROM events WHERE active AND ${sql.in(
+                      "counterparty_id",
+                      moved.map((row) => row.id),
+                    )}`.pipe(
+                      Effect.flatMap(
+                        Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: EventId }))),
+                      ),
+                    );
+              yield* reinterpret(affected.map((row) => row.id));
+              return { categoryId, moved: moved.length };
+            }),
+          ),
+        });
+      }, toFinanceError);
 
       return Enrichment.of({
         settings,
@@ -432,6 +514,7 @@ export class Enrichment extends Context.Service<
         complete,
         fail,
         proposals,
+        resolveProposal,
       });
     }),
   );

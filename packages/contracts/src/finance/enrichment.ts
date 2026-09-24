@@ -1,6 +1,7 @@
 import { Schema } from "effect";
 
 import {
+  CategoryId,
   CategoryTree,
   Channel,
   CounterpartyId,
@@ -127,6 +128,18 @@ export const CategoryProposal = Schema.Struct({
   name: Schema.String,
   reason: Schema.String,
   aliasKeys: Schema.Array(Schema.String),
+  // Counterparties the model placed in the parent or one of its subcategories that
+  // would move to the new subcategory. Counterparties you set are never moved.
+  counterparties: Schema.Array(Schema.Struct({ id: CounterpartyId, name: Schema.String })),
   createdAt: Instant,
 });
 export const CategoryProposals = Schema.Array(CategoryProposal);
+export const ResolveCategoryProposal = Schema.Struct({
+  commandId: CommandId,
+  proposalId: Schema.String,
+  decision: Schema.Literals(["accept", "dismiss"]),
+});
+export const CategoryProposalOutcome = Schema.Struct({
+  categoryId: Schema.NullOr(CategoryId),
+  moved: Schema.Int,
+});

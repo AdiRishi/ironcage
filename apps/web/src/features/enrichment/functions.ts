@@ -1,4 +1,8 @@
-import { RequestEnrichment, UpdateEnrichmentSettings } from "@repo/contracts/finance";
+import {
+  RequestEnrichment,
+  ResolveCategoryProposal,
+  UpdateEnrichmentSettings,
+} from "@repo/contracts/finance";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 
@@ -16,3 +20,9 @@ export const updateEnrichmentSettings = createServerFn({ method: "POST" })
 export const requestEnrichment = createServerFn({ method: "POST" })
   .validator(Schema.toStandardSchemaV1(RequestEnrichment))
   .handler(({ data }) => callApiRpc((client) => client.requestEnrichment(data)));
+export const listCategoryProposals = createServerFn({ method: "GET" }).handler(() =>
+  callApiRpc((client) => client.listCategoryProposals()),
+);
+export const resolveCategoryProposal = createServerFn({ method: "POST" })
+  .validator(Schema.toStandardSchemaV1(ResolveCategoryProposal))
+  .handler(({ data }) => callApiRpc((client) => client.resolveCategoryProposal(data)));

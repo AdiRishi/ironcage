@@ -1,10 +1,12 @@
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
-import { getEnrichmentSettings, listEnrichmentRuns } from "./functions";
+import { getEnrichmentSettings, listCategoryProposals, listEnrichmentRuns } from "./functions";
 
 export const enrichmentSettingsQuery = () =>
   queryOptions({ queryKey: ["enrichmentSettings"], queryFn: () => getEnrichmentSettings() });
+export const categoryProposalsQuery = () =>
+  queryOptions({ queryKey: ["categoryProposals"], queryFn: () => listCategoryProposals() });
 
 // While a run is active, poll it; every finished batch changes interpretations.
 export function useEnrichmentRuns() {

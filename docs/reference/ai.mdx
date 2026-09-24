@@ -38,7 +38,7 @@ Enrichment runs as a Cloudflare Workflow in the processor. It turns alias keys t
    - A confidence at or above the auto-apply threshold (0.8 by default) creates or links the counterparty with `model` provenance and status `applied`, and its defaults apply to events immediately.
    - A lower confidence, or any person counterparty, creates the counterparty with status `proposed`, which raises a question with the model's proposal.
 
-A counterparty with the same name as the model's answer is reused, so aliases of one business resolved in different batches still meet. Proposed subcategories are stored for you to accept. Rerunning enrichment only touches aliases without a counterparty. A counterparty you edited is never sent back to the model.
+A counterparty with the same name as the model's answer is reused, so aliases of one business resolved in different batches still meet. Proposed subcategories appear in Questions. Accepting one creates it and moves the counterparties the model placed in its parent, or in a sibling subcategory, into it. Counterparties you set are never moved. Rerunning enrichment only touches aliases without a counterparty. A counterparty you edited is never sent back to the model.
 
 On the corpus, the first run sent 1,203 aliases in 49 batches.
 

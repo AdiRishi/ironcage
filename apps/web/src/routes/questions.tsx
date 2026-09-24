@@ -4,6 +4,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Schema } from "effect";
 
 import { accountsQueryOptions } from "@/features/accounts/queries";
+import { CategoryProposalsSection } from "@/features/enrichment/proposals";
+import { categoryProposalsQuery } from "@/features/enrichment/queries";
 import { referenceDataQuery } from "@/features/events/queries";
 import { QuestionsPage } from "@/features/questions/page";
 import { questionsQuery } from "@/features/questions/queries";
@@ -25,6 +27,7 @@ export const Route = createFileRoute("/questions")({
     await Promise.all([
       context.queryClient.ensureQueryData(questionsQuery(settings.reportingCurrency)),
       context.queryClient.ensureQueryData(referenceDataQuery()),
+      context.queryClient.ensureQueryData(categoryProposalsQuery()),
       context.queryClient.ensureQueryData(accountsQueryOptions()),
       context.queryClient.ensureInfiniteQueryData(
         reviewQueryOptions(
@@ -42,6 +45,7 @@ function Questions() {
   const { data: settings } = useSuspenseQuery(settingsQueryOptions());
   const { data: questions } = useSuspenseQuery(questionsQuery(settings.reportingCurrency));
   const { data: references } = useSuspenseQuery(referenceDataQuery());
+  const { data: proposals } = useSuspenseQuery(categoryProposalsQuery());
   return (
     <QuestionsPage
       questions={questions}
@@ -53,6 +57,7 @@ function Questions() {
         );
       }}
     >
+      <CategoryProposalsSection proposals={proposals} />
       <SourceReviews importId={search.importId} />
       <MovementProposals />
     </QuestionsPage>

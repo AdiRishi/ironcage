@@ -81,6 +81,7 @@ export type ApiOperations = {
   completeEnrichmentBatch: Enrichment["Service"]["complete"];
   failEnrichment: Enrichment["Service"]["fail"];
   listCategoryProposals: () => Enrichment["Service"]["proposals"];
+  resolveCategoryProposal: Enrichment["Service"]["resolveProposal"];
   getEvent: Events["Service"]["get"];
   getEventForPosting: Events["Service"]["forPosting"];
   getInterpretationSummary: () => Events["Service"]["summary"];
@@ -225,6 +226,7 @@ export const api = Effect.fn("Api.initialize")(function* (
       completeEnrichmentBatch: enrichment.complete,
       failEnrichment: enrichment.fail,
       listCategoryProposals: () => enrichment.proposals,
+      resolveCategoryProposal: enrichment.resolveProposal,
       getEvent: events.get,
       getEventForPosting: events.forPosting,
       getInterpretationSummary: () => events.summary,

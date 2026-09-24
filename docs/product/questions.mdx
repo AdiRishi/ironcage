@@ -15,6 +15,8 @@ Questions collect everything that needs a decision from you, largest amount firs
 | Which category?      | A counterparty the model could not place confidently.                                               |
 | Which account?       | A CSV file that does not name its account.                                                          |
 | Which row is which?  | Two same-day, same-amount rows the importer cannot pair on its own.                                 |
+| A new subcategory?   | Several pet shops sit in Shopping, General. Proposed: Shopping, Pets.                               |
+| Is this a movement?  | $2,000 out of one account and into another the same day. Proposed: a transfer between them.         |
 
 A question about a counterparty is asked once, not once per transaction. Answering it applies to every transaction from that counterparty that you have not set by hand.
 
@@ -22,4 +24,4 @@ A question about a counterparty is asked once, not once per transaction. Answeri
 
 Accept applies the proposal. Choosing something else records your answer as a correction and teaches the counterparty. Skip leaves it open. The overview shows how much money open questions affect in the selected period.
 
-Source reviews from the importer, such as which account a CSV belongs to or which row matches which, appear in the same list and resolve the same way.
+Counterparty questions come first, as cards you answer in place. Suggested subcategories, records to check from the importer (which account a CSV belongs to, which row matches which), and movements to confirm follow in their own sections. The count in the top bar is the counterparty questions.
