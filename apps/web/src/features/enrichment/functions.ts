@@ -1,5 +1,6 @@
 import {
   RequestEnrichment,
+  RequestEvaluation,
   ResolveCategoryProposal,
   UpdateEnrichmentSettings,
 } from "@repo/contracts/finance";
@@ -20,6 +21,9 @@ export const updateEnrichmentSettings = createServerFn({ method: "POST" })
 export const requestEnrichment = createServerFn({ method: "POST" })
   .validator(Schema.toStandardSchemaV1(RequestEnrichment))
   .handler(({ data }) => callApiRpc((client) => client.requestEnrichment(data)));
+export const requestEvaluation = createServerFn({ method: "POST" })
+  .validator(Schema.toStandardSchemaV1(RequestEvaluation))
+  .handler(({ data }) => callApiRpc((client) => client.requestEvaluation(data)));
 export const listCategoryProposals = createServerFn({ method: "GET" }).handler(() =>
   callApiRpc((client) => client.listCategoryProposals()),
 );

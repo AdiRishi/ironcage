@@ -86,7 +86,7 @@ Each case has a known answer that does not come from the implementation.
 These checks are planned and have no test yet:
 
 - Playwright flows from upload to transaction detail, a question answered, a source review resolved, retry after a failed file, and refresh during processing, at desktop and phone width and by keyboard only.
-- An evaluation of enrichment against the real model and your answers.
+- A run of the check against your answers with the real model. Tests use synthetic replies.
 - An OFX `FITID` reused on a second account. Matching reads only the postings of the file's account, but no test pins it.
 
 ## Hosted checks

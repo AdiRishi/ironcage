@@ -5,6 +5,7 @@ import {
   CategoryProposals,
   CommandId,
   CompleteEnrichmentBatch,
+  Confidence,
   CounterpartyKind,
   EnrichmentAlias,
   EnrichmentBatch,
@@ -15,16 +16,19 @@ import {
   EnrichmentRunId,
   EnrichmentRuns,
   EnrichmentSettings,
+  EvaluationAnswer,
   EventId,
   FinanceError,
   FailEnrichment,
   type EnrichmentResult,
   RequestEnrichment,
+  RequestEvaluation,
   ResolveCategoryProposal,
   UpdateEnrichmentSettings,
   CounterpartyId,
 } from "@repo/contracts/finance";
-import { Context, Crypto, Effect, Layer, Schema } from "effect";
+import { scoreEvaluation } from "@repo/finance";
+import { Context, Crypto, Effect, Layer, Schema, Struct } from "effect";
 import type { Statement } from "effect/unstable/sql";
 
 import { instant } from "../database/columns.ts";
@@ -42,16 +46,50 @@ const batchSize = 25;
 const exampleCount = 20;
 
 const runColumns = (sql: PgClient.PgClient) =>
-  sql`r.id, r.status, r.model, ${instant(sql, sql("r.created_at"))} AS "createdAt", r.requested,
+  sql`r.id, r.purpose, r.status, r.model, ${instant(sql, sql("r.created_at"))} AS "createdAt", r.requested,
     (SELECT count(*)::int FROM enrichment_items i WHERE i.run_id = r.id AND i.status = 'resolved') AS resolved,
     (SELECT count(*)::int FROM enrichment_items i WHERE i.run_id = r.id AND i.status = 'failed') AS failed, r.failure`;
 
+const RunRow = Schema.Struct(Struct.omit(EnrichmentRun.fields, ["evaluation"]));
+const Prediction = Schema.Struct({ ...EvaluationAnswer.fields, confidence: Confidence });
+
+// Runs matching `where`, newest first. An evaluation run carries its score so far.
+const readRuns = Effect.fn("readEnrichmentRuns")(function* (where: Statement.Fragment) {
+  const sql = yield* PgClient.PgClient;
+  const rows =
+    yield* sql`SELECT ${runColumns(sql)} FROM enrichment_runs r WHERE ${where} ORDER BY r.created_at DESC, r.id DESC LIMIT 20`.pipe(
+      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(RunRow))),
+    );
+  return yield* Effect.forEach(rows, (row) =>
+    Effect.gen(function* () {
+      if (row.purpose !== "evaluate") return { ...row, evaluation: null };
+      const [settings] =
+        yield* sql`SELECT auto_apply_confidence::float8 AS threshold FROM enrichment_settings WHERE id = 1`.pipe(
+          Effect.flatMap(
+            Schema.decodeUnknownEffect(Schema.Tuple([Schema.Struct({ threshold: Confidence })])),
+          ),
+        );
+      const answers =
+        yield* sql`SELECT expected, predicted FROM enrichment_evaluations WHERE run_id = ${row.id}`.pipe(
+          Effect.flatMap(
+            Schema.decodeUnknownEffect(
+              Schema.Array(
+                Schema.Struct({ expected: EvaluationAnswer, predicted: Schema.NullOr(Prediction) }),
+              ),
+            ),
+          ),
+        );
+      return {
+        ...row,
+        evaluation: scoreEvaluation({ rows: answers, threshold: settings.threshold }),
+      };
+    }),
+  );
+});
+
 const readRun = Effect.fn("readEnrichmentRun")(function* (runId: typeof EnrichmentRunId.Type) {
   const sql = yield* PgClient.PgClient;
-  const [run] =
-    yield* sql`SELECT ${runColumns(sql)} FROM enrichment_runs r WHERE r.id = ${runId}`.pipe(
-      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(EnrichmentRun))),
-    );
+  const [run] = yield* readRuns(sql`r.id = ${runId}`);
   if (!run)
     return yield* new FinanceError({ kind: "notFound", message: "Enrichment run not found." });
   return run;
@@ -95,15 +133,21 @@ const ensureEnabled = Effect.gen(function* () {
   return settings;
 });
 
-const readBatchContext = Effect.gen(function* () {
+// The taxonomy, existing counterparties, and your recent answers as examples. An
+// evaluation leaves out the counterparties whose aliases it asks about, so the model
+// cannot copy your answer.
+const readBatchContext = Effect.fn("readBatchContext")(function* (
+  hidden: readonly (typeof CounterpartyId.Type)[],
+) {
   const sql = yield* PgClient.PgClient;
+  const visible = sql`NOT (${sql.in("c.id", hidden)})`;
   const categories =
     yield* sql`SELECT COALESCE(c.slug, c.id::text) AS key, c.name, COALESCE(p.slug, p.id::text) AS "parentKey", c.tree
       FROM categories c LEFT JOIN categories p ON p.id = c.parent_id WHERE NOT c.archived ORDER BY c.tree DESC, p.position NULLS FIRST, c.position, c.name`.pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(EnrichmentCategory))),
     );
   const counterparties =
-    yield* sql`SELECT id, name, kind FROM counterparties ORDER BY name, id`.pipe(
+    yield* sql`SELECT c.id, c.name, c.kind FROM counterparties c WHERE ${visible} ORDER BY c.name, c.id`.pipe(
       Effect.flatMap(
         Schema.decodeUnknownEffect(
           Schema.Array(
@@ -117,7 +161,7 @@ const readBatchContext = Effect.gen(function* () {
         WHERE a.counterparty_id = c.id AND d.counterparty_text IS NOT NULL LIMIT 3) AS samples,
         c.name, c.kind, COALESCE(k.slug, k.id::text) AS "categoryKey", c.default_role AS "defaultRole"
       FROM counterparties c LEFT JOIN categories k ON k.id = c.default_category_id
-      WHERE c.source = 'user' AND EXISTS (SELECT 1 FROM counterparty_aliases a JOIN posting_descriptors d ON d.alias_key = a.alias_key WHERE a.counterparty_id = c.id AND d.counterparty_text IS NOT NULL)
+      WHERE c.source = 'user' AND ${visible} AND EXISTS (SELECT 1 FROM counterparty_aliases a JOIN posting_descriptors d ON d.alias_key = a.alias_key WHERE a.counterparty_id = c.id AND d.counterparty_text IS NOT NULL)
       ORDER BY c.updated_at DESC, c.id LIMIT ${exampleCount}`.pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(EnrichmentExample))),
     );
@@ -196,6 +240,9 @@ export class Enrichment extends Context.Service<
       input: typeof RequestEnrichment.Type,
     ) => Effect.Effect<typeof EnrichmentRun.Type, FinanceError>;
     readonly runs: Effect.Effect<typeof EnrichmentRuns.Type, FinanceError>;
+    readonly evaluate: (
+      input: typeof RequestEvaluation.Type,
+    ) => Effect.Effect<typeof EnrichmentRun.Type, FinanceError>;
     readonly batch: (
       input: typeof EnrichmentInput.Type,
     ) => Effect.Effect<typeof EnrichmentBatch.Type, FinanceError>;
@@ -238,11 +285,10 @@ export class Enrichment extends Context.Service<
           WHERE id = ${run.id} AND status IN ('pending', 'running')`;
         return yield* readRun(run.id).pipe(Effect.provideService(PgClient.PgClient, sql));
       });
-      const activeRuns =
-        sql`SELECT ${runColumns(sql)} FROM enrichment_runs r WHERE r.status IN ('pending', 'running')`.pipe(
-          Effect.flatMap(Schema.decodeUnknownEffect(EnrichmentRuns)),
-          Effect.flatMap((rows) => Effect.forEach(rows, refresh)),
-        );
+      const activeRuns = readRuns(sql`r.status IN ('pending', 'running')`).pipe(
+        Effect.provideService(PgClient.PgClient, sql),
+        Effect.flatMap((rows) => Effect.forEach(rows, refresh)),
+      );
 
       const configure = Effect.fn("Enrichment.configure")(function* (
         input: typeof UpdateEnrichmentSettings.Type,
@@ -302,7 +348,7 @@ export class Enrichment extends Context.Service<
                   ),
                 );
               const id = EnrichmentRunId.make(input.commandId);
-              yield* sql`INSERT INTO enrichment_runs (id, status, model, requested) VALUES (${id}, ${aliases.length > 0 ? "pending" : "completed"}, ${config.provider.model}, ${aliases.length})`;
+              yield* sql`INSERT INTO enrichment_runs (id, purpose, status, model, requested) VALUES (${id}, 'identify', ${aliases.length > 0 ? "pending" : "completed"}, ${config.provider.model}, ${aliases.length})`;
               if (aliases.length > 0)
                 yield* sql`INSERT INTO enrichment_items ${sql.insert(aliases.map((row, position) => ({ run_id: id, alias_key: row.aliasKey, position })))}`;
               return yield* readRun(id);
@@ -313,12 +359,71 @@ export class Enrichment extends Context.Service<
         return run;
       }, toFinanceError);
 
-      const runs =
-        sql`SELECT ${runColumns(sql)} FROM enrichment_runs r ORDER BY r.created_at DESC, r.id DESC LIMIT 20`.pipe(
-          Effect.flatMap(Schema.decodeUnknownEffect(EnrichmentRuns)),
-          Effect.flatMap((rows) => Effect.forEach(rows, refresh, { concurrency: 4 })),
-          toFinanceError,
-        );
+      // Asks the model about every alias of a counterparty you set, scored against your
+      // answer. It uses the same Workflow, limits, and usage records as identification.
+      const evaluate = Effect.fn("Enrichment.evaluate")(function* (
+        input: typeof RequestEvaluation.Type,
+      ) {
+        if ((yield* activeRuns).some((run) => run.status === "pending" || run.status === "running"))
+          return yield* new FinanceError({
+            kind: "conflict",
+            message: "Counterparty identification is already running.",
+          });
+        const run = yield* commands.run({
+          commandId: input.commandId,
+          input: { operation: "requestEvaluation", ...input },
+          result: Schema.toCodecJson(EnrichmentRun),
+          execute: provide(
+            Effect.gen(function* () {
+              yield* ensureEnabled;
+              const answers =
+                yield* sql`SELECT a.alias_key AS "aliasKey", c.id AS "counterpartyId", c.name, c.kind,
+                    COALESCE(k.slug, k.id::text) AS "categoryKey", COALESCE(t.slug, t.id::text) AS "topCategoryKey"
+                  FROM counterparty_aliases a JOIN counterparties c ON c.id = a.counterparty_id
+                  LEFT JOIN categories k ON k.id = c.default_category_id
+                  LEFT JOIN categories t ON t.id = COALESCE(k.parent_id, k.id)
+                  WHERE c.source = 'user' AND a.status = 'applied' AND EXISTS (
+                    SELECT 1 FROM posting_descriptors d WHERE d.alias_key = a.alias_key AND d.counterparty_text IS NOT NULL)
+                  ORDER BY a.alias_key`.pipe(
+                  Effect.flatMap(
+                    Schema.decodeUnknownEffect(
+                      Schema.Array(
+                        Schema.Struct({
+                          aliasKey: Schema.String,
+                          counterpartyId: CounterpartyId,
+                          ...EvaluationAnswer.fields,
+                        }),
+                      ),
+                    ),
+                  ),
+                );
+              const id = EnrichmentRunId.make(input.commandId);
+              yield* sql`INSERT INTO enrichment_runs (id, purpose, status, model, requested) VALUES (${id}, 'evaluate', ${answers.length > 0 ? "pending" : "completed"}, ${config.provider.model}, ${answers.length})`;
+              if (answers.length > 0) {
+                yield* sql`INSERT INTO enrichment_items ${sql.insert(answers.map((row, position) => ({ run_id: id, alias_key: row.aliasKey, position })))}`;
+                yield* sql`INSERT INTO enrichment_evaluations (run_id, alias_key, counterparty_id, expected)
+                  SELECT ${id}, x."aliasKey", x."counterpartyId", x.expected
+                  FROM jsonb_to_recordset(${sql.json(
+                    answers.map(({ aliasKey, counterpartyId, ...expected }) => ({
+                      aliasKey,
+                      counterpartyId,
+                      expected,
+                    })),
+                  )}) AS x("aliasKey" text, "counterpartyId" uuid, expected jsonb)`;
+              }
+              return yield* readRun(id);
+            }),
+          ),
+        });
+        if (run.status === "pending") yield* jobs.start({ runId: run.id });
+        return run;
+      }, toFinanceError);
+
+      const runs = readRuns(sql`true`).pipe(
+        Effect.provideService(PgClient.PgClient, sql),
+        Effect.flatMap((rows) => Effect.forEach(rows, refresh, { concurrency: 4 })),
+        toFinanceError,
+      );
 
       const batch = Effect.fn("Enrichment.batch")(function* ({
         runId,
@@ -351,11 +456,24 @@ export class Enrichment extends Context.Service<
                 yield* sql`UPDATE enrichment_runs SET status = 'running' WHERE id = ${runId}`;
               if (aliases.length === 0 && run.status !== "failed")
                 yield* sql`UPDATE enrichment_runs SET status = 'completed' WHERE id = ${runId}`;
+              const hidden =
+                run.purpose === "evaluate" && aliases.length > 0
+                  ? (yield* sql`SELECT DISTINCT counterparty_id AS id FROM enrichment_evaluations WHERE run_id = ${runId} AND ${sql.in(
+                      "alias_key",
+                      aliases.map((alias) => alias.aliasKey),
+                    )}`.pipe(
+                      Effect.flatMap(
+                        Schema.decodeUnknownEffect(
+                          Schema.Array(Schema.Struct({ id: CounterpartyId })),
+                        ),
+                      ),
+                    )).map((row) => row.id)
+                  : [];
               return {
                 commandId: CommandId.make(yield* crypto.randomUUIDv4),
                 runId,
                 aliases,
-                ...(yield* readBatchContext),
+                ...(yield* readBatchContext(hidden)),
                 provider: settings.provider,
               } satisfies typeof EnrichmentBatch.Type;
             }),
@@ -379,7 +497,7 @@ export class Enrichment extends Context.Service<
               const settings = yield* readSettings;
               const report = input.report;
               yield* sql`INSERT INTO model_usage (id, task, model, input_tokens, output_tokens, cost_minor, cost_currency, status)
-                VALUES (${yield* crypto.randomUUIDv4}, 'enrichment', ${run.model}, ${report.inputTokens}, ${report.outputTokens},
+                VALUES (${yield* crypto.randomUUIDv4}, ${run.purpose === "evaluate" ? "evaluation" : "enrichment"}, ${run.model}, ${report.inputTokens}, ${report.outputTokens},
                   ${report.cost?.minor ?? null}, ${report.cost?.currency ?? null}, ${report.status})`;
               const pending = new Set(
                 (yield* sql`SELECT alias_key AS "aliasKey" FROM enrichment_items WHERE run_id = ${input.runId} AND status = 'pending' AND ${sql.in("alias_key", input.aliasKeys)}`.pipe(
@@ -395,6 +513,31 @@ export class Enrichment extends Context.Service<
               if (report.status === "failed") {
                 yield* sql`UPDATE enrichment_items SET status = 'failed' WHERE run_id = ${input.runId} AND ${sql.in("alias_key", [...pending])}`;
                 yield* sql`UPDATE enrichment_runs SET failure = ${report.failure} WHERE id = ${input.runId}`;
+                return true;
+              }
+              if (run.purpose === "evaluate") {
+                const answered = report.results.filter(
+                  (result, index) =>
+                    pending.has(result.aliasKey) &&
+                    report.results.findIndex((item) => item.aliasKey === result.aliasKey) === index,
+                );
+                yield* sql`UPDATE enrichment_evaluations e SET predicted = jsonb_build_object('name', x.name, 'kind', x.kind,
+                    'categoryKey', COALESCE(k.slug, k.id::text), 'topCategoryKey', COALESCE(t.slug, t.id::text), 'confidence', x.confidence)
+                  FROM jsonb_to_recordset(${sql.json(
+                    answered.map((result) => ({
+                      aliasKey: result.aliasKey,
+                      name: result.name,
+                      kind: result.kind,
+                      categoryKey: result.categoryKey,
+                      confidence: result.confidence,
+                    })),
+                  )}) AS x("aliasKey" text, name text, kind text, "categoryKey" text, confidence float8)
+                  LEFT JOIN categories k ON NOT k.archived AND (k.slug = x."categoryKey" OR k.id::text = x."categoryKey")
+                  LEFT JOIN categories t ON t.id = COALESCE(k.parent_id, k.id)
+                  WHERE e.run_id = ${input.runId} AND e.alias_key = x."aliasKey"`;
+                const keys = answered.map((result) => result.aliasKey);
+                yield* sql`UPDATE enrichment_items SET status = CASE WHEN ${sql.in("alias_key", keys)} THEN 'resolved' ELSE 'skipped' END
+                  WHERE run_id = ${input.runId} AND ${sql.in("alias_key", [...pending])}`;
                 return true;
               }
               const resolved: string[] = [];
@@ -521,6 +664,7 @@ export class Enrichment extends Context.Service<
         fail,
         proposals,
         resolveProposal,
+        evaluate,
       });
     }),
   );

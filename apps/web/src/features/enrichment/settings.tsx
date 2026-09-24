@@ -2,7 +2,9 @@ import {
   CommandId,
   UpdateEnrichmentSettings,
   type EnrichmentSettings,
+  type EvaluationScore,
   type RequestEnrichment,
+  type RequestEvaluation,
 } from "@repo/contracts/finance";
 import { formatDecimal, parseMoney } from "@repo/finance";
 import { useForm } from "@tanstack/react-form";
@@ -16,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCommand } from "@/lib/use-command";
 
-import { requestEnrichment, updateEnrichmentSettings } from "./functions";
+import { requestEnrichment, requestEvaluation, updateEnrichmentSettings } from "./functions";
 import { enrichmentSettingsQuery, useEnrichmentRuns } from "./queries";
 
 const runStatusLabels = {
@@ -34,6 +36,10 @@ export function EnrichmentSection() {
     mutationFn: (data: typeof RequestEnrichment.Type) => requestEnrichment({ data }),
     onSuccess: () => client.invalidateQueries(),
   });
+  const evaluation = useCommand({
+    mutationFn: (data: typeof RequestEvaluation.Type) => requestEvaluation({ data }),
+    onSuccess: () => client.invalidateQueries(),
+  });
   return (
     <section className="space-y-4">
       <h2 className="type-heading">Counterparty identification</h2>
@@ -44,21 +50,39 @@ export function EnrichmentSection() {
         become questions.
       </p>
       {settings.data && <SettingsForm key={settings.data.version} settings={settings.data} />}
-      <Button
-        disabled={!settings.data?.enabled || request.mutation.isPending}
-        onClick={() => request.submit({ commandId: CommandId.make(crypto.randomUUID()) })}
-      >
-        {request.uncertain ? "Retry identification" : "Identify new counterparties"}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          disabled={!settings.data?.enabled || request.mutation.isPending}
+          onClick={() => request.submit({ commandId: CommandId.make(crypto.randomUUID()) })}
+        >
+          {request.uncertain ? "Retry identification" : "Identify new counterparties"}
+        </Button>
+        <Button
+          variant="outline"
+          disabled={!settings.data?.enabled || evaluation.mutation.isPending}
+          onClick={() => evaluation.submit({ commandId: CommandId.make(crypto.randomUUID()) })}
+        >
+          {evaluation.uncertain ? "Retry the check" : "Check the model against your answers"}
+        </Button>
+      </div>
+      <p className="type-small text-slate">
+        The check asks the model about every counterparty you set, without showing it your answer,
+        and scores what it says. Use it to choose the confidence threshold.
+      </p>
       {runs.data && runs.data.length > 0 && (
         <ul className="divide-y divide-rule border-y border-rule type-small">
           {runs.data.slice(0, 5).map((run) => (
             <li key={run.id} className="space-y-0.5 py-2">
-              <p>
-                <span className="font-[600]">{runStatusLabels[run.status]}</span>{" "}
-                {run.resolved.toLocaleString()} of {run.requested.toLocaleString()} names identified
-                {run.failed > 0 && `, ${run.failed.toLocaleString()} left for the next run`}.
-              </p>
+              {run.evaluation ? (
+                <Evaluation status={run.status} score={run.evaluation} />
+              ) : (
+                <p>
+                  <span className="font-[600]">{runStatusLabels[run.status]}</span>{" "}
+                  {run.resolved.toLocaleString()} of {run.requested.toLocaleString()} names
+                  identified
+                  {run.failed > 0 && `, ${run.failed.toLocaleString()} left for the next run`}.
+                </p>
+              )}
               {run.failure &&
                 (run.status === "failed" ? (
                   <p role="alert" className="text-attention">
@@ -71,7 +95,7 @@ export function EnrichmentSection() {
           ))}
         </ul>
       )}
-      {[settings.error, runs.error, request.mutation.error]
+      {[settings.error, runs.error, request.mutation.error, evaluation.mutation.error]
         .filter((error) => error !== null)
         .map((error, index) => (
           <p role="alert" key={index}>
@@ -79,6 +103,41 @@ export function EnrichmentSection() {
           </p>
         ))}
     </section>
+  );
+}
+
+const percent = (part: number, whole: number) =>
+  whole === 0 ? "none" : `${Math.round((part / whole) * 100)}%`;
+
+function Evaluation({
+  status,
+  score,
+}: {
+  status: keyof typeof runStatusLabels;
+  score: typeof EvaluationScore.Type;
+}) {
+  return (
+    <div className="space-y-1">
+      <p>
+        <span className="font-[600]">Check against your answers. {runStatusLabels[status]}</span>{" "}
+        {score.answered.toLocaleString()} of {score.asked.toLocaleString()} answered. Name{" "}
+        {percent(score.name, score.answered)}, category {percent(score.category, score.answered)},
+        top-level category {percent(score.topCategory, score.answered)}, kind{" "}
+        {percent(score.kind, score.answered)}.
+      </p>
+      <p className="text-slate">
+        At or above {Math.round(score.threshold * 100)}% confidence, {score.confidentRight} of{" "}
+        {score.confident} answers were right.{" "}
+        {score.bands
+          .filter((band) => band.answered > 0)
+          .map(
+            (band) =>
+              `${Math.round(band.from * 100)}–${Math.round(band.to * 100)}%: ${band.right} of ${band.answered} right`,
+          )
+          .join("; ")}
+        .
+      </p>
+    </div>
   );
 }
 
