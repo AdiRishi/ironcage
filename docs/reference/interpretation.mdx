@@ -36,6 +36,7 @@ type Descriptor = {
   ownAccountSuffix: string | null; // "5678" from "Transfer to xx5678 CommBank app"
   payId: string | null;
   reference: string | null;
+  referenceKey: string | null; // "rent" from "Rent Aug 2026"
   foreign: { currency: string; amount: string } | null; // "USD 12.34"
 };
 ```
@@ -65,6 +66,8 @@ CommBank shapes the profile recognizes, with invented examples from `packages/fi
 
 An incoming transfer with no channel word, such as the `Fast Transfer From` row, takes up to four capitalised words as the name. The rest is the reference. Direct debits, direct credits, salary, and BPAY rows end the name at the first word that contains a digit.
 
+The reference key, from `referenceKey`, lowercases the reference and keeps its words of three or more letters, without numbers or month names, so `Rent Aug` and `rent 2026` share the key `rent`.
+
 The alias key uppercases the counterparty text, turns punctuation other than `&` and `'` into spaces, removes words that contain digits, drops a trailing country code, and collapses spaces. `WOOLWORTHS 1234 SYDNEY AU` and `WOOLWORTHS 5678 SYDNEY AU` share the key `WOOLWORTHS SYDNEY`. A transfer to an own-account suffix gets the key `ACCOUNT 5678`, so an account outside the ledger can be answered once.
 
 On the corpus, the profile yields 1,203 alias keys for 9,224 postings, and 378 transfers name an own-account suffix. 272 of those name one of the four accounts; the other 106 name two accounts outside the ledger.
@@ -79,11 +82,14 @@ Counterparties and aliases carry provenance: `model` when the enrichment pipelin
 
 An alias's status is also `applied` or `proposed`. A proposed alias comes from a model answer below the auto-apply threshold that named an existing counterparty. It stores the model's confidence and reason. The engine reads only applied aliases, so the events of a proposed alias have no counterparty until you answer its `alias` question.
 
+A counterparty can also have defaults for one reference key, in `counterparty_references`. They outrank the counterparty's own default role and category for the payments that carry that key, so rent and a bill split paid to the same person can mean different things. The counterparty page lists the references on its payments, most frequent first, with any defaults you set.
+
 The commands in `workers/api/src/interpretation/counterparties.ts` change these records, and each one recomputes the events it affects:
 
 - `saveCounterparty` creates or updates a counterparty with `user` provenance and status `applied`. Creating one can claim alias keys, which become applied user aliases.
 - `mergeCounterparties` moves every alias and event of one counterparty to another, points rules that named it at the target, deletes it, and makes the target a user counterparty with status `applied`.
 - `moveAlias` points one alias key at a counterparty as an applied user alias.
+- `saveReferenceDefault` and `deleteReferenceDefault` set or remove the defaults for one counterparty and reference key.
 - `assignEventCounterparty` sets one event's counterparty with source `user`, which overrides its alias. Clearing it returns the event to its alias.
 
 ## Roles
@@ -93,7 +99,7 @@ The role of an event comes from, in order:
 1. Your correction on the event. A movement link also fixes the role, and so does an accepted credit link or fee association that depends on it.
 2. A rule that sets a role.
 3. Bank structure, described below.
-4. The counterparty's default role, set by you or proposed by the model. This decides transfers to and from people and direct credits: rent to a landlord is a `purchase`, a friend repaying dinner is a `reimbursement`, and money to your own account at another bank is a `transfer` to an external endpoint.
+4. The counterparty's default role for the payment's reference key, when you set one, otherwise its own default role, set by you or proposed by the model. This decides transfers to and from people and direct credits: rent to a landlord is a `purchase`, a friend repaying dinner is a `reimbursement`, and money to your own account at another bank is a `transfer` to an external endpoint.
 5. Otherwise the event is `unresolved` and raises a question.
 
 Bank structure is `bankReading` in `packages/finance/src/interpretation.ts`. It uses the descriptor, the sign, and the account kind. An own-account suffix matches one of your accounts when it equals the last four digits of the account number.
@@ -143,7 +149,7 @@ Categories form two trees, spending and income, two levels deep. The default tax
 
 The income tree has Salary, Interest, Refunds and reimbursements, Government, and Other income, with no subcategories.
 
-A spending allocation's category comes from, in order: your correction, a rule, the counterparty's default category, then the bank structure. A category applies only when it is in the tree the role uses. Purchases, financing costs, refunds, and reimbursements take a spending category. Income takes an income category. Transfers, card settlements, borrowing, loan payments, and unresolved events take none. The model puts mixed retailers in Shopping, then General.
+A spending allocation's category comes from, in order: your correction, a rule, the counterparty's default category for the payment's reference key or else its own default category, then the bank structure. A category applies only when it is in the tree the role uses. Purchases, financing costs, refunds, and reimbursements take a spending category. Income takes an income category. Transfers, card settlements, borrowing, loan payments, and unresolved events take none. The model puts mixed retailers in Shopping, then General.
 
 Bank structure sets these categories:
 
@@ -184,14 +190,14 @@ Reinterpreting a posting, whether after a profile version change or after a new 
 
 Questions are computed from current records, not stored, so answering one makes it disappear. The Questions operation in `workers/api/src/interpretation/questions.ts` reads events in the reporting currency. It groups them, orders the groups by the money they cover, outflow plus inflow, and returns at most 300 groups. `ruleConflict` questions come after the groups, one per event.
 
-| Kind           | Raised when                                                                                                                    | Grouped by                               |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- |
-| `counterparty` | The event's counterparty is a proposed model counterparty that is not a person, so its defaults are not applied.               | Counterparty                             |
-| `alias`        | The event has no counterparty and its alias key has a proposed alias. The question asks "Is this" and the counterparty's name. | Alias key                                |
-| `person`       | A person counterparty has no default role, or the model proposed it. The model cannot know who someone is.                     | Counterparty                             |
-| `ownAccount`   | An unresolved transfer names an own-account suffix that matches none of your accounts. Its alias key is `ACCOUNT 9921`.        | Alias key                                |
-| `unresolved`   | An event is still `unresolved` after every source above.                                                                       | Counterparty, else alias key, else event |
-| `ruleConflict` | Two claimed rules set different values, and no correction, split, or link fixes that value.                                    | Event                                    |
+| Kind           | Raised when                                                                                                                                                | Grouped by                               |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `counterparty` | The event's counterparty is a proposed model counterparty that is not a person, so its defaults are not applied.                                           | Counterparty                             |
+| `alias`        | The event has no counterparty and its alias key has a proposed alias. The question asks "Is this" and the counterparty's name.                             | Alias key                                |
+| `person`       | A person counterparty has no default role, or the model proposed it, and the payment's reference key has no default. The model cannot know who someone is. | Counterparty and reference key           |
+| `ownAccount`   | An unresolved transfer names an own-account suffix that matches none of your accounts. Its alias key is `ACCOUNT 9921`.                                    | Alias key                                |
+| `unresolved`   | An event is still `unresolved` after every source above.                                                                                                   | Counterparty, else alias key, else event |
+| `ruleConflict` | Two claimed rules set different values, and no correction, split, or link fixes that value.                                                                | Event                                    |
 
 Answering a counterparty, person, own-account, or unresolved question saves the counterparty with `user` provenance, which applies to every event from it. For an `alias` question, Yes calls `moveAlias` and makes the alias an applied user alias of the suggested counterparty. Someone else creates a new counterparty that takes over the alias key. A rule conflict, or an unresolved event with no alias key, links to the transaction instead.
 
@@ -203,7 +209,9 @@ Movement links join the two sides of a transfer, card settlement, loan payment, 
 
 After an import creates events, `proposeMovements` in `workers/api/src/relationships/proposals.ts` looks for pairs and records each one as a `relationship` review item. A pair is two active events on different accounts whose primary postings have exactly opposite amounts in one currency, posted within three days of each other. Both events must be a transfer, card settlement, loan payment, borrowing, or unresolved, and at least one must not be unresolved. Neither event may already have a movement link, and a pair that was proposed before, including a dismissed one, is not proposed again. The rule does not read own-account suffixes. Amount and date alone produce a proposal, never a link.
 
-Proposals appear under Movements to confirm in Questions. Review opens the transaction so you can link it, and Not a movement dismisses the proposal. Any relationship change to either event resolves its open proposals. Look for more runs the same search on demand.
+After an import creates events, `proposeCredits` in the same file looks for the purchase each unlinked refund or reimbursement returns, through `creditProposals` in `packages/finance/src/proposals.ts`. A refund is proposed against a purchase from the same counterparty or alias key in the 120 days before it, no smaller than the refund. A reimbursement is proposed against a larger purchase in the 14 days before it whose description shares a word of four or more letters with the transfer's reference, such as `dinner`. When several purchases qualify, the one with exactly the credit's amount wins, and otherwise nothing is proposed. Each credit is proposed once, including after you dismiss it. Accepting links the remaining credit through `applyRelationship`.
+
+Proposals appear under Refunds to link and Movements to confirm in Questions. For a movement, Review opens the transaction so you can link it, and Not a movement dismisses the proposal. For a credit, Link applies it and Not related dismisses it. Any relationship change to either event resolves its open proposals. Look for more runs the same search on demand.
 
 A refund or reimbursement counts against its category in the month it arrives. Linking it to a specific purchase with a credit link moves that amount to the purchase's period instead. The applied amount cannot exceed the remaining credit or the remaining cost.
 

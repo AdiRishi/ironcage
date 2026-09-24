@@ -30,6 +30,8 @@ type ApiMethods = Pick<
   | "saveCounterparty"
   | "mergeCounterparties"
   | "moveAlias"
+  | "saveReferenceDefault"
+  | "deleteReferenceDefault"
   | "assignEventCounterparty"
   | "listQuestions"
   | "getPeriodFlow"

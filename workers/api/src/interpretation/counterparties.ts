@@ -8,7 +8,9 @@ import {
   CounterpartyInput,
   CounterpartyList,
   CounterpartyMonth,
+  CounterpartyReference,
   CounterpartySummary,
+  DeleteReferenceDefault,
   EventId,
   FinanceError,
   FinancialEvent,
@@ -16,6 +18,7 @@ import {
   MergeCounterparties,
   MoveAlias,
   SaveCounterparty,
+  SaveReferenceDefault,
 } from "@repo/contracts/finance";
 import { Context, Crypto, Effect, Layer, Schema } from "effect";
 import type { Statement } from "effect/unstable/sql";
@@ -83,6 +86,12 @@ export class Counterparties extends Context.Service<
       input: typeof MergeCounterparties.Type,
     ) => Effect.Effect<Counterparty, FinanceError>;
     readonly moveAlias: (input: typeof MoveAlias.Type) => Effect.Effect<boolean, FinanceError>;
+    readonly saveReference: (
+      input: typeof SaveReferenceDefault.Type,
+    ) => Effect.Effect<boolean, FinanceError>;
+    readonly deleteReference: (
+      input: typeof DeleteReferenceDefault.Type,
+    ) => Effect.Effect<boolean, FinanceError>;
     readonly assignEvent: (
       input: typeof AssignEventCounterparty.Type,
     ) => Effect.Effect<FinancialEvent, FinanceError>;
@@ -181,7 +190,17 @@ export class Counterparties extends Context.Service<
                 GROUP BY 1 ORDER BY 1`.pipe(
               Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(CounterpartyMonth))),
             );
-            return { counterparty, aliases, months };
+            const references =
+              yield* sql`SELECT d.reference_key AS "referenceKey", min(d.reference) AS sample,
+                  count(*)::int AS "eventCount", r.default_role AS "defaultRole", r.default_category_id AS "defaultCategoryId"
+                FROM events e JOIN posting_descriptors d ON d.posting_id = e.primary_posting_id
+                LEFT JOIN counterparty_references r ON r.counterparty_id = e.counterparty_id AND r.reference_key = d.reference_key
+                WHERE e.active AND e.counterparty_id = ${counterpartyId} AND d.reference_key IS NOT NULL
+                GROUP BY d.reference_key, r.default_role, r.default_category_id
+                ORDER BY count(*) DESC, d.reference_key LIMIT 20`.pipe(
+                Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(CounterpartyReference))),
+              );
+            return { counterparty, aliases, months, references };
           }),
         );
       }, toFinanceError);
@@ -246,6 +265,9 @@ export class Counterparties extends Context.Service<
               yield* sql`UPDATE counterparty_aliases SET counterparty_id = ${target.id}, source = 'user' WHERE counterparty_id = ${source.id}`;
               yield* sql`UPDATE events SET counterparty_id = ${target.id} WHERE counterparty_id = ${source.id}`;
               yield* sql`UPDATE rules SET conditions = jsonb_set(conditions, '{counterpartyId}', to_jsonb(${target.id}::text)) WHERE conditions->>'counterpartyId' = ${source.id}`;
+              yield* sql`INSERT INTO counterparty_references (counterparty_id, reference_key, default_role, default_category_id)
+                SELECT ${target.id}, reference_key, default_role, default_category_id FROM counterparty_references WHERE counterparty_id = ${source.id}
+                ON CONFLICT (counterparty_id, reference_key) DO NOTHING`;
               yield* sql`DELETE FROM counterparties WHERE id = ${source.id}`;
               yield* sql`UPDATE counterparties SET source = 'user', status = 'applied', version = version + 1, updated_at = now() WHERE id = ${target.id}`;
               yield* reinterpret(
@@ -277,6 +299,49 @@ export class Counterparties extends Context.Service<
         });
       }, toFinanceError);
 
+      const saveReference = Effect.fn("Counterparties.saveReference")(function* (
+        input: typeof SaveReferenceDefault.Type,
+      ) {
+        return yield* commands.run({
+          commandId: input.commandId,
+          input: { operation: "saveReferenceDefault", ...input },
+          result: Schema.Boolean,
+          execute: provide(
+            Effect.gen(function* () {
+              yield* readCounterparty(input.counterpartyId);
+              yield* checkCategory(input.defaultCategoryId);
+              yield* sql`INSERT INTO counterparty_references (counterparty_id, reference_key, default_role, default_category_id)
+                VALUES (${input.counterpartyId}, ${input.referenceKey}, ${input.defaultRole}, ${input.defaultCategoryId})
+                ON CONFLICT (counterparty_id, reference_key) DO UPDATE SET default_role = EXCLUDED.default_role,
+                  default_category_id = EXCLUDED.default_category_id, version = counterparty_references.version + 1, updated_at = now()`;
+              yield* reinterpret(
+                yield* affectedEvents({ counterpartyIds: [input.counterpartyId], aliasKeys: [] }),
+              );
+              return true;
+            }),
+          ),
+        });
+      }, toFinanceError);
+
+      const deleteReference = Effect.fn("Counterparties.deleteReference")(function* (
+        input: typeof DeleteReferenceDefault.Type,
+      ) {
+        return yield* commands.run({
+          commandId: input.commandId,
+          input: { operation: "deleteReferenceDefault", ...input },
+          result: Schema.Boolean,
+          execute: provide(
+            Effect.gen(function* () {
+              yield* sql`DELETE FROM counterparty_references WHERE counterparty_id = ${input.counterpartyId} AND reference_key = ${input.referenceKey}`;
+              yield* reinterpret(
+                yield* affectedEvents({ counterpartyIds: [input.counterpartyId], aliasKeys: [] }),
+              );
+              return true;
+            }),
+          ),
+        });
+      }, toFinanceError);
+
       const assignEvent = Effect.fn("Counterparties.assignEvent")(function* (
         input: typeof AssignEventCounterparty.Type,
       ) {
@@ -301,7 +366,16 @@ export class Counterparties extends Context.Service<
         });
       }, toFinanceError);
 
-      return Counterparties.of({ list, get, save, merge, moveAlias, assignEvent });
+      return Counterparties.of({
+        saveReference,
+        deleteReference,
+        list,
+        get,
+        save,
+        merge,
+        moveAlias,
+        assignEvent,
+      });
     }),
   );
 }

@@ -112,9 +112,23 @@ export const RelationshipCandidatePage = Schema.Struct({
   nextCursor: Schema.NullOr(PostingCursor),
 });
 export const ProposeRelationships = Schema.Struct({ commandId: CommandId });
+// A pair of events that looks related: two sides of one movement, or a credit that
+// returns a purchase. Nothing links until you accept.
+export const RelationshipProposal = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("movement") }),
+  Schema.Struct({
+    kind: Schema.Literal("credit"),
+    link: Schema.Struct({
+      creditAllocationId: AllocationId,
+      costAllocationId: AllocationId,
+      amount: Money,
+    }),
+  }),
+]);
 export const InterpretationReview = Schema.Struct({
   id: ReviewItemId,
   eventIds: Schema.Array(EventId),
+  proposal: RelationshipProposal,
   postingId: Posting.fields.id,
   description: Schema.String,
   postedOn: CalendarDate,

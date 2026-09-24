@@ -1,10 +1,12 @@
 import {
   AssignEventCounterparty,
   CounterpartyInput,
+  DeleteReferenceDefault,
   ListCounterparties,
   MergeCounterparties,
   MoveAlias,
   SaveCounterparty,
+  SaveReferenceDefault,
 } from "@repo/contracts/finance";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
@@ -29,3 +31,9 @@ export const moveAlias = createServerFn({ method: "POST" })
 export const assignEventCounterparty = createServerFn({ method: "POST" })
   .validator(Schema.toStandardSchemaV1(AssignEventCounterparty))
   .handler(({ data }) => callApiRpc((client) => client.assignEventCounterparty(data)));
+export const saveReferenceDefault = createServerFn({ method: "POST" })
+  .validator(Schema.toStandardSchemaV1(SaveReferenceDefault))
+  .handler(({ data }) => callApiRpc((client) => client.saveReferenceDefault(data)));
+export const deleteReferenceDefault = createServerFn({ method: "POST" })
+  .validator(Schema.toStandardSchemaV1(DeleteReferenceDefault))
+  .handler(({ data }) => callApiRpc((client) => client.deleteReferenceDefault(data)));

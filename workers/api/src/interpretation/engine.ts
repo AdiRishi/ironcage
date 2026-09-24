@@ -33,7 +33,7 @@ import {
 } from "@repo/finance";
 import { Array as Arr, Crypto, Effect, Schema } from "effect";
 
-import { proposeMovements } from "../relationships/proposals.ts";
+import { proposeCredits, proposeMovements } from "../relationships/proposals.ts";
 
 const Subject = Schema.Struct({
   id: EventId,
@@ -68,6 +68,7 @@ const Subject = Schema.Struct({
       ownAccountSuffix: Schema.NullOr(Schema.String),
       payId: Schema.NullOr(Schema.String),
       reference: Schema.NullOr(Schema.String),
+      referenceKey: Schema.NullOr(Schema.String),
       foreign: Schema.NullOr(Schema.Struct({ currency: Schema.String, amount: Schema.String })),
     }),
   ),
@@ -94,7 +95,7 @@ const loadSubjects = Effect.fn("loadSubjects")(function* (scope: EventScope) {
       CASE WHEN d.posting_id IS NULL THEN NULL ELSE jsonb_build_object(
         'profileVersion', d.profile_version, 'channel', d.channel, 'counterpartyText', d.counterparty_text,
         'aliasKey', d.alias_key, 'cardSuffix', d.card_suffix, 'ownAccountSuffix', d.own_account_suffix,
-        'payId', d.pay_id, 'reference', d.reference,
+        'payId', d.pay_id, 'reference', d.reference, 'referenceKey', d.reference_key,
         'foreign', CASE WHEN d.foreign_currency IS NULL THEN NULL ELSE jsonb_build_object('currency', d.foreign_currency, 'amount', d.foreign_amount) END) END AS descriptor,
       COALESCE((SELECT r.applied_rules FROM rule_applications r WHERE r.event_id = e.id), '[]'::jsonb) AS rules
     FROM events e
@@ -148,8 +149,26 @@ export const loadReference = Effect.gen(function* () {
         ),
       ),
     );
+  const byReference =
+    yield* sql`SELECT counterparty_id AS "counterpartyId", reference_key AS "referenceKey", default_role AS "defaultRole", default_category_id AS "defaultCategoryId" FROM counterparty_references`.pipe(
+      Effect.flatMap(
+        Schema.decodeUnknownEffect(
+          Schema.Array(
+            Schema.Struct({
+              counterpartyId: CounterpartyId,
+              referenceKey: Schema.String,
+              defaultRole: CounterpartyRole,
+              defaultCategoryId: Schema.NullOr(CategoryId),
+            }),
+          ),
+        ),
+      ),
+    );
   return {
     trees: new Map(categories.map((category) => [category.id, category.tree])),
+    referenceDefaults: new Map(
+      byReference.map((row) => [`${row.counterpartyId}:${row.referenceKey}`, row]),
+    ),
     slugs: new Map(
       categories.flatMap((category) => (category.slug ? [[category.slug, category.id]] : [])),
     ),
@@ -172,6 +191,27 @@ export type DerivedChange = {
   categoryId: typeof CategoryId.Type | null;
   categorySource: CategorySource | null;
 };
+
+// A counterparty's defaults for one payment: its default for the payment's reference
+// when you set one, otherwise its own.
+function counterpartyDefaults(
+  reference: Reference,
+  counterpartyId: typeof CounterpartyId.Type,
+  referenceKey: string | null,
+) {
+  const counterparty = reference.counterparties.get(counterpartyId);
+  if (!counterparty) return null;
+  const byReference = referenceKey
+    ? reference.referenceDefaults.get(`${counterpartyId}:${referenceKey}`)
+    : undefined;
+  return byReference
+    ? {
+        ...counterparty,
+        defaultRole: byReference.defaultRole,
+        defaultCategoryId: byReference.defaultCategoryId,
+      }
+    : counterparty;
+}
 
 // The assignments each subject would get from its current inputs, for those that differ.
 export function planDerivation(
@@ -196,7 +236,9 @@ export function planDerivation(
           })
         : { role: null, categorySlug: null },
       aliasCounterpartyId: subject.aliasCounterpartyId,
-      counterparty: counterpartyId ? (reference.counterparties.get(counterpartyId) ?? null) : null,
+      counterparty: counterpartyId
+        ? counterpartyDefaults(reference, counterpartyId, descriptor?.referenceKey ?? null)
+        : null,
       rules: ruleActions(subject.rules),
       categoryTree: (id) => reference.trees.get(id) ?? null,
       categoryIdForSlug: (slug) => reference.slugs.get(slug) ?? null,
@@ -339,7 +381,7 @@ export const writeDescriptors = Effect.gen(function* () {
       ...descriptorRecord(row.id, descriptorProfiles[row.institution].describe(row)),
       profile: row.institution,
     }));
-    yield* sql`INSERT INTO posting_descriptors ${sql.insert(records)} ON CONFLICT (posting_id) DO UPDATE SET profile = EXCLUDED.profile, profile_version = EXCLUDED.profile_version, channel = EXCLUDED.channel, counterparty_text = EXCLUDED.counterparty_text, alias_key = EXCLUDED.alias_key, card_suffix = EXCLUDED.card_suffix, own_account_suffix = EXCLUDED.own_account_suffix, pay_id = EXCLUDED.pay_id, reference = EXCLUDED.reference, foreign_currency = EXCLUDED.foreign_currency, foreign_amount = EXCLUDED.foreign_amount`;
+    yield* sql`INSERT INTO posting_descriptors ${sql.insert(records)} ON CONFLICT (posting_id) DO UPDATE SET profile = EXCLUDED.profile, profile_version = EXCLUDED.profile_version, channel = EXCLUDED.channel, counterparty_text = EXCLUDED.counterparty_text, alias_key = EXCLUDED.alias_key, card_suffix = EXCLUDED.card_suffix, own_account_suffix = EXCLUDED.own_account_suffix, pay_id = EXCLUDED.pay_id, reference = EXCLUDED.reference, reference_key = EXCLUDED.reference_key, foreign_currency = EXCLUDED.foreign_currency, foreign_amount = EXCLUDED.foreign_amount`;
   }
   return rows.map((row) => row.id);
 });
@@ -355,6 +397,7 @@ function descriptorRecord(postingId: string, descriptor: Descriptor) {
     own_account_suffix: descriptor.ownAccountSuffix,
     pay_id: descriptor.payId,
     reference: descriptor.reference,
+    reference_key: descriptor.referenceKey,
     foreign_currency: descriptor.foreign?.currency ?? null,
     foreign_amount: descriptor.foreign?.amount ?? null,
   };
@@ -461,6 +504,9 @@ export const interpretPending = Effect.gen(function* () {
           Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: EventId })))),
         )).map((row) => row.id);
   const changed = yield* reinterpret([...new Set([...created, ...redescribed])]);
-  if (created.length > 0) yield* proposeMovements;
+  if (created.length > 0) {
+    yield* proposeMovements;
+    yield* proposeCredits;
+  }
   return { descriptors: described.length, created: created.length, changed: changed.length };
 });

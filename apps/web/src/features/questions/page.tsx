@@ -8,6 +8,7 @@ import {
   type QuestionKind,
   type ReferenceData,
   type SaveCounterparty,
+  type SaveReferenceDefault,
 } from "@repo/contracts/finance";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -18,7 +19,11 @@ import { CategorySelect } from "@/components/category-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { counterpartyKinds, counterpartyRoles } from "@/features/counterparties/choices";
-import { moveAlias, saveCounterparty } from "@/features/counterparties/functions";
+import {
+  moveAlias,
+  saveCounterparty,
+  saveReferenceDefault,
+} from "@/features/counterparties/functions";
 import { useCommand } from "@/lib/use-command";
 
 export type QuestionFilter = "who" | "people" | "accounts" | "rules";
@@ -239,31 +244,14 @@ function Answer({
 
   if (question.kind === "person" && counterparty) {
     return (
-      <div className="space-y-2">
-        <fieldset className="flex flex-wrap gap-2">
-          <legend className="sr-only">What these payments are</legend>
-          {counterpartyRoles.map((role) => (
-            <Button
-              key={role.value}
-              size="sm"
-              variant="outline"
-              disabled={busy}
-              onClick={() =>
-                submit({
-                  name: counterparty.name,
-                  kind: role.value === "transfer" ? "ownAccount" : counterparty.kind,
-                  brand: counterparty.brand,
-                  defaultCategoryId: counterparty.defaultCategoryId,
-                  defaultRole: role.value === "transfer" ? null : role.value,
-                })
-              }
-            >
-              {role.value === "transfer" ? "This is me, moving my own money" : role.label}
-            </Button>
-          ))}
-        </fieldset>
-        {status}
-      </div>
+      <PersonAnswer
+        question={question}
+        counterparty={counterparty}
+        references={references}
+        busy={busy}
+        onSaveCounterparty={submit}
+        status={status}
+      />
     );
   }
 
@@ -574,5 +562,111 @@ function Identify({
         {status}
       </div>
     </form>
+  );
+}
+
+// What payments with a person are. With a reference, the answer can apply only to the
+// payments that carry it, so rent and a bill split to one person stay apart.
+function PersonAnswer({
+  question,
+  counterparty,
+  references,
+  busy,
+  onSaveCounterparty,
+  status,
+}: {
+  question: Question;
+  counterparty: Counterparty;
+  references: typeof ReferenceData.Type;
+  busy: boolean;
+  onSaveCounterparty: (fields: (typeof SaveCounterparty.Type)["fields"]) => void;
+  status: React.ReactNode;
+}) {
+  const id = useId();
+  const client = useQueryClient();
+  const reference = question.reference;
+  const [onlyReference, setOnlyReference] = useState(reference !== null);
+  const [categoryId, setCategoryId] = useState(counterparty.defaultCategoryId);
+  const byReference = useCommand({
+    mutationFn: (data: typeof SaveReferenceDefault.Type) => saveReferenceDefault({ data }),
+    onSuccess: () => client.invalidateQueries(),
+  });
+  const answer = (role: typeof CounterpartyRole.Type) => {
+    if (reference && onlyReference) {
+      byReference.submit({
+        commandId: CommandId.make(crypto.randomUUID()),
+        counterpartyId: counterparty.id,
+        referenceKey: reference.key,
+        defaultRole: role,
+        defaultCategoryId: role === "transfer" ? null : categoryId,
+      });
+      return;
+    }
+    onSaveCounterparty({
+      name: counterparty.name,
+      kind: role === "transfer" ? "ownAccount" : counterparty.kind,
+      brand: counterparty.brand,
+      defaultCategoryId: role === "transfer" ? null : categoryId,
+      defaultRole: role === "transfer" ? null : role,
+    });
+  };
+  const pending = busy || byReference.mutation.isPending;
+  return (
+    <div className="space-y-3">
+      {reference && (
+        <fieldset className="flex flex-wrap gap-x-5 gap-y-1 type-small">
+          <legend className="sr-only">Which payments this answer covers</legend>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name={`${id}-scope`}
+              checked={onlyReference}
+              onChange={() => setOnlyReference(true)}
+            />
+            Only payments marked “{reference.sample}”
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name={`${id}-scope`}
+              checked={!onlyReference}
+              onChange={() => setOnlyReference(false)}
+            />
+            Every payment with {counterparty.name}
+          </label>
+        </fieldset>
+      )}
+      <label className="grid max-w-xs gap-1.5" htmlFor={`${id}-category`}>
+        <span className="type-small text-slate">Category</span>
+        <CategorySelect
+          id={`${id}-category`}
+          categories={references.categories}
+          tree="spending"
+          value={categoryId}
+          onChange={setCategoryId}
+          disabled={pending}
+        />
+      </label>
+      <fieldset className="flex flex-wrap gap-2">
+        <legend className="sr-only">What these payments are</legend>
+        {counterpartyRoles.map((role) => (
+          <Button
+            key={role.value}
+            size="sm"
+            variant="outline"
+            disabled={pending}
+            onClick={() => answer(role.value)}
+          >
+            {role.value === "transfer" ? "This is me, moving my own money" : role.label}
+          </Button>
+        ))}
+      </fieldset>
+      {byReference.mutation.error && (
+        <p role="alert" className="type-small text-attention">
+          {byReference.mutation.error.message}
+        </p>
+      )}
+      {status}
+    </div>
   );
 }

@@ -19,6 +19,7 @@ const Group = Schema.Struct({
   key: Schema.String,
   kind: QuestionKind,
   aliasKey: Schema.NullOr(Schema.String),
+  reference: Question.fields.reference,
   counterpartyId: Schema.NullOr(Schema.String),
   proposalConfidence: Schema.NullOr(Schema.Finite),
   proposalReason: Schema.NullOr(Schema.String),
@@ -49,11 +50,11 @@ export class Questions extends Context.Service<
               // unknown own account, and per alias key of the remaining unresolved events.
               const groups = yield* sql`WITH candidates AS (
                 SELECT e.id AS event_id, p.id AS posting_id, p.posted_on, p.description, p.amount_minor, p.currency,
-                  d.alias_key, d.own_account_suffix, COALESCE(c.id, pa.counterparty_id) AS counterparty_id,
+                  d.alias_key, d.own_account_suffix, d.reference_key, d.reference, COALESCE(c.id, pa.counterparty_id) AS counterparty_id,
                   pa.confidence::float8 AS proposal_confidence, pa.reason AS proposal_reason,
                   CASE
                     WHEN c.id IS NULL AND pa.counterparty_id IS NOT NULL THEN 'alias'
-                    WHEN c.kind = 'person' AND (c.default_role IS NULL OR c.status = 'proposed') THEN 'person'
+                    WHEN c.kind = 'person' AND (c.default_role IS NULL OR c.status = 'proposed') AND cr.counterparty_id IS NULL THEN 'person'
                     WHEN c.status = 'proposed' THEN 'counterparty'
                     WHEN d.own_account_suffix IS NOT NULL AND c.id IS NULL THEN 'ownAccount'
                     ELSE 'unresolved'
@@ -63,13 +64,20 @@ export class Questions extends Context.Service<
                 LEFT JOIN posting_descriptors d ON d.posting_id = p.id
                 LEFT JOIN counterparties c ON c.id = e.counterparty_id
                 LEFT JOIN counterparty_aliases pa ON pa.alias_key = d.alias_key AND pa.status = 'proposed'
+                LEFT JOIN counterparty_references cr ON cr.counterparty_id = c.id AND cr.reference_key = d.reference_key
                 WHERE e.active AND e.currency = ${currency}
-                  AND (e.kind = 'unresolved' OR c.status = 'proposed' OR (c.kind = 'person' AND c.default_role IS NULL)
+                  AND (e.kind = 'unresolved' OR c.status = 'proposed' OR (c.kind = 'person' AND c.default_role IS NULL AND cr.counterparty_id IS NULL)
                     OR (c.id IS NULL AND pa.alias_key IS NOT NULL))
               ), keyed AS (
-                SELECT *, kind || ':' || CASE WHEN kind = 'alias' THEN alias_key ELSE COALESCE(counterparty_id::text, alias_key, event_id::text) END AS key FROM candidates
+                -- A person's payments are asked about per reference, so rent and a bill
+                -- split to the same person become separate questions.
+                SELECT *, kind || ':' || CASE WHEN kind = 'alias' THEN alias_key
+                  WHEN kind = 'person' THEN counterparty_id::text || ':' || COALESCE(reference_key, '')
+                  ELSE COALESCE(counterparty_id::text, alias_key, event_id::text) END AS key FROM candidates
               )
               SELECT key, min(kind) AS kind, min(alias_key) AS "aliasKey", min(counterparty_id::text) AS "counterpartyId",
+                CASE WHEN min(kind) = 'person' AND min(reference_key) IS NOT NULL
+                  THEN jsonb_build_object('key', min(reference_key), 'sample', min(reference)) END AS reference,
                 min(proposal_confidence) AS "proposalConfidence", min(proposal_reason) AS "proposalReason",
                 count(*)::int AS "eventCount",
                 COALESCE(-sum(amount_minor) FILTER (WHERE amount_minor < 0), 0)::text AS "outflowMinor",
@@ -104,6 +112,7 @@ export class Questions extends Context.Service<
                   id: group.key,
                   kind: group.kind,
                   aliasKey: group.aliasKey,
+                  reference: group.reference,
                   counterparty:
                     counterparties.find((row) => row.id === group.counterpartyId) ?? null,
                   proposal:
@@ -119,6 +128,7 @@ export class Questions extends Context.Service<
                   id: `ruleConflict:${subject.id}`,
                   kind: "ruleConflict",
                   aliasKey: null,
+                  reference: null,
                   counterparty: null,
                   proposal: null,
                   eventCount: 1,

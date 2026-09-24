@@ -9,7 +9,7 @@ import { categoryProposalsQuery } from "@/features/enrichment/queries";
 import { referenceDataQuery } from "@/features/events/queries";
 import { QuestionsPage } from "@/features/questions/page";
 import { questionsQuery } from "@/features/questions/queries";
-import { MovementProposals } from "@/features/relationships/reviews";
+import { RelationshipProposals } from "@/features/relationships/reviews";
 import { SourceReviews } from "@/features/review/page";
 import { reviewQueryOptions } from "@/features/review/queries";
 import { settingsQueryOptions } from "@/features/settings/queries";
@@ -59,7 +59,7 @@ function Questions() {
     >
       <CategoryProposalsSection proposals={proposals} />
       <SourceReviews importId={search.importId} />
-      <MovementProposals />
+      <RelationshipProposals />
     </QuestionsPage>
   );
 }
