@@ -9,6 +9,7 @@ export * from "./rules.ts";
 export * from "./interpretation.ts";
 export * from "./model-cost.ts";
 export * from "./descriptors/commbank.ts";
+export * from "./descriptors/index.ts";
 export * from "./analysis/periods.ts";
 export * from "./analysis/coverage.ts";
 export * from "./analysis/facts.ts";

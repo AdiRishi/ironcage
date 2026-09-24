@@ -1,7 +1,13 @@
-import { AccountId, type ImportId, UploadResult } from "@repo/contracts/finance";
+import {
+  AccountId,
+  type ImportId,
+  type Institution,
+  institutionNames,
+  UploadResult,
+} from "@repo/contracts/finance";
 import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Schema } from "effect";
+import { Record, Schema } from "effect";
 import { UploadCloud } from "lucide-react";
 import { useState } from "react";
 
@@ -31,6 +37,10 @@ export function UploadFiles() {
   const { data: accounts } = useSuspenseQuery(accountsQueryOptions());
   const client = useQueryClient();
   const [accountId, setAccountId] = useState<typeof AccountId.Type | null>(null);
+  const [chosenInstitution, setInstitution] = useState<Institution>("commbank");
+  // A file for a chosen account uses that account's bank.
+  const institution =
+    accounts.find((account) => account.id === accountId)?.institution ?? chosenInstitution;
   const [uploads, setUploads] = useState<UploadState[]>([]);
   const [dragging, setDragging] = useState(false);
   const accountItems = [
@@ -56,6 +66,7 @@ export function UploadFiles() {
         const body = new FormData();
         body.set("file", file);
         if (accountId) body.set("accountId", accountId);
+        body.set("institution", institution);
         let result: typeof UploadResponse.Type;
         try {
           const response: unknown = await (
@@ -100,6 +111,28 @@ export function UploadFiles() {
             </SelectContent>
           </Select>
         </div>
+        <div className="space-y-2">
+          <Label htmlFor="upload-institution">Bank</Label>
+          <Select
+            value={institution}
+            onValueChange={(value) => {
+              if (value) setInstitution(value);
+            }}
+            items={institutionNames}
+            disabled={accountId !== null}
+          >
+            <SelectTrigger id="upload-institution" className="min-w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Record.toEntries(institutionNames).map(([value, name]) => (
+                <SelectItem key={value} value={value}>
+                  {name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <CreateAccountDialog />
       </div>
       <p className="mb-5 type-small text-slate">
@@ -122,7 +155,7 @@ export function UploadFiles() {
         <UploadCloud className="mx-auto mb-4 size-8 text-primary" />
         <h2 className="text-lg font-medium">Drop your bank exports here</h2>
         <p className="mt-2 type-small text-slate">
-          CommBank CSV, OFX and PDF. Up to 10 MB per file.
+          {institutionNames[institution]} CSV, OFX and PDF. Up to 10 MB per file.
         </p>
         <Label className="mx-auto mt-5 flex max-w-sm flex-col gap-2">
           <span className="sr-only">Choose bank files</span>

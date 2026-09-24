@@ -55,3 +55,9 @@ export const MatchMethod = Schema.Literals([
   "user",
 ]);
 export type MatchMethod = typeof MatchMethod.Type;
+
+// A bank whose files and descriptors Ironcage reads. Each registry keyed by it must
+// cover every institution: descriptor profiles, file parsers, and display names.
+export const Institution = Schema.Literals(["commbank"]);
+export type Institution = typeof Institution.Type;
+export const institutionNames = { commbank: "CommBank" } satisfies Record<Institution, string>;

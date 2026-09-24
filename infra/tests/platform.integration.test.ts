@@ -82,6 +82,7 @@ const importSyntheticCsv = Effect.fn("importSyntheticCsv")(function* (
       commandId: yield* randomUUID,
       label: name,
       kind: "deposit",
+      institution: "commbank",
       currency: "AUD",
     }),
   }).pipe(
@@ -91,6 +92,7 @@ const importSyntheticCsv = Effect.fn("importSyntheticCsv")(function* (
   const csv = `02/09/2026,-4.50,${name} coffee,100.00\n02/09/2026,-4.50,${name} coffee,104.50\n01/09/2026,+109.00,${name} deposit,109.00\n`;
   const body = new FormData();
   body.set("accountId", account.id);
+  body.set("institution", "commbank");
   body.set("file", new Blob([csv], { type: "text/csv" }), `${name}.csv`);
   const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
     body: HttpBody.formData(body),
@@ -137,6 +139,7 @@ test(
       commandId: yield* randomUUID,
       label: "Daily account",
       kind: "deposit",
+      institution: "commbank",
       currency: "AUD",
     };
     const account = yield* HttpClient.post(`${url}/accounts`, {
@@ -153,6 +156,7 @@ test(
       "02/09/2026,-4.50,Coffee,100.00\n02/09/2026,-4.50,Coffee,104.50\n01/09/2026,+109.00,Deposit,109.00\n";
     const body = new FormData();
     body.set("accountId", account.id);
+    body.set("institution", "commbank");
     body.set("file", new Blob([csv], { type: "text/csv" }), "transactions.csv");
     const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
       body: HttpBody.formData(body),
@@ -205,6 +209,7 @@ test.skipIf(live || !existsSync(corpusDirectory))(
           commandId: yield* randomUUID,
           label: `CSV verification ${index + 1}`,
           kind: "deposit",
+          institution: "commbank",
           currency: "AUD",
         }),
       }).pipe(
@@ -215,6 +220,7 @@ test.skipIf(live || !existsSync(corpusDirectory))(
       const expectedRows = new TextDecoder().decode(bytes).trimEnd().split("\n").length;
       const body = new FormData();
       body.set("accountId", account.id);
+      body.set("institution", "commbank");
       body.set("file", new Blob([bytes], { type: "text/csv" }), `corpus-${index + 1}.csv`);
       const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
         body: HttpBody.formData(body),
@@ -245,6 +251,7 @@ test.skipIf(live || !existsSync(corpusDirectory))(
       const expectedRows =
         new TextDecoder("windows-1252").decode(bytes).split("<STMTTRN>").length - 1;
       const body = new FormData();
+      body.set("institution", "commbank");
       body.set("file", new Blob([bytes], { type: "application/x-ofx" }), `corpus-${index + 1}.ofx`);
       const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
         body: HttpBody.formData(body),
@@ -286,6 +293,7 @@ test(
         ),
       );
       const body = new FormData();
+      body.set("institution", "commbank");
       body.set("file", new Blob([bytes], { type: mediaType }), `${name}.pdf`);
       const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
         body: HttpBody.formData(body),
@@ -317,6 +325,7 @@ test.skipIf(live || !existsSync(corpusDirectory))(
     if (!name) return yield* Effect.die("Expected the large corpus statement.");
     const bytes = new Uint8Array(readFileSync(new URL(name, corpusDirectory)));
     const body = new FormData();
+    body.set("institution", "commbank");
     body.set("file", new Blob([bytes], { type: "application/pdf" }), "large-statement.pdf");
     const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
       body: HttpBody.formData(body),
@@ -503,6 +512,7 @@ test(
     expect((yield* HttpClient.get(`${apiUrl}/sources/${file.id}`)).status).toBe(404);
     const body = new FormData();
     body.set("accountId", account.id);
+    body.set("institution", "commbank");
     body.set("file", new Blob([csv], { type: "text/csv" }), "restored.csv");
     const restored = yield* HttpClient.post(`${apiUrl}/uploads`, {
       body: HttpBody.formData(body),

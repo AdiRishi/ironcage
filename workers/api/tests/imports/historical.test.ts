@@ -53,6 +53,7 @@ test.skipIf(!existsSync(directory))(
             commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
             label: `Corpus account ${owners.size + 1}`,
             kind: file.account.kind,
+            institution: "commbank",
             currency: file.account.currency,
           }),
         );

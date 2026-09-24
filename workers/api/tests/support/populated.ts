@@ -72,7 +72,13 @@ const commandId = uuid.pipe(Effect.map((id) => CommandId.make(id)));
 
 const createAccount = Effect.fn(function* (kind: Account["kind"], label: string) {
   const accounts = yield* Accounts;
-  return yield* accounts.create({ commandId: yield* commandId, kind, label, currency: "AUD" });
+  return yield* accounts.create({
+    commandId: yield* commandId,
+    kind,
+    label,
+    institution: "commbank",
+    currency: "AUD",
+  });
 });
 
 const publish = Effect.fn(function* (

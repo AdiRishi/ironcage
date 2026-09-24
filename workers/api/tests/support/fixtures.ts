@@ -23,6 +23,7 @@ export const account = Effect.fn("fixtureAccount")(function* () {
     commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
     label: "Everyday",
     kind: "deposit",
+    institution: "commbank",
     currency: "AUD",
   });
 });
@@ -34,7 +35,7 @@ export const source = Effect.fn("fixtureSource")(function* (
   const sourceFileId = SourceFileId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4));
   const importId = ImportId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4));
   yield* sql`INSERT INTO source_files ${sql.insert({ id: sourceFileId, sha256: yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4), file_name: `example.${format}`, media_type: "text/plain", byte_size: 1, object_key: sourceFileId })}`;
-  yield* sql`INSERT INTO imports ${sql.insert({ id: importId, source_file_id: sourceFileId, account_id: accountId, format, parser_version: "test", status: "processing" })}`;
+  yield* sql`INSERT INTO imports ${sql.insert({ id: importId, source_file_id: sourceFileId, account_id: accountId, format, institution: "commbank", parser_version: "test", status: "processing" })}`;
   return { sourceFileId, importId };
 });
 export const parsed = (descriptions: ReadonlyArray<string>): ParsedFile => ({

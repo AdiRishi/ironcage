@@ -1,5 +1,11 @@
 import { PgClient } from "@effect/sql-pg";
-import { Account, AccountId, BankAccount, FinanceError } from "@repo/contracts/finance";
+import {
+  Account,
+  AccountId,
+  BankAccount,
+  FinanceError,
+  institutionNames,
+} from "@repo/contracts/finance";
 import { Context, Crypto, Effect, Layer, Schema } from "effect";
 
 import { accountFields } from "../database/columns.ts";
@@ -28,7 +34,7 @@ export class AccountResolution extends Context.Service<
       }: Parameters<AccountResolution["Service"]["resolve"]>[0]) {
         if (identity) {
           const existing =
-            yield* sql`SELECT ${fields} FROM accounts WHERE account_number = ${identity.accountNumber} AND (bank_id IS NOT DISTINCT FROM ${identity.bankId} OR (kind = ${identity.kind} AND (bank_id IS NULL OR ${identity.bankId}::text IS NULL)))`.pipe(
+            yield* sql`SELECT ${fields} FROM accounts WHERE institution = ${identity.institution} AND account_number = ${identity.accountNumber} AND (bank_id IS NOT DISTINCT FROM ${identity.bankId} OR (kind = ${identity.kind} AND (bank_id IS NULL OR ${identity.bankId}::text IS NULL)))`.pipe(
               Effect.flatMap(decode),
             );
           const selected = existing.find((account) => account.id === accountId);
@@ -68,6 +74,7 @@ export class AccountResolution extends Context.Service<
           if (!identity) return account;
           if (
             account.accountNumber ||
+            account.institution !== identity.institution ||
             account.kind !== identity.kind ||
             account.currency !== identity.currency
           )
@@ -88,9 +95,9 @@ export class AccountResolution extends Context.Service<
             message: "Choose the account this file belongs to.",
           });
         const id = yield* crypto.randomUUIDv4;
-        const label = `CommBank ${identity.kind} ${identity.accountNumber.slice(-4)}`;
+        const label = `${institutionNames[identity.institution]} ${identity.kind} ${identity.accountNumber.slice(-4)}`;
         const [created] =
-          yield* sql`INSERT INTO accounts ${sql.insert({ id, label, kind: identity.kind, currency: identity.currency, bank_id: identity.bankId, account_number: identity.accountNumber })} RETURNING ${fields}`.pipe(
+          yield* sql`INSERT INTO accounts ${sql.insert({ id, label, kind: identity.kind, institution: identity.institution, currency: identity.currency, bank_id: identity.bankId, account_number: identity.accountNumber })} RETURNING ${fields}`.pipe(
             Effect.flatMap(decodeOne),
           );
         return created;

@@ -9,7 +9,7 @@ import {
   CounterpartyRole,
 } from "./interpretation.ts";
 import { ModelProvider } from "./models.ts";
-import { AccountKind, CommandId, Instant, Money, Version } from "./values.ts";
+import { AccountKind, CommandId, Instant, Institution, Money, Version } from "./values.ts";
 
 export const EnrichmentRunId = Schema.String.check(Schema.isUUID()).pipe(
   Schema.brand("EnrichmentRunId"),
@@ -56,6 +56,7 @@ export const EnrichmentAlias = Schema.Struct({
   channels: Schema.Array(Channel),
   directions: Schema.Array(Schema.Literals(["out", "in"])),
   accountKinds: Schema.Array(AccountKind),
+  institutions: Schema.Array(Institution),
   transactionCount: Schema.Int,
 });
 // A category's slug, or its ID when you created it and it has no slug.

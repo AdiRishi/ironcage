@@ -24,7 +24,13 @@ const uuid = Crypto.Crypto.use((crypto) => crypto.randomUUIDv4);
 const commandId = uuid.pipe(Effect.map((id) => CommandId.make(id)));
 const createAccount = Effect.fn(function* (kind: Account["kind"], label: string) {
   const accounts = yield* Accounts;
-  return yield* accounts.create({ commandId: yield* commandId, kind, label, currency: "AUD" });
+  return yield* accounts.create({
+    commandId: yield* commandId,
+    kind,
+    label,
+    institution: "commbank",
+    currency: "AUD",
+  });
 });
 const createEvents = Effect.fn(function* (
   owner: Account,

@@ -113,7 +113,7 @@ export class Imports extends Context.Service<
       }, toFinanceError);
       const source = Effect.fn("Imports.source")(function* ({ importId }: typeof ImportInput.Type) {
         const [item] =
-          yield* sql`SELECT i.id AS "importId", s.object_key AS "objectKey", i.format, COALESCE(a.currency, (SELECT reporting_currency FROM settings WHERE id = 1)) AS currency, s.bytes_available AS "bytesAvailable" FROM imports i JOIN source_files s ON s.id = i.source_file_id LEFT JOIN accounts a ON a.id = i.account_id WHERE i.id = ${importId}`.pipe(
+          yield* sql`SELECT i.id AS "importId", s.object_key AS "objectKey", i.format, i.institution, COALESCE(a.currency, (SELECT reporting_currency FROM settings WHERE id = 1)) AS currency, s.bytes_available AS "bytesAvailable" FROM imports i JOIN source_files s ON s.id = i.source_file_id LEFT JOIN accounts a ON a.id = i.account_id WHERE i.id = ${importId}`.pipe(
             Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(ImportSource))),
           );
         if (!item)

@@ -3,7 +3,7 @@ title: Import protocol
 description: How a file becomes observations, how observations become postings, and how nothing is recorded twice.
 ---
 
-The importer reads CommBank CSV, OFX, and PDF statements. Import never depends on interpretation: a posting needs no category. Publication computes each new posting's [descriptor](/reference/interpretation#descriptors) in the same transaction, and interpretation runs after it.
+The importer reads CommBank CSV, OFX, and PDF statements. `sourceParsers` in `workers/processor/src/imports/index.ts` maps each institution and format to its parser. An import records its institution: the chosen account's, or the bank chosen at upload when the file names its own account. An upload whose account belongs to another bank fails with `invalid`. Import never depends on interpretation: a posting needs no category. Publication computes each new posting's [descriptor](/reference/interpretation#descriptors) in the same transaction, and interpretation runs after it.
 
 ## Import status
 

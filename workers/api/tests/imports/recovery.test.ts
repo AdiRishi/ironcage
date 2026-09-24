@@ -1,5 +1,5 @@
 import { PgClient } from "@effect/sql-pg";
-import { FinanceError, type ImportJob } from "@repo/contracts/finance";
+import { FinanceError, type ImportJob, type UploadInput } from "@repo/contracts/finance";
 import { Crypto, Effect, Encoding, Layer } from "effect";
 import { expect } from "vitest";
 
@@ -53,7 +53,8 @@ for (const recovery of ["list", "reupload"] as const)
           mediaType: "text/csv",
           bytes,
           accountId: owner.id,
-        };
+          institution: "commbank",
+        } satisfies UploadInput;
         if (recovery === "list") {
           expect((yield* imports.list()).rows[0]?.status).toBe("processing");
         } else {

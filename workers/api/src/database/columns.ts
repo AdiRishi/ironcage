@@ -18,4 +18,4 @@ export const postingFields = (
   ${nullableMoney(sql, "p.original_currency", "p.original_amount_minor")} AS "originalMoney"`;
 
 export const accountFields = (sql: SqlClient.SqlClient) =>
-  sql`id, kind, label, currency, bank_id AS "bankId", account_number AS "accountNumber", version`;
+  sql`id, kind, institution, label, currency, bank_id AS "bankId", account_number AS "accountNumber", version`;

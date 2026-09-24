@@ -28,6 +28,7 @@ test("a background refresh cannot overwrite an account until the current record 
     id: AccountId.make("00000000-0000-4000-8000-000000000001"),
     label: "Everyday",
     kind: "deposit",
+    institution: "commbank",
     currency: "AUD",
     bankId: null,
     accountNumber: null,

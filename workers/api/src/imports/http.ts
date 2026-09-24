@@ -1,4 +1,4 @@
-import { AccountId, FinanceError, SourceFileInput } from "@repo/contracts/finance";
+import { AccountId, FinanceError, Institution, SourceFileInput } from "@repo/contracts/finance";
 import { Effect, Layer, Schema, Stream } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 
@@ -41,11 +41,14 @@ const upload = Effect.gen(function* () {
       () => new FinanceError({ kind: "invalid", message: "Choose a valid account." }),
     ),
   );
+  const institution = yield* Schema.decodeUnknownEffect(Institution)(form.get("institution")).pipe(
+    Effect.mapError(() => new FinanceError({ kind: "invalid", message: "Choose a bank." })),
+  );
   const bytes = new Uint8Array(
     yield* Effect.tryPromise({ try: () => file.arrayBuffer(), catch: invalid }),
   );
   const result = yield* Uploads.use((uploads) =>
-    uploads.upload({ fileName: file.name, mediaType: file.type, accountId, bytes }),
+    uploads.upload({ fileName: file.name, mediaType: file.type, accountId, institution, bytes }),
   );
   return HttpServerResponse.jsonUnsafe(result, { status: result.existing ? 200 : 202 });
 }).pipe(Effect.catch((error) => Effect.succeed(failureResponse(error))));

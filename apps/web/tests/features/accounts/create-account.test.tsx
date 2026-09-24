@@ -27,6 +27,7 @@ test("reopening a pending account dialog preserves safe retry after a lost respo
       id: AccountId.make("00000000-0000-4000-8000-000000000001"),
       label: data.label,
       kind: data.kind,
+      institution: data.institution,
       currency: data.currency,
       bankId: null,
       accountNumber: null,

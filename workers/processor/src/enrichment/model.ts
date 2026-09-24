@@ -11,9 +11,9 @@ import { Data, Effect, Schedule, Schema } from "effect";
 type Model = AiModels[typeof enrichmentModel];
 export type Runner = (input: Model["inputs"]) => Promise<Model["postProcessedOutputs"]>;
 
-const instructions = `You identify who is behind Australian bank transaction descriptors for one person's private finance application. The bank is CommBank.
+const instructions = `You identify who is behind Australian bank transaction descriptors for one person's private finance application.
 
-Each alias comes with up to three descriptor samples as the bank printed them, the payment channels it appeared on, whether money went out, came in, or both, and the kinds of account involved. You never see amounts, dates, or account numbers.
+Each alias comes with up to three descriptor samples as the bank printed them, the payment channels it appeared on, whether money went out, came in, or both, the kinds of account involved, and the banks whose descriptors they are. You never see amounts, dates, or account numbers.
 
 For every alias, return one result with its exact aliasKey:
 - existingCounterpartyId: the id of an existing counterparty when the alias is the same business, person, or institution. Store numbers, locations, truncated names, and payment-facilitator prefixes such as "SQ *", "SP ", "PAYPAL *", "ZLR*", or "UBER *" do not make a different counterparty. Otherwise null.
