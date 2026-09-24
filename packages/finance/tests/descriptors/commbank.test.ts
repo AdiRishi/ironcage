@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 
-import { aliasKey, describeCommBank } from "../../src/index.ts";
+import { aliasKey, describeCommBank, referenceKey } from "../../src/index.ts";
 
 const deposit = (description: string, amountMinor = -1000n) =>
   describeCommBank({ description, amountMinor, accountKind: "deposit" });
@@ -136,5 +136,32 @@ describe("aliasKey", () => {
   it("drops punctuation, numbered tokens, and a trailing country code", () => {
     expect(aliasKey("SQ *BLUE BOTTLE 0412 SURRY HILLS AU")).toBe("SQ BLUE BOTTLE SURRY HILLS");
     expect(aliasKey("1234 5678")).toBeNull();
+  });
+});
+
+describe("referenceKey", () => {
+  it("keeps the words that say what a payment was for and drops dates and numbers", () => {
+    expect(referenceKey("Rent")).toBe("rent");
+    expect(referenceKey("Rent Aug 2026")).toBe("rent");
+    expect(referenceKey("rent 12/08")).toBe("rent");
+    expect(referenceKey("Dinner split")).toBe("dinner split");
+    expect(referenceKey("INV 12345")).toBe("inv");
+    expect(referenceKey("12345")).toBeNull();
+    expect(referenceKey(null)).toBeNull();
+  });
+
+  it("gives transfers to one person with a monthly reference one key", () => {
+    const august = describeCommBank({
+      description: "Transfer To Jane Smith NetBank Rent Aug",
+      amountMinor: -184000n,
+      accountKind: "deposit",
+    });
+    const september = describeCommBank({
+      description: "Transfer To Jane Smith NetBank Rent Sept",
+      amountMinor: -184000n,
+      accountKind: "deposit",
+    });
+    expect(august.referenceKey).toBe("rent");
+    expect(september.referenceKey).toBe("rent");
   });
 });

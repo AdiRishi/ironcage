@@ -26,6 +26,7 @@ import { useCommand } from "@/lib/use-command";
 
 import { counterpartyKinds, counterpartyRoles } from "./choices";
 import { mergeCounterparties, saveCounterparty } from "./functions";
+import { ReferenceDefaults } from "./references";
 
 export function CounterpartyPage({
   detail,
@@ -69,6 +70,12 @@ export function CounterpartyPage({
       <History months={months} color={categoryColor(category?.slug ?? null)} />
 
       <Defaults detail={detail} references={references} />
+
+      <ReferenceDefaults
+        counterparty={counterparty}
+        rows={detail.references}
+        references={references}
+      />
 
       <section aria-labelledby="recent-heading" className="space-y-4 border-t border-rule pt-8">
         <div className="flex items-baseline justify-between gap-3">

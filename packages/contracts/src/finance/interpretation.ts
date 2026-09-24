@@ -85,6 +85,9 @@ export const Descriptor = Schema.Struct({
   ownAccountSuffix: Schema.NullOr(Schema.String),
   payId: Schema.NullOr(Schema.String),
   reference: Schema.NullOr(Schema.String),
+  // The reference reduced to the words that say what a payment was for, so "Rent Aug"
+  // and "rent 2026" share the key "rent".
+  referenceKey: Schema.NullOr(Schema.String),
   foreign: Schema.NullOr(Schema.Struct({ currency: Schema.String, amount: Schema.String })),
 });
 export type Descriptor = typeof Descriptor.Type;

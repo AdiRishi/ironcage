@@ -78,6 +78,8 @@ Each case has a known answer that does not come from the implementation.
 | Split a $150 purchase into $100 and $50, then into allocations totalling $151.                          | The first split keeps spending at $150. The second fails with `conflict`.                                                                          |
 | A reviewed correction changes a $4.50 coffee to $5.50.                                                  | The event and its allocation become $5.50, and September's outflow is $5.50.                                                                       |
 | The same correction after the coffee was split into $3.00 and $1.50.                                    | The review fails with `conflict` and September's outflow stays $4.50.                                                                              |
+| A $40 Myer refund on 2 August after a $120 Myer purchase on 15 July.                                    | One credit proposal for $40 against that purchase, made once, and resolved when the link is applied.                                               |
+| Two $1,840 transfers to Jane referenced Rent Aug and Rent Sept, and a $40 one referenced dinner split.  | Two person questions, keyed `rent` and `dinner split`. A Rent default for `rent` puts $3,680 in Rent and outranks Jane's own Dining out default.   |
 
 ## Not built yet
 

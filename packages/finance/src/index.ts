@@ -15,3 +15,4 @@ export * from "./analysis/coverage.ts";
 export * from "./analysis/facts.ts";
 export * from "./analysis/decomposition.ts";
 export * from "./analysis/flow.ts";
+export * from "./proposals.ts";

@@ -1,5 +1,6 @@
 import { PgClient } from "@effect/sql-pg";
 import { CommandId } from "@repo/contracts/finance";
+import { descriptorProfiles } from "@repo/finance";
 import { Crypto, Effect } from "effect";
 import { expect } from "vitest";
 
@@ -21,9 +22,10 @@ test(
       importId: file.importId,
     });
     const sql = yield* PgClient.PgClient;
+    const current = descriptorProfiles.commbank.version;
     const read = sql`SELECT profile, profile_version AS version, alias_key AS "aliasKey" FROM posting_descriptors`;
     expect(yield* read).toEqual([
-      { profile: "commbank", version: 1, aliasKey: "WOOLWORTHS SYDNEY" },
+      { profile: "commbank", version: current, aliasKey: "WOOLWORTHS SYDNEY" },
     ]);
     yield* sql`UPDATE posting_descriptors SET profile_version = 0, alias_key = NULL`;
     const summary = yield* (yield* Events).interpret({
@@ -31,7 +33,7 @@ test(
     });
     expect(summary.descriptors).toBe(1);
     expect(yield* read).toEqual([
-      { profile: "commbank", version: 1, aliasKey: "WOOLWORTHS SYDNEY" },
+      { profile: "commbank", version: current, aliasKey: "WOOLWORTHS SYDNEY" },
     ]);
   }).pipe(Effect.provide(services)),
 );

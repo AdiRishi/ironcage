@@ -11,7 +11,7 @@ import { Context, Effect, Layer, Schema } from "effect";
 
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
-import { proposeMovements } from "./proposals.ts";
+import { proposeCredits, proposeMovements } from "./proposals.ts";
 export class InterpretationReviews extends Context.Service<
   InterpretationReviews,
   {
@@ -38,7 +38,9 @@ export class InterpretationReviews extends Context.Service<
           ? sql`AND (p.posted_on,r.id)<(${input.cursor.postedOn}::date,${input.cursor.id}::uuid)`
           : sql``;
         const rows =
-          yield* sql`SELECT r.id,r.event_ids AS "eventIds",p.id AS "postingId",p.description,p.posted_on::text AS "postedOn",r.version FROM review_items r JOIN events e ON e.id=r.event_ids[1] JOIN postings p ON p.id=e.primary_posting_id WHERE r.kind = 'relationship' AND r.resolved_at IS NULL AND e.active ${cursor} ORDER BY p.posted_on DESC,r.id DESC LIMIT 51`.pipe(
+          yield* sql`SELECT r.id,r.event_ids AS "eventIds",p.id AS "postingId",p.description,p.posted_on::text AS "postedOn",r.version,
+              CASE WHEN r.question->>'kind' = 'credit' THEN jsonb_build_object('kind', 'credit', 'link', r.candidates->0) ELSE '{"kind":"movement"}'::jsonb END AS proposal
+            FROM review_items r JOIN events e ON e.id=r.event_ids[1] JOIN postings p ON p.id=e.primary_posting_id WHERE r.kind = 'relationship' AND r.resolved_at IS NULL AND e.active ${cursor} ORDER BY p.posted_on DESC,r.id DESC LIMIT 51`.pipe(
             Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(InterpretationReview))),
           );
         const last = rows[49];
@@ -53,7 +55,7 @@ export class InterpretationReviews extends Context.Service<
             commandId: input.commandId,
             input: { operation: "proposeRelationships", ...input },
             result: Schema.Boolean,
-            execute: proposeMovements.pipe(
+            execute: Effect.all([proposeMovements, proposeCredits]).pipe(
               Effect.as(true),
               Effect.provideService(PgClient.PgClient, sql),
             ),

@@ -1,6 +1,6 @@
 import type { AccountKind, Channel, Descriptor } from "@repo/contracts/finance";
 
-export const commbankProfileVersion = 1;
+export const commbankProfileVersion = 2;
 
 const countryCodes = new Set([
   "AU",
@@ -79,6 +79,43 @@ function splitName(value: string) {
     : { name: text(words.slice(0, end).join(" ")), reference: text(words.slice(end).join(" ")) };
 }
 
+const months = new Set([
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "may",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "sept",
+  "oct",
+  "nov",
+  "dec",
+  "january",
+  "february",
+  "march",
+  "april",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+]);
+
+// The words of a reference that say what it was for: lowercase, without numbers, dates,
+// or month names, which change from one payment to the next.
+export function referenceKey(reference: string | null): string | null {
+  const words = (reference ?? "")
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((word) => word.length >= 3 && !months.has(word));
+  return words.length > 0 ? words.join(" ") : null;
+}
+
 export function describeCommBank({
   description,
   amountMinor,
@@ -92,7 +129,9 @@ export function describeCommBank({
   const credit = amountMinor > 0n;
   const make = (
     channel: Channel,
-    fields: Partial<Omit<Descriptor, "channel" | "profileVersion" | "aliasKey">> = {},
+    fields: Partial<
+      Omit<Descriptor, "channel" | "profileVersion" | "aliasKey" | "referenceKey">
+    > = {},
   ): Descriptor => {
     const counterpartyText = fields.counterpartyText ?? null;
     const ownAccountSuffix = fields.ownAccountSuffix ?? null;
@@ -111,6 +150,7 @@ export function describeCommBank({
       ownAccountSuffix,
       payId: fields.payId ?? null,
       reference: fields.reference ?? null,
+      referenceKey: referenceKey(fields.reference ?? null),
       foreign: fields.foreign ?? null,
     };
   };

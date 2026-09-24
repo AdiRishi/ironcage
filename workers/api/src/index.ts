@@ -75,6 +75,8 @@ export type ApiOperations = {
   saveCounterparty: Counterparties["Service"]["save"];
   mergeCounterparties: Counterparties["Service"]["merge"];
   moveAlias: Counterparties["Service"]["moveAlias"];
+  saveReferenceDefault: Counterparties["Service"]["saveReference"];
+  deleteReferenceDefault: Counterparties["Service"]["deleteReference"];
   assignEventCounterparty: Counterparties["Service"]["assignEvent"];
   listQuestions: Questions["Service"]["list"];
   getEnrichmentSettings: () => Enrichment["Service"]["settings"];
@@ -228,6 +230,8 @@ export const api = Effect.fn("Api.initialize")(function* (
       saveCounterparty: counterparties.save,
       mergeCounterparties: counterparties.merge,
       moveAlias: counterparties.moveAlias,
+      saveReferenceDefault: counterparties.saveReference,
+      deleteReferenceDefault: counterparties.deleteReference,
       assignEventCounterparty: counterparties.assignEvent,
       listQuestions: questions.list,
       getEnrichmentSettings: () => enrichment.settings,

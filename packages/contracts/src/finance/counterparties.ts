@@ -54,10 +54,20 @@ export const CounterpartyMonth = Schema.Struct({
   outflow: Money,
   inflow: Money,
 });
+// The references on payments with one counterparty, most frequent first, with the
+// defaults you set for any of them.
+export const CounterpartyReference = Schema.Struct({
+  referenceKey: Schema.String,
+  sample: Schema.String,
+  eventCount: Schema.Int,
+  defaultRole: Schema.NullOr(CounterpartyRole),
+  defaultCategoryId: Schema.NullOr(CategoryId),
+});
 export const CounterpartyDetail = Schema.Struct({
   counterparty: CounterpartySummary,
   aliases: Schema.Array(CounterpartyAlias),
   months: Schema.Array(CounterpartyMonth),
+  references: Schema.Array(CounterpartyReference),
 });
 export const CounterpartyInput = Schema.Struct({ counterpartyId: CounterpartyId });
 
@@ -83,6 +93,20 @@ export const MergeCounterparties = Schema.Struct({
   sourceVersion: Version,
   targetId: CounterpartyId,
   targetVersion: Version,
+});
+// Sets what payments with one counterparty and one reference are, ahead of the
+// counterparty's own default.
+export const SaveReferenceDefault = Schema.Struct({
+  commandId: CommandId,
+  counterpartyId: CounterpartyId,
+  referenceKey: Schema.NonEmptyString,
+  defaultRole: CounterpartyRole,
+  defaultCategoryId: Schema.NullOr(CategoryId),
+});
+export const DeleteReferenceDefault = Schema.Struct({
+  commandId: CommandId,
+  counterpartyId: CounterpartyId,
+  referenceKey: Schema.NonEmptyString,
 });
 export const MoveAlias = Schema.Struct({
   commandId: CommandId,
@@ -122,6 +146,8 @@ export const Question = Schema.Struct({
   id: Schema.String,
   kind: QuestionKind,
   aliasKey: Schema.NullOr(Schema.String),
+  // For a person question: the payments' reference key and one reference as printed.
+  reference: Schema.NullOr(Schema.Struct({ key: Schema.String, sample: Schema.String })),
   counterparty: Schema.NullOr(Counterparty),
   // For an alias question: the model's confidence and reason that the alias belongs
   // to the counterparty.
