@@ -63,7 +63,7 @@ test("a background refresh cannot overwrite an account until the current record 
   await dialog.getByRole("button", { name: "Save account" }).click();
   await expect
     .element(dialog.getByRole("alert"))
-    .toHaveTextContent("Current account: Joint account");
+    .toMatchTextContent("Current account: Joint account · Deposit.");
   expect(stored.label).toBe("Joint account");
   await expect.element(label).toHaveValue("Household");
 

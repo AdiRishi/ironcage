@@ -65,7 +65,9 @@ test("retry after a lost fetch response preserves the committed command and its 
     </QueryClientProvider>,
   );
   await screen.getByRole("button", { name: "Save", exact: true }).click();
-  await expect.element(screen.getByRole("alert")).toHaveTextContent("The connection was lost.");
+  await expect
+    .element(screen.getByRole("alert"))
+    .toHaveTextContent("The connection was lost. Please try again.");
   await screen.getByRole("textbox", { name: "Name" }).fill("Changed after failure");
   await screen.getByRole("button", { name: "Retry", exact: true }).click();
   await expect.element(screen.getByRole("status")).toHaveTextContent("Everyday");
