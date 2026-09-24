@@ -98,7 +98,7 @@ export function periodMeasures({
   };
 }
 
-export function allocationMeasures(
+function allocationMeasures(
   fact: Pick<MeasureFact, "role" | "amount" | "nonPersonal" | "allocationId">,
   credits: ReadonlyArray<typeof CreditLink.Type>,
 ) {

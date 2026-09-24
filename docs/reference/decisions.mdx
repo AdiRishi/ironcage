@@ -1,0 +1,58 @@
+---
+title: Decisions
+description: Why the architecture looks the way it does.
+---
+
+Each entry records a decision, the reason, and what would change it. Newer entries come first.
+
+## Model assignments apply automatically, with provenance
+
+**Decision.** Enrichment applies counterparty identities and defaults when the model's confidence reaches the threshold, and asks about the rest. Every assignment records its source.
+
+**Why.** Requiring a click on every suggestion left 9,256 of 9,263 allocations uncategorized. Provenance keeps the "trust through evidence" rule: every total can say how much of it rests on the model, and every value you set outranks the model permanently.
+
+**Would change if** calibration on your answers shows auto-applied assignments are wrong often enough to mislead totals.
+
+## Interpret at the counterparty, not the transaction
+
+**Decision.** The model resolves alias keys to counterparties with default categories and roles. Transactions inherit from their counterparty.
+
+**Why.** Around 9,000 postings come from a few hundred to 1,500 counterparties. Resolving each alias once costs far fewer model calls, sends only descriptor text without amounts, and makes one correction fix every transaction from that counterparty.
+
+**Would change if** a counterparty often needs different categories per purchase. Mixed retailers default to Shopping, then General, and a split handles the exceptions.
+
+## Descriptor parsing is a shared pure function
+
+**Decision.** The CommBank descriptor profile lives in `packages/finance` and runs in the API during publication and reinterpretation.
+
+**Why.** Descriptors derive from one posting's description and account kind. Running them in the write transaction keeps the API the only writer without an extra RPC. File parsers stay in the processor because they carry large libraries.
+
+## Analysis reads a projection written with each change
+
+**Decision.** `ledger_facts` holds one row per allocation effect, rewritten by the command transaction that changes the event.
+
+**Why.** Loading every event and posting for each request grows with history. The projection keeps period queries bounded and indexed. Writing it in the same transaction keeps read-after-write consistency, which a materialized view refreshed later would not.
+
+## Three Workers with one writer
+
+**Decision.** Web, API, and processor are separate Workers. Only the API has a database binding.
+
+**Why.** One writer makes the write protocol, receipts, and the advisory lock the single place consistency is enforced. PDF.js stays out of the writer's bundle and CPU budget. Model calls run in the processor's enrichment Workflow through the Workers AI binding, so a slow or failed call never holds a write transaction open. The analyst will get its own Durable Object runtime.
+
+## Postgres for financial records
+
+**Decision.** PlanetScale Postgres through Hyperdrive, with a Docker Postgres of the same major version locally.
+
+**Why.** Financial records outlive any platform choice. Postgres gives interactive transactions for the write protocol, `REPEATABLE READ` reads, `pg_dump`, and standard SQL tooling. D1 lacks interactive transactions. A Durable Object's SQLite would tie the records to one platform's storage.
+
+## Exact integer money
+
+**Decision.** Money is `bigint` minor units in code, `BIGINT` in Postgres, and a decimal string in JSON.
+
+**Why.** Planned investment and crypto amounts exceed JavaScript's safe integer range at their native precision. Exactness costs little and removes a class of rounding bugs.
+
+## Pre-release dependencies are deliberate
+
+**Decision.** Effect 4, Alchemy 2, TypeScript 7, and Vite 8 track their latest releases, including pre-releases.
+
+**Why.** The project follows these ecosystems closely. `.repos/` holds the pinned sources for reference, and `pnpm sync:repos` keeps them aligned.

@@ -17,6 +17,7 @@ import { v5 } from "uuid";
 import { AccountResolution } from "../accounts/resolution.ts";
 import { Commands, fingerprint } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
+import { interpretPending } from "../interpretation/engine.ts";
 import { replaceQuestions, type PendingQuestion } from "../review/repository.ts";
 import { applyAssignments, readMatchingPostings } from "./matching.ts";
 import { effectiveCandidate, readObservations, saveObservations } from "./observations.ts";
@@ -207,6 +208,10 @@ export class Publication extends Context.Service<
             },
           };
         yield* sql`UPDATE imports SET account_id = ${account?.id ?? source.accountId}, status = ${questions.length > 0 ? "needs_review" : "complete"}, summary = ${sql.json(summary)}, failure = NULL, version = version + 1, updated_at = now() WHERE id = ${importId}`;
+        yield* interpretPending.pipe(
+          Effect.provideService(PgClient.PgClient, sql),
+          Effect.provideService(Crypto.Crypto, crypto),
+        );
         return summary;
       }, toFinanceError);
       const publish = Effect.fn("Publication.publish")(function* (

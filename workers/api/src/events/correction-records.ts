@@ -114,14 +114,6 @@ export const writeEvent = Effect.fn("writeEvent")(function* (event: FinancialEve
           message: "Choose an existing category.",
         });
     }
-    if (allocation.merchantId) {
-      const rows = yield* sql`SELECT id FROM merchants WHERE id = ${allocation.merchantId}`;
-      if (rows.length === 0)
-        return yield* new FinanceError({
-          kind: "invalid",
-          message: "Choose an existing merchant.",
-        });
-    }
     for (const [table, ids] of [
       ["tags", allocation.tagIds],
       ["personal_events", allocation.personalEventIds],
@@ -139,7 +131,7 @@ export const writeEvent = Effect.fn("writeEvent")(function* (event: FinancialEve
       }
     }
   }
-  yield* sql`UPDATE events SET primary_posting_id = ${event.primaryPostingId}, reporting_account_id = ${event.reportingAccountId}, kind = ${event.kind}, purchase_on = ${event.purchaseOn}, version = ${event.version}, suggestion = NULL WHERE id = ${event.id}`;
+  yield* sql`UPDATE events SET primary_posting_id = ${event.primaryPostingId}, reporting_account_id = ${event.reportingAccountId}, kind = ${event.kind}, role_source = ${event.roleSource}, counterparty_id = ${event.counterpartyId}, counterparty_source = ${event.counterpartySource}, purchase_on = ${event.purchaseOn}, version = ${event.version} WHERE id = ${event.id}`;
   const owned = yield* sql`SELECT id FROM allocations WHERE event_id <> ${event.id} AND ${sql.in(
     "id",
     event.allocations.map((allocation) => allocation.id),
@@ -154,7 +146,7 @@ export const writeEvent = Effect.fn("writeEvent")(function* (event: FinancialEve
     event.allocations.map((allocation) => allocation.id),
   )})`;
   for (const allocation of event.allocations) {
-    yield* sql`INSERT INTO allocations (id, event_id, role, amount_minor, category_id, merchant_id, non_personal) VALUES (${allocation.id}, ${event.id}, ${allocation.role}, ${allocation.amount.minor.toString()}, ${allocation.categoryId}, ${allocation.merchantId}, ${allocation.nonPersonal}) ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, amount_minor = EXCLUDED.amount_minor, category_id = EXCLUDED.category_id, merchant_id = EXCLUDED.merchant_id, non_personal = EXCLUDED.non_personal`;
+    yield* sql`INSERT INTO allocations (id, event_id, role, amount_minor, category_id, category_source, non_personal) VALUES (${allocation.id}, ${event.id}, ${allocation.role}, ${allocation.amount.minor}, ${allocation.categoryId}, ${allocation.categorySource}, ${allocation.nonPersonal}) ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, amount_minor = EXCLUDED.amount_minor, category_id = EXCLUDED.category_id, category_source = EXCLUDED.category_source, non_personal = EXCLUDED.non_personal`;
     yield* sql`DELETE FROM allocation_tags WHERE allocation_id = ${allocation.id}`;
     yield* sql`DELETE FROM allocation_personal_events WHERE allocation_id = ${allocation.id}`;
     for (const tagId of new Set(allocation.tagIds))
@@ -162,7 +154,4 @@ export const writeEvent = Effect.fn("writeEvent")(function* (event: FinancialEve
     for (const personalEventId of new Set(allocation.personalEventIds))
       yield* sql`INSERT INTO allocation_personal_events (allocation_id, personal_event_id) VALUES (${allocation.id}, ${personalEventId})`;
   }
-  yield* sql`UPDATE review_items SET resolved_at = now(), resolution = ${sql.json({ kind: "correction", eventId: event.id })}, version = version + 1 WHERE ${event.id}::uuid = ANY(event_ids) AND kind IN ('role', 'ruleConflict') AND resolved_at IS NULL`;
-  if (event.kind === "unresolved")
-    yield* sql`INSERT INTO review_items (id, kind, observation_ids, event_ids, question, candidates) VALUES (gen_random_uuid(), 'role', '{}', ARRAY[${event.id}::uuid], '{"message":"Choose the financial role."}', '[]')`;
 });

@@ -1,7 +1,14 @@
-import { CommandId, type ObservationDecision, type ReviewItem } from "@repo/contracts/finance";
+import {
+  CalendarDate,
+  CommandId,
+  type FlowInput,
+  type ObservationDecision,
+  type ReviewItem,
+} from "@repo/contracts/finance";
 import { Crypto, Effect } from "effect";
 import { expect } from "vitest";
 
+import { Flows } from "../../src/analysis/flows.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { Reviews } from "../../src/review/service.ts";
@@ -159,5 +166,49 @@ test(
       -550n,
     );
     expect((yield* (yield* Reviews).list()).rows).toHaveLength(0);
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "a reviewed correction that moves a transaction's date moves it in the flow",
+  Effect.gen(function* () {
+    yield* reset;
+    const owner = yield* account();
+    const ofx = yield* source(owner.id, "ofx");
+    const csv = yield* source(owner.id, "csv");
+    const publication = yield* Publication;
+    const file = parsed(["Coffee"]);
+    yield* publication.publish({ ...file, importId: ofx.importId });
+    yield* publication.publish({ ...file, importId: csv.importId });
+    const month = (start: string, endExclusive: string): FlowInput => ({
+      period: {
+        kind: "fixed",
+        start: CalendarDate.make(start),
+        endExclusive: CalendarDate.make(endExclusive),
+      },
+      comparison: { kind: "previous" },
+      basis: "posted",
+      currency: "AUD",
+    });
+    const outflow = Effect.fn(function* (input: FlowInput) {
+      return (yield* (yield* Flows).period(input)).totals.outflow.minor;
+    });
+    expect(yield* outflow(month("2026-09-01", "2026-10-01"))).toBe(450n);
+
+    const candidate = { ...correction(), postedOn: CalendarDate.make("2026-08-20") };
+    yield* publication.publish({
+      ...file,
+      parserVersion: "test-2",
+      importId: csv.importId,
+      observations: file.observations.map((row) => ({ ...row, candidate })),
+    });
+    const review = yield* pending;
+    yield* resolve(review, {
+      kind: "correct",
+      candidate,
+      postingId: review.observations[0]!.postingId,
+    });
+    expect(yield* outflow(month("2026-09-01", "2026-10-01"))).toBe(0n);
+    expect(yield* outflow(month("2026-08-01", "2026-09-01"))).toBe(450n);
   }).pipe(Effect.provide(services)),
 );

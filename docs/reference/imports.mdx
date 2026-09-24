@@ -1,0 +1,190 @@
+---
+title: Import protocol
+description: How a file becomes observations, how observations become postings, and how nothing is recorded twice.
+---
+
+The importer reads CommBank CSV, OFX, and PDF statements. Import never depends on interpretation: a posting needs no category. Publication computes each new posting's [descriptor](/reference/interpretation#descriptors) in the same transaction, and interpretation runs after it.
+
+## Import status
+
+```
+upload ──► processing ──► complete
+              │  ▲           ▲
+              │  │           │ last review resolved
+              │  └── retry   │
+              ├──► needs_review
+              └──► failed
+```
+
+- `processing` is set when the import row is created and the Workflow instance starts.
+- The Workflow parses the file and calls `publishImport`. Publication sets `complete` or `needs_review` and writes the summary in the same database transaction as the postings.
+- A parse failure or a Workflow error sets `failed`. If the Workflow dies before reporting, a status read asks the processor for the instance status and reports `failed` with the platform's error.
+- `retryImport` moves `failed` back to `processing` and starts a new Workflow instance on the same bytes.
+- `resolveReview` applies the decision and reruns publication for the import in one transaction.
+
+## Libraries
+
+| Format | Library                                                                  | Application code                                                                    |
+| ------ | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| CSV    | `csv-parse` 7.0.2, through `csv-parse/sync`.                             | CommBank column meanings, exact amounts, dates, value-date suffix, locators.        |
+| OFX    | `ofx-js` 1.1.1, through `parseSync`, with two text adapters.             | Envelope selection by account kind, entity decoding, empty `FITID`, GMT timestamps. |
+| PDF    | `unpdf` 1.8.1 with its bundled PDF.js build, through `extractTextItems`. | Grouping positioned text into CommBank statement rows and validating them.          |
+
+Files fit in memory; the corpus's largest file is 2.6 MiB. The upload endpoint in `workers/api/src/imports/http.ts` rejects an empty file or one larger than 10 MB with `invalid`.
+
+## Flow
+
+1. The API hashes the upload, stores the bytes in R2 under `sources/<sha256>/<uploadId>` with a fresh upload ID, and finds or creates the source file. An existing source with its bytes available returns its latest import without new work.
+2. The API creates the import in `processing` and starts an `ImportWorkflow` instance with the import ID.
+3. The Workflow reads the bytes, parses them with the source profile for the format, and produces observations plus statement metadata.
+4. The Workflow calls `publishImport`. The API resolves the account, matches observations against current postings, reconciles balances, and commits postings, coverage, review items, and the summary in one transaction.
+5. The UI shows the summary and any review items. Resolving an item reruns step 4 for that import.
+
+Steps 1 to 3 run outside any database transaction. Step 4 is one transaction under the write lock. Parsing and the publication RPC share one durable Workflow step in `workers/processor/src/imports/workflow.ts`. The step returns null when publication succeeds, or the failure message when the file or the API rejects it, so the parsed file is never a step result. The step retries only an `unavailable` failure, twice. The largest decoded PDF, including positioned source text, exceeds Cloudflare’s 1 MiB non-stream step-result limit. Publication receipts make repeating that step safe without a separate parsed-file store. A Workflow that fails in step 3 or 4 reports `failed`; retry starts a new instance on the same bytes.
+
+## Observations
+
+```ts
+type Locator =
+  | { kind: "csvLine"; line: number }
+  | { kind: "ofxTransaction"; statement: number; ordinal: number }
+  | { kind: "pdfRow"; page: number; row: number; bbox?: [number, number, number, number] };
+
+type Candidate = {
+  postedOn: CalendarDate;
+  valueOn: CalendarDate | null;
+  amount: Money;
+  description: string;
+  balance: Money | null;
+  bankId: string | null;
+  originalMoney: Money | null;
+};
+
+type Issue = {
+  code: "unreadableAmount" | "unreadableDate" | "unknownAccount" | "unsupportedLayout";
+  literal: string;
+};
+```
+
+`locator_key` is the locator serialized as text, for example `csvLine:12`. Ordinals are one-based. `raw` keeps every literal field. A row whose required value cannot be read has no candidate and an issue, and becomes a `value` review item.
+
+## CommBank CSV
+
+Four unquoted or quoted fields, no header: `DD/MM/YYYY`, signed decimal amount, description, running balance or empty. Rows are newest first. Decode with `csv-parse` using `bom: true` and `relax_quotes: false`.
+
+- Amount text like `-12.50` or `+1234.56` converts to minor units by splitting on the decimal point. Two decimal places for AUD.
+- A description ending in `Value Date: DD/MM/YYYY` populates `valueOn` and is stripped from `candidate.description`. `raw` keeps the full text.
+- The balance, when present, is the account balance after this row. Store it as `candidate.balance`.
+- Fragments like `Card xx1234` or `USD 12.34` stay in the description. `USD 12.34` also populates `originalMoney` when a currency code and amount are both present.
+- The CSV carries no account identity. The upload must name the account.
+
+## CommBank OFX
+
+OFX 1.02 SGML. The header block declares `ENCODING:USASCII` and `CHARSET:1252`; decode bytes as Windows-1252. Leaf elements have no closing tag. Decode SGML entities in leaf values: `&amp;`, `&lt;`, `&gt;`. Disable any external entity or network resolution.
+
+| Account kind | Message set          | Statement wrapper                              | Account element                                              |
+| ------------ | -------------------- | ---------------------------------------------- | ------------------------------------------------------------ |
+| deposit      | `BANKMSGSRSV1`       | `STMTTRNRS` / `STMTRS`                         | `BANKACCTFROM` with `BANKID`, `ACCTID`, `ACCTTYPE` `SAVINGS` |
+| card         | `CREDITCARDMSGSRSV1` | `CCSTMTTRNRS` / `CCSTMTRS`                     | `CCACCTFROM` with `ACCTID`                                   |
+| loan         | `BANKMSGSRSV1`       | `STMTTRNRS`, opens `CCSTMTRS`, closes `STMTRS` | `BANKACCTFROM` with `ACCTTYPE` `CREDITLINE`                  |
+
+Account identity is `(BANKID, ACCTID)` for deposit and loan and `(null, ACCTID)` for card. A loan PDF omits the BSB. Its account number can resolve an existing account of the same kind only when the match is unique, or when the user explicitly chooses it. If the PDF arrives first, the later OFX envelope adds the BSB to that account. Conflicting identifiers never replace an established identity. The first import of an unknown identity creates the account with the kind implied by the table. The `ofx-js` 1.1.1 evaluation parses 24 of 26 files unchanged. Close empty `FITID` leaves before parsing, and normalize the loan's opening `CCSTMTRS` to `STMTRS` when `ACCTTYPE` is `CREDITLINE`. With those two adapters, the library parses all 26 files.
+
+- Each `STMTTRN` is one observation. `TRNAMT` converts exactly. `DTPOSTED` is eight digits and is a calendar date. `DTUSER` populates `valueOn` when it differs from `DTPOSTED`.
+- `MEMO` is the description, with the same value-date suffix rule as CSV. `NAME` is absent in the corpus; if present, join `NAME` and `MEMO` with a space, omitting a duplicate.
+- `FITID` populates `bankId` after trimming. Empty means null. The deposit accounts have IDs on every row; card and loan have none.
+- `TRNTYPE` is stored in `raw` and used for nothing else.
+- `LEDGERBAL` becomes the statement's closing balance at `DTASOF`. `DTASOF` is fourteen digits without an offset, which the OFX specification defines as GMT; convert to a calendar date in GMT, not in the display timezone. An end-of-day ledger balance anchors the start of the next day. `AVAILBAL` is stored in statement metadata and not used as an anchor.
+- `DTSTART` and `DTEND` are the requested download window and become `stated_start` and `stated_end`. They do not prove coverage.
+
+## Normalization for matching
+
+`normalizedDescription` is the candidate description with entities decoded, whitespace collapsed to single spaces, and leading and trailing whitespace removed. Nothing else is altered; numbers, card fragments, and service names stay so that distinct services remain distinct.
+
+The match key is `(accountId, currency, postedOn, amountMinor)`. Description and running balance corroborate a match; they are not part of the key, because a PDF statement words the same posting differently from a CSV export.
+
+## Matching
+
+Matching runs inside the publication transaction with the write lock held. It sees every committed posting. It relies on one property of CommBank exports: a file contains every posting of its account for every date it covers. Statement periods and export windows are whole days.
+
+For each observation `O` of file `F`, in file order:
+
+1. **Same file, same row.** If an observation with `(F, O.locatorKey)` already exists and supports posting `P`: when `O.candidate` has the same booked fields as this row's previously accepted candidate, reuse the link. When it differs, create a `source_conflict` review item and leave `P` unchanged. Compare with the prior reading of this source row, since another supporting file may use different display wording. Stop.
+2. **Bank ID.** If `O.bankId` is present, find postings on the same account supported by an observation with the same `bankId`. Exactly one with equal amount and posted date, not yet matched in this run, is a match with method `bankId`. One with a different amount or date, or one already matched, is a `value` review item. More than one is also a `value` review item. None continues to step 3.
+3. **Group.** Let `G` be the observations of `F` with `O`'s match key that are still unmatched in this run, and `E` the existing postings with that key on the account not yet matched by an observation of `F` in this run.
+   - `E` empty: every member of `G` becomes a new posting. Method `new`.
+   - `|E| = |G|`: pair equal normalized descriptions, using equal running balances to disambiguate repeated descriptions before assigning any pairs. Then pair remaining rows by equal running balance. When both sides supply balances, conflicting balances never form an automatic pair. If rows remain on both sides, pair them in file order only when the remaining rows are indistinguishable from one another within `G` and within `E`: equal normalized descriptions and, when both sides supply balances, equal running balances on each side. When only one side supplies balances, use the row order of a source shared by every existing posting, reversing that order if the incoming file runs in the opposite direction. Distinct balances on just one side do not disqualify otherwise identical booked rows. Two identical coffees without balances in both files match as two postings and either pairing is correct. Remaining rows that are distinguishable become one `duplicate` review item, because an equal count proves how many postings exist but not which row supports which. Method `group`.
+   - Otherwise: pair a member of `G` with a member of `E` only when they are the single pair in `G × E` that shares a normalized description or a running balance. Method `corroborated`. Whatever remains on both sides becomes one `duplicate` review item listing the rows and the postings. The user matches specific pairs or declares distinct postings.
+
+Record `match_method` and `match_evidence` on every accepted observation. Evidence records the matched booked key and whether this source created the posting, so review reruns preserve the import’s new and matched counts. A user decision from a review item is method `user` and wins over every automatic step on reruns.
+
+Amount and a nearby date never match on their own, and there is no similarity score. On the corpus, every CSV row matches its OFX pair at step 3 with equal descriptions, and the deposit accounts also match at step 2. Statement rows inside a structured window match at step 3 by count, with running balances corroborating on deposit and loan statements.
+
+## Reconciliation and coverage
+
+For each file and account, publication computes a coverage row.
+
+- `observed_start` and `observed_end` are the earliest and latest posted dates in the file.
+- `stated_start` and `stated_end` come from OFX `DTSTART` and `DTEND` or a PDF statement period. CSV has none.
+- The closing anchor is a PDF closing balance, the OFX `LEDGERBAL`, or, for a CSV, the newest running balance. The OFX parser sets `LEDGERBAL` as the statement's closing balance at `DTASOF`, which can be later than the exported rows. An OFX file has no opening anchor, so it never reconciles on its own. In this corpus all 26 OFX snapshots are later than the rows, and 21 differ from the matching CSV's final balance. The opening anchor is a PDF opening balance or, for a CSV with balances, the oldest balance minus its row's amount.
+- `reconciled` is true when both anchors exist and opening plus the sum of movements between them equals closing exactly. Where every row has a running balance, each adjacent pair must also agree. PDF debit and credit totals are extra checks when printed.
+
+A file with every required value decoded but anchors that do not reconcile publishes nothing and creates a `value` review item naming the discrepancy. An unreadable required value becomes a row-level review item; the remaining readable rows may publish, but the file is not reconciled and incomplete groups cannot use the equal-count fallback. A file without an opening anchor publishes its rows with `reconciled` false. Missing anchors are missing evidence, not zero activity. Two anchors on consecutive dates with no rows between them establish an empty reconciled interval.
+
+## Publication transaction
+
+1. Take the write lock. Derive the publication command ID from the import ID, the parser version, and a SHA-256 hash of the whole encoded `PublishImport` input, and look up its receipt. A repeat returns the stored summary whatever the import's status is now. Otherwise load the import. A new parser version may dispute an accepted source row; it must go through matching and review.
+2. Resolve the account: from the OFX envelope, from the upload's `accountId`, or by creating an `account` review item when neither exists. A candidate amount in a currency other than the account's fails publication with `invalid`, which rolls the transaction back and marks the import `failed`.
+3. Upsert observations by `(source_file_id, locator_key)`.
+4. Run matching. Collect new postings, links, and review items.
+5. Reconcile and compute the coverage row.
+6. Insert postings, set `posting_id`, `match_method`, and `match_evidence` on observations, upsert coverage, insert review items, write the summary, set the status, and write the receipt. Commit.
+
+The receipt key hashes the whole encoded `PublishImport`: the import ID, parser version, account identity, observations, and statement metadata. A retry after a parser fix is a new publication rather than a conflict. Step 3 and matching step 1 are what make that new publication safe. A republish triggered by `resolveReview` runs under that command's own receipt, not the publication receipt.
+
+Every row's disposition is in one transaction: accepted rows are committed together with the review items for the uncertain ones. A technical failure rolls the whole file back. Other files in the same upload are independent. No network call happens inside the transaction. Measure the transaction on the largest corpus file before considering anything more complicated.
+
+## Review resolutions
+
+| Kind              | Question                                                     | Resolutions                                                                                         |
+| ----------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `account`         | Which account does this file belong to?                      | Choose an account, or create one.                                                                   |
+| `value`           | A required value is unreadable, or anchors do not reconcile. | Accept a decoded value shown beside the literal text, or leave the row out and note why.            |
+| `duplicate`       | Which existing posting, if any, does this row represent?     | Match a listed posting, or declare a distinct posting.                                              |
+| `source_conflict` | The parser now reads an accepted row differently.            | Keep the accepted posting, or accept the new reading as a bank-field correction with this evidence. |
+
+Resolving applies the decision to the observations, then reruns steps 4 to 6 of publication for the import under the same lock. Decisions persist in `observations.decision`, so a later reparse reproduces them. `parsed_candidate` retains the latest parser reading while `candidate` retains the accepted reading. A disputed reparse cannot overwrite accepted evidence. A correction that changes a posting's date, value date, account, currency, or amount marks the facts of its events stale, through the trigger in migration `0019_posting_facts_stale.sql`, so measures read the corrected posting.
+
+A correction without a chosen posting runs through normal matching. It does not declare a distinct posting. If matching still needs review, the corrected candidate stays visible and is retained in the subsequent match or distinct decision. Across supporting files, the most recently resolved value correction or keep decision supplies the posting's accepted fields. Resolution times are recorded after acquiring the write lock. Source-format preference applies only when no value decision takes precedence.
+
+## PDF statements
+
+Use `unpdf` to get positioned text, then a CommBank layout adapter per account kind groups text into transaction rows and separates them from headings, reward summaries, totals, and notices. Locators are page and row with the bounding box.
+
+The September 2026 evaluation of five statements, 25 pages, and 303 manually checked rows matched every date and signed amount and all 258 printed running balances after one visually verified repair for card rows whose decimal point the text layer drops. The full corpus has 9,159 nonzero transaction rows across 47 PDFs. Every statement reconciles both printed balances, every supplied running balance, and printed debit and credit totals. Another 113 dated rows are zero-amount or rate and interest notices. Keep the raw strings and positions when applying a repair. The deposit adapter separates amount columns by their right edges and ignores standalone debit-marker glyphs that the text layer maps to punctuation. A four-digit merchant prefix after a day and month stays in the description; transaction rows do not print a year. Year inference uses the printed statement period. A repair is a documented rule for a known layout defect, never an inference that makes a total balance.
+
+The import retains parsed `statement` and `bank_account` JSON alongside its observations so review can rerun publication without a network call. Statement metadata carries the printed period, opening and closing balances, and debit and credit totals. Statements also print zero-amount notice rows, such as a fee waived; keep them in `raw` and do not turn them into postings.
+
+A transaction page the adapter cannot decode becomes one observation with an `unsupportedLayout` issue and no candidate, so it becomes a `value` review. The review links to that page of the original PDF and shows the page's text. You enter the booked values or leave the page out. No model reads statement pages. A reproducible decoder defect is a code fix, not a review item.
+
+Statement history before the structured exports becomes new postings. Statement rows inside a structured window match existing postings at step 3 by account, date, amount, and count, with running balances corroborating on deposit and loan statements. A day where the statement and the export disagree on how many postings share an amount is a `duplicate` review item.
+
+## Source removal
+
+`removeSourceBytes` carries `commandId`, `sourceFileId`, and `expectedVersion`. Inside the transaction it checks the version, sets `bytes_available` false, and bumps the version. The command receipt's `result` stores `{ sourceFileId, objectKey, affectedPostingCount }`, capturing the current `object_key`. Postings, observations, coverage, and review history stay. The confirmation lists the postings the file supports and says only the original bytes go. Existing exports keep any included originals until their seven-day expiry, and retained backups and independent archives are unaffected.
+
+After the transaction, the handler deletes the receipt's `objectKey` from R2 and returns the affected posting count. A repeated command with the same input reads its receipt before checking the version and attempts that same delete again. An already absent object counts as success. A storage failure returns `unavailable`; the UI offers Retry with the same command ID and input. The receipt preserves the deletion key without a new table or a scheduled cleanup job.
+
+Reuploading identical bytes writes a new object under a new upload ID, points `object_key` at it, sets `bytes_available` true, and bumps the version; matching step 1 reuses every link, so no posting is created. A new removal command with a stale version changes nothing. A repeated removal command or a delete already in flight targets only the key in its receipt, so the replacement is never removed.
+
+## Corpus facts
+
+Measured on the private corpus in `fixtures/commbank/`. The parsers are built for these files. Never copy rows from the corpus into tracked files, snapshots, or logs.
+
+- 99 files for four accounts: 26 CSV and OFX pairs and 47 PDF statements. Statements reach back to 2019 for the spending account; the card and loan histories are shorter.
+- CSV rows have four fields, no header, no byte order mark, and no thousands separators. Rows are newest first. Deposit and loan rows carry a running balance; card rows do not. Each CSV has exactly the rows of its OFX pair.
+- OFX is 1.02 SGML with `CHARSET:1252`. `NAME` is never present and `MEMO` always is. Deposit rows have a `FITID`; card and loan `FITID` tags are empty. `DTASOF`, `DTSTART`, and `DTEND` have no offset and are read as GMT.
+- All 26 OFX `LEDGERBAL` dates are later than the exported rows, and 21 of those balances differ from the paired CSV's newest running balance.
+- Card purchases on the deposit account end in `Card xx####`. Rows on the card account carry no card marker.
+- All 99 files import in either order to 9,224 postings and 15,334 observations, with 72 reconciled coverage records. Filename order leaves no source reviews. Reverse order leaves six `duplicate` reviews on OFX rows that have no running balance and cannot be paired with statement evidence by wording.
+- All 47 statements reconcile their printed opening and closing balances, running balances, and printed totals. The card layout drops the decimal point from some amounts in the text layer; the card adapter repairs that one known defect.

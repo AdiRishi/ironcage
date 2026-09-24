@@ -204,19 +204,6 @@ export function EventEditor({
                         />
                       )}
                     </form.Field>
-                    <form.Field name={`allocations[${index}].merchantId`}>
-                      {(field) => (
-                        <ReferenceChoice
-                          label={`Merchant ${index + 1}`}
-                          value={field.state.value}
-                          options={references.merchants}
-                          onChange={(value) => {
-                            field.handleChange(value);
-                            preview.reset();
-                          }}
-                        />
-                      )}
-                    </form.Field>
                   </div>
                   <form.Field name={`allocations[${index}].nonPersonal`}>
                     {(field) => (
@@ -290,7 +277,7 @@ export function EventEditor({
                     amount: { currency: event.magnitude.currency, minor: 0n },
                     decimal: "0.00",
                     categoryId: null,
-                    merchantId: null,
+                    categorySource: null,
                     nonPersonal: false,
                     tagIds: [],
                     personalEventIds: [],

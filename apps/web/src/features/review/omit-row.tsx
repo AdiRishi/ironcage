@@ -45,7 +45,7 @@ export function OmitRow({
           </div>
         )}
       </form.Field>
-      <p className="text-sm text-muted-foreground">
+      <p className="type-small text-slate">
         The literal source row and your reason will be retained.
       </p>
       <Button type="submit" disabled={disabled} variant="outline">

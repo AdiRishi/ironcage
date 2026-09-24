@@ -61,7 +61,9 @@ test("a background refresh cannot save an older settings draft without reviewing
   stored = { timezone: "Asia/Tokyo", reportingCurrency: "JPY", version: 2 };
   await client.invalidateQueries({ queryKey: settingsQueryOptions().queryKey });
   await screen.getByRole("button", { name: "Save display settings" }).click();
-  await expect.element(screen.getByRole("alert")).toHaveTextContent("Asia/Tokyo · JPY");
+  await expect
+    .element(screen.getByRole("alert"))
+    .toMatchTextContent("Current settings: Asia/Tokyo · JPY.");
   expect(stored).toEqual({ timezone: "Asia/Tokyo", reportingCurrency: "JPY", version: 2 });
   await expect.element(timezone).toHaveValue("Europe/London");
 

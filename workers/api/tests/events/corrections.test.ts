@@ -32,7 +32,7 @@ const purchase = Effect.gen(function* () {
     importId: file.importId,
   });
   const events = yield* Events;
-  yield* events.interpret({ commandId: yield* commandId, scope: "all" });
+  yield* events.interpret({ commandId: yield* commandId });
   const postings = yield* Postings;
   const [posting] = (yield* postings.list({ filter: {} })).rows;
   if (!posting) return yield* Effect.die("Expected posting");
@@ -139,9 +139,7 @@ test(
       "Renamed category",
     );
     expect((yield* events.get({ eventId: event.id })).allocations[0]?.categoryId).toBe(category.id);
-    expect((yield* events.interpret({ commandId: yield* commandId, scope: "all" })).created).toBe(
-      0,
-    );
+    expect((yield* events.interpret({ commandId: yield* commandId })).created).toBe(0);
     expect(yield* events.get({ eventId: event.id })).toEqual(accepted);
     const deletion = yield* references
       .remove({

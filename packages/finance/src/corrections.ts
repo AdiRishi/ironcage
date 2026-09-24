@@ -1,5 +1,5 @@
 import { type EventChange, type FinancialEvent, FinanceError } from "@repo/contracts/finance";
-import { Effect } from "effect";
+import { Array as Arr, Effect } from "effect";
 
 import { allocationRole } from "./events.ts";
 
@@ -66,11 +66,24 @@ export const correctEvent = Effect.fn("correctEvent")(function* (
       kind: "invalid",
       message: "Only purchases have a purchase date.",
     });
+  const split = change.allocations.length > 1 || event.allocations.length > 1;
   return {
     ...event,
     kind: change.kind,
+    roleSource: change.kind === event.kind ? event.roleSource : "user",
     purchaseOn: change.purchaseOn,
-    allocations: change.allocations,
+    allocations: Arr.map(change.allocations, (allocation) => {
+      const prior = event.allocations.find((row) => row.id === allocation.id);
+      return {
+        ...allocation,
+        categorySource:
+          split || prior?.categoryId !== allocation.categoryId
+            ? allocation.categoryId === null
+              ? null
+              : "user"
+            : (prior?.categorySource ?? null),
+      };
+    }),
     version: event.version + 1,
   };
 });

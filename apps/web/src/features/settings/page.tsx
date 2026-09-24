@@ -1,16 +1,13 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
-import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { CreateAccountDialog } from "@/features/accounts/create-account";
 import { EditAccountDialog } from "@/features/accounts/edit-account";
 import { accountKindLabels } from "@/features/accounts/labels";
 import { accountsQueryOptions } from "@/features/accounts/queries";
-import { ExportsSection } from "@/features/exports/section";
-import { SourceFilesSection } from "@/features/sources/section";
 
 import { AccountPeriodsSection } from "../accounts/periods";
-import { ClassificationSection } from "../classification/settings";
+import { EnrichmentSection } from "../enrichment/settings";
 import { DisplaySettings } from "./display-settings";
 import { ModelUsageSection } from "./model-usage";
 import { settingsQueryOptions, retentionQueryOptions } from "./queries";
@@ -20,43 +17,51 @@ export function SettingsPage() {
   const { data: retention } = useSuspenseQuery(retentionQueryOptions());
   const { data: settings } = useSuspenseQuery(settingsQueryOptions());
   return (
-    <div className="max-w-4xl space-y-10">
+    <div className="max-w-4xl space-y-12">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-2 text-muted-foreground">Accounts, display preferences, and your data.</p>
+        <h1 className="type-title">Settings</h1>
+        <p className="mt-1 text-slate">How Ironcage reads your accounts and names your money.</p>
       </header>
-      <Link to="/settings/categories" className="text-primary underline">
-        Categories, merchants, tags, and personal events
-      </Link>
-      <Link to="/settings/rules" className="text-primary underline">
-        Interpretation rules
-      </Link>
-      <section className="space-y-5">
+      <nav aria-label="Interpretation settings" className="grid gap-3 sm:grid-cols-2">
+        <Link
+          to="/settings/categories"
+          className="rounded-lg border border-rule bg-sheet p-4 hover:border-intaglio/40"
+        >
+          <span className="block font-[600]">Categories</span>
+          <span className="mt-1 block type-small text-slate">
+            The two levels spending and income sort into, plus tags and personal events.
+          </span>
+        </Link>
+        <Link
+          to="/settings/rules"
+          className="rounded-lg border border-rule bg-sheet p-4 hover:border-intaglio/40"
+        >
+          <span className="block font-[600]">Rules</span>
+          <span className="mt-1 block type-small text-slate">
+            Standing instructions that win over the model and the bank.
+          </span>
+        </Link>
+      </nav>
+      <section aria-labelledby="accounts-heading" className="space-y-4">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="text-xl font-semibold">Accounts</h2>
+          <h2 id="accounts-heading" className="type-heading">
+            Accounts
+          </h2>
           <CreateAccountDialog />
         </div>
         {accounts.length === 0 ? (
-          <Empty className="border">
-            <EmptyHeader>
-              <EmptyDescription>Import an OFX file or add an account to begin.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <p className="text-slate">Upload an OFX file or add an account to begin.</p>
         ) : (
-          <ul className="divide-y rounded-lg border">
+          <ul className="divide-y divide-rule border-y border-rule">
             {accounts.map((account) => (
-              <li key={account.id} className="flex items-center justify-between gap-4 p-5">
+              <li key={account.id} className="flex items-center justify-between gap-4 py-3">
                 <div>
-                  <p className="font-medium">{account.label}</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="font-[560]">{account.label}</p>
+                  <p className="type-small text-slate">
                     {accountKindLabels[account.kind]} · {account.currency}
+                    {account.accountNumber &&
+                      ` · ${account.bankId ? `${account.bankId} ` : ""}${account.accountNumber}`}
                   </p>
-                  {account.accountNumber && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {account.bankId ? `${account.bankId} · ` : ""}
-                      {account.accountNumber}
-                    </p>
-                  )}
                 </div>
                 <EditAccountDialog account={account} />
               </li>
@@ -64,20 +69,22 @@ export function SettingsPage() {
           </ul>
         )}
       </section>
-      <section className="space-y-5 rounded-lg border p-5 sm:p-6">
-        <h2 className="text-xl font-semibold">Display</h2>
+      <AccountPeriodsSection accounts={accounts} />
+      <EnrichmentSection />
+      <ModelUsageSection />
+      <section aria-labelledby="display-heading" className="space-y-4">
+        <h2 id="display-heading" className="type-heading">
+          Display
+        </h2>
         <DisplaySettings settings={settings} />
       </section>
-      <AccountPeriodsSection accounts={accounts} />
-      <ExportsSection timezone={settings.timezone} />
-      <ClassificationSection />
-      <ModelUsageSection />
-      <SourceFilesSection />
-      <section className="space-y-3 rounded-lg border p-5 sm:p-6">
-        <h2 className="text-xl font-semibold">Backups and original files</h2>
-        <p className="text-sm text-muted-foreground">{retention.database}</p>
-        <p className="text-sm break-words text-muted-foreground">{retention.originals}</p>
-        <p className="text-sm text-muted-foreground">
+      <section aria-labelledby="backups-heading" className="space-y-2">
+        <h2 id="backups-heading" className="type-heading">
+          Backups and original files
+        </h2>
+        <p className="type-small text-slate">{retention.database}</p>
+        <p className="type-small break-words text-slate">{retention.originals}</p>
+        <p className="type-small text-slate">
           Removing live data does not remove it from retained backups.
         </p>
       </section>

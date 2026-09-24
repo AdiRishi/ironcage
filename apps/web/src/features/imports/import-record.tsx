@@ -18,7 +18,7 @@ export function ImportRecord({ item, timezone }: { item: Import; timezone: strin
     <li className="flex flex-wrap items-start justify-between gap-4 p-5">
       <div className="min-w-0 space-y-2">
         <p className="font-medium break-all">{item.fileName}</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="type-small text-slate">
           {item.format.toUpperCase()} ·{" "}
           {new Intl.DateTimeFormat("en-AU", {
             timeZone: timezone,
@@ -27,13 +27,13 @@ export function ImportRecord({ item, timezone }: { item: Import; timezone: strin
           }).format(new Date(item.createdAt))}
         </p>
         {item.summary && (
-          <p className="text-sm text-muted-foreground">
+          <p className="type-small text-slate">
             {item.summary.observations} source rows · {item.summary.newPostings} new ·{" "}
             {item.summary.matchedPostings} matched · {item.summary.reviewItems} to review
           </p>
         )}
         {item.summary?.pages && (
-          <p className="text-sm text-muted-foreground">
+          <p className="type-small text-slate">
             {item.summary.pages.decoded} pages decoded · {item.summary.pages.needingReview.length}{" "}
             pages needing review
           </p>
@@ -46,18 +46,18 @@ export function ImportRecord({ item, timezone }: { item: Import; timezone: strin
         {item.status === "failed" && <RetryImportButton item={item} />}
         {item.status === "needs_review" && (
           <Link
-            to="/review"
+            to="/questions"
             search={{ importId: item.id }}
-            className="mr-4 text-sm text-primary underline"
+            className="mr-4 text-sm underline underline-offset-4"
           >
             Review source rows
           </Link>
         )}
         {item.summary && (
           <Link
-            to="/transactions"
+            to="/ledger"
             search={{ importId: item.id }}
-            className="text-sm text-primary underline underline-offset-4"
+            className="text-sm underline underline-offset-4"
           >
             View transactions
           </Link>

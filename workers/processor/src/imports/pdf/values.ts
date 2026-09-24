@@ -5,7 +5,7 @@ import { Effect } from "effect";
 const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 const dated = /^(\d{1,2})\s+([A-Za-z]{3,9})\b(?:\s+(\d{4}))?/;
 export const fullDates = /\b(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})\b/g;
-export const pdfDate = Effect.fn("pdfDate")(function* (
+export const pdfDate = Effect.fnUntraced(function* (
   literal: string,
   period: { start: CalendarDate | null; end: CalendarDate | null },
 ) {
@@ -37,7 +37,7 @@ export const pdfDate = Effect.fn("pdfDate")(function* (
     message: `Statement date outside the printed period: ${literal.trim()}`,
   });
 });
-export const pdfMoney = Effect.fn("pdfMoney")(function* (
+export const pdfMoney = Effect.fnUntraced(function* (
   literal: string,
   liability = false,
   decimalGap = false,

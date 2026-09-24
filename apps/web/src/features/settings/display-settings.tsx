@@ -92,9 +92,7 @@ export function DisplaySettings({ settings }: { settings: Settings }) {
                 maxLength={3}
                 required
               />
-              <p className="text-sm text-muted-foreground">
-                Transactions retain their booked currency.
-              </p>
+              <p className="type-small text-slate">Transactions retain their booked currency.</p>
             </div>
           )}
         </form.Field>

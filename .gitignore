@@ -20,3 +20,6 @@ playwright-report/
 .DS_Store
 /fixtures/commbank/
 .blume-verify/
+.playwright-mcp/
+.vitest/
+__screenshots__/

@@ -1,65 +1,36 @@
 ---
 title: Product
-description: What the user sees and can do, page by page.
+description: What you see and what you can do, screen by screen.
 ---
 
-Ironcage is a private web app for one person. It turns CommBank exports into one history, explains how spending changes, and helps plan what comes next. These pages describe behavior from the user's side. The [stage pages](/stages) say when each part is built and how; the [glossary](/glossary) defines the words.
+Ironcage is a private web application for one person and four CommBank accounts: a spending offset account, a savings offset account, a credit card, and a home loan. These pages describe behavior from your side. The [design language](/design) describes how it looks.
 
-<CardGroup cols={2}>
-  <Card title="Product design" href="/design" icon="palette">
-    Desktop and mobile screens organized by stage.
-  </Card>
-  <Card title="Imports" href="/product/imports" icon="files">
-    Upload files, see what was recorded, answer the importer's questions.
-  </Card>
-  <Card title="Transactions" href="/product/transactions" icon="receipt-text">
-    Browse postings, see their sources, correct their meaning.
-  </Card>
-  <Card title="Workspace" href="/product/workspace" icon="panels-top-left">
-    Navigation, state, and what every screen has in common.
-  </Card>
-  <Card title="Trends" href="/product/trends" icon="chart-no-axes-combined">
-    Compare periods, follow a difference to its records, save the question.
-  </Card>
-  <Card
-    title="Commitments and forecasts"
-    href="/product/commitments-and-forecasts"
-    icon="calendar-days"
-  >
-    Recurring payments, an ordinary month, a cost outlook, scenarios.
-  </Card>
-  <Card title="Analyst and memory" href="/product/analyst-and-memory" icon="messages-square">
-    Ask questions, get evidence, keep explicit notes.
-  </Card>
-  <Card
-    title="Insights and follow-through"
-    href="/product/insights-and-follow-through"
-    icon="lightbulb"
-  >
-    Findings, tracked intentions, the inbox.
-  </Card>
-  <Card title="Settings and data" href="/product/settings-and-data" icon="settings">
-    Accounts, display, AI, exports, source files, retention.
-  </Card>
-  <Card title="Acceptance scenarios" href="/product/acceptance" icon="list-checks">
-    Concrete outcomes, one table per stage group.
-  </Card>
-</CardGroup>
+## Screens
+
+| Screen                                    | Question it answers                                                     |
+| ----------------------------------------- | ----------------------------------------------------------------------- |
+| [Overview](/product/overview)             | What happened to my money this month, and what changed?                 |
+| [Spending](/product/spending)             | Where did it go, in as much detail as the evidence allows?              |
+| [Ledger](/product/ledger)                 | What exactly was booked, what does it mean, and where did it come from? |
+| [Counterparties](/product/counterparties) | Who do I pay, who pays me, and how has that changed?                    |
+| [Questions](/product/questions)           | What does Ironcage need me to confirm?                                  |
+| [Sources](/product/sources)               | Which files are in, what do they cover, and what is missing?            |
+| [Settings](/product/settings)             | Accounts, categories, rules, AI, and data.                              |
+| [Analyst](/product/analyst)               | Anything else, asked in plain language.                                 |
+
+## The period
+
+Every screen except Settings reads one period. A strip of months runs along the top of the application, each month drawn as a short bar of its outflow. Selecting a month, a range, or a year changes every screen. The period lives in the URL, so a bookmark reopens the same view against current data.
 
 ## Rules that hold everywhere
 
-- The same question over the same records gives the same number on every screen and in the analyst. Every number states its period, accounts, measure, basis, calculation time, and coverage.
-- Uploading a file twice changes nothing. Corrections survive later uploads.
-- A failed action can be retried from the screen it happened on. Retrying never duplicates a record.
-- Missing data is shown as missing, never as zero.
-- Any number can be opened to see the records behind it.
+- The same question over the same records gives the same number on every screen and in the analyst.
+- Any number opens to the records behind it.
+- Missing data is shown as missing, never as zero. A month where the card statement is absent says so beside the number.
+- An assignment you made wins over the model and over rules, and it survives later imports.
+- A number that rests partly on the model's judgment says how much.
+- Uploading a file twice changes nothing. A failed action can be retried where it failed, and retrying never duplicates anything.
 
-## Accounts in scope
+## Out of scope for now
 
-Four CommBank accounts: a spending offset account, a savings offset account, a credit card, and a home loan. Mortgage repayments, strata levies, and the shift of everyday purchases from the deposit account to the card are part of normal analysis.
-
-An account says where money sits, not what a payment was for. A bill paid from savings is still a cost.
-
-## Out of scope
-
-Automatic bank feeds, making payments, investments, trading, and crypto. Transfers toward an investment stay visible as movements.
+Automatic bank feeds, making payments, and other banks. Investments are on the [roadmap](/roadmap).

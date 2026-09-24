@@ -20,7 +20,8 @@
     "test": "turbo test",
     "test:unit": "turbo test --filter=!@repo/infra",
     "test:infra-live": "pnpm --filter @repo/infra test:live",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "corpus:import": "node scripts/src/import-corpus.ts"
   },
   "devDependencies": {
     "@effect/tsgo": "catalog:",
@@ -37,5 +38,5 @@
   "engines": {
     "node": "^24"
   },
-  "packageManager": "pnpm@12.4.1"
+  "packageManager": "pnpm@12.6.0"
 }

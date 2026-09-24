@@ -50,7 +50,7 @@ const createEvents = Effect.fn(function* (
     }),
   });
   const events = yield* Events;
-  yield* events.interpret({ commandId: yield* commandId, scope: "all" });
+  yield* events.interpret({ commandId: yield* commandId });
   const postings = yield* Postings;
   return yield* Effect.forEach(
     (yield* postings.list({ filter: { importId: file.importId } })).rows,
@@ -98,10 +98,7 @@ test(
     const reviews = yield* InterpretationReviews;
     expect(
       (yield* reviews.list({})).rows.some(
-        (row) =>
-          row.kind === "relationship" &&
-          row.eventIds.includes(debit.id) &&
-          row.eventIds.includes(credit.id),
+        (row) => row.eventIds.includes(debit.id) && row.eventIds.includes(credit.id),
       ),
     ).toBe(true);
     const preview = yield* apply({

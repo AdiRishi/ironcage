@@ -28,8 +28,7 @@ export const planRelationship = Effect.fn("planRelationship")(function* (
   const touch = (events: readonly FinancialEvent[]) =>
     Effect.forEach(
       events,
-      (event) =>
-        sql`UPDATE events SET version=${event.version}, suggestion=NULL WHERE id=${event.id}`,
+      (event) => sql`UPDATE events SET version=${event.version} WHERE id=${event.id}`,
     );
   switch (change.kind) {
     case "linkMovement": {
@@ -107,7 +106,7 @@ export const planRelationship = Effect.fn("planRelationship")(function* (
         : [accepted];
       const execute = Effect.gen(function* () {
         if (other) {
-          yield* sql`UPDATE events SET active=false,version=version+1,suggestion=NULL WHERE id=${other.id}`;
+          yield* sql`UPDATE events SET active=false,version=version+1 WHERE id=${other.id}`;
           yield* sql`UPDATE event_postings SET active=false WHERE event_id=${other.id}`;
         }
         yield* writeEvent(accepted);
@@ -151,7 +150,7 @@ export const planRelationship = Effect.fn("planRelationship")(function* (
       const before: readonly [FinancialEvent, ...FinancialEvent[]] = [credit, cost];
       const after = before.map(bump);
       const execute = Effect.gen(function* () {
-        yield* sql`INSERT INTO credit_links(id,credit_allocation_id,cost_allocation_id,amount_minor) VALUES (${link.id},${link.creditAllocationId},${link.costAllocationId},${link.amount.minor.toString()})`;
+        yield* sql`INSERT INTO credit_links(id,credit_allocation_id,cost_allocation_id,amount_minor) VALUES (${link.id},${link.creditAllocationId},${link.costAllocationId},${link.amount.minor})`;
         yield* touch(after);
       });
       return { before, after, credits: { before: credits, after: [...credits, link] }, execute };

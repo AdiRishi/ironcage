@@ -47,7 +47,7 @@ const Document = Schema.Struct({
 const OfxDate = Schema.String.check(
   Schema.isPattern(/^\d{8}(?:(?:[01]\d|2[0-3])[0-5]\d[0-5]\d)?$/),
 );
-const date = Effect.fn("parseOfxDate")(function* (text: string) {
+const date = Effect.fnUntraced(function* (text: string) {
   yield* Schema.decodeEffect(OfxDate)(text).pipe(
     Effect.mapError(
       () =>

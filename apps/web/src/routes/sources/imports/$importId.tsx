@@ -1,0 +1,37 @@
+import { ImportId } from "@repo/contracts/finance";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
+
+import { ImportRecord } from "@/features/imports/import-record";
+import { importQueryOptions } from "@/features/imports/queries";
+import { useImportCompletion } from "@/features/imports/use-import-completion";
+import { settingsQueryOptions } from "@/features/settings/queries";
+
+export const Route = createFileRoute("/sources/imports/$importId")({
+  params: { parse: ({ importId }) => ({ importId: ImportId.make(importId) }) },
+  loader: async ({ context, params }) => {
+    await Promise.all([
+      context.queryClient.ensureQueryData(importQueryOptions(params.importId)),
+      context.queryClient.ensureQueryData(settingsQueryOptions()),
+    ]);
+  },
+  component: ImportDetail,
+});
+
+function ImportDetail() {
+  const { importId } = Route.useParams();
+  const { data: item } = useSuspenseQuery(importQueryOptions(importId));
+  const { data: settings } = useSuspenseQuery(settingsQueryOptions());
+  useImportCompletion([item]);
+  return (
+    <div className="max-w-4xl space-y-6">
+      <Link to="/sources" className="type-small text-slate hover:text-intaglio">
+        Sources
+      </Link>
+      <h1 className="type-title">Import</h1>
+      <ul className="rounded-lg border border-rule bg-sheet">
+        <ImportRecord item={item} timezone={settings.timezone} />
+      </ul>
+    </div>
+  );
+}

@@ -4,7 +4,7 @@ import { Config, Effect, Redacted, Schedule } from "effect";
 import { Client } from "pg";
 
 const migrate = Effect.gen(function* () {
-  const url = yield* Config.redacted("DATABASE_URL");
+  const url = yield* Config.Redacted("DATABASE_URL");
   const client = yield* Effect.acquireRelease(
     Effect.tryPromise(async () => {
       const connection = new Client({ connectionString: Redacted.value(url) });

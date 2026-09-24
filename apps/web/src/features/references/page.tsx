@@ -28,12 +28,6 @@ export function ReferencesPage() {
   });
   const today = CalendarDate.make(new Intl.DateTimeFormat("en-CA").format(new Date()));
   const records: ReadonlyArray<typeof ReferenceWrite.Type> = [
-    ...data.merchants.map((merchant) => ({
-      kind: "merchant" as const,
-      target: { kind: "update" as const, id: merchant.id, expectedVersion: merchant.version },
-      name: merchant.name,
-      aliases: merchant.aliases,
-    })),
     ...data.tags.map((tag) => ({
       kind: "tag" as const,
       target: { kind: "update" as const, id: tag.id, expectedVersion: tag.version },
@@ -60,11 +54,6 @@ export function ReferencesPage() {
         archived: false,
       },
     },
-    {
-      kind: "merchant",
-      label: "Merchants",
-      create: { kind: "merchant", target: { kind: "create" }, name: "", aliases: [] },
-    },
     { kind: "tag", label: "Tags", create: { kind: "tag", target: { kind: "create" }, name: "" } },
     {
       kind: "personalEvent",
@@ -85,11 +74,11 @@ export function ReferencesPage() {
   }>;
   return (
     <div className="max-w-4xl space-y-8">
-      <header>
-        <Link to="/settings" className="text-primary underline">
+      <header className="space-y-2">
+        <Link to="/settings" className="type-small text-slate hover:text-intaglio">
           Settings
         </Link>
-        <h1 className="mt-3 text-3xl font-semibold">Categories and labels</h1>
+        <h1 className="type-title">Categories and labels</h1>
       </header>
       {draft && (
         <ReferenceEditor
@@ -116,7 +105,7 @@ export function ReferencesPage() {
       {sections.map((section) => (
         <section key={section.kind} className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">{section.label}</h2>
+            <h2 className="type-heading">{section.label}</h2>
             <Button variant="outline" onClick={() => setDraft(section.create)}>
               Add {section.kind === "personalEvent" ? "personal event" : section.kind}
             </Button>
@@ -142,48 +131,35 @@ export function ReferencesPage() {
               }
             />
           ) : (
-            <ul className="divide-y rounded-lg border">
+            <ul className="divide-y divide-rule border-y border-rule">
               {records
                 .filter((record) => record.kind === section.kind)
                 .map((record) => (
                   <li
                     key={record.target.kind === "update" ? record.target.id : record.kind}
-                    className="flex flex-wrap items-center justify-between gap-3 p-4"
+                    className="flex flex-wrap items-center justify-between gap-3 py-2"
                   >
                     <div>
                       <p className="font-medium">{record.name}</p>
-                      {record.kind === "merchant" && (
-                        <p className="text-sm text-muted-foreground">{record.aliases.join(", ")}</p>
-                      )}
                       {record.kind === "personalEvent" && (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="type-small text-slate">
                           {record.startOn} through {record.endOn}
                           {record.excludeFromOrdinary && " · Excluded from ordinary costs"}
                         </p>
                       )}
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" onClick={() => setDraft(record)}>
-                        Edit {record.name}
+                      <Button variant="ghost" size="sm" onClick={() => setDraft(record)}>
+                        Edit<span className="sr-only"> {record.name}</span>
                       </Button>
                       <Button
                         variant="ghost"
+                        size="sm"
                         disabled={mutation.isPending || uncertain}
                         onClick={() => {
                           if (record.target.kind !== "update") return;
                           switch (record.kind) {
                             case "category":
-                              if (record.target.kind === "update")
-                                submit({
-                                  commandId: CommandId.make(crypto.randomUUID()),
-                                  record: {
-                                    kind: record.kind,
-                                    id: record.target.id,
-                                    expectedVersion: record.target.expectedVersion,
-                                  },
-                                });
-                              break;
-                            case "merchant":
                               if (record.target.kind === "update")
                                 submit({
                                   commandId: CommandId.make(crypto.randomUUID()),
@@ -219,7 +195,7 @@ export function ReferencesPage() {
                           }
                         }}
                       >
-                        Delete {record.name}
+                        Delete<span className="sr-only"> {record.name}</span>
                       </Button>
                     </div>
                   </li>
@@ -228,7 +204,7 @@ export function ReferencesPage() {
           )}
           {section.kind !== "category" &&
             !records.some((record) => record.kind === section.kind) && (
-              <p className="text-sm text-muted-foreground">None yet.</p>
+              <p className="type-small text-slate">None yet.</p>
             )}
         </section>
       ))}

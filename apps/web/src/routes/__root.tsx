@@ -1,79 +1,102 @@
-import { type QueryClient } from "@tanstack/react-query";
-import { HeadContent, Link, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
-import { House, LockKeyhole, Upload, List, ClipboardCheck, Settings } from "lucide-react";
+import { type QueryClient, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  HeadContent,
+  Outlet,
+  Scripts,
+  createRootRouteWithContext,
+  defaultStringifySearch,
+  redirect,
+  retainSearchParams,
+  useRouterState,
+} from "@tanstack/react-router";
+import { Schema } from "effect";
 
 import { RouteError } from "@/components/route-error";
+import { PeriodStrip } from "@/components/shell/period-strip";
+import { TopBar } from "@/components/shell/top-bar";
+import { monthlyFlowQuery } from "@/features/flow/queries";
+import { questionsQuery } from "@/features/questions/queries";
+import { settingsQueryOptions } from "@/features/settings/queries";
+import { PeriodSearch, resolvePeriodKey } from "@/lib/period";
 
 import appCss from "@/global-styles/tailwind.css?url";
 
+// Screens that read the selected period show the strip; setup screens do not.
+const periodScreens = ["/", "/spending", "/ledger", "/counterparties"];
+const readsPeriod = (pathname: string) =>
+  periodScreens.some((path) => (path === "/" ? pathname === "/" : pathname.startsWith(path)));
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  validateSearch: Schema.toStandardSchemaV1(PeriodSearch),
+  search: { middlewares: [retainSearchParams(["period"])] },
+  // Without a chosen period, screens read the current month. Before this month has any
+  // records, they read the latest month that does.
+  beforeLoad: async ({ context, search, location }) => {
+    if (search.period || !readsPeriod(location.pathname)) return;
+    const settings = await context.queryClient.ensureQueryData(settingsQueryOptions());
+    const months = await context.queryClient.ensureQueryData(
+      monthlyFlowQuery(settings.reportingCurrency),
+    );
+    const current = resolvePeriodKey(undefined);
+    const latest = months.findLast((month) => month.coverage !== "missing")?.month;
+    if (latest && latest < `${current.year}-${String(current.month).padStart(2, "0")}`)
+      throw redirect({
+        href: `${location.pathname}${defaultStringifySearch({ ...location.search, period: latest })}`,
+      });
+  },
+  loader: async ({ context }) => {
+    const settings = await context.queryClient.ensureQueryData(settingsQueryOptions());
+    await Promise.all([
+      context.queryClient.ensureQueryData(monthlyFlowQuery(settings.reportingCurrency)),
+      context.queryClient.ensureQueryData(questionsQuery(settings.reportingCurrency)),
+    ]);
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "ironcage" },
-      {
-        name: "description",
-        content: "Your bank history, with the evidence behind every transaction.",
-      },
+      { title: "Ironcage" },
+      { name: "description", content: "Where your money came from, where it went, and why." },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
   shellComponent: RootDocument,
+  component: Layout,
   errorComponent: RouteError,
 });
 
-const navigation = [
-  { to: "/", label: "Home", icon: House, exact: true },
-  { to: "/overview", label: "Overview", icon: House },
-  { to: "/trends", label: "Trends", icon: List },
-  { to: "/imports", label: "Imports", icon: Upload },
-  { to: "/transactions", label: "Transactions", icon: List },
-  { to: "/review", label: "Review", icon: ClipboardCheck },
-  { to: "/settings", label: "Settings", icon: Settings },
-] as const;
+function Layout() {
+  const { data: settings } = useSuspenseQuery(settingsQueryOptions());
+  const months = useQuery(monthlyFlowQuery(settings.reportingCurrency)).data ?? [];
+  const questions = useQuery(questionsQuery(settings.reportingCurrency)).data ?? [];
+  const period = resolvePeriodKey(Route.useSearch().period);
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const showStrip = readsPeriod(pathname);
+  return (
+    <>
+      <a
+        href="#main"
+        className="sr-only rounded-md bg-sheet p-3 focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50"
+      >
+        Skip to content
+      </a>
+      <TopBar questionCount={questions.length} />
+      {showStrip && months.length > 0 && <PeriodStrip months={months} period={period} />}
+      <main id="main" className="mx-auto max-w-[1280px] px-5 py-8 md:px-8 md:py-10">
+        <Outlet />
+      </main>
+    </>
+  );
+}
 
 function RootDocument({ children }: { readonly children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en-AU">
       <head>
         <HeadContent />
       </head>
       <body>
-        <a
-          href="#main"
-          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-3"
-        >
-          Skip to content
-        </a>
-        <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
-          <aside className="flex flex-col border-b bg-secondary p-5 md:border-r md:border-b-0">
-            <Link to="/" className="mb-7 text-2xl font-semibold tracking-tight text-foreground">
-              [ ] ironcage
-            </Link>
-            <nav aria-label="Main navigation">
-              {navigation.map(({ to, label, icon: Icon, ...item }) => (
-                <Link
-                  key={to}
-                  to={to}
-                  className="flex items-center gap-3 rounded-md px-3 py-2"
-                  activeProps={{ className: "bg-accent text-primary" }}
-                  activeOptions={{ exact: "exact" in item }}
-                >
-                  <Icon className="size-5" />
-                  {label}
-                </Link>
-              ))}
-            </nav>
-            <p className="mt-auto hidden pt-10 text-xs text-muted-foreground md:block">
-              <LockKeyhole className="mb-2 size-4" />
-              Private financial workspace
-            </p>
-          </aside>
-          <main id="main" className="min-w-0 p-5 md:p-9 lg:p-12">
-            {children}
-          </main>
-        </div>
+        {children}
         <Scripts />
       </body>
     </html>

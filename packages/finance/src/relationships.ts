@@ -117,6 +117,7 @@ export const joinedMovement = Effect.fn("joinedMovement")(function* ({
   return {
     ...event,
     kind,
+    roleSource: "link",
     primaryPostingId: primary.id,
     reportingAccountId,
     purchaseOn: null,
@@ -127,7 +128,7 @@ export const joinedMovement = Effect.fn("joinedMovement")(function* ({
         ...event.allocations[0],
         role: allocationRole(kind),
         categoryId: null,
-        merchantId: null,
+        categorySource: null,
         nonPersonal: false,
       },
     ],

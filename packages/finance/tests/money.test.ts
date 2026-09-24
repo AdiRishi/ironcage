@@ -1,7 +1,7 @@
 import { expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 
-import { formatDecimal, formatMoney, parseMoney } from "../src/money.ts";
+import { formatCurrency, formatDecimal, formatMoney, parseMoney } from "../src/money.ts";
 
 it.effect("keeps decimal amounts exact beyond JavaScript's safe integer range", () =>
   Effect.gen(function* () {
@@ -27,4 +27,13 @@ it("formats editable amounts using the currency's exponent", () => {
   expect(formatDecimal({ currency: "JPY", minor: 125n })).toBe("125");
   expect(formatDecimal({ currency: "KWD", minor: -125n })).toBe("-0.125");
   expect(formatDecimal({ currency: "AUD", minor: 9007199254740993n })).toBe("90071992547409.93");
+});
+
+it("formats currency for reading, with cents or rounded to whole units", () => {
+  expect(formatCurrency({ currency: "AUD", minor: 638045n })).toBe("$6,380.45");
+  expect(formatCurrency({ currency: "AUD", minor: 638050n }, { cents: false })).toBe("$6,381");
+  expect(formatCurrency({ currency: "AUD", minor: -1999n })).toBe("−$19.99");
+  expect(formatCurrency({ currency: "AUD", minor: 9007199254740993n }, { cents: false })).toBe(
+    "$90,071,992,547,410",
+  );
 });

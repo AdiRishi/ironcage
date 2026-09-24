@@ -14,8 +14,8 @@ import { Accounts } from "../../src/accounts/service.ts";
 
 export const reset = Effect.gen(function* () {
   const sql = yield* PgClient.PgClient;
-  yield* sql`TRUNCATE saved_analyses, classification_runs, rules, command_receipts, review_items, source_coverage, observations, postings, imports, source_files, accounts, exports, model_usage CASCADE`;
-  yield* sql`UPDATE classification_settings SET enabled=false,warning_minor=500,version=1 WHERE id=1`;
+  yield* sql`TRUNCATE rules, command_receipts, review_items, source_coverage, observations, postings, imports, source_files, accounts, exports, model_usage, counterparties, enrichment_runs, category_proposals CASCADE`;
+  yield* sql`UPDATE enrichment_settings SET enabled = true, warning_minor = 2000, auto_apply_confidence = 0.8, version = 1 WHERE id = 1`;
 });
 export const account = Effect.fn("fixtureAccount")(function* () {
   const accounts = yield* Accounts;
@@ -60,6 +60,31 @@ export const parsed = (descriptions: ReadonlyArray<string>): ParsedFile => ({
       valueOn: null,
       amount: { currency: "AUD", minor: -450n },
       description,
+      bankId: null,
+      balance: null,
+      originalMoney: null,
+    },
+  })),
+});
+export const parsedRows = (
+  rows: ReadonlyArray<{ description: string; postedOn: string; minor: bigint }>,
+): ParsedFile => ({
+  ...parsed([]),
+  observations: rows.map((row, index) => ({
+    locatorKey: `csvLine:${index + 1}`,
+    locator: { kind: "csvLine", line: index + 1 },
+    raw: {
+      date: row.postedOn,
+      amount: row.minor.toString(),
+      description: row.description,
+      balance: "",
+    },
+    issue: null,
+    candidate: {
+      postedOn: CalendarDate.make(row.postedOn),
+      valueOn: null,
+      amount: { currency: "AUD", minor: row.minor },
+      description: row.description,
       bankId: null,
       balance: null,
       originalMoney: null,

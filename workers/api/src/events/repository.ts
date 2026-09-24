@@ -16,7 +16,8 @@ export const readEvents = Effect.fn("readEvents")(function* (
   if (eventIds.length === 0) return [];
   const sql = yield* PgClient.PgClient;
   const events =
-    yield* sql`SELECT id, kind, ${money(sql, "currency", "magnitude_minor")} AS magnitude,
+    yield* sql`SELECT id, kind, role_source AS "roleSource", counterparty_id AS "counterpartyId",
+    counterparty_source AS "counterpartySource", ${money(sql, "currency", "magnitude_minor")} AS magnitude,
     primary_posting_id AS "primaryPostingId", reporting_account_id AS "reportingAccountId",
     purchase_on::text AS "purchaseOn", active, version FROM events WHERE id = ANY(${eventIds}::uuid[])`.pipe(
       Effect.flatMap(
@@ -31,7 +32,7 @@ export const readEvents = Effect.fn("readEvents")(function* (
     );
   const allocations =
     yield* sql`SELECT al.event_id AS "eventId", al.id, al.role, ${money(sql, "e.currency", "al.amount_minor")} AS amount,
-    al.category_id AS "categoryId", al.merchant_id AS "merchantId", al.non_personal AS "nonPersonal",
+    al.category_id AS "categoryId", al.category_source AS "categorySource", al.non_personal AS "nonPersonal",
     ARRAY(SELECT tag_id FROM allocation_tags WHERE allocation_id = al.id ORDER BY tag_id) AS "tagIds",
     ARRAY(SELECT personal_event_id FROM allocation_personal_events WHERE allocation_id = al.id ORDER BY personal_event_id) AS "personalEventIds"
     FROM allocations al JOIN events e ON e.id = al.event_id WHERE al.event_id = ANY(${eventIds}::uuid[]) ORDER BY al.id`.pipe(

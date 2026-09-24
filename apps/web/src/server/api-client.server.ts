@@ -1,3 +1,4 @@
+import { FinanceError } from "@repo/contracts/finance";
 import type { Api } from "@repo/infra/api";
 import { getRequest } from "@tanstack/react-start/server";
 import { makeRpcStub, type RpcCallError } from "alchemy/Cloudflare/Bridge";
@@ -8,15 +9,6 @@ import { runApiRequest } from "./api-request";
 
 type ApiMethods = Pick<
   Api,
-  | "saveAnalysis"
-  | "getAnalysis"
-  | "listAnalyses"
-  | "renameAnalysis"
-  | "deleteAnalysis"
-  | "overview"
-  | "compare"
-  | "contributors"
-  | "rows"
   | "getEventRelationships"
   | "listRelationshipCandidates"
   | "previewRelationship"
@@ -32,14 +24,23 @@ type ApiMethods = Pick<
   | "previewRule"
   | "saveRule"
   | "deleteRule"
-  | "getCategorySuggestion"
-  | "getClassificationSettings"
-  | "listClassificationRuns"
-  | "listSuggestions"
-  | "updateClassificationSettings"
-  | "suggestCategories"
-  | "acceptSuggestions"
-  | "interpretPostings"
+  | "reinterpretPostings"
+  | "listCounterparties"
+  | "getCounterparty"
+  | "saveCounterparty"
+  | "mergeCounterparties"
+  | "moveAlias"
+  | "assignEventCounterparty"
+  | "listQuestions"
+  | "getPeriodFlow"
+  | "getMonthlyFlow"
+  | "getSpending"
+  | "getEnrichmentSettings"
+  | "updateEnrichmentSettings"
+  | "requestEnrichment"
+  | "listEnrichmentRuns"
+  | "listCategoryProposals"
+  | "resolveCategoryProposal"
   | "previewCorrection"
   | "applyCorrection"
   | "undoCorrection"
@@ -60,7 +61,7 @@ type ApiMethods = Pick<
   | "listAccounts"
   | "createAccount"
   | "updateAccount"
-  | "listPostings"
+  | "listLedger"
   | "getPosting"
   | "listImports"
   | "getImport"
@@ -87,6 +88,8 @@ export const fetchApi = (path: string, init?: RequestInit) =>
 
 export const callApiRpc = <A, E>(use: (client: ApiClient) => Effect.Effect<A, E>): Promise<A> =>
   runApiRequest(
-    Effect.suspend(() => use(makeRpcStub<ApiClient>(env.API))).pipe(Effect.timeout("10 seconds")),
+    Effect.suspend(() => use(makeRpcStub<ApiClient>(env.API, { errors: [FinanceError] }))).pipe(
+      Effect.timeout("10 seconds"),
+    ),
     getRequest().signal,
   );

@@ -68,7 +68,7 @@ export const applyAssignments = Effect.fn("applyAssignments")(function* (
   // A relinked row keeps its original `created` flag so republishing after a review
   // preserves the import's new and matched counts.
   if (links.length > 0)
-    yield* sql`UPDATE observations o SET posting_id = x."postingId"::uuid, candidate = x.candidate, match_method = x.method, match_evidence = jsonb_build_object('postedOn', x.candidate->'postedOn', 'amount', x.candidate->'amount', 'bankId', x.candidate->'bankId', 'created', CASE WHEN o.posting_id IS NULL THEN x.created ELSE (o.match_evidence->>'created')::boolean END) FROM jsonb_to_recordset(${sql.json({ rows: links })}::jsonb->'rows') AS x(id text, "postingId" text, method text, created boolean, candidate jsonb) WHERE o.id = x.id::uuid`;
+    yield* sql`UPDATE observations o SET posting_id = x."postingId"::uuid, candidate = x.candidate, match_method = x.method, match_evidence = jsonb_build_object('postedOn', x.candidate->'postedOn', 'amount', x.candidate->'amount', 'bankId', x.candidate->'bankId', 'created', CASE WHEN o.posting_id IS NULL THEN x.created ELSE (o.match_evidence->>'created')::boolean END) FROM jsonb_to_recordset(${sql.json(links)}) AS x(id text, "postingId" text, method text, created boolean, candidate jsonb) WHERE o.id = x.id::uuid`;
   // The latest accepted review wins across sources, including later reparses.
   // Unreviewed display fields prefer OFX over CSV over PDF wording.
   if (affected.size > 0)

@@ -2,7 +2,6 @@ import { CommandId, ResolveReview, type ReviewItem } from "@repo/contracts/finan
 import { useQueryClient } from "@tanstack/react-query";
 import { Effect, Schema } from "effect";
 
-import { invalidatePublishedRecords } from "@/lib/invalidate-records";
 import { useCommand } from "@/lib/use-command";
 
 import { resolveReview } from "./functions";
@@ -12,7 +11,7 @@ export function useResolution(review: ReviewItem) {
   const { mutation, submit, retry, uncertain } = useCommand({
     mutationFn: async (data: typeof ResolveReview.Type) =>
       resolveReview({ data: await Effect.runPromise(Schema.encodeEffect(ResolveReview)(data)) }),
-    onSuccess: () => invalidatePublishedRecords(client),
+    onSuccess: () => client.invalidateQueries(),
   });
   return {
     mutation,

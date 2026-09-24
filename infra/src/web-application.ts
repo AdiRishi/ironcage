@@ -18,11 +18,11 @@ export const webApplication = Effect.fn("ApplicationPlatform.WebApplication")(fu
         type: "self_hosted",
         domain: Effect.succeed(config.web.domain ?? undefined),
         policies: [
-          { decision: "allow", include: [{ email: yield* Config.string("ACCESS_EMAIL") }] },
+          { decision: "allow", include: [{ email: yield* Config.String("ACCESS_EMAIL") }] },
         ],
         sessionDuration: "24h",
       });
-  const issuer = dev ? "" : yield* Config.string("ACCESS_ISSUER");
+  const issuer = dev ? "" : yield* Config.String("ACCESS_ISSUER");
   return yield* Cloudflare.Website.Vite("WebApplication", {
     rootDir: "../apps/web",
     main: "src/worker.ts",

@@ -1,0 +1,70 @@
+diff --git a/lib/Docker/Container.js b/lib/Docker/Container.js
+index eda60bf..e663ab9 100644
+--- a/lib/Docker/Container.js
++++ b/lib/Docker/Container.js
+@@ -185,7 +185,7 @@ export const ContainerProvider = () => Provider.effect(Container, Effect.gen(fun
+     return Container.Provider.of({
+         list: () => Effect.succeed([]),
+         read: Effect.fn(function* ({ id, instanceId, olds, output }) {
+-            const context = dockerContextName(olds.context);
++            const context = dockerContextName(olds?.context);
+             const name = yield* dockerPhysicalName(id, olds, instanceId);
+             const info = yield* docker.container
+                 .inspect(name, context)
+@@ -195,7 +195,7 @@ export const ContainerProvider = () => Provider.effect(Container, Effect.gen(fun
+             // `olds.image` may be `undefined` when a `creating` row was
+             // persisted before upstream Outputs resolved — fall back to the
+             // live container's actual image.
+-            const attrs = toContainerAttributes(info, olds.image !== undefined
++            const attrs = toContainerAttributes(info, olds?.image !== undefined
+                 ? normalizeImageRef(olds.image)
+                 : info.Config.Image);
+             if (output)
+diff --git a/lib/Docker/Volume.js b/lib/Docker/Volume.js
+index a70f35d..8dafc34 100644
+--- a/lib/Docker/Volume.js
++++ b/lib/Docker/Volume.js
+@@ -58,7 +58,7 @@ export const VolumeProvider = () => Provider.effect(Volume, Effect.gen(function*
+     return Volume.Provider.of({
+         list: () => Effect.succeed([]),
+         read: Effect.fn(function* ({ id, instanceId, olds, output }) {
+-            const context = dockerContextName(olds.context);
++            const context = dockerContextName(olds?.context);
+             const name = yield* dockerPhysicalName(id, olds, instanceId);
+             const info = yield* docker.volume
+                 .inspect(name, context)
+diff --git a/src/Docker/Container.ts b/src/Docker/Container.ts
+index 366e659..9dc9489 100644
+--- a/src/Docker/Container.ts
++++ b/src/Docker/Container.ts
+@@ -348,7 +348,7 @@ export const ContainerProvider = () =>
+       return Container.Provider.of({
+         list: () => Effect.succeed([]),
+         read: Effect.fn(function* ({ id, instanceId, olds, output }) {
+-          const context = dockerContextName(olds.context);
++          const context = dockerContextName(olds?.context);
+           const name = yield* dockerPhysicalName(id, olds, instanceId);
+           const info = yield* docker.container
+             .inspect(name, context)
+@@ -365,7 +365,7 @@ export const ContainerProvider = () =>
+           // live container's actual image.
+           const attrs = toContainerAttributes(
+             info,
+-            olds.image !== undefined
++            olds?.image !== undefined
+               ? normalizeImageRef(olds.image)
+               : info.Config.Image,
+           );
+diff --git a/src/Docker/Volume.ts b/src/Docker/Volume.ts
+index 560ceb5..01cfd4a 100644
+--- a/src/Docker/Volume.ts
++++ b/src/Docker/Volume.ts
+@@ -116,7 +116,7 @@ export const VolumeProvider = () =>
+       return Volume.Provider.of({
+         list: () => Effect.succeed([]),
+         read: Effect.fn(function* ({ id, instanceId, olds, output }) {
+-          const context = dockerContextName(olds.context);
++          const context = dockerContextName(olds?.context);
+           const name = yield* dockerPhysicalName(id, olds, instanceId);
+           const info = yield* docker.volume
+             .inspect(name, context)

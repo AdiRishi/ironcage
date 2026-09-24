@@ -2,6 +2,17 @@ import { Schema } from "effect";
 
 import { Instant, Money } from "./values.ts";
 
+// The Workers AI model that identifies counterparties.
+export const enrichmentModel = "@cf/zai-org/glm-5.3-flash";
+
+export const ModelProvider = Schema.Struct({
+  name: Schema.String,
+  model: Schema.String,
+  inputMicrousdPerMillion: Schema.BigIntFromString,
+  cachedInputMicrousdPerMillion: Schema.BigIntFromString,
+  outputMicrousdPerMillion: Schema.BigIntFromString,
+});
+export type ModelProvider = typeof ModelProvider.Type;
 export const ModelUsage = Schema.Struct({
   calls: Schema.Int,
   inputTokens: Schema.BigIntFromString,

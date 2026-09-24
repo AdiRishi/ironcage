@@ -16,13 +16,11 @@
   "dependencies": {
     "@repo/contracts": "workspace:*",
     "@repo/finance": "workspace:*",
-    "ai": "7.0.99",
     "alchemy": "catalog:",
     "csv-parse": "catalog:",
     "effect": "catalog:",
     "ofx-js": "catalog:",
-    "unpdf": "catalog:",
-    "workers-ai-provider": "4.0.0"
+    "unpdf": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",

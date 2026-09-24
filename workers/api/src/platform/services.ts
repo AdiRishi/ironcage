@@ -1,4 +1,10 @@
-import { ExportId, FinanceError, ImportId } from "@repo/contracts/finance";
+import {
+  EnrichmentRunId,
+  ExportId,
+  FinanceError,
+  ImportId,
+  type ModelProvider,
+} from "@repo/contracts/finance";
 import type { ReadWriteBucketClient } from "alchemy/Cloudflare/R2";
 import { RuntimeContext } from "alchemy/RuntimeContext";
 import { Context, Effect, Layer } from "effect";
@@ -60,15 +66,14 @@ export const ensureWorkflowStatus = Effect.fn("ensureWorkflowStatus")(
     () => Effect.succeed(null),
   ),
 );
-const jobService = <Start>(client: JobClient<Start>) =>
-  Effect.gen(function* () {
-    const runtime = yield* RuntimeContext;
-    const provide = Effect.provideService(RuntimeContext, runtime);
-    return {
-      start: (input: Start) => client.start(input).pipe(provide),
-      status: (input: { instanceId: string }) => client.status(input).pipe(provide),
-    };
-  });
+const jobService = Effect.fnUntraced(function* <Start>(client: JobClient<Start>) {
+  const runtime = yield* RuntimeContext;
+  const provide = Effect.provideService(RuntimeContext, runtime);
+  return {
+    start: (input: Start) => client.start(input).pipe(provide),
+    status: (input: { instanceId: string }) => client.status(input).pipe(provide),
+  };
+});
 
 export class ImportJobs extends Context.Service<
   ImportJobs,
@@ -89,17 +94,15 @@ export class ExportJobs extends Context.Service<
     Layer.effect(ExportJobs, jobService(client));
 }
 
-export class ClassificationJobs extends Context.Service<
-  ClassificationJobs,
-  Effect.Success<
-    ReturnType<
-      typeof jobService<{
-        runId: typeof import("@repo/contracts/finance").ClassificationRunId.Type;
-      }>
-    >
-  >
->()("@repo/api/platform/ClassificationJobs") {
-  static readonly layer = (
-    client: JobClient<{ runId: typeof import("@repo/contracts/finance").ClassificationRunId.Type }>,
-  ) => Layer.effect(ClassificationJobs, jobService(client));
+export class EnrichmentJobs extends Context.Service<
+  EnrichmentJobs,
+  Effect.Success<ReturnType<typeof jobService<{ runId: typeof EnrichmentRunId.Type }>>>
+>()("@repo/api/platform/EnrichmentJobs") {
+  static readonly layer = (client: JobClient<{ runId: typeof EnrichmentRunId.Type }>) =>
+    Layer.effect(EnrichmentJobs, jobService(client));
 }
+
+export class EnrichmentConfig extends Context.Service<
+  EnrichmentConfig,
+  { readonly provider: ModelProvider }
+>()("@repo/api/platform/EnrichmentConfig") {}

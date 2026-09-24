@@ -1,13 +1,13 @@
 import * as Cloudflare from "alchemy/Cloudflare";
 import { Effect } from "effect";
 
-import { runClassification } from "../../workers/processor/src/classification/workflow.ts";
+import { runEnrichment } from "../../workers/processor/src/enrichment/workflow.ts";
 import { runExport } from "../../workers/processor/src/exports/workflow.ts";
 import { runImport } from "../../workers/processor/src/imports/workflow.ts";
 import { processor } from "../../workers/processor/src/index.ts";
 import { Api, financialStorage } from "./api.ts";
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
-import { classificationBindings, processorBindings } from "./worker-bindings.ts";
+import { enrichmentBindings, processorBindings } from "./worker-bindings.ts";
 
 export class ImportWorkflow extends Cloudflare.Workflow<ImportWorkflow>()(
   "ImportWorkflow",
@@ -26,13 +26,10 @@ export class ExportWorkflow extends Cloudflare.Workflow<ExportWorkflow>()(
   }),
 ) {}
 
-export class ClassificationWorkflow extends Cloudflare.Workflow<ClassificationWorkflow>()(
-  "ClassificationWorkflow",
+export class EnrichmentWorkflow extends Cloudflare.Workflow<EnrichmentWorkflow>()(
+  "EnrichmentWorkflow",
   Effect.gen(function* () {
-    return runClassification(
-      yield* Cloudflare.Workers.bindWorker(Api),
-      yield* classificationBindings(),
-    );
+    return runEnrichment(yield* Cloudflare.Workers.bindWorker(Api), yield* enrichmentBindings());
   }).pipe(Effect.provide(Cloudflare.AI.QueryGatewayBinding)),
 ) {}
 
@@ -44,8 +41,8 @@ export class Processor extends Cloudflare.Worker<
     | "startImport"
     | "startExport"
     | "getExportInstance"
-    | "startClassification"
-    | "getClassificationInstance"
+    | "startEnrichment"
+    | "getEnrichmentInstance"
   >
 >()("ProcessorWorker") {}
 

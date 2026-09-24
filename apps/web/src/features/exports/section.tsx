@@ -23,10 +23,10 @@ export function ExportsSection({ timezone }: { timezone: string }) {
     onSubmit: ({ value }) => submit({ ...value, commandId: CommandId.make(crypto.randomUUID()) }),
   });
   return (
-    <section className="space-y-5 rounded-lg border p-5 sm:p-6">
+    <section className="space-y-5 rounded-lg border border-rule bg-sheet p-5">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold">Export your data</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="type-heading">Export your data</h2>
+        <p className="type-small text-slate">
           Download every record as JSON with a manifest. Downloads expire after seven days.
         </p>
       </div>
@@ -73,11 +73,11 @@ export function ExportsSection({ timezone }: { timezone: string }) {
                       timeZone: timezone,
                     }).format(new Date(item.requestedAt))}
                   </p>
-                  <p className="text-muted-foreground">
+                  <p className="text-slate">
                     {item.includeSources ? "Records and original files" : "Records only"}
                   </p>
                   {item.manifest && (
-                    <p className="text-muted-foreground">
+                    <p className="text-slate">
                       {item.manifest.tables.length} tables ·{" "}
                       {item.manifest.tables
                         .reduce((total, table) => total + table.count, 0)
@@ -100,7 +100,7 @@ export function ExportsSection({ timezone }: { timezone: string }) {
                     Download ZIP
                   </a>
                 ) : (
-                  <output className="text-sm text-muted-foreground">
+                  <output className="type-small text-slate">
                     {expired ? "Expired" : item.status === "processing" ? "Preparing…" : "Failed"}
                   </output>
                 )}

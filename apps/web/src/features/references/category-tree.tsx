@@ -1,6 +1,7 @@
 import type { CategoryId, ReferenceData } from "@repo/contracts/finance";
 
 import { Button } from "@/components/ui/button";
+import { categoryColor } from "@/lib/category-colors";
 
 type Category = (typeof ReferenceData.Type)["categories"][number];
 type Props = {
@@ -15,22 +16,40 @@ export function CategoryTree({ categories, parentId = null, onEdit, onDelete, di
   const children = categories.filter((category) => category.parentId === parentId);
   if (children.length === 0) return null;
   return (
-    <ul className={parentId ? "ml-4 border-l pl-3" : "rounded-lg border p-3"}>
+    <ul
+      className={
+        parentId
+          ? "mb-1 ml-5 border-l border-rule pl-4"
+          : "divide-y divide-rule border-y border-rule"
+      }
+    >
       {children.map((category) => (
-        <li key={category.id}>
-          <div className="flex flex-wrap items-center justify-between gap-2 py-2">
-            <span className="font-medium">
-              {category.name}
-              {category.archived && " · Archived"}
+        <li key={category.id} className={parentId ? "" : "py-1"}>
+          <div className="flex items-center justify-between gap-3 py-1.5">
+            <span className="flex min-w-0 items-center gap-2">
+              {!parentId && (
+                <span
+                  aria-hidden
+                  className="size-2.5 shrink-0 rounded-[3px]"
+                  style={{ background: categoryColor(category.slug) }}
+                />
+              )}
+              <span className={parentId ? "truncate" : "truncate font-[600]"}>{category.name}</span>
+              {category.archived && <span className="type-small text-slate">Archived</span>}
             </span>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => onEdit(category)}>
-                Edit {category.name}
+            <span className="flex shrink-0 gap-1">
+              <Button variant="ghost" size="sm" onClick={() => onEdit(category)}>
+                Edit<span className="sr-only"> {category.name}</span>
               </Button>
-              <Button variant="ghost" disabled={disabled} onClick={() => onDelete(category)}>
-                Delete {category.name}
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={disabled}
+                onClick={() => onDelete(category)}
+              >
+                Delete<span className="sr-only"> {category.name}</span>
               </Button>
-            </div>
+            </span>
           </div>
           <CategoryTree
             categories={categories}

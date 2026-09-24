@@ -1,5 +1,5 @@
 import type { MeasureImpact } from "@repo/contracts/finance";
-import { formatMoney } from "@repo/finance";
+import { formatCurrency } from "@repo/finance";
 import { Record } from "effect";
 
 import {
@@ -22,9 +22,12 @@ const measures = {
 } as const;
 export function ImpactTable({ impact }: { impact: typeof MeasureImpact.Type }) {
   return (
-    <section className="space-y-3 rounded-lg border p-4" aria-label="Financial impact">
+    <section
+      className="space-y-3 rounded-lg border border-rule bg-sheet p-4"
+      aria-label="Financial impact"
+    >
       <h3 className="font-semibold">Effect on {impact.start.slice(0, 7)}</h3>
-      <p className="text-sm text-muted-foreground">
+      <p className="type-small text-slate">
         Posted basis · {impact.currency} · All {impact.accountIds.length} accounts · Calculated{" "}
         {impact.calculatedAt}
       </p>
@@ -44,11 +47,11 @@ export function ImpactTable({ impact }: { impact: typeof MeasureImpact.Type }) {
             return (
               <TableRow key={key}>
                 <TableCell>{label}</TableCell>
-                <TableCell>{before ? formatMoney(before) : "Incomplete coverage"}</TableCell>
-                <TableCell>{after ? formatMoney(after) : "Incomplete coverage"}</TableCell>
+                <TableCell>{before ? formatCurrency(before) : "Incomplete coverage"}</TableCell>
+                <TableCell>{after ? formatCurrency(after) : "Incomplete coverage"}</TableCell>
                 <TableCell>
                   {before && after
-                    ? formatMoney({ ...after, minor: after.minor - before.minor })
+                    ? formatCurrency({ ...after, minor: after.minor - before.minor })
                     : "Unavailable"}
                 </TableCell>
               </TableRow>
@@ -57,12 +60,12 @@ export function ImpactTable({ impact }: { impact: typeof MeasureImpact.Type }) {
         </TableBody>
       </Table>
       {impact.after.unresolvedCount > 0 && (
-        <p className="text-sm text-muted-foreground">
+        <p className="type-small text-slate">
           {impact.after.unresolvedCount} unresolved events may change these totals.
         </p>
       )}
-      <p className="text-sm text-muted-foreground">
-        Observed deposit movement: {formatMoney(impact.after.observedCashMovement)}. Bank records
+      <p className="type-small text-slate">
+        Observed deposit movement: {formatCurrency(impact.after.observedCashMovement)}. Bank records
         stay unchanged.
       </p>
     </section>

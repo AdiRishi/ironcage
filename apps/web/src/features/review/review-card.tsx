@@ -22,10 +22,10 @@ export function ReviewCard({ review }: { review: ReviewItem }) {
   const { mutation, submit, retry, uncertain, refresh } = useResolution(review);
   const blocked = mutation.isPending || uncertain;
   return (
-    <section className="space-y-5 rounded-lg border p-5 sm:p-6">
+    <article className="space-y-5 rounded-lg border border-rule bg-sheet p-5">
       <header>
-        <p className="text-sm break-all text-muted-foreground">{review.fileName}</p>
-        <h2 className="mt-2 text-lg font-semibold">{review.question.message}</h2>
+        <p className="type-small break-all text-slate">{review.fileName}</p>
+        <h3 className="mt-1 font-[600]">{review.question.message}</h3>
       </header>
       {review.kind === "account" ? (
         <AccountChoice
@@ -68,7 +68,7 @@ export function ReviewCard({ review }: { review: ReviewItem }) {
           </AlertAction>
         </Alert>
       )}
-    </section>
+    </article>
   );
 }
 function AccountChoice({

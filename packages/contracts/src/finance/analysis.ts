@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 
 import { Account } from "./accounts.ts";
-import { AccountId, CalendarDate, Currency, Instant, Money } from "./values.ts";
+import { CalendarDate, Instant } from "./values.ts";
 
 export const Period = Schema.Struct({ start: CalendarDate, endExclusive: CalendarDate }).check(
   Schema.makeFilter(
@@ -27,14 +27,14 @@ export const PeriodSelection = Schema.Union([
 ]);
 export type PeriodSelection = typeof PeriodSelection.Type;
 export const DateBasis = Schema.Literals(["posted", "spending"]);
-export const OverviewInput = Schema.Struct({
-  period: PeriodSelection,
-  basis: DateBasis,
-  currency: Currency,
-  accounts: Schema.Array(AccountId),
-});
-export type OverviewInput = typeof OverviewInput.Type;
-export const DecimalMoney = Schema.Struct({ currency: Currency, value: Schema.String });
+export const ComparisonSelection = Schema.Union([
+  Schema.Struct({ kind: Schema.Literals(["previous", "previousYear"]) }),
+  Schema.Struct({ kind: Schema.Literal("fixed"), ...Period.fields }).check(
+    Schema.makeFilter(
+      (value) => value.start < value.endExclusive || "The comparison must end after it starts.",
+    ),
+  ),
+]);
 export const AccountCoverage = Schema.Struct({
   account: Schema.Struct({
     id: Account.fields.id,
@@ -48,34 +48,3 @@ export const AccountCoverage = Schema.Struct({
   latestImportAt: Schema.NullOr(Instant),
 });
 export type AccountCoverage = typeof AccountCoverage.Type;
-export const ResultCoverage = Schema.Struct({
-  accounts: Schema.Array(AccountCoverage),
-  unresolvedCount: Schema.Int,
-  unresolvedAmount: Money,
-  unlinkedCredits: Money,
-});
-export const LoanMeasure = Schema.Struct({
-  accountId: AccountId,
-  label: Schema.String,
-  repayments: Money,
-  financingCosts: Money,
-  netPrincipalReduction: Schema.NullOr(Money),
-});
-export const OverviewResult = Schema.Struct({
-  period: Period,
-  basis: DateBasis,
-  currency: Currency,
-  accountIds: Schema.Array(AccountId),
-  calculatedAt: Instant,
-  calculationVersion: Schema.String,
-  coverage: ResultCoverage,
-  grossCosts: Money,
-  netPersonalCosts: Money,
-  income: Money,
-  surplus: Money,
-  surplusRate: Schema.NullOr(Schema.String),
-  cashBalanceChange: Schema.NullOr(Money),
-  purchaseCount: Schema.Int,
-  loans: Schema.Array(LoanMeasure),
-});
-export type OverviewResult = typeof OverviewResult.Type;

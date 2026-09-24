@@ -1,7 +1,11 @@
 import { PgClient } from "@effect/sql-pg";
 import {
+  CalendarDate,
   FinanceError,
+  LedgerPage,
+  LedgerRow,
   ListPostings,
+  PostingId,
   Posting,
   PostingDetail,
   PostingInput,
@@ -19,6 +23,9 @@ export class Postings extends Context.Service<
     readonly list: (
       input: typeof ListPostings.Type,
     ) => Effect.Effect<typeof PostingPage.Type, FinanceError>;
+    readonly ledger: (
+      input: typeof ListPostings.Type,
+    ) => Effect.Effect<typeof LedgerPage.Type, FinanceError>;
     readonly get: (
       input: typeof PostingInput.Type,
     ) => Effect.Effect<typeof PostingDetail.Type, FinanceError>;
@@ -29,10 +36,7 @@ export class Postings extends Context.Service<
     Effect.gen(function* () {
       const sql = yield* PgClient.PgClient;
       const fields = postingFields(sql);
-      const list = Effect.fn("Postings.list")(function* ({
-        filter,
-        cursor,
-      }: typeof ListPostings.Type) {
+      const predicatesFor = ({ filter, cursor }: typeof ListPostings.Type) => {
         const predicates = [sql`true`];
         if (filter.role)
           predicates.push(
@@ -40,14 +44,17 @@ export class Postings extends Context.Service<
           );
         if (filter.interpretationReview !== undefined)
           predicates.push(
-            sql`EXISTS (SELECT 1 FROM review_items r JOIN event_postings ep ON ep.event_id = ANY(r.event_ids) WHERE ep.posting_id = p.id AND ep.active AND r.resolved_at IS NULL) = ${filter.interpretationReview}`,
+            sql`EXISTS (SELECT 1 FROM event_postings ep JOIN events e ON e.id = ep.event_id LEFT JOIN counterparties c ON c.id = e.counterparty_id WHERE ep.posting_id = p.id AND ep.active AND (e.kind = 'unresolved' OR c.status = 'proposed' OR (c.kind = 'person' AND c.default_role IS NULL))) = ${filter.interpretationReview}`,
+          );
+        if (filter.counterpartyId)
+          predicates.push(
+            sql`EXISTS (SELECT 1 FROM event_postings ep JOIN events e ON e.id = ep.event_id WHERE ep.posting_id = p.id AND ep.active AND e.counterparty_id = ${filter.counterpartyId})`,
           );
         const allocations = [sql`al.event_id = ep.event_id`];
         if (filter.categoryId)
           allocations.push(
             sql`al.category_id IN (WITH RECURSIVE tree AS (SELECT id FROM categories WHERE id = ${filter.categoryId} UNION ALL SELECT c.id FROM categories c JOIN tree ON c.parent_id = tree.id) SELECT id FROM tree)`,
           );
-        if (filter.merchantId) allocations.push(sql`al.merchant_id = ${filter.merchantId}`);
         if (filter.tagId)
           allocations.push(
             sql`EXISTS (SELECT 1 FROM allocation_tags at WHERE at.allocation_id = al.id AND at.tag_id = ${filter.tagId})`,
@@ -68,7 +75,7 @@ export class Postings extends Context.Service<
         if (filter.maximum) predicates.push(sql`p.amount_minor <= ${filter.maximum}::bigint`);
         if (filter.description)
           predicates.push(
-            sql`(strpos(lower(p.description), lower(${filter.description})) > 0 OR EXISTS (SELECT 1 FROM event_postings ep JOIN allocations al ON al.event_id = ep.event_id JOIN merchants m ON m.id = al.merchant_id WHERE ep.posting_id = p.id AND ep.active AND strpos(lower(m.name), lower(${filter.description})) > 0))`,
+            sql`(strpos(lower(p.description), lower(${filter.description})) > 0 OR EXISTS (SELECT 1 FROM event_postings ep JOIN events e ON e.id = ep.event_id JOIN counterparties c ON c.id = e.counterparty_id WHERE ep.posting_id = p.id AND ep.active AND strpos(lower(c.name), lower(${filter.description})) > 0))`,
           );
         if (filter.importId)
           predicates.push(
@@ -82,17 +89,58 @@ export class Postings extends Context.Service<
           predicates.push(
             sql`(p.posted_on, p.id) < (${cursor.postedOn}::date, ${cursor.id}::uuid)`,
           );
+        return predicates;
+      };
+      const page = <A extends { postedOn: string; id: string }>(rows: readonly A[]) => {
+        const shown = rows.slice(0, pageSize);
+        const last = shown.at(-1);
+        return {
+          rows: shown,
+          nextCursor:
+            rows.length > pageSize && last
+              ? { postedOn: CalendarDate.make(last.postedOn), id: PostingId.make(last.id) }
+              : null,
+        };
+      };
+      const list = Effect.fn("Postings.list")(function* (input: typeof ListPostings.Type) {
         const rows =
-          yield* sql`SELECT ${fields} FROM postings p JOIN accounts a ON a.id = p.account_id WHERE ${sql.and(predicates)} ORDER BY p.posted_on DESC, p.id DESC LIMIT ${pageSize + 1}`.pipe(
+          yield* sql`SELECT ${fields} FROM postings p JOIN accounts a ON a.id = p.account_id WHERE ${sql.and(predicatesFor(input))} ORDER BY p.posted_on DESC, p.id DESC LIMIT ${pageSize + 1}`.pipe(
             Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Posting))),
           );
-        const page = rows.slice(0, pageSize);
-        const last = page.at(-1);
-        return {
-          rows: page,
-          nextCursor:
-            rows.length > pageSize && last ? { postedOn: last.postedOn, id: last.id } : null,
-        };
+        return page(rows);
+      }, toFinanceError);
+      const ledger = Effect.fn("Postings.ledger")(function* (input: typeof ListPostings.Type) {
+        const rows =
+          yield* sql`SELECT ${fields}, x."eventId", x.role, x."counterpartyId", x."counterpartyName", x."categoryId",
+              x."categoryName", x."categorySlug", COALESCE(x.split, false) AS split,
+              CASE
+                WHEN x."eventId" IS NULL THEN 'none'
+                WHEN x.split OR x."roleSource" = 'user' OR x."categorySource" = 'user' THEN 'you'
+                WHEN x."roleSource" = 'rule' OR x."categorySource" = 'rule' THEN 'rule'
+                WHEN (x."roleSource" = 'counterparty' OR x."categorySource" = 'counterparty') AND x."counterpartySource" = 'model' THEN 'model'
+                WHEN x."roleSource" = 'counterparty' OR x."categorySource" = 'counterparty' THEN 'you'
+                WHEN x."roleSource" = 'bank' THEN 'bank'
+                ELSE 'none'
+              END AS "assignedBy",
+              COALESCE(x.question, false) AS question
+            FROM postings p JOIN accounts a ON a.id = p.account_id
+            LEFT JOIN LATERAL (
+              SELECT e.id AS "eventId", e.kind AS role, e.role_source AS "roleSource", c.id AS "counterpartyId",
+                c.name AS "counterpartyName", c.source AS "counterpartySource", al.category_id AS "categoryId",
+                k.name AS "categoryName", COALESCE(k.slug, parent.slug) AS "categorySlug", al.category_source AS "categorySource",
+                (SELECT count(*) FROM allocations x WHERE x.event_id = e.id) > 1 AS split,
+                (e.kind = 'unresolved' OR c.status = 'proposed' OR (c.kind = 'person' AND c.default_role IS NULL)) AS question
+              FROM event_postings ep JOIN events e ON e.id = ep.event_id AND e.active
+              LEFT JOIN counterparties c ON c.id = e.counterparty_id
+              LEFT JOIN LATERAL (SELECT * FROM allocations WHERE event_id = e.id ORDER BY id LIMIT 1) al ON true
+              LEFT JOIN categories k ON k.id = al.category_id
+              LEFT JOIN categories parent ON parent.id = k.parent_id
+              WHERE ep.posting_id = p.id AND ep.active LIMIT 1
+            ) x ON true
+            WHERE ${sql.and(predicatesFor(input))} ORDER BY p.posted_on DESC, p.id DESC LIMIT ${pageSize + 1}`.pipe(
+            Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(LedgerRow))),
+          );
+        return page(rows);
       }, toFinanceError);
       const get = Effect.fn("Postings.get")(function* ({ postingId }: typeof PostingInput.Type) {
         return yield* sql.withTransaction(
@@ -115,7 +163,7 @@ export class Postings extends Context.Service<
           }),
         );
       }, toFinanceError);
-      return Postings.of({ list, get });
+      return Postings.of({ list, ledger, get });
     }),
   );
 }

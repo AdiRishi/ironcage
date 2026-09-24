@@ -6,11 +6,11 @@ import { modelUsageQueryOptions } from "./queries";
 export function ModelUsageSection() {
   const { data } = useSuspenseQuery(modelUsageQueryOptions());
   return (
-    <section className="space-y-3 rounded-lg border p-5 sm:p-6">
-      <h2 className="text-xl font-semibold">Model usage</h2>
-      <p className="text-sm text-muted-foreground">
-        Statements use deterministic parsing. No pages are sent to a model provider. An unreadable
-        page goes to Review.
+    <section className="space-y-3">
+      <h2 className="type-heading">Model usage</h2>
+      <p className="type-small text-slate">
+        Only counterparty identification calls a model. Statements are parsed without one, and an
+        unreadable page becomes a question.
       </p>
       <p className="text-sm">
         {data.calls.toLocaleString()} calls · {data.inputTokens.toLocaleString()} input tokens ·{" "}
@@ -22,7 +22,7 @@ export function ModelUsageSection() {
         </p>
       ))}
       {data.unknownUsage > 0 && (
-        <p className="text-sm text-muted-foreground">
+        <p className="type-small text-slate">
           {data.unknownUsage} calls have incomplete usage reports.
         </p>
       )}

@@ -9,12 +9,15 @@
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",
+    "@repo/contracts": "workspace:*",
     "effect": "catalog:",
+    "pg": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {
     "@repo/tsconfig": "workspace:*",
     "@types/node": "catalog:",
+    "@types/pg": "catalog:",
     "typescript": "catalog:"
   }
 }

@@ -66,6 +66,6 @@ export const replaceQuestions = Effect.fn("replaceQuestions")(function* (
   yield* sql`DELETE FROM review_items WHERE import_id = ${importId} AND resolved_at IS NULL`;
   for (const item of questions) {
     const id = yield* crypto.randomUUIDv4;
-    yield* sql`INSERT INTO review_items (id, import_id, kind, observation_ids, question, candidates) VALUES (${id}, ${importId}, ${item.kind}, ARRAY(SELECT value::uuid FROM jsonb_array_elements_text(${sql.json({ ids: item.observationIds })}::jsonb->'ids')), ${sql.json(item.question)}, ${sql.json({ ids: item.postingIds })}::jsonb->'ids')`;
+    yield* sql`INSERT INTO review_items (id, import_id, kind, observation_ids, question, candidates) VALUES (${id}, ${importId}, ${item.kind}, ARRAY(SELECT value::uuid FROM jsonb_array_elements_text(${sql.json(item.observationIds)})), ${sql.json(item.question)}, ${sql.json(item.postingIds)})`;
   }
 });

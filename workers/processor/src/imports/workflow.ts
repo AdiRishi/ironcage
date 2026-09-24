@@ -46,8 +46,11 @@ export const runImport = (
           yield* api.publishImport({ importId: input.importId, ...result });
           return null;
         }).pipe(
+          // A FinanceError from the API arrives over RPC as a plain object, so it is
+          // matched by its fields rather than its class.
           Effect.catchIf(
-            (error) => Schema.is(FinanceError)(error) && error.kind !== "unavailable",
+            (error) =>
+              Schema.is(Schema.Struct(FinanceError.fields))(error) && error.kind !== "unavailable",
             (error) => Effect.succeed(error.message),
           ),
           Effect.orDie,

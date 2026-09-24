@@ -1,13 +1,13 @@
 import { PreviewCorrection, ApplyCorrection, UndoCorrection } from "@repo/contracts/finance";
-import { EventForPosting, EventInput, InterpretPostings } from "@repo/contracts/finance";
+import { EventForPosting, EventInput, ReinterpretPostings } from "@repo/contracts/finance";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 
 import { callApiRpc } from "@/server/api-client.server";
 
-export const interpretPostings = createServerFn({ method: "POST" })
-  .validator(Schema.toStandardSchemaV1(InterpretPostings))
-  .handler(({ data }) => callApiRpc((client) => client.interpretPostings(data)));
+export const reinterpretPostings = createServerFn({ method: "POST" })
+  .validator(Schema.toStandardSchemaV1(ReinterpretPostings))
+  .handler(({ data }) => callApiRpc((client) => client.reinterpretPostings(data)));
 export const getEvent = createServerFn({ method: "GET" })
   .validator(Schema.toStandardSchemaV1(EventInput))
   .handler(({ data }) => callApiRpc((client) => client.getEvent(data)));

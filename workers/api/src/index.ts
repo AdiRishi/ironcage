@@ -7,10 +7,7 @@ import { HttpRouter } from "effect/unstable/http";
 import { AccountHistory } from "./accounts/periods.ts";
 import { AccountResolution } from "./accounts/resolution.ts";
 import { Accounts } from "./accounts/service.ts";
-import { SavedAnalyses } from "./analysis/saved.ts";
-import { Analysis } from "./analysis/service.ts";
-import { ClassificationConfig } from "./classification/config.ts";
-import { Classification } from "./classification/service.ts";
+import { Flows } from "./analysis/flows.ts";
 import { Commands } from "./database/commands.ts";
 import { Corrections } from "./events/corrections.ts";
 import { Events } from "./events/service.ts";
@@ -20,9 +17,18 @@ import { importHttpRoutes } from "./imports/http.ts";
 import { Publication } from "./imports/publication.ts";
 import { Imports } from "./imports/service.ts";
 import { Uploads } from "./imports/uploads.ts";
+import { Counterparties } from "./interpretation/counterparties.ts";
+import { Enrichment } from "./interpretation/enrichment.ts";
+import { Questions } from "./interpretation/questions.ts";
 import { Models } from "./models/service.ts";
-import { ClassificationJobs } from "./platform/services.ts";
-import { ExportJobs, TemporaryExports, ImportJobs, Sources } from "./platform/services.ts";
+import {
+  EnrichmentConfig,
+  EnrichmentJobs,
+  ExportJobs,
+  TemporaryExports,
+  ImportJobs,
+  Sources,
+} from "./platform/services.ts";
 import { Postings } from "./postings/service.ts";
 import { References } from "./references/service.ts";
 import { InterpretationReviews } from "./relationships/reviews.ts";
@@ -35,15 +41,9 @@ import { SourceFiles } from "./sources/service.ts";
 // Declared explicitly because deriving it from `api` would make the infra Worker
 // class refer to itself through the bindings type.
 export type ApiOperations = {
-  saveAnalysis: SavedAnalyses["Service"]["save"];
-  getAnalysis: SavedAnalyses["Service"]["get"];
-  listAnalyses: () => SavedAnalyses["Service"]["list"];
-  renameAnalysis: SavedAnalyses["Service"]["rename"];
-  deleteAnalysis: SavedAnalyses["Service"]["remove"];
-  overview: Analysis["Service"]["overview"];
-  compare: Analysis["Service"]["compare"];
-  rows: Analysis["Service"]["rows"];
-  contributors: Analysis["Service"]["contributors"];
+  getPeriodFlow: Flows["Service"]["period"];
+  getMonthlyFlow: Flows["Service"]["monthly"];
+  getSpending: Flows["Service"]["spending"];
   getEventRelationships: Relationships["Service"]["get"];
   listRelationshipCandidates: Relationships["Service"]["candidates"];
   previewRelationship: Relationships["Service"]["preview"];
@@ -59,23 +59,29 @@ export type ApiOperations = {
   previewRule: Rules["Service"]["preview"];
   saveRule: Rules["Service"]["save"];
   deleteRule: Rules["Service"]["remove"];
-  getCategorySuggestion: Classification["Service"]["suggestion"];
-  getClassificationSettings: () => Classification["Service"]["settings"];
-  listClassificationRuns: () => Classification["Service"]["runs"];
-  listSuggestions: () => Classification["Service"]["suggestions"];
-  updateClassificationSettings: Classification["Service"]["configure"];
-  suggestCategories: Classification["Service"]["request"];
-  nextClassificationBatch: Classification["Service"]["batch"];
-  completeClassificationBatch: Classification["Service"]["complete"];
-  failClassification: Classification["Service"]["fail"];
-  acceptSuggestions: Classification["Service"]["accept"];
   saveReference: References["Service"]["save"];
   deleteReference: References["Service"]["remove"];
   previewCorrection: Corrections["Service"]["preview"];
   applyCorrection: Corrections["Service"]["apply"];
   undoCorrection: Corrections["Service"]["undo"];
   getCorrectionHistory: Corrections["Service"]["history"];
-  interpretPostings: Events["Service"]["interpret"];
+  reinterpretPostings: Events["Service"]["interpret"];
+  listCounterparties: Counterparties["Service"]["list"];
+  getCounterparty: Counterparties["Service"]["get"];
+  saveCounterparty: Counterparties["Service"]["save"];
+  mergeCounterparties: Counterparties["Service"]["merge"];
+  moveAlias: Counterparties["Service"]["moveAlias"];
+  assignEventCounterparty: Counterparties["Service"]["assignEvent"];
+  listQuestions: Questions["Service"]["list"];
+  getEnrichmentSettings: () => Enrichment["Service"]["settings"];
+  updateEnrichmentSettings: Enrichment["Service"]["configure"];
+  requestEnrichment: Enrichment["Service"]["request"];
+  listEnrichmentRuns: () => Enrichment["Service"]["runs"];
+  nextEnrichmentBatch: Enrichment["Service"]["batch"];
+  completeEnrichmentBatch: Enrichment["Service"]["complete"];
+  failEnrichment: Enrichment["Service"]["fail"];
+  listCategoryProposals: () => Enrichment["Service"]["proposals"];
+  resolveCategoryProposal: Enrichment["Service"]["resolveProposal"];
   getEvent: Events["Service"]["get"];
   getEventForPosting: Events["Service"]["forPosting"];
   getInterpretationSummary: () => Events["Service"]["summary"];
@@ -97,6 +103,7 @@ export type ApiOperations = {
   createAccount: Accounts["Service"]["create"];
   updateAccount: Accounts["Service"]["update"];
   listPostings: Postings["Service"]["list"];
+  listLedger: Postings["Service"]["ledger"];
   getPosting: Postings["Service"]["get"];
   retryImport: Imports["Service"]["retry"];
   listImports: Imports["Service"]["list"];
@@ -110,8 +117,7 @@ export const api = Effect.fn("Api.initialize")(function* (
   bindings: Effect.Success<ReturnType<typeof apiBindings>>,
 ) {
   const services = Layer.mergeAll(
-    Analysis.layer,
-    SavedAnalyses.layer,
+    Flows.layer,
     Accounts.layer,
     AccountHistory.layer,
     Events.layer,
@@ -123,7 +129,9 @@ export const api = Effect.fn("Api.initialize")(function* (
     Exports.layer,
     SourceFiles.layer,
     Models.layer,
-    Classification.layer,
+    Counterparties.layer,
+    Questions.layer,
+    Enrichment.layer,
     Reviews.layer,
     Postings.layer,
     Uploads.layer,
@@ -134,10 +142,10 @@ export const api = Effect.fn("Api.initialize")(function* (
     Layer.provide([Commands.layer, AccountResolution.layer]),
     Layer.provide([
       bindings.database,
-      Layer.succeed(ClassificationConfig, { provider: bindings.classificationProvider }),
-      ClassificationJobs.layer({
-        start: bindings.processor.startClassification,
-        status: bindings.processor.getClassificationInstance,
+      Layer.succeed(EnrichmentConfig, { provider: bindings.enrichmentProvider }),
+      EnrichmentJobs.layer({
+        start: bindings.processor.startEnrichment,
+        status: bindings.processor.getEnrichmentInstance,
       }),
       BrowserCrypto.layer,
       Sources.layer(bindings.sources),
@@ -153,8 +161,7 @@ export const api = Effect.fn("Api.initialize")(function* (
     ]),
   );
   return yield* Effect.gen(function* () {
-    const savedAnalyses = yield* SavedAnalyses;
-    const analysis = yield* Analysis;
+    const flows = yield* Flows;
     const relationships = yield* Relationships;
     const interpretationReviews = yield* InterpretationReviews;
     const accountHistory = yield* AccountHistory;
@@ -163,7 +170,9 @@ export const api = Effect.fn("Api.initialize")(function* (
     const corrections = yield* Corrections;
     const events = yield* Events;
     const sourceFiles = yield* SourceFiles;
-    const classification = yield* Classification;
+    const counterparties = yield* Counterparties;
+    const questions = yield* Questions;
+    const enrichment = yield* Enrichment;
     const models = yield* Models;
     const exports = yield* Exports;
     const settings = yield* Settings;
@@ -177,15 +186,9 @@ export const api = Effect.fn("Api.initialize")(function* (
       Layer.mergeAll(importHttpRoutes, exportHttpRoutes),
     );
     const operations = {
-      saveAnalysis: savedAnalyses.save,
-      getAnalysis: savedAnalyses.get,
-      listAnalyses: () => savedAnalyses.list,
-      renameAnalysis: savedAnalyses.rename,
-      deleteAnalysis: savedAnalyses.remove,
-      overview: analysis.overview,
-      compare: analysis.compare,
-      rows: analysis.rows,
-      contributors: analysis.contributors,
+      getPeriodFlow: flows.period,
+      getMonthlyFlow: flows.monthly,
+      getSpending: flows.spending,
       getEventRelationships: relationships.get,
       listRelationshipCandidates: relationships.candidates,
       previewRelationship: relationships.preview,
@@ -201,23 +204,29 @@ export const api = Effect.fn("Api.initialize")(function* (
       previewRule: rules.preview,
       saveRule: rules.save,
       deleteRule: rules.remove,
-      getCategorySuggestion: classification.suggestion,
-      getClassificationSettings: () => classification.settings,
-      listClassificationRuns: () => classification.runs,
-      listSuggestions: () => classification.suggestions,
-      updateClassificationSettings: classification.configure,
-      suggestCategories: classification.request,
-      nextClassificationBatch: classification.batch,
-      completeClassificationBatch: classification.complete,
-      failClassification: classification.fail,
-      acceptSuggestions: classification.accept,
       saveReference: references.save,
       deleteReference: references.remove,
       previewCorrection: corrections.preview,
       applyCorrection: corrections.apply,
       undoCorrection: corrections.undo,
       getCorrectionHistory: corrections.history,
-      interpretPostings: events.interpret,
+      reinterpretPostings: events.interpret,
+      listCounterparties: counterparties.list,
+      getCounterparty: counterparties.get,
+      saveCounterparty: counterparties.save,
+      mergeCounterparties: counterparties.merge,
+      moveAlias: counterparties.moveAlias,
+      assignEventCounterparty: counterparties.assignEvent,
+      listQuestions: questions.list,
+      getEnrichmentSettings: () => enrichment.settings,
+      updateEnrichmentSettings: enrichment.configure,
+      requestEnrichment: enrichment.request,
+      listEnrichmentRuns: () => enrichment.runs,
+      nextEnrichmentBatch: enrichment.batch,
+      completeEnrichmentBatch: enrichment.complete,
+      failEnrichment: enrichment.fail,
+      listCategoryProposals: () => enrichment.proposals,
+      resolveCategoryProposal: enrichment.resolveProposal,
       getEvent: events.get,
       getEventForPosting: events.forPosting,
       getInterpretationSummary: () => events.summary,
@@ -239,6 +248,7 @@ export const api = Effect.fn("Api.initialize")(function* (
       createAccount: accounts.create,
       updateAccount: accounts.update,
       listPostings: postings.list,
+      listLedger: postings.ledger,
       getPosting: postings.get,
       retryImport: imports.retry,
       listImports: imports.list,

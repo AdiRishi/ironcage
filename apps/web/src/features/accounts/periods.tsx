@@ -30,9 +30,9 @@ export function AccountPeriodsSection({ accounts }: { accounts: readonly Account
     onSuccess: () => client.invalidateQueries(),
   });
   return (
-    <section className="space-y-4 rounded-lg border p-5">
-      <h2 className="text-xl font-semibold">Account history and offsets</h2>
-      <p className="text-sm text-muted-foreground">
+    <section className="space-y-4">
+      <h2 className="type-heading">Account history and offsets</h2>
+      <p className="type-small text-slate">
         Periods include the start date and exclude the end date. Leave the end blank for an ongoing
         period. Labels apply to transactions posted in that period.
       </p>
@@ -56,7 +56,7 @@ export function AccountPeriodsSection({ accounts }: { accounts: readonly Account
                 ? record.label
                 : `Offsets ${accounts.find((account) => account.id === record.loanAccountId)?.label}`}
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="type-small text-slate">
               {record.startOn} to {record.endOn ?? "ongoing"}
             </p>
           </div>
