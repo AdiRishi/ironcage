@@ -10,14 +10,15 @@ import {
   Rules as RuleList,
   SaveRule,
 } from "@repo/contracts/finance";
-import { Context, Effect, Layer, Schema } from "effect";
+import { allocationRole } from "@repo/finance";
+import { Array as Arr, Context, Crypto, Effect, Layer, Schema } from "effect";
 
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
-import { checkEventVersions } from "../events/correction-records.ts";
 import { previewPeriod } from "../events/impact.ts";
-import { writeRulePlan } from "./apply.ts";
-import { planRules } from "./plan.ts";
+import { readEvents } from "../events/repository.ts";
+import { claimRules, reinterpret } from "../interpretation/engine.ts";
+import { planRule } from "./plan.ts";
 import { readRules, ruleExceptions } from "./repository.ts";
 
 export class Rules extends Context.Service<
@@ -38,14 +39,19 @@ export class Rules extends Context.Service<
     Rules,
     Effect.gen(function* () {
       const sql = yield* PgClient.PgClient;
+      const crypto = yield* Crypto.Crypto;
       const commands = yield* Commands;
-      const provide = <A, E>(effect: Effect.Effect<A, E, PgClient.PgClient>) =>
-        effect.pipe(Effect.provideService(PgClient.PgClient, sql));
+      const provide = <A, E>(effect: Effect.Effect<A, E, PgClient.PgClient | Crypto.Crypto>) =>
+        effect.pipe(
+          Effect.provideService(PgClient.PgClient, sql),
+          Effect.provideService(Crypto.Crypto, crypto),
+        );
       const validate = Effect.fn(function* (rule: Rule) {
         if (
           !rule.conditions.accountId &&
           !rule.conditions.role &&
-          !rule.conditions.merchantId &&
+          !rule.conditions.counterpartyId &&
+          !rule.conditions.channel &&
           !rule.conditions.description
         )
           return yield* new FinanceError({
@@ -62,12 +68,13 @@ export class Rules extends Context.Service<
             });
         }
         if (
-          rule.conditions.merchantId &&
-          !(yield* sql`SELECT id FROM merchants WHERE id=${rule.conditions.merchantId}`).length
+          rule.conditions.counterpartyId &&
+          !(yield* sql`SELECT id FROM counterparties WHERE id=${rule.conditions.counterpartyId}`)
+            .length
         )
           return yield* new FinanceError({
             kind: "invalid",
-            message: "Choose an existing merchant.",
+            message: "Choose an existing counterparty.",
           });
         if (
           rule.conditions.accountId &&
@@ -95,11 +102,34 @@ export class Rules extends Context.Service<
             Effect.gen(function* () {
               yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
               yield* validate(input.rule);
-              const plan = yield* planRules(input);
+              const plan = yield* planRule(input);
+              const prior = yield* readEvents(plan.changes.map((change) => change.eventId));
+              const accepted = prior.map((event) => {
+                const change = plan.changes.find((row) => row.eventId === event.id);
+                return change
+                  ? {
+                      ...event,
+                      kind: change.kind,
+                      roleSource: change.roleSource,
+                      counterpartyId: change.counterpartyId,
+                      counterpartySource: change.counterpartySource,
+                      allocations: Arr.map(event.allocations, (allocation) =>
+                        allocation.id === change.allocationId
+                          ? {
+                              ...allocation,
+                              role: allocationRole(change.kind),
+                              categoryId: change.categoryId,
+                              categorySource: change.categorySource,
+                            }
+                          : allocation,
+                      ),
+                    }
+                  : event;
+              });
               const periods = [
                 ...new Map(
-                  plan.changes.flatMap((change) =>
-                    change.prior.postings.map(
+                  prior.flatMap((event) =>
+                    event.postings.map(
                       (posting) =>
                         [
                           `${posting.amount.currency}:${posting.postedOn.slice(0, 7)}`,
@@ -110,39 +140,31 @@ export class Rules extends Context.Service<
                 ).values(),
               ];
               const impacts = yield* Effect.forEach(periods, (period) => {
-                const changes = plan.changes.filter(
-                  (change) => change.prior.magnitude.currency === period.currency,
-                );
+                const inCurrency = (event: (typeof prior)[number]) =>
+                  event.magnitude.currency === period.currency;
                 return previewPeriod(
-                  changes.map((change) => change.prior),
-                  changes.map((change) => change.accepted),
+                  prior.filter(inCurrency),
+                  accepted.filter(inCurrency),
                   undefined,
                   period.on,
                 );
               });
               return {
                 ...input,
-                matched: plan.considered.length,
-                matches: plan.considered.flatMap((event) => {
-                  const posting = event.postings.find((row) => row.id === event.primaryPostingId);
-                  return posting
-                    ? [
-                        {
-                          eventId: event.id,
-                          postingId: posting.id,
-                          description: posting.description,
-                          postedOn: posting.postedOn,
-                        },
-                      ]
-                    : [];
-                }),
-                expectedVersions: plan.considered.map((event) => ({
-                  eventId: event.id,
-                  version: event.version,
+                matched: plan.matches.length,
+                matches: plan.matches.map((subject) => ({
+                  eventId: subject.id,
+                  postingId: subject.postingId,
+                  description: subject.description,
+                  postedOn: subject.postedOn,
+                })),
+                expectedVersions: plan.matches.map((subject) => ({
+                  eventId: subject.id,
+                  version: subject.version,
                 })),
                 affected: plan.changes
-                  .filter((change) => !plan.conflicts.includes(change.prior.id))
-                  .map((change) => change.prior.id),
+                  .filter((change) => !plan.conflicts.includes(change.eventId))
+                  .map((change) => change.eventId),
                 exceptions: plan.exceptions,
                 conflicts: plan.conflicts,
                 impacts,
@@ -166,13 +188,23 @@ export class Rules extends Context.Service<
                   kind: "stale",
                   message: "This rule changed. Keep your edit and preview the current rule again.",
                 });
-              const plan = yield* planRules({
-                ...input,
-                rule: { ...input.rule, version: (input.expectedVersion ?? 0) + 1 },
-              });
-              yield* checkEventVersions(plan.considered, input.expectedVersions);
-              yield* sql`INSERT INTO rules(id,name,conditions,action,scope,version) VALUES (${input.rule.id},${input.rule.name},${sql.json(input.rule.conditions)},${sql.json(input.rule.action)},${input.rule.scope},${(input.expectedVersion ?? 0) + 1}) ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,conditions=EXCLUDED.conditions,action=EXCLUDED.action,scope=EXCLUDED.scope,version=EXCLUDED.version`;
-              yield* sql`DELETE FROM rule_exceptions WHERE rule_id=${input.rule.id}`;
+              const rule = { ...input.rule, version: (input.expectedVersion ?? 0) + 1 };
+              const plan = yield* planRule({ ...input, rule });
+              if (
+                plan.matches.some(
+                  (subject) =>
+                    !input.expectedVersions.some(
+                      (expected) =>
+                        expected.eventId === subject.id && expected.version === subject.version,
+                    ),
+                )
+              )
+                return yield* new FinanceError({
+                  kind: "stale",
+                  message: "The matching transactions changed. Preview the rule again.",
+                });
+              yield* sql`INSERT INTO rules(id,name,conditions,action,scope,version) VALUES (${rule.id},${rule.name},${sql.json(rule.conditions)},${sql.json(rule.action)},${rule.scope},${rule.version}) ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,conditions=EXCLUDED.conditions,action=EXCLUDED.action,scope=EXCLUDED.scope,version=EXCLUDED.version`;
+              yield* sql`DELETE FROM rule_exceptions WHERE rule_id=${rule.id}`;
               const exceptionIds = [...new Set(input.exceptionEventIds)];
               if (exceptionIds.length) {
                 const existing =
@@ -182,9 +214,10 @@ export class Rules extends Context.Service<
                     kind: "invalid",
                     message: "An excluded event no longer exists.",
                   });
-                yield* sql`INSERT INTO rule_exceptions ${sql.insert(exceptionIds.map((eventId) => ({ rule_id: input.rule.id, event_id: eventId })))}`;
+                yield* sql`INSERT INTO rule_exceptions ${sql.insert(exceptionIds.map((eventId) => ({ rule_id: rule.id, event_id: eventId })))}`;
               }
-              yield* writeRulePlan(plan, input.commandId);
+              if (rule.scope !== "future")
+                yield* reinterpret(yield* claimRules({ scope: "all", rules: [rule] }));
               return true;
             }),
           }),

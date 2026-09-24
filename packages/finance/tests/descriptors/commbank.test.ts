@@ -35,6 +35,7 @@ describe("describeCommBank", () => {
     expect(deposit("Transfer to xx5678 CommBank app Savings")).toMatchObject({
       channel: "transfer",
       counterpartyText: null,
+      aliasKey: "ACCOUNT 5678",
       ownAccountSuffix: "5678",
       reference: "Savings",
     });

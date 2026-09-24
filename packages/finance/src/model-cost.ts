@@ -1,6 +1,6 @@
-import type { ClassificationProvider } from "@repo/contracts/finance";
+import type { ModelProvider } from "@repo/contracts/finance";
 export function estimateModelCost(
-  provider: typeof ClassificationProvider.Type,
+  provider: ModelProvider,
   inputTokens: bigint | null,
   outputTokens: bigint | null,
 ) {

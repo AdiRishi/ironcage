@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 
 import { DateBasis, DecimalMoney, OverviewInput, Period, ResultCoverage } from "./analysis.ts";
-import { CategoryId, MerchantId, TagId, PersonalEventId } from "./interpretation.ts";
+import { CategoryId, CounterpartyId, TagId, PersonalEventId } from "./interpretation.ts";
 import { EventId } from "./interpretation.ts";
 import { Posting } from "./postings.ts";
 import { CreditLink } from "./relationships.ts";
@@ -19,7 +19,7 @@ export const Measure = Schema.Literals([
 export type Measure = typeof Measure.Type;
 export const AnalysisFilters = Schema.Struct({
   categories: Schema.Array(CategoryId),
-  merchants: Schema.Array(MerchantId),
+  counterparties: Schema.Array(CounterpartyId),
   tags: Schema.Array(TagId),
   personalEvents: Schema.Array(PersonalEventId),
 });
@@ -31,7 +31,13 @@ export const ComparisonSelection = Schema.Union([
     ),
   ),
 ]);
-export const GroupBy = Schema.Literals(["category", "merchant", "account", "tag", "personalEvent"]);
+export const GroupBy = Schema.Literals([
+  "category",
+  "counterparty",
+  "account",
+  "tag",
+  "personalEvent",
+]);
 export type GroupBy = typeof GroupBy.Type;
 export const AnalysisQuery = Schema.Struct({
   ...OverviewInput.fields,

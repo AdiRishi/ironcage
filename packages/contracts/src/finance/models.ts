@@ -2,6 +2,13 @@ import { Schema } from "effect";
 
 import { Instant, Money } from "./values.ts";
 
+export const ModelProvider = Schema.Struct({
+  name: Schema.String,
+  model: Schema.String,
+  inputMicrousdPerMillion: Schema.BigIntFromString,
+  outputMicrousdPerMillion: Schema.BigIntFromString,
+});
+export type ModelProvider = typeof ModelProvider.Type;
 export const ModelUsage = Schema.Struct({
   calls: Schema.Int,
   inputTokens: Schema.BigIntFromString,

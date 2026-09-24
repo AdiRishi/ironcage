@@ -28,12 +28,6 @@ export function ReferencesPage() {
   });
   const today = CalendarDate.make(new Intl.DateTimeFormat("en-CA").format(new Date()));
   const records: ReadonlyArray<typeof ReferenceWrite.Type> = [
-    ...data.merchants.map((merchant) => ({
-      kind: "merchant" as const,
-      target: { kind: "update" as const, id: merchant.id, expectedVersion: merchant.version },
-      name: merchant.name,
-      aliases: merchant.aliases,
-    })),
     ...data.tags.map((tag) => ({
       kind: "tag" as const,
       target: { kind: "update" as const, id: tag.id, expectedVersion: tag.version },
@@ -59,11 +53,6 @@ export function ReferencesPage() {
         parentId: null,
         archived: false,
       },
-    },
-    {
-      kind: "merchant",
-      label: "Merchants",
-      create: { kind: "merchant", target: { kind: "create" }, name: "", aliases: [] },
     },
     { kind: "tag", label: "Tags", create: { kind: "tag", target: { kind: "create" }, name: "" } },
     {
@@ -152,9 +141,6 @@ export function ReferencesPage() {
                   >
                     <div>
                       <p className="font-medium">{record.name}</p>
-                      {record.kind === "merchant" && (
-                        <p className="text-sm text-muted-foreground">{record.aliases.join(", ")}</p>
-                      )}
                       {record.kind === "personalEvent" && (
                         <p className="text-sm text-muted-foreground">
                           {record.startOn} through {record.endOn}
@@ -173,17 +159,6 @@ export function ReferencesPage() {
                           if (record.target.kind !== "update") return;
                           switch (record.kind) {
                             case "category":
-                              if (record.target.kind === "update")
-                                submit({
-                                  commandId: CommandId.make(crypto.randomUUID()),
-                                  record: {
-                                    kind: record.kind,
-                                    id: record.target.id,
-                                    expectedVersion: record.target.expectedVersion,
-                                  },
-                                });
-                              break;
-                            case "merchant":
                               if (record.target.kind === "update")
                                 submit({
                                   commandId: CommandId.make(crypto.randomUUID()),

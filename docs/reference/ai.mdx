@@ -29,8 +29,8 @@ Enrichment runs as a Cloudflare Workflow in the processor. It turns alias keys t
    - a confidence from 0 to 1, and a one-line reason
      The model may search the web for a descriptor it does not recognize.
 3. **Apply.** The API validates the response against the current taxonomy and counterparties, then applies it in one command:
-   - A confidence at or above the auto-apply threshold (0.8 by default) creates or links the counterparty with `model` provenance, and its defaults apply to events immediately.
-   - A lower confidence, or any person counterparty, creates the counterparty and a question with the model's proposal.
+   - A confidence at or above the auto-apply threshold (0.8 by default) creates or links the counterparty with `model` provenance and status `applied`, and its defaults apply to events immediately.
+   - A lower confidence, or any person counterparty, creates the counterparty with status `proposed`, which raises a question with the model's proposal.
 
 Rerunning enrichment only touches aliases without a counterparty, and counterparties whose provenance is still `model`. A counterparty you edited is never sent back to the model.
 

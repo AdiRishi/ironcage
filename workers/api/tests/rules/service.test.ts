@@ -5,9 +5,9 @@ import { expect } from "vitest";
 import { Corrections } from "../../src/events/corrections.ts";
 import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
+import { Questions } from "../../src/interpretation/questions.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { References } from "../../src/references/service.ts";
-import { InterpretationReviews } from "../../src/relationships/reviews.ts";
 import { Rules } from "../../src/rules/service.ts";
 import { applicationTest } from "../support/application.ts";
 import { account, parsed, reset, source } from "../support/fixtures.ts";
@@ -37,7 +37,7 @@ const setup = Effect.gen(function* () {
     })),
   });
   const events = yield* Events;
-  yield* events.interpret({ commandId: yield* commandId, scope: "all" });
+  yield* events.interpret({ commandId: yield* commandId });
   const postings = yield* Postings;
   const rows = yield* Effect.forEach(
     (yield* postings.list({ filter: { accountId: owner.id } })).rows,
@@ -54,7 +54,8 @@ const setup = Effect.gen(function* () {
     conditions: {
       accountId: null,
       role: "purchase",
-      merchantId: null,
+      counterpartyId: null,
+      channel: null,
       description: "Synthetic market",
     },
     action: { kind: "category", categoryId: groceries },
@@ -127,10 +128,12 @@ test(
       expectedVersions: conflict.expectedVersions,
     });
     expect((yield* events.get({ eventId: normal.id })).allocations[0].categoryId).toBeNull();
-    const reviews = yield* InterpretationReviews;
+    const questions = yield* Questions;
     expect(
-      (yield* reviews.list({})).rows.some(
-        (row) => row.kind === "ruleConflict" && row.eventIds.includes(normal.id),
+      (yield* questions.list({ currency: "AUD" })).some(
+        (question) =>
+          question.kind === "ruleConflict" &&
+          question.samples.some((sample) => sample.eventId === normal.id),
       ),
     ).toBe(true);
     expect(yield* events.get({ eventId: split.id })).toEqual(corrected);
@@ -162,7 +165,7 @@ test(
       ...parsed(["Synthetic market later Card xx1234"]),
       importId: file.importId,
     });
-    yield* events.interpret({ commandId: yield* commandId, scope: "all" });
+    yield* events.interpret({ commandId: yield* commandId });
     const postings = yield* Postings;
     const [laterPosting] = (yield* postings.list({ filter: { importId: file.importId } })).rows;
     if (!laterPosting) return yield* Effect.die("Expected later posting");

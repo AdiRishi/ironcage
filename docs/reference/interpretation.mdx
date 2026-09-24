@@ -61,7 +61,9 @@ CommBank shapes the profile recognizes, with invented examples:
 | Card account row with no marker, such as `SPOTIFY STOCKHOLM` | `card`         | `SPOTIFY STOCKHOLM`     |
 | Card account credit starting `Payment`                       | `cardPayment`  | none                    |
 
-The alias key uppercases the counterparty text, removes tokens that contain digits, removes punctuation, and collapses spaces. `WOOLWORTHS 1234 SYDNEY` and `WOOLWORTHS 5678 SYDNEY` share the key `WOOLWORTHS SYDNEY`.
+The alias key uppercases the counterparty text, removes punctuation and tokens that contain digits, drops a trailing country code, and collapses spaces. `WOOLWORTHS 1234 SYDNEY AU` and `WOOLWORTHS 5678 SYDNEY AU` share the key `WOOLWORTHS SYDNEY`. A transfer to an own-account suffix gets the key `ACCOUNT 5678`, so an account outside the ledger can be answered once.
+
+On the corpus, the profile yields 1,203 alias keys for 9,224 postings, and 378 transfers name an own-account suffix. 272 of those name one of the four accounts; the other 106 name two accounts outside the ledger.
 
 ## Counterparties
 
@@ -69,7 +71,7 @@ A counterparty is who is on the other side: a `business`, a `person`, an `ownAcc
 
 Aliases map alias keys to counterparties. Many aliases can point at one counterparty: `WOOLWORTHS SYDNEY`, `WOOLWORTHS METRO`, and `WW METRO` are all Woolworths. An event takes the counterparty of its primary posting's alias.
 
-Counterparties and aliases carry provenance: `model` when the enrichment pipeline created them, `user` when you did. A user-made counterparty or alias is never changed by the model.
+Counterparties and aliases carry provenance: `model` when the enrichment pipeline created them, `user` when you did. A counterparty's status is `applied` or `proposed`. Only applied counterparties lend their defaults to events; a proposed one still names the events it identifies, so the ledger can show it. A user-made counterparty or alias is never changed by the model.
 
 ## Roles
 
@@ -86,6 +88,10 @@ The role of an event comes from, in order:
    - `salary` credits are `income`.
 4. **The counterparty's default role**, set by you or proposed by the model. This decides transfers to and from people and direct credits: rent to a landlord is a `purchase`, a friend repaying dinner is a `reimbursement`, and money to your own account at another bank is a `transfer` to an external endpoint.
 5. **Otherwise** the event is `unresolved` and raises a question.
+
+A counterparty without a default role still decides by kind: a business receives purchases and pays refunds, an institution receives purchases and pays income, and an own account is a transfer. A person always needs a default role.
+
+Events whose role an accepted credit link or fee association depends on keep their role.
 
 A transfer is never internal because of its wording. `Transfer To Jane Smith` is spending until you or a counterparty default says otherwise.
 
@@ -138,17 +144,17 @@ Reinterpreting a posting, whether after a profile version change or after a new 
 
 ## Questions
 
-Interpretation raises a question when it cannot apply a decision on its own:
+Questions are computed from current records, not stored, so answering one makes it disappear. The Questions operation groups them and orders them by the money they affect:
 
-| Kind           | Raised when                                                                                                     |
-| -------------- | --------------------------------------------------------------------------------------------------------------- |
-| `counterparty` | The model's confidence in a counterparty's identity or default is below the auto-apply threshold.               |
-| `person`       | A new person counterparty has no default role. People always ask, because the model cannot know who someone is. |
-| `ownAccount`   | A transfer names an own-account suffix that matches none of your accounts.                                      |
-| `role`         | An event is still `unresolved` after every source above.                                                        |
-| `ruleConflict` | Two rules set different values on the same event.                                                               |
+| Kind           | Raised when                                                                                                 | Grouped by            |
+| -------------- | ----------------------------------------------------------------------------------------------------------- | --------------------- |
+| `counterparty` | The model proposed a counterparty below the auto-apply threshold, so its defaults are not applied.          | Counterparty          |
+| `person`       | A person counterparty has no default role, or the model proposed one. The model cannot know who someone is. | Counterparty          |
+| `ownAccount`   | A transfer names an own-account suffix that matches none of your accounts. Its alias key is `ACCOUNT 9921`. | Alias key             |
+| `unresolved`   | An event is still `unresolved` after every source above.                                                    | Alias key, else event |
+| `ruleConflict` | Two claimed rules set different values that neither your correction nor a link has fixed.                   | Event                 |
 
-A counterparty question is asked once per counterparty. The answer becomes the counterparty's default with `user` provenance, and it applies to every event from that counterparty.
+Answering a counterparty, person, or own-account question saves the counterparty with `user` provenance, which applies to every event from it. Source reviews from the importer are separate records and appear in the same list in the UI.
 
 ## Links and credits
 

@@ -16,7 +16,7 @@ export function normalizeAnalysis(query: AnalysisQuery): AnalysisQuery {
     accounts: sortedIds(query.accounts),
     filters: {
       categories: sortedIds(query.filters.categories),
-      merchants: sortedIds(query.filters.merchants),
+      counterparties: sortedIds(query.filters.counterparties),
       tags: sortedIds(query.filters.tags),
       personalEvents: sortedIds(query.filters.personalEvents),
     },

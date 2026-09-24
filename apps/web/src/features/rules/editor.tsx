@@ -45,7 +45,13 @@ export function RuleEditor({
   const defaults: Rule = rule ?? {
     id: ruleId,
     name: "",
-    conditions: { accountId: null, role: null, merchantId: null, description: "" },
+    conditions: {
+      accountId: null,
+      role: null,
+      counterpartyId: null,
+      channel: null,
+      description: "",
+    },
     action: { kind: "role", role: "income" },
     scope: "both",
     version: 1,
@@ -130,12 +136,12 @@ export function RuleEditor({
               />
             )}
           </form.Field>
-          <form.Field name="conditions.merchantId">
+          <form.Field name="conditions.counterpartyId">
             {(field) => (
               <ReferenceChoice
-                label="Match merchant or alias"
+                label="Match counterparty"
                 value={field.state.value}
-                options={references.data?.merchants ?? []}
+                options={references.data?.counterparties ?? []}
                 onChange={(value) => {
                   field.handleChange(value);
                   change();

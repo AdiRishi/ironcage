@@ -7,7 +7,6 @@ import { toFinanceError } from "../database/failures.ts";
 
 const tables = {
   category: "categories",
-  merchant: "merchants",
   tag: "tags",
   personalEvent: "personal_events",
 } as const;
@@ -91,6 +90,8 @@ export class References extends Context.Service<
             if (record.target.kind === "create") {
               if (record.kind === "personalEvent")
                 yield* sql`INSERT INTO personal_events (id,name,start_on,end_on,exclude_from_ordinary) VALUES (${id},${record.name},${record.startOn},${record.endOn},${record.excludeFromOrdinary})`;
+              else if (record.kind === "category")
+                yield* sql`INSERT INTO categories (id,name,tree) VALUES (${id},${record.name},COALESCE((SELECT tree FROM categories WHERE id=${record.parentId}),'spending'))`;
               else yield* sql`INSERT INTO ${sql(table)} (id,name) VALUES (${id},${record.name})`;
             } else
               yield* sql`UPDATE ${sql(table)} SET name=${record.name},version=version+1 WHERE id=${id}`;
@@ -98,13 +99,6 @@ export class References extends Context.Service<
               yield* sql`UPDATE categories SET parent_id=${record.parentId},archived=${record.archived} WHERE id=${id}`;
             if (record.kind === "personalEvent")
               yield* sql`UPDATE personal_events SET start_on=${record.startOn},end_on=${record.endOn},exclude_from_ordinary=${record.excludeFromOrdinary} WHERE id=${id}`;
-            if (record.kind === "merchant") {
-              yield* sql`DELETE FROM merchant_aliases WHERE merchant_id=${id}`;
-              for (const alias of new Set(
-                record.aliases.map((value) => value.trim().toLowerCase()),
-              ))
-                yield* sql`INSERT INTO merchant_aliases (merchant_id,pattern) VALUES (${id},${alias})`;
-            }
             return true;
           }),
         });
@@ -120,19 +114,15 @@ export class References extends Context.Service<
             const usage =
               record.kind === "category"
                 ? sql`SELECT id FROM allocations WHERE category_id=${record.id} UNION ALL SELECT id FROM categories WHERE parent_id=${record.id} UNION ALL SELECT id FROM rules WHERE action->>'categoryId'=${record.id}`
-                : record.kind === "merchant"
-                  ? sql`SELECT id FROM allocations WHERE merchant_id=${record.id} UNION ALL SELECT id FROM rules WHERE conditions->>'merchantId'=${record.id}`
-                  : record.kind === "tag"
-                    ? sql`SELECT allocation_id FROM allocation_tags WHERE tag_id=${record.id}`
-                    : sql`SELECT allocation_id FROM allocation_personal_events WHERE personal_event_id=${record.id}`;
+                : record.kind === "tag"
+                  ? sql`SELECT allocation_id FROM allocation_tags WHERE tag_id=${record.id}`
+                  : sql`SELECT allocation_id FROM allocation_personal_events WHERE personal_event_id=${record.id}`;
             if ((yield* usage).length > 0)
               return yield* new FinanceError({
                 kind: "conflict",
                 message:
                   "This reference is in use. Remove its assignments first, or archive the category.",
               });
-            if (record.kind === "merchant")
-              yield* sql`DELETE FROM merchant_aliases WHERE merchant_id=${record.id}`;
             yield* sql`DELETE FROM ${sql(tables[record.kind])} WHERE id=${record.id}`;
             return true;
           }),

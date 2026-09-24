@@ -11,7 +11,7 @@ export const defaultAnalysis: AnalysisQuery = {
   ...defaultOverview,
   measure: "netPersonalCosts",
   comparison: { kind: "previous" },
-  filters: { categories: [], merchants: [], tags: [], personalEvents: [] },
+  filters: { categories: [], counterparties: [], tags: [], personalEvents: [] },
   normalization: "total",
 };
 export function analysisInput(search: AnalysisSearch) {

@@ -1,13 +1,14 @@
 import { Schema } from "effect";
 
 import { ExpectedEventVersion, MeasureImpact } from "./corrections.ts";
-import { CategoryId, EventId, FinancialRole, MerchantId } from "./interpretation.ts";
+import { CategoryId, Channel, CounterpartyId, EventId, FinancialRole } from "./interpretation.ts";
 import { AccountId, CommandId, Version, PostingId, CalendarDate } from "./values.ts";
 export const RuleId = Schema.String.check(Schema.isUUID()).pipe(Schema.brand("RuleId"));
 export const RuleConditions = Schema.Struct({
   accountId: Schema.NullOr(AccountId),
   role: Schema.NullOr(FinancialRole),
-  merchantId: Schema.NullOr(MerchantId),
+  counterpartyId: Schema.NullOr(CounterpartyId),
+  channel: Schema.NullOr(Channel),
   description: Schema.Trim.check(Schema.isMaxLength(200)),
 });
 export const RuleAction = Schema.Union([

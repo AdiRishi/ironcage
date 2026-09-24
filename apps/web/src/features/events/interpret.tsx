@@ -1,4 +1,4 @@
-import { CommandId, type InterpretPostings } from "@repo/contracts/finance";
+import { CommandId, type ReinterpretPostings } from "@repo/contracts/finance";
 import { financialRoleLabels } from "@repo/finance";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -6,14 +6,14 @@ import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useCommand } from "@/lib/use-command";
 
-import { interpretPostings } from "./functions";
+import { reinterpretPostings } from "./functions";
 import { interpretationSummaryQuery } from "./queries";
 
 export function InterpretTransactions() {
   const client = useQueryClient();
   const summary = useQuery(interpretationSummaryQuery());
   const { mutation, submit, uncertain } = useCommand({
-    mutationFn: (data: typeof InterpretPostings.Type) => interpretPostings({ data }),
+    mutationFn: (data: typeof ReinterpretPostings.Type) => reinterpretPostings({ data }),
     onSuccess: async () => {
       await client.invalidateQueries();
     },
@@ -27,8 +27,8 @@ export function InterpretTransactions() {
             : "Loading interpretation…"}
         </p>
         <Button
-          disabled={mutation.isPending || (summary.data?.remaining === 0 && !uncertain)}
-          onClick={() => submit({ commandId: CommandId.make(crypto.randomUUID()), scope: "all" })}
+          disabled={mutation.isPending}
+          onClick={() => submit({ commandId: CommandId.make(crypto.randomUUID()) })}
         >
           {mutation.isPending
             ? "Interpreting…"

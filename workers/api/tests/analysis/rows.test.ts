@@ -25,7 +25,7 @@ test(
       importId: file.importId,
     });
     const events = yield* Events;
-    yield* events.interpret({ commandId: yield* commandId, scope: "all" });
+    yield* events.interpret({ commandId: yield* commandId });
     const analysis = yield* Analysis;
     const input: AnalysisRowsInput = {
       query: {
@@ -40,7 +40,7 @@ test(
         accounts: [owner.id],
         measure: "netPersonalCosts",
         normalization: "total",
-        filters: { categories: [], merchants: [], tags: [], personalEvents: [] },
+        filters: { categories: [], counterparties: [], tags: [], personalEvents: [] },
       },
       groupBy: "category",
       groupKey: "unassigned",

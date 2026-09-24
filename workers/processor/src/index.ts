@@ -1,4 +1,4 @@
-import { ClassificationInput, ExportInput, FinanceError, ImportId } from "@repo/contracts/finance";
+import { ExportInput, FinanceError, ImportId } from "@repo/contracts/finance";
 import type { processorBindings } from "@repo/infra/worker-bindings";
 import type { WorkflowInstanceStatus } from "alchemy/Cloudflare/Workflows";
 import { Effect } from "effect";
@@ -13,18 +13,6 @@ const describe = (instance: WorkflowInstanceStatus) => ({
 
 export const processor = (bindings: Effect.Success<ReturnType<typeof processorBindings>>) =>
   Effect.succeed({
-    startClassification: Effect.fn("Processor.startClassification")(function* (
-      input: typeof ClassificationInput.Type,
-    ) {
-      yield* bindings.classification.createBatch([{ id: input.runId, params: input }]);
-    }, unavailable("Category suggestion processing could not start. Retry the request.")),
-    getClassificationInstance: Effect.fn("Processor.getClassificationInstance")(function* ({
-      instanceId,
-    }: {
-      instanceId: string;
-    }) {
-      return describe(yield* (yield* bindings.classification.get(instanceId)).status());
-    }, unavailable("Category suggestion status is unavailable.")),
     startExport: Effect.fn("Processor.startExport")(function* (input: typeof ExportInput.Type) {
       yield* bindings.exports.createBatch([{ id: input.exportId, params: input }]);
     }, unavailable("Export processing could not start. Request a new export.")),

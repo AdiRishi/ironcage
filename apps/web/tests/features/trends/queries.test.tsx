@@ -17,7 +17,7 @@ vi.mock("../../../src/features/analysis/functions", () => ({
   rows: vi.fn<typeof rows>(),
 }));
 
-const options = contributorsQuery({ query: defaultAnalysis, groupBy: "merchant" });
+const options = contributorsQuery({ query: defaultAnalysis, groupBy: "counterparty" });
 function ResultView() {
   const { data, isFetching } = useSuspenseQuery(options);
   return (

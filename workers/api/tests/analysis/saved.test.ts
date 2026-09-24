@@ -21,10 +21,10 @@ const definition: typeof ContributorsInput.Type = {
     basis: "spending",
     currency: "AUD",
     accounts: [],
-    filters: { categories: [], merchants: [], tags: [], personalEvents: [] },
+    filters: { categories: [], counterparties: [], tags: [], personalEvents: [] },
     normalization: "total",
   },
-  groupBy: "merchant",
+  groupBy: "counterparty",
 };
 
 test(

@@ -6,7 +6,6 @@ import {
   EventId,
   Instant,
   Posting,
-  ReferenceData,
   type OverviewInput,
   FinanceError,
 } from "@repo/contracts/finance";
@@ -14,6 +13,7 @@ import { Effect, Schema } from "effect";
 
 import { accountFields, instant, postingFields } from "../database/columns.ts";
 import { readEvents } from "../events/repository.ts";
+import { readReferenceData } from "../references/read.ts";
 import { readCredits } from "../relationships/repository.ts";
 
 const CoverageSource = Schema.Struct({
@@ -60,21 +60,7 @@ export const readAnalysisSnapshot = Effect.fn("readAnalysisSnapshot")(function* 
         ),
       ),
     );
-  const categories =
-    yield* sql`SELECT id,parent_id AS "parentId",name,archived,version FROM categories ORDER BY id`.pipe(
-      Effect.flatMap(Schema.decodeUnknownEffect(ReferenceData.fields.categories)),
-    );
-  const merchants =
-    yield* sql`SELECT id,name,version,ARRAY(SELECT pattern FROM merchant_aliases WHERE merchant_id=m.id) AS aliases FROM merchants m`.pipe(
-      Effect.flatMap(Schema.decodeUnknownEffect(ReferenceData.fields.merchants)),
-    );
-  const tags = yield* sql`SELECT id,name,version FROM tags`.pipe(
-    Effect.flatMap(Schema.decodeUnknownEffect(ReferenceData.fields.tags)),
-  );
-  const personalEvents =
-    yield* sql`SELECT id,name,start_on::text AS "startOn",end_on::text AS "endOn",exclude_from_ordinary AS "excludeFromOrdinary",version FROM personal_events`.pipe(
-      Effect.flatMap(Schema.decodeUnknownEffect(ReferenceData.fields.personalEvents)),
-    );
+  const references = yield* readReferenceData;
   return {
     accounts,
     events,
@@ -82,6 +68,6 @@ export const readAnalysisSnapshot = Effect.fn("readAnalysisSnapshot")(function* 
     postings,
     sources,
     imports,
-    references: { categories, merchants, tags, personalEvents },
+    references,
   };
 });

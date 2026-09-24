@@ -20,7 +20,6 @@ import { Route as ImportsIndexRouteImport } from './routes/imports/index'
 import { Route as ImportsImportIdRouteImport } from './routes/imports/$importId'
 import { Route as SettingsCategoriesRouteImport } from './routes/settings_.categories'
 import { Route as SettingsRulesRouteImport } from './routes/settings_.rules'
-import { Route as SettingsSuggestionsRouteImport } from './routes/settings_.suggestions'
 import { Route as SourcesSourceFileIdRouteImport } from './routes/sources/$sourceFileId'
 import { Route as TransactionsIndexRouteImport } from './routes/transactions/index'
 import { Route as TransactionsIdRouteImport } from './routes/transactions/$id'
@@ -83,11 +82,6 @@ const SettingsRulesRoute = SettingsRulesRouteImport.update({
   path: '/settings/rules',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsSuggestionsRoute = SettingsSuggestionsRouteImport.update({
-  id: '/settings_/suggestions',
-  path: '/settings/suggestions',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SourcesSourceFileIdRoute = SourcesSourceFileIdRouteImport.update({
   id: '/sources/$sourceFileId',
   path: '/sources/$sourceFileId',
@@ -130,7 +124,6 @@ export interface FileRoutesByFullPath {
   '/imports/$importId': typeof ImportsImportIdRoute
   '/settings/categories': typeof SettingsCategoriesRoute
   '/settings/rules': typeof SettingsRulesRoute
-  '/settings/suggestions': typeof SettingsSuggestionsRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
   '/trends/$analysisId': typeof TrendsAnalysisIdRoute
@@ -150,7 +143,6 @@ export interface FileRoutesByTo {
   '/imports/$importId': typeof ImportsImportIdRoute
   '/settings/categories': typeof SettingsCategoriesRoute
   '/settings/rules': typeof SettingsRulesRoute
-  '/settings/suggestions': typeof SettingsSuggestionsRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
   '/trends/$analysisId': typeof TrendsAnalysisIdRoute
@@ -171,7 +163,6 @@ export interface FileRoutesById {
   '/imports/$importId': typeof ImportsImportIdRoute
   '/settings_/categories': typeof SettingsCategoriesRoute
   '/settings_/rules': typeof SettingsRulesRoute
-  '/settings_/suggestions': typeof SettingsSuggestionsRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
   '/transactions/$id': typeof TransactionsIdRoute
   '/trends_/$analysisId': typeof TrendsAnalysisIdRoute
@@ -193,7 +184,6 @@ export interface FileRouteTypes {
     | '/imports/$importId'
     | '/settings/categories'
     | '/settings/rules'
-    | '/settings/suggestions'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
     | '/trends/$analysisId'
@@ -213,7 +203,6 @@ export interface FileRouteTypes {
     | '/imports/$importId'
     | '/settings/categories'
     | '/settings/rules'
-    | '/settings/suggestions'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
     | '/trends/$analysisId'
@@ -233,7 +222,6 @@ export interface FileRouteTypes {
     | '/imports/$importId'
     | '/settings_/categories'
     | '/settings_/rules'
-    | '/settings_/suggestions'
     | '/sources/$sourceFileId'
     | '/transactions/$id'
     | '/trends_/$analysisId'
@@ -254,7 +242,6 @@ export interface RootRouteChildren {
   ImportsImportIdRoute: typeof ImportsImportIdRoute
   SettingsCategoriesRoute: typeof SettingsCategoriesRoute
   SettingsRulesRoute: typeof SettingsRulesRoute
-  SettingsSuggestionsRoute: typeof SettingsSuggestionsRoute
   SourcesSourceFileIdRoute: typeof SourcesSourceFileIdRoute
   TransactionsIdRoute: typeof TransactionsIdRoute
   TrendsAnalysisIdRoute: typeof TrendsAnalysisIdRoute
@@ -343,13 +330,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRulesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings_/suggestions': {
-      id: '/settings_/suggestions'
-      path: '/settings/suggestions'
-      fullPath: '/settings/suggestions'
-      preLoaderRoute: typeof SettingsSuggestionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/sources/$sourceFileId': {
       id: '/sources/$sourceFileId'
       path: '/sources/$sourceFileId'
@@ -406,7 +386,6 @@ const rootRouteChildren: RootRouteChildren = {
   ImportsImportIdRoute: ImportsImportIdRoute,
   SettingsCategoriesRoute: SettingsCategoriesRoute,
   SettingsRulesRoute: SettingsRulesRoute,
-  SettingsSuggestionsRoute: SettingsSuggestionsRoute,
   SourcesSourceFileIdRoute: SourcesSourceFileIdRoute,
   TransactionsIdRoute: TransactionsIdRoute,
   TrendsAnalysisIdRoute: TrendsAnalysisIdRoute,

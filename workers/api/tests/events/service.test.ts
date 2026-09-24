@@ -10,7 +10,7 @@ import { account, parsed, reset, source } from "../support/fixtures.ts";
 
 const { test, services } = applicationTest();
 test(
-  "interpretation and overlapping imports preserve events and exact bank records",
+  "publication interprets new postings, and overlapping imports keep events and exact bank records",
   Effect.gen(function* () {
     yield* reset;
     const owner = yield* account();
@@ -19,35 +19,23 @@ test(
     const input = parsed(["Grocer Card xx1234", "Unknown payment", "Account Fee"]);
     yield* publication.publish({ ...input, importId: file.importId });
     const events = yield* Events;
-    const command = {
-      commandId: CommandId.make("10000000-0000-4000-8000-000000000001"),
-      scope: "all",
-    } satisfies Parameters<typeof events.interpret>[0];
-    const result = yield* events.interpret(command);
-    expect(result.created).toBe(3);
-    expect(result.counts).toEqual([
+    expect((yield* events.summary).counts).toEqual([
       { role: "financingCost", count: 1 },
       { role: "purchase", count: 1 },
       { role: "unresolved", count: 1 },
     ]);
-    expect(yield* events.interpret(command)).toEqual(result);
     const postings = yield* Postings;
-    const before = yield* postings.list({ filter: { role: "purchase" } });
-    expect(before.rows).toHaveLength(1);
-    const posting = before.rows[0];
-    if (!posting) return yield* Effect.die("Expected purchase");
-    const original = yield* events.forPosting({ postingId: posting.id });
-    expect(original?.magnitude.minor).toBe(450n);
+    const [purchase] = (yield* postings.list({ filter: { role: "purchase" } })).rows;
+    if (!purchase) return yield* Effect.die("Expected purchase");
+    const original = yield* events.forPosting({ postingId: purchase.id });
+    expect(original).toMatchObject({ kind: "purchase", roleSource: "bank" });
     expect(original?.allocations[0]?.amount.minor).toBe(450n);
+
     const overlap = yield* source(owner.id);
     yield* publication.publish({ ...input, importId: overlap.importId });
-    expect(
-      (yield* events.interpret({
-        ...command,
-        commandId: CommandId.make("10000000-0000-4000-8000-000000000002"),
-      })).created,
-    ).toBe(0);
-    expect(yield* events.forPosting({ postingId: posting.id })).toEqual(original);
+    const command = { commandId: CommandId.make("10000000-0000-4000-8000-000000000001") };
+    expect(yield* events.interpret(command)).toEqual({ descriptors: 0, created: 0, changed: 0 });
+    expect(yield* events.forPosting({ postingId: purchase.id })).toEqual(original);
     expect(
       (yield* postings.list({ filter: { interpretationReview: true } })).rows.map(
         (row) => row.description,

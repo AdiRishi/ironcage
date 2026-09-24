@@ -29,7 +29,7 @@ vi.mock("../../../src/features/analysis/saved-functions", () => ({
 const analysis: SavedAnalysis = {
   id: AnalysisId.make("00000000-0000-4000-8000-000000000001"),
   name: "Recent delivery",
-  definition: { query: defaultAnalysis, groupBy: "merchant" },
+  definition: { query: defaultAnalysis, groupBy: "counterparty" },
   version: 1,
   createdAt: "2026-08-01T00:00:00.000Z",
   updatedAt: "2026-08-01T00:00:00.000Z",

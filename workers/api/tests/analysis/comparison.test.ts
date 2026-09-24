@@ -23,7 +23,7 @@ test(
           basis: "spending",
           currency: "AUD",
           accounts: [],
-          filters: { categories: [], merchants: [], tags: [], personalEvents: [] },
+          filters: { categories: [], counterparties: [], tags: [], personalEvents: [] },
           normalization: "total",
         };
         if (count === 2027)
@@ -76,7 +76,6 @@ test(
     const events = yield* Events;
     yield* events.interpret({
       commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
-      scope: "all",
     });
     const query: AnalysisQuery = {
       period: {
@@ -93,7 +92,7 @@ test(
       currency: "AUD",
       accounts: [owner.id],
       measure: "netPersonalCosts",
-      filters: { categories: [], merchants: [], tags: [], personalEvents: [] },
+      filters: { categories: [], counterparties: [], tags: [], personalEvents: [] },
       normalization: "total",
     };
     const analysis = yield* Analysis;

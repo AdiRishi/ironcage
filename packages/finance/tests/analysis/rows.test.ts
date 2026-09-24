@@ -28,7 +28,7 @@ const input: AnalysisRowsInput = {
     accounts: [],
     measure: "netPersonalCosts",
     normalization: "total",
-    filters: { categories: [], merchants: [], tags: [], personalEvents: [] },
+    filters: { categories: [], counterparties: [], tags: [], personalEvents: [] },
   },
   groupBy: "category",
   groupKey: category,
@@ -73,6 +73,9 @@ it("the ten largest contributors and remainder partition the total and the remai
     id: CategoryId.make(`20000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`),
     name: `Category ${index + 1}`,
     parentId: null,
+    slug: null,
+    tree: "spending" as const,
+    position: index,
     archived: false,
     version: 1,
   }));

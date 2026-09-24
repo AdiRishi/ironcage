@@ -33,7 +33,7 @@ export function contributorsResult(minor: bigint): ContributorsResult {
       delta: { kind: "money", amount: { currency: "AUD", minor: 0n } },
       relativeChange: "0",
     },
-    groupBy: "merchant",
+    groupBy: "counterparty",
     rows: [],
     remainder: null,
     overlap: false,

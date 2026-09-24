@@ -54,7 +54,6 @@ test(
     const events = yield* Events;
     yield* events.interpret({
       commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
-      scope: "all",
     });
     const analysis = yield* Analysis;
     const input: OverviewInput = {

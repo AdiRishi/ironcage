@@ -11,10 +11,6 @@ import {
   type ImportId,
   PostingPage,
   UploadResult,
-  ClassificationRun,
-  ClassificationSettings,
-  ModelUsage,
-  SuggestionList,
 } from "@repo/contracts/finance";
 import * as Alchemy from "alchemy";
 import * as Output from "alchemy/Output";
@@ -388,24 +384,22 @@ test(
       "allocation_tags",
       "allocations",
       "categories",
-      "classification_items",
-      "classification_runs",
-      "classification_settings",
       "command_receipts",
       "corrections",
+      "counterparties",
+      "counterparty_aliases",
       "credit_links",
       "event_postings",
       "events",
       "exports",
       "fee_associations",
       "imports",
-      "merchant_aliases",
-      "merchants",
       "model_usage",
       "movement_links",
       "observations",
       "offset_relationships",
       "personal_events",
+      "posting_descriptors",
       "postings",
       "review_items",
       "rule_applications",
@@ -542,73 +536,5 @@ test(
       Effect.flatMap(Schema.decodeUnknownEffect(PostingPage)),
     );
     expect(after).toEqual(before);
-  }),
-);
-
-test.skipIf(!live)(
-  "hosted classification checkpoints suggestions and usage without applying a category",
-  Effect.gen(function* () {
-    const { url, apiUrl } = yield* stack;
-    const fixture = yield* importSyntheticCsv(url, apiUrl, "synthetic classification");
-    const postings = yield* HttpClient.post(`${url}/transactions`, {
-      body: HttpBody.jsonUnsafe({ filter: { accountId: fixture.account.id } }),
-    }).pipe(
-      Effect.flatMap((response) => response.json),
-      Effect.flatMap(Schema.decodeUnknownEffect(PostingPage)),
-    );
-    yield* HttpClient.post(`${url}/interpret`, {
-      body: HttpBody.jsonUnsafe({
-        commandId: yield* randomUUID,
-        scope: postings.rows.map((row) => row.id),
-      }),
-    }).pipe(Effect.flatMap((response) => response.text));
-    const settings = yield* HttpClient.get(`${url}/classification/settings`).pipe(
-      Effect.flatMap((response) => response.json),
-      Effect.flatMap(Schema.decodeUnknownEffect(ClassificationSettings)),
-    );
-    yield* HttpClient.post(`${url}/classification/settings`, {
-      body: HttpBody.jsonUnsafe({
-        commandId: yield* randomUUID,
-        enabled: true,
-        warning: { currency: "USD", minor: "10" },
-        expectedVersion: settings.version,
-      }),
-    }).pipe(Effect.flatMap((response) => response.text));
-    const run = yield* HttpClient.post(`${url}/classification`, {
-      body: HttpBody.jsonUnsafe({ commandId: yield* randomUUID, eventIds: "all" }),
-    }).pipe(
-      Effect.flatMap((response) => response.json),
-      Effect.flatMap(Schema.decodeUnknownEffect(ClassificationRun)),
-    );
-    const completed = yield* HttpClient.get(`${url}/classification`).pipe(
-      Effect.flatMap((response) => response.json),
-      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(ClassificationRun))),
-      Effect.map((runs) => runs.find((row) => row.id === run.id)),
-      Effect.repeat({
-        schedule: Schedule.spaced("2 seconds"),
-        while: (row) => row?.status === "pending" || row?.status === "running",
-      }),
-      Effect.timeout("2 minutes"),
-    );
-    expect(completed?.status).toBe("completed");
-    expect(completed?.processed).toBe(3);
-    const suggestions = yield* HttpClient.get(`${url}/suggestions`).pipe(
-      Effect.flatMap((response) => response.json),
-      Effect.flatMap(Schema.decodeUnknownEffect(SuggestionList)),
-    );
-    expect(suggestions).toHaveLength(3);
-    const usage = yield* HttpClient.get(`${url}/model-usage`).pipe(
-      Effect.flatMap((response) => response.json),
-      Effect.flatMap(Schema.decodeUnknownEffect(ModelUsage)),
-    );
-    expect(usage.calls).toBe(1);
-    expect(usage.unknownUsage).toBe(0);
-    const after = yield* HttpClient.post(`${url}/transactions`, {
-      body: HttpBody.jsonUnsafe({ filter: { accountId: fixture.account.id } }),
-    }).pipe(
-      Effect.flatMap((response) => response.json),
-      Effect.flatMap(Schema.decodeUnknownEffect(PostingPage)),
-    );
-    expect(after.rows).toEqual(postings.rows);
   }),
 );

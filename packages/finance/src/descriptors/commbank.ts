@@ -95,13 +95,20 @@ export function describeCommBank({
     fields: Partial<Omit<Descriptor, "channel" | "profileVersion" | "aliasKey">> = {},
   ): Descriptor => {
     const counterpartyText = fields.counterpartyText ?? null;
+    const ownAccountSuffix = fields.ownAccountSuffix ?? null;
     return {
       profileVersion: commbankProfileVersion,
       channel,
       counterpartyText,
-      aliasKey: counterpartyText ? aliasKey(counterpartyText) : null,
+      // An own-account suffix that matches none of your accounts still needs an
+      // answer, so it gets an alias of its own.
+      aliasKey: counterpartyText
+        ? aliasKey(counterpartyText)
+        : ownAccountSuffix
+          ? `ACCOUNT ${ownAccountSuffix}`
+          : null,
       cardSuffix: fields.cardSuffix ?? null,
-      ownAccountSuffix: fields.ownAccountSuffix ?? null,
+      ownAccountSuffix,
       payId: fields.payId ?? null,
       reference: fields.reference ?? null,
       foreign: fields.foreign ?? null,

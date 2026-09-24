@@ -10,7 +10,6 @@ import { ExportsSection } from "@/features/exports/section";
 import { SourceFilesSection } from "@/features/sources/section";
 
 import { AccountPeriodsSection } from "../accounts/periods";
-import { ClassificationSection } from "../classification/settings";
 import { DisplaySettings } from "./display-settings";
 import { ModelUsageSection } from "./model-usage";
 import { settingsQueryOptions, retentionQueryOptions } from "./queries";
@@ -26,7 +25,7 @@ export function SettingsPage() {
         <p className="mt-2 text-muted-foreground">Accounts, display preferences, and your data.</p>
       </header>
       <Link to="/settings/categories" className="text-primary underline">
-        Categories, merchants, tags, and personal events
+        Categories, tags, and personal events
       </Link>
       <Link to="/settings/rules" className="text-primary underline">
         Interpretation rules
@@ -70,7 +69,6 @@ export function SettingsPage() {
       </section>
       <AccountPeriodsSection accounts={accounts} />
       <ExportsSection timezone={settings.timezone} />
-      <ClassificationSection />
       <ModelUsageSection />
       <SourceFilesSection />
       <section className="space-y-3 rounded-lg border p-5 sm:p-6">

@@ -9,8 +9,6 @@ import { AccountResolution } from "./accounts/resolution.ts";
 import { Accounts } from "./accounts/service.ts";
 import { SavedAnalyses } from "./analysis/saved.ts";
 import { Analysis } from "./analysis/service.ts";
-import { ClassificationConfig } from "./classification/config.ts";
-import { Classification } from "./classification/service.ts";
 import { Commands } from "./database/commands.ts";
 import { Corrections } from "./events/corrections.ts";
 import { Events } from "./events/service.ts";
@@ -20,8 +18,9 @@ import { importHttpRoutes } from "./imports/http.ts";
 import { Publication } from "./imports/publication.ts";
 import { Imports } from "./imports/service.ts";
 import { Uploads } from "./imports/uploads.ts";
+import { Counterparties } from "./interpretation/counterparties.ts";
+import { Questions } from "./interpretation/questions.ts";
 import { Models } from "./models/service.ts";
-import { ClassificationJobs } from "./platform/services.ts";
 import { ExportJobs, TemporaryExports, ImportJobs, Sources } from "./platform/services.ts";
 import { Postings } from "./postings/service.ts";
 import { References } from "./references/service.ts";
@@ -59,23 +58,20 @@ export type ApiOperations = {
   previewRule: Rules["Service"]["preview"];
   saveRule: Rules["Service"]["save"];
   deleteRule: Rules["Service"]["remove"];
-  getCategorySuggestion: Classification["Service"]["suggestion"];
-  getClassificationSettings: () => Classification["Service"]["settings"];
-  listClassificationRuns: () => Classification["Service"]["runs"];
-  listSuggestions: () => Classification["Service"]["suggestions"];
-  updateClassificationSettings: Classification["Service"]["configure"];
-  suggestCategories: Classification["Service"]["request"];
-  nextClassificationBatch: Classification["Service"]["batch"];
-  completeClassificationBatch: Classification["Service"]["complete"];
-  failClassification: Classification["Service"]["fail"];
-  acceptSuggestions: Classification["Service"]["accept"];
   saveReference: References["Service"]["save"];
   deleteReference: References["Service"]["remove"];
   previewCorrection: Corrections["Service"]["preview"];
   applyCorrection: Corrections["Service"]["apply"];
   undoCorrection: Corrections["Service"]["undo"];
   getCorrectionHistory: Corrections["Service"]["history"];
-  interpretPostings: Events["Service"]["interpret"];
+  reinterpretPostings: Events["Service"]["interpret"];
+  listCounterparties: Counterparties["Service"]["list"];
+  getCounterparty: Counterparties["Service"]["get"];
+  saveCounterparty: Counterparties["Service"]["save"];
+  mergeCounterparties: Counterparties["Service"]["merge"];
+  moveAlias: Counterparties["Service"]["moveAlias"];
+  assignEventCounterparty: Counterparties["Service"]["assignEvent"];
+  listQuestions: Questions["Service"]["list"];
   getEvent: Events["Service"]["get"];
   getEventForPosting: Events["Service"]["forPosting"];
   getInterpretationSummary: () => Events["Service"]["summary"];
@@ -123,7 +119,8 @@ export const api = Effect.fn("Api.initialize")(function* (
     Exports.layer,
     SourceFiles.layer,
     Models.layer,
-    Classification.layer,
+    Counterparties.layer,
+    Questions.layer,
     Reviews.layer,
     Postings.layer,
     Uploads.layer,
@@ -134,11 +131,6 @@ export const api = Effect.fn("Api.initialize")(function* (
     Layer.provide([Commands.layer, AccountResolution.layer]),
     Layer.provide([
       bindings.database,
-      Layer.succeed(ClassificationConfig, { provider: bindings.classificationProvider }),
-      ClassificationJobs.layer({
-        start: bindings.processor.startClassification,
-        status: bindings.processor.getClassificationInstance,
-      }),
       BrowserCrypto.layer,
       Sources.layer(bindings.sources),
       TemporaryExports.layer(bindings.exports),
@@ -163,7 +155,8 @@ export const api = Effect.fn("Api.initialize")(function* (
     const corrections = yield* Corrections;
     const events = yield* Events;
     const sourceFiles = yield* SourceFiles;
-    const classification = yield* Classification;
+    const counterparties = yield* Counterparties;
+    const questions = yield* Questions;
     const models = yield* Models;
     const exports = yield* Exports;
     const settings = yield* Settings;
@@ -201,23 +194,20 @@ export const api = Effect.fn("Api.initialize")(function* (
       previewRule: rules.preview,
       saveRule: rules.save,
       deleteRule: rules.remove,
-      getCategorySuggestion: classification.suggestion,
-      getClassificationSettings: () => classification.settings,
-      listClassificationRuns: () => classification.runs,
-      listSuggestions: () => classification.suggestions,
-      updateClassificationSettings: classification.configure,
-      suggestCategories: classification.request,
-      nextClassificationBatch: classification.batch,
-      completeClassificationBatch: classification.complete,
-      failClassification: classification.fail,
-      acceptSuggestions: classification.accept,
       saveReference: references.save,
       deleteReference: references.remove,
       previewCorrection: corrections.preview,
       applyCorrection: corrections.apply,
       undoCorrection: corrections.undo,
       getCorrectionHistory: corrections.history,
-      interpretPostings: events.interpret,
+      reinterpretPostings: events.interpret,
+      listCounterparties: counterparties.list,
+      getCounterparty: counterparties.get,
+      saveCounterparty: counterparties.save,
+      mergeCounterparties: counterparties.merge,
+      moveAlias: counterparties.moveAlias,
+      assignEventCounterparty: counterparties.assignEvent,
+      listQuestions: questions.list,
       getEvent: events.get,
       getEventForPosting: events.forPosting,
       getInterpretationSummary: () => events.summary,

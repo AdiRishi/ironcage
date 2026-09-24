@@ -7,6 +7,7 @@ export * from "./corrections.ts";
 export * from "./impact.ts";
 export * from "./relationships.ts";
 export * from "./rules.ts";
+export * from "./interpretation.ts";
 export * from "./model-cost.ts";
 export * from "./descriptors/commbank.ts";
 export * from "./analysis/periods.ts";

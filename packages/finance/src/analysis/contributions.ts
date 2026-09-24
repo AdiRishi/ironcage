@@ -1,6 +1,7 @@
 import type {
   Allocation,
   AnalysisQuery,
+  CounterpartyId,
   CreditLink,
   EventId,
   FinancialRole,
@@ -15,6 +16,7 @@ import { inPeriod } from "./periods.ts";
 export type Contribution = {
   key: string;
   eventId: typeof EventId.Type | null;
+  counterpartyId: typeof CounterpartyId.Type | null;
   kind: FinancialRole;
   posting: Posting;
   postings: readonly Posting[];
@@ -44,6 +46,7 @@ export function selectContributions(
         return {
           key: posting.id,
           eventId: event?.id ?? null,
+          counterpartyId: event?.counterpartyId ?? null,
           kind: event?.kind ?? "unresolved",
           posting,
           postings: event?.postings ?? [posting],
@@ -83,6 +86,7 @@ export function selectContributions(
         facts.push({
           key: posting.id,
           eventId: event.id,
+          counterpartyId: event.counterpartyId,
           kind: event.kind,
           posting,
           postings: event.postings,
@@ -99,8 +103,8 @@ export function selectContributions(
       const filters = query.filters;
       if (
         (categoryIds.size && (!allocation.categoryId || !categoryIds.has(allocation.categoryId))) ||
-        (filters.merchants.length &&
-          (!allocation.merchantId || !filters.merchants.includes(allocation.merchantId))) ||
+        (filters.counterparties.length &&
+          (!event.counterpartyId || !filters.counterparties.includes(event.counterpartyId))) ||
         (filters.tags.length && !allocation.tagIds.some((id) => filters.tags.includes(id))) ||
         (filters.personalEvents.length &&
           !allocation.personalEventIds.some((id) => filters.personalEvents.includes(id)))
@@ -131,6 +135,7 @@ export function selectContributions(
       facts.push({
         key: allocation.id,
         eventId: event.id,
+        counterpartyId: event.counterpartyId,
         kind: event.kind,
         posting: primary,
         postings: event.postings,
@@ -149,8 +154,8 @@ export function contributionGroups(fact: Contribution, groupBy: GroupBy): readon
       return [fact.posting.accountId];
     case "category":
       return [fact.allocation?.categoryId ?? "unassigned"];
-    case "merchant":
-      return [fact.allocation?.merchantId ?? "unassigned"];
+    case "counterparty":
+      return [fact.counterpartyId ?? "unassigned"];
     case "tag":
       return fact.allocation?.tagIds.length ? fact.allocation.tagIds : ["unassigned"];
     case "personalEvent":
@@ -166,8 +171,8 @@ export function groupLabel(snapshot: AnalysisSnapshot, groupBy: GroupBy, key: st
       return snapshot.accounts.find((account) => account.id === key)?.label ?? key;
     case "category":
       return snapshot.references.categories.find((item) => item.id === key)?.name ?? key;
-    case "merchant":
-      return snapshot.references.merchants.find((item) => item.id === key)?.name ?? key;
+    case "counterparty":
+      return snapshot.references.counterparties.find((item) => item.id === key)?.name ?? key;
     case "tag":
       return snapshot.references.tags.find((item) => item.id === key)?.name ?? key;
     case "personalEvent":

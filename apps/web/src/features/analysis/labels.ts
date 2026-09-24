@@ -12,7 +12,7 @@ export const measureLabels = {
 } satisfies Record<Measure, string>;
 export const groupLabels = {
   category: "Category",
-  merchant: "Merchant",
+  counterparty: "Counterparty",
   account: "Account",
   tag: "Tag",
   personalEvent: "Personal event",

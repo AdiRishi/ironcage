@@ -47,7 +47,7 @@ export function TrendsFilters({
                 normalization: "total",
                 basis: movement ? "posted" : query.basis,
                 filters: movement
-                  ? { categories: [], merchants: [], tags: [], personalEvents: [] }
+                  ? { categories: [], counterparties: [], tags: [], personalEvents: [] }
                   : query.filters,
               },
               movement ? "account" : groupBy,
@@ -111,7 +111,7 @@ export function TrendsFilters({
       {!["cashBalanceChange", "netPrincipalReduction"].includes(query.measure) && (
         <details>
           <summary className="cursor-pointer text-sm font-medium">
-            Filter categories, merchants, tags, and personal events
+            Filter categories, counterparties, tags, and personal events
           </summary>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Dimension
@@ -123,11 +123,11 @@ export function TrendsFilters({
               }
             />
             <Dimension
-              label="Merchants"
-              options={references.merchants}
-              selected={query.filters.merchants}
-              onChange={(merchants) =>
-                apply({ ...query, filters: { ...query.filters, merchants } })
+              label="Counterparties"
+              options={references.counterparties}
+              selected={query.filters.counterparties}
+              onChange={(counterparties) =>
+                apply({ ...query, filters: { ...query.filters, counterparties } })
               }
             />
             <Dimension

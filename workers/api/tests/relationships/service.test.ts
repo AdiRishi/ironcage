@@ -50,7 +50,7 @@ const createEvents = Effect.fn(function* (
     }),
   });
   const events = yield* Events;
-  yield* events.interpret({ commandId: yield* commandId, scope: "all" });
+  yield* events.interpret({ commandId: yield* commandId });
   const postings = yield* Postings;
   return yield* Effect.forEach(
     (yield* postings.list({ filter: { importId: file.importId } })).rows,

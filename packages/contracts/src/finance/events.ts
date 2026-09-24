@@ -4,20 +4,25 @@ import {
   EventId,
   AllocationId,
   CategoryId,
-  MerchantId,
+  CategorySource,
+  CategoryTree,
+  CounterpartyId,
+  CounterpartyKind,
+  CounterpartySource,
+  RoleSource,
   TagId,
   PersonalEventId,
   FinancialRole,
   AllocationRole,
 } from "./interpretation.ts";
 import { Posting } from "./postings.ts";
-import { AccountId, CalendarDate, CommandId, Money, PostingId, Version } from "./values.ts";
+import { AccountId, CalendarDate, Money, PostingId, Version } from "./values.ts";
 export const Allocation = Schema.Struct({
   id: AllocationId,
   role: AllocationRole,
   amount: Money,
   categoryId: Schema.NullOr(CategoryId),
-  merchantId: Schema.NullOr(MerchantId),
+  categorySource: Schema.NullOr(CategorySource),
   nonPersonal: Schema.Boolean,
   tagIds: Schema.Array(TagId),
   personalEventIds: Schema.Array(PersonalEventId),
@@ -25,6 +30,9 @@ export const Allocation = Schema.Struct({
 export const FinancialEvent = Schema.Struct({
   id: EventId,
   kind: FinancialRole,
+  roleSource: Schema.NullOr(RoleSource),
+  counterpartyId: Schema.NullOr(CounterpartyId),
+  counterpartySource: Schema.NullOr(CounterpartySource),
   magnitude: Money,
   primaryPostingId: PostingId,
   reportingAccountId: AccountId,
@@ -35,10 +43,6 @@ export const FinancialEvent = Schema.Struct({
   postings: Schema.Array(Posting),
 });
 export type FinancialEvent = typeof FinancialEvent.Type;
-export const InterpretPostings = Schema.Struct({
-  commandId: CommandId,
-  scope: Schema.Union([Schema.Literal("all"), Schema.NonEmptyArray(PostingId)]),
-});
 export const InterpretationSummary = Schema.Struct({
   created: Schema.Int,
   counts: Schema.Array(Schema.Struct({ role: FinancialRole, count: Schema.Int })),
@@ -52,17 +56,15 @@ export const ReferenceData = Schema.Struct({
       id: CategoryId,
       parentId: Schema.NullOr(CategoryId),
       name: Schema.String,
+      slug: Schema.NullOr(Schema.String),
+      tree: CategoryTree,
+      position: Schema.Int,
       archived: Schema.Boolean,
       version: Version,
     }),
   ),
-  merchants: Schema.Array(
-    Schema.Struct({
-      id: MerchantId,
-      name: Schema.String,
-      version: Version,
-      aliases: Schema.Array(Schema.String),
-    }),
+  counterparties: Schema.Array(
+    Schema.Struct({ id: CounterpartyId, name: Schema.String, kind: CounterpartyKind }),
   ),
   tags: Schema.Array(Schema.Struct({ id: TagId, name: Schema.String, version: Version })),
   personalEvents: Schema.Array(

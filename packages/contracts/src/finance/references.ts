@@ -1,16 +1,12 @@
 import { Schema } from "effect";
 
-import { CategoryId, MerchantId, TagId, PersonalEventId } from "./interpretation.ts";
+import { CategoryId, TagId, PersonalEventId } from "./interpretation.ts";
 import { CalendarDate, CommandId, Version } from "./values.ts";
 
 const Name = Schema.Trim.check(Schema.isMinLength(1), Schema.isMaxLength(100));
 const CategoryTarget = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("create") }),
   Schema.Struct({ kind: Schema.Literal("update"), id: CategoryId, expectedVersion: Version }),
-]);
-const MerchantTarget = Schema.Union([
-  Schema.Struct({ kind: Schema.Literal("create") }),
-  Schema.Struct({ kind: Schema.Literal("update"), id: MerchantId, expectedVersion: Version }),
 ]);
 const TagTarget = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("create") }),
@@ -28,12 +24,6 @@ export const ReferenceWrite = Schema.Union([
     parentId: Schema.NullOr(CategoryId),
     archived: Schema.Boolean,
   }),
-  Schema.Struct({
-    kind: Schema.Literal("merchant"),
-    target: MerchantTarget,
-    name: Name,
-    aliases: Schema.Array(Name),
-  }),
   Schema.Struct({ kind: Schema.Literal("tag"), target: TagTarget, name: Name }),
   Schema.Struct({
     kind: Schema.Literal("personalEvent"),
@@ -49,7 +39,6 @@ export const DeleteReference = Schema.Struct({
   commandId: CommandId,
   record: Schema.Union([
     Schema.Struct({ kind: Schema.Literal("category"), id: CategoryId, expectedVersion: Version }),
-    Schema.Struct({ kind: Schema.Literal("merchant"), id: MerchantId, expectedVersion: Version }),
     Schema.Struct({ kind: Schema.Literal("tag"), id: TagId, expectedVersion: Version }),
     Schema.Struct({
       kind: Schema.Literal("personalEvent"),

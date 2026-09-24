@@ -22,7 +22,7 @@ const query: AnalysisQuery = {
   currency: "AUD",
   accounts: [],
   measure: "netPersonalCosts",
-  filters: { categories: [], merchants: [], tags: [], personalEvents: [] },
+  filters: { categories: [], counterparties: [], tags: [], personalEvents: [] },
   normalization: "total",
 };
 const now = "2026-09-16T00:00:00.000Z";

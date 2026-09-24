@@ -5,7 +5,6 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
-import { EventSuggestion } from "../classification/event-suggestion";
 import { RelationshipsPanel } from "../relationships/panel";
 import { EventEditor } from "./editor";
 import { EventHistory } from "./history";
@@ -77,15 +76,6 @@ export function InterpretationPanel({ postingId }: { postingId: typeof PostingId
                     (category) => category.id === allocation.categoryId,
                   )?.name ?? "Uncategorized"}
                 </p>
-                {allocation.merchantId && (
-                  <p className="text-sm">
-                    {
-                      references.data?.merchants.find(
-                        (merchant) => merchant.id === allocation.merchantId,
-                      )?.name
-                    }
-                  </p>
-                )}
                 {allocation.nonPersonal && (
                   <p className="text-sm text-muted-foreground">Non-personal</p>
                 )}
@@ -106,7 +96,6 @@ export function InterpretationPanel({ postingId }: { postingId: typeof PostingId
             </div>
           ))}
           <RelationshipsPanel event={event} />
-          <EventSuggestion eventId={event.id} />
           <EventHistory eventId={event.id} />
         </>
       ) : (

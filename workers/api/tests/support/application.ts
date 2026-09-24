@@ -11,13 +11,12 @@ import { AccountResolution } from "../../src/accounts/resolution.ts";
 import { Accounts } from "../../src/accounts/service.ts";
 import { SavedAnalyses } from "../../src/analysis/saved.ts";
 import { Analysis } from "../../src/analysis/service.ts";
-import { ClassificationConfig } from "../../src/classification/config.ts";
-import { Classification } from "../../src/classification/service.ts";
 import { Commands } from "../../src/database/commands.ts";
 import { Corrections } from "../../src/events/corrections.ts";
 import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
-import { ClassificationJobs } from "../../src/platform/services.ts";
+import { Counterparties } from "../../src/interpretation/counterparties.ts";
+import { Questions } from "../../src/interpretation/questions.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { References } from "../../src/references/service.ts";
 import { InterpretationReviews } from "../../src/relationships/reviews.ts";
@@ -69,28 +68,13 @@ export function applicationTest() {
     Postings.layer,
     Reviews.layer,
     Settings.layer,
-    Classification.layer,
+    Counterparties.layer,
+    Questions.layer,
   ).pipe(
     Layer.provideMerge(Publication.layer),
     Layer.provideMerge(Commands.layer),
     Layer.provide(AccountResolution.layer),
     Layer.provideMerge(database),
-    Layer.provide(
-      Layer.succeed(ClassificationConfig, {
-        provider: {
-          name: "Synthetic provider",
-          model: "synthetic",
-          inputMicrousdPerMillion: 270000n,
-          outputMicrousdPerMillion: 850000n,
-        },
-      }),
-    ),
-    Layer.provide(
-      Layer.succeed(ClassificationJobs, {
-        start: () => Effect.void,
-        status: () => Effect.succeed({ status: "running", failure: null }),
-      }),
-    ),
     Layer.provideMerge(NodeCrypto.layer),
   );
 

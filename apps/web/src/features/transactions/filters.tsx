@@ -31,7 +31,7 @@ export function TransactionFilters({
   const [error, setError] = useState<string | null>(null);
   const defaults = {
     categoryId: filter.categoryId ?? null,
-    merchantId: filter.merchantId ?? null,
+    counterpartyId: filter.counterpartyId ?? null,
     tagId: filter.tagId ?? null,
     personalEventId: filter.personalEventId ?? null,
     interpretationReview:
@@ -70,7 +70,7 @@ export function TransactionFilters({
           if (value.interpretationReview !== "all")
             input.interpretationReview = value.interpretationReview === "yes";
           if (value.categoryId) input.categoryId = value.categoryId;
-          if (value.merchantId) input.merchantId = value.merchantId;
+          if (value.counterpartyId) input.counterpartyId = value.counterpartyId;
           if (value.tagId) input.tagId = value.tagId;
           if (value.personalEventId) input.personalEventId = value.personalEventId;
           if (filter.importId) input.importId = filter.importId;
@@ -125,12 +125,12 @@ export function TransactionFilters({
             />
           )}
         </form.Field>
-        <form.Field name="merchantId">
+        <form.Field name="counterpartyId">
           {(field) => (
             <ReferenceChoice
-              label="Merchant"
+              label="Counterparty"
               value={field.state.value}
-              options={references.data?.merchants ?? []}
+              options={references.data?.counterparties ?? []}
               onChange={field.handleChange}
             />
           )}
