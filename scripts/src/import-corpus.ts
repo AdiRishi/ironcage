@@ -75,7 +75,8 @@ const command = Command.make(
         body: HttpBody.formData(body),
         headers: { origin: web },
       });
-      if (response.status !== 200)
+      // A new file is accepted with 202; one already imported answers 200.
+      if (response.status !== 200 && response.status !== 202)
         return yield* new CorpusImportError({
           message: `Upload of ${name} failed with HTTP ${response.status}.`,
         });
