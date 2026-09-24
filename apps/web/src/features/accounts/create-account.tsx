@@ -1,7 +1,7 @@
-import { CommandId, CreateAccount } from "@repo/contracts/finance";
+import { CommandId, CreateAccount, institutionNames } from "@repo/contracts/finance";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { Schema, Struct } from "effect";
+import { Record, Schema, Struct } from "effect";
 import { useId, useState } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -30,7 +30,12 @@ import { createAccount } from "./functions";
 import { accountKindLabels } from "./labels";
 
 const Fields = Schema.Struct(Struct.omit(CreateAccount.fields, ["commandId"]));
-const defaults: typeof Fields.Type = { label: "", kind: "deposit", currency: "AUD" };
+const defaults: typeof Fields.Type = {
+  label: "",
+  kind: "deposit",
+  institution: "commbank",
+  currency: "AUD",
+};
 export function CreateAccountDialog() {
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -88,6 +93,31 @@ export function CreateAccountDialog() {
                     aria-describedby={`${id}-label-error`}
                   />
                   <FieldError id={`${id}-label-error`} errors={field.state.meta.errors} />
+                </div>
+              )}
+            </form.Field>
+            <form.Field name="institution">
+              {(field) => (
+                <div className="space-y-2">
+                  <Label htmlFor={`${id}-institution`}>Bank</Label>
+                  <Select
+                    items={institutionNames}
+                    value={field.state.value}
+                    onValueChange={(value) => {
+                      if (value) field.handleChange(value);
+                    }}
+                  >
+                    <SelectTrigger id={`${id}-institution`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Record.toEntries(institutionNames).map(([institution, name]) => (
+                        <SelectItem key={institution} value={institution}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
             </form.Field>

@@ -36,7 +36,7 @@ export class Accounts extends Context.Service<
           result: Schema.toCodecJson(Account),
           execute: Effect.gen(function* () {
             const [account] =
-              yield* sql`INSERT INTO accounts (id, label, kind, currency) VALUES (${id}, ${input.label}, ${input.kind}, ${input.currency}) RETURNING ${fields}`.pipe(
+              yield* sql`INSERT INTO accounts (id, label, kind, institution, currency) VALUES (${id}, ${input.label}, ${input.kind}, ${input.institution}, ${input.currency}) RETURNING ${fields}`.pipe(
                 Effect.flatMap(decodeOne),
               );
             return account;

@@ -36,6 +36,7 @@ export const metadata = Effect.fn("pdfMetadata")(function* (pages: ReadonlyArray
     ?.str.replace(/\s/g, "");
   const account: typeof BankAccount.Type | null = number
     ? {
+        institution: "commbank",
         kind,
         currency: "AUD",
         bankId: kind === "deposit" ? number.slice(0, 6) : null,

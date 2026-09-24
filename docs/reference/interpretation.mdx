@@ -12,7 +12,7 @@ posting ──► descriptor ──► alias ──► counterparty ──► ev
 
 ## Descriptors
 
-A bank profile reads a posting's description and account kind into a descriptor. The CommBank profile lives in `packages/finance/src/descriptors/commbank.ts`. It is a pure function, so the API computes descriptors inside the publication transaction and recomputes them when the profile version changes.
+A bank profile reads a posting's description and account kind into a descriptor. `descriptorProfiles` in `packages/finance/src/descriptors/index.ts` holds one profile per institution, and a posting uses the profile of its account's institution. The CommBank profile lives in `packages/finance/src/descriptors/commbank.ts`. A profile is a pure function with a version, so the API computes descriptors inside the publication transaction. Each stored descriptor records the profile and version that read it, and the API reads it again when its account's profile is different or newer. Adding a bank adds a profile to the registry; its type requires one for every institution.
 
 ```ts
 type Descriptor = {

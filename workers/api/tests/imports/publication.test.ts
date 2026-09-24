@@ -181,7 +181,7 @@ test(
       .run({
         ...command,
         execute: Effect.gen(function* () {
-          yield* sql`INSERT INTO accounts (id, kind, label, currency) VALUES (${accountId}, 'deposit', 'Uncommitted', 'AUD')`;
+          yield* sql`INSERT INTO accounts (id, kind, institution, label, currency) VALUES (${accountId}, 'deposit', 'commbank', 'Uncommitted', 'AUD')`;
           return yield* new FinanceError({
             kind: "unavailable",
             message: "Injected failure before commit.",
@@ -266,6 +266,7 @@ test.skipIf(!existsSync(corpusDirectory))(
               commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
               label: `Corpus account ${owners.size + 1}`,
               kind: pair.identity.kind,
+              institution: "commbank",
               currency: pair.identity.currency,
             }),
           );

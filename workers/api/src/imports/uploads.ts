@@ -2,6 +2,7 @@ import { PgClient } from "@effect/sql-pg";
 import {
   FinanceError,
   ImportId,
+  Institution,
   SourceFileId,
   SourceFileInput,
   SourceFormat,
@@ -97,12 +98,24 @@ export class Uploads extends Context.Service<
               };
             }
             if (input.accountId) {
-              const accounts = yield* sql`SELECT id FROM accounts WHERE id = ${input.accountId}`;
-              if (accounts.length === 0)
+              const [account] =
+                yield* sql`SELECT institution FROM accounts WHERE id = ${input.accountId}`.pipe(
+                  Effect.flatMap(
+                    Schema.decodeUnknownEffect(
+                      Schema.Array(Schema.Struct({ institution: Institution })),
+                    ),
+                  ),
+                );
+              if (!account)
                 return yield* new FinanceError({ kind: "notFound", message: "Account not found." });
+              if (account.institution !== input.institution)
+                return yield* new FinanceError({
+                  kind: "invalid",
+                  message: "This account belongs to another bank.",
+                });
             }
             yield* sql`INSERT INTO source_files ${sql.insert({ id: sourceFileId, sha256: hash, file_name: input.fileName, media_type: mediaType, byte_size: input.bytes.byteLength, object_key: objectKey })}`;
-            yield* sql`INSERT INTO imports ${sql.insert({ id: importId, source_file_id: sourceFileId, account_id: input.accountId, format, parser_version: "pending", workflow_instance_id: importId, status: "processing" })}`;
+            yield* sql`INSERT INTO imports ${sql.insert({ id: importId, source_file_id: sourceFileId, account_id: input.accountId, format, institution: input.institution, parser_version: "pending", workflow_instance_id: importId, status: "processing" })}`;
             return { sourceFileId, importId, existing: false, discardObject: false };
           }),
         );

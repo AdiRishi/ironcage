@@ -342,6 +342,7 @@ export class Enrichment extends Context.Service<
                         ARRAY(SELECT DISTINCT d.channel FROM posting_descriptors d WHERE d.alias_key = i.alias_key ORDER BY 1) AS channels,
                         ARRAY(SELECT DISTINCT CASE WHEN p.amount_minor < 0 THEN 'out' ELSE 'in' END FROM posting_descriptors d JOIN postings p ON p.id = d.posting_id WHERE d.alias_key = i.alias_key ORDER BY 1) AS directions,
                         ARRAY(SELECT DISTINCT a.kind FROM posting_descriptors d JOIN postings p ON p.id = d.posting_id JOIN accounts a ON a.id = p.account_id WHERE d.alias_key = i.alias_key ORDER BY 1) AS "accountKinds",
+                        ARRAY(SELECT DISTINCT a.institution FROM posting_descriptors d JOIN postings p ON p.id = d.posting_id JOIN accounts a ON a.id = p.account_id WHERE d.alias_key = i.alias_key ORDER BY 1) AS institutions,
                         (SELECT count(*)::int FROM posting_descriptors d WHERE d.alias_key = i.alias_key) AS "transactionCount"
                       FROM enrichment_items i WHERE i.run_id = ${runId} AND i.status = 'pending' ORDER BY i.position LIMIT ${batchSize}`.pipe(
                       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(EnrichmentAlias))),

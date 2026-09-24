@@ -11,7 +11,8 @@ Pages use these words with these meanings and no others. Where a word could mean
 
 | Term           | Meaning                                                                                                                                                                 |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Account        | A bank product with a stable identity. Has an account kind, a label, and a currency.                                                                                    |
+| Account        | A bank product with a stable identity. Has an account kind, an institution, a label, and a currency.                                                                    |
+| Institution    | The bank whose files and descriptions an account uses, such as `commbank`. It chooses the file parsers and the descriptor profile.                                      |
 | Account kind   | `deposit`, `card`, or `loan`. Fixed for the life of the account.                                                                                                        |
 | Source file    | One uploaded file, identified by the SHA-256 of its bytes. Uploading the same bytes twice yields the same source file.                                                  |
 | Import         | One processing run of one source file. Has a status, a summary, and zero or more source reviews.                                                                        |

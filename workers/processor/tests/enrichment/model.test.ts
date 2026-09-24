@@ -15,6 +15,7 @@ const batch: typeof EnrichmentBatch.Type = {
       channels: ["card"],
       directions: ["out"],
       accountKinds: ["deposit"],
+      institutions: ["commbank"],
       transactionCount: 3,
     },
   ],

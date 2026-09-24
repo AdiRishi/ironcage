@@ -15,6 +15,7 @@ import {
   EventId,
   FinanceError,
   FinancialRole,
+  Institution,
   PostingId,
   Rule,
   RoleSource,
@@ -23,10 +24,9 @@ import {
 import {
   allocationRole,
   bankReading,
-  commbankProfileVersion,
   type CounterpartyDefaults,
   deriveInterpretation,
-  describeCommBank,
+  descriptorProfiles,
   hasEffectiveRuleConflict,
   ruleActions,
   ruleMatches,
@@ -305,12 +305,21 @@ export function matchesSubject(
 
 export const loadEventSubjects = loadSubjects;
 
+// Descriptors for postings that have none, or whose account's institution profile has
+// a newer version than the one that read them.
 export const writeDescriptors = Effect.gen(function* () {
   const sql = yield* PgClient.PgClient;
+  const versions = Object.fromEntries(
+    Object.entries(descriptorProfiles).map(([institution, profile]) => [
+      institution,
+      profile.version,
+    ]),
+  );
   const rows =
-    yield* sql`SELECT p.id, p.description, p.amount_minor::text AS "amountMinor", a.kind AS "accountKind"
+    yield* sql`SELECT p.id, p.description, p.amount_minor::text AS "amountMinor", a.kind AS "accountKind", a.institution
       FROM postings p JOIN accounts a ON a.id = p.account_id LEFT JOIN posting_descriptors d ON d.posting_id = p.id
-      WHERE d.posting_id IS NULL OR d.profile_version < ${commbankProfileVersion}`.pipe(
+      WHERE d.posting_id IS NULL OR d.profile <> a.institution
+        OR d.profile_version < (${sql.json(versions)}::jsonb ->> a.institution)::int`.pipe(
       Effect.flatMap(
         Schema.decodeUnknownEffect(
           Schema.Array(
@@ -319,14 +328,18 @@ export const writeDescriptors = Effect.gen(function* () {
               description: Schema.String,
               amountMinor: Schema.BigIntFromString,
               accountKind: AccountKind,
+              institution: Institution,
             }),
           ),
         ),
       ),
     );
   for (const batch of Arr.chunksOf(rows, 500)) {
-    const records = batch.map((row) => descriptorRecord(row.id, describeCommBank(row)));
-    yield* sql`INSERT INTO posting_descriptors ${sql.insert(records)} ON CONFLICT (posting_id) DO UPDATE SET profile_version = EXCLUDED.profile_version, channel = EXCLUDED.channel, counterparty_text = EXCLUDED.counterparty_text, alias_key = EXCLUDED.alias_key, card_suffix = EXCLUDED.card_suffix, own_account_suffix = EXCLUDED.own_account_suffix, pay_id = EXCLUDED.pay_id, reference = EXCLUDED.reference, foreign_currency = EXCLUDED.foreign_currency, foreign_amount = EXCLUDED.foreign_amount`;
+    const records = batch.map((row) => ({
+      ...descriptorRecord(row.id, descriptorProfiles[row.institution].describe(row)),
+      profile: row.institution,
+    }));
+    yield* sql`INSERT INTO posting_descriptors ${sql.insert(records)} ON CONFLICT (posting_id) DO UPDATE SET profile = EXCLUDED.profile, profile_version = EXCLUDED.profile_version, channel = EXCLUDED.channel, counterparty_text = EXCLUDED.counterparty_text, alias_key = EXCLUDED.alias_key, card_suffix = EXCLUDED.card_suffix, own_account_suffix = EXCLUDED.own_account_suffix, pay_id = EXCLUDED.pay_id, reference = EXCLUDED.reference, foreign_currency = EXCLUDED.foreign_currency, foreign_amount = EXCLUDED.foreign_amount`;
   }
   return rows.map((row) => row.id);
 });

@@ -9,6 +9,7 @@ import {
   RecordCursor,
   ImportId,
   Instant,
+  Institution,
   Money,
   SourceFileId,
   Version,
@@ -65,6 +66,7 @@ export const ParsedObservation = Schema.Struct({
 });
 export type ParsedObservation = typeof ParsedObservation.Type;
 export const BankAccount = Schema.Struct({
+  institution: Institution,
   bankId: Schema.NullOr(Schema.String),
   accountNumber: Schema.NonEmptyString,
   kind: AccountKind,
@@ -123,13 +125,17 @@ export const ImportSource = Schema.Struct({
   importId: ImportId,
   objectKey: Schema.String,
   format: SourceFormat,
+  institution: Institution,
   currency: Currency,
   bytesAvailable: Schema.Boolean,
 });
+// A file with an account belongs to that account's institution; a file without one
+// names the institution whose formats it uses.
 export const UploadInput = Schema.Struct({
   fileName: Schema.String,
   mediaType: Schema.String,
   accountId: Schema.NullOr(AccountId),
+  institution: Institution,
   bytes: Schema.Uint8Array,
 });
 export type UploadInput = typeof UploadInput.Type;

@@ -4,9 +4,7 @@ import { Workflows } from "alchemy/Cloudflare";
 import type { ReadBucketClient } from "alchemy/Cloudflare/R2";
 import { Effect, Schema } from "effect";
 
-import { parseCsv } from "./csv.ts";
-import { parseOfx } from "./ofx.ts";
-import { parsePdf } from "./pdf/index.ts";
+import { sourceParsers } from "./index.ts";
 
 export const runImport = (
   api: Pick<Api, "getImportSource" | "publishImport" | "failImport">,
@@ -37,12 +35,10 @@ export const runImport = (
               message: "The original file could not be read.",
             });
           const bytes = yield* object.bytes();
-          const result =
-            source.format === "csv"
-              ? yield* parseCsv(bytes, source.currency)
-              : source.format === "ofx"
-                ? yield* parseOfx(bytes)
-                : yield* parsePdf(bytes);
+          const result = yield* sourceParsers[source.institution][source.format]({
+            bytes,
+            currency: source.currency,
+          });
           yield* api.publishImport({ importId: input.importId, ...result });
           return null;
         }).pipe(

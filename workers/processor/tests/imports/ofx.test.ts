@@ -52,6 +52,7 @@ it.effect(
           Buffer.from(statement(input.account, input.open, input.close), "latin1"),
         );
         expect(parsed.account).toEqual({
+          institution: "commbank",
           kind: input.kind,
           bankId: input.bankId,
           accountNumber: "11111111",

@@ -86,6 +86,7 @@ export const parseOfx = Effect.fn("parseOfx")(function* (bytes: Uint8Array) {
       ? "loan"
       : "deposit";
   const account = yield* Schema.decodeUnknownEffect(BankAccount)({
+    institution: "commbank",
     bankId: bank?.BANKID?.trim() || null,
     accountNumber: bank?.ACCTID?.trim(),
     kind,

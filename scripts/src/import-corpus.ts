@@ -65,6 +65,7 @@ const command = Command.make(
     const upload = Effect.fn(function* (name: string, accountId: string | null) {
       const body = new FormData();
       if (accountId) body.set("accountId", accountId);
+      body.set("institution", "commbank");
       body.set(
         "file",
         new Blob([NodeFS.readFileSync(NodePath.join(corpus, name))], { type: mediaType(name) }),
