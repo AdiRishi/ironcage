@@ -100,21 +100,27 @@ export class Counterparties extends Context.Service<
           Effect.provideService(Crypto.Crypto, crypto),
         );
 
+      // A counterparty's amounts are its share of the flow: what it adds to the out
+      // streams, with refunds reducing spending, and what it adds to the in streams.
+      // Money moved between your own accounts is in neither.
+      const outflowFacts = sql`f.measure IN ('spending', 'externalOut', 'loanRepayment', 'unresolvedOut')`;
+      const inflowFacts = sql`f.measure IN ('income', 'borrowing', 'externalIn', 'unresolvedIn')`;
       const summaries = (predicate: Statement.Fragment, input: typeof ListCounterparties.Type) => {
         const inPeriod = input.period
-          ? sql`p.posted_on >= ${input.period.start}::date AND p.posted_on < ${input.period.endExclusive}::date`
+          ? sql`f.spending_on >= ${input.period.start}::date AND f.spending_on < ${input.period.endExclusive}::date`
           : sql`true`;
+        const outflow = sql`COALESCE(sum(f.amount_minor) FILTER (WHERE ${inPeriod} AND ${outflowFacts}), 0)`;
+        const inflow = sql`COALESCE(sum(f.amount_minor) FILTER (WHERE ${inPeriod} AND ${inflowFacts}), 0)`;
         return sql`SELECT ${counterpartyColumns(sql)},
-            count(e.id) FILTER (WHERE ${inPeriod})::int AS "eventCount",
-            jsonb_build_object('currency', ${input.currency}::text, 'minor', COALESCE(-sum(p.amount_minor) FILTER (WHERE ${inPeriod} AND p.amount_minor < 0), 0)::text) AS outflow,
-            jsonb_build_object('currency', ${input.currency}::text, 'minor', COALESCE(sum(p.amount_minor) FILTER (WHERE ${inPeriod} AND p.amount_minor > 0), 0)::text) AS inflow,
-            max(p.posted_on)::text AS "lastOn"
+            count(DISTINCT f.event_id) FILTER (WHERE ${inPeriod} AND f.measure <> 'internal')::int AS "eventCount",
+            jsonb_build_object('currency', ${input.currency}::text, 'minor', ${outflow}::text) AS outflow,
+            jsonb_build_object('currency', ${input.currency}::text, 'minor', ${inflow}::text) AS inflow,
+            max(f.spending_on) FILTER (WHERE f.measure <> 'internal')::text AS "lastOn"
           FROM counterparties c
-          LEFT JOIN events e ON e.counterparty_id = c.id AND e.active AND e.currency = ${input.currency}
-          LEFT JOIN postings p ON p.id = e.primary_posting_id
+          LEFT JOIN ledger_facts f ON f.counterparty_id = c.id AND f.currency = ${input.currency}
           WHERE ${predicate}
           GROUP BY c.id
-          ORDER BY COALESCE(-sum(p.amount_minor) FILTER (WHERE ${inPeriod} AND p.amount_minor < 0), 0) + COALESCE(sum(p.amount_minor) FILTER (WHERE ${inPeriod} AND p.amount_minor > 0), 0) DESC, c.name, c.id`.pipe(
+          ORDER BY ${outflow} + ${inflow} DESC, c.name, c.id`.pipe(
           Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(CounterpartySummary))),
         );
       };
@@ -167,11 +173,11 @@ export class Counterparties extends Context.Service<
                 FROM counterparty_aliases a WHERE a.counterparty_id = ${counterpartyId} AND a.status = 'applied' ORDER BY a.alias_key`.pipe(
               Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(CounterpartyAlias))),
             );
-            const months = yield* sql`SELECT to_char(p.posted_on, 'YYYY-MM') AS month,
-                  jsonb_build_object('currency', ${settings.currency}::text, 'minor', COALESCE(-sum(p.amount_minor) FILTER (WHERE p.amount_minor < 0), 0)::text) AS outflow,
-                  jsonb_build_object('currency', ${settings.currency}::text, 'minor', COALESCE(sum(p.amount_minor) FILTER (WHERE p.amount_minor > 0), 0)::text) AS inflow
-                FROM events e JOIN postings p ON p.id = e.primary_posting_id
-                WHERE e.active AND e.counterparty_id = ${counterpartyId} AND p.currency = ${settings.currency}
+            const months = yield* sql`SELECT to_char(f.spending_on, 'YYYY-MM') AS month,
+                  jsonb_build_object('currency', ${settings.currency}::text, 'minor', COALESCE(sum(f.amount_minor) FILTER (WHERE ${outflowFacts}), 0)::text) AS outflow,
+                  jsonb_build_object('currency', ${settings.currency}::text, 'minor', COALESCE(sum(f.amount_minor) FILTER (WHERE ${inflowFacts}), 0)::text) AS inflow
+                FROM ledger_facts f
+                WHERE f.counterparty_id = ${counterpartyId} AND f.currency = ${settings.currency} AND f.measure <> 'internal'
                 GROUP BY 1 ORDER BY 1`.pipe(
               Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(CounterpartyMonth))),
             );

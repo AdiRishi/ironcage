@@ -75,6 +75,79 @@ const monthStart = (on: string) => CalendarDate.make(`${on.slice(0, 7)}-01`);
 const shiftMonths = (on: CalendarDate, months: number) =>
   CalendarDate.make(DateTime.formatIsoDateUtc(DateTime.add(DateTime.makeUnsafe(on), { months })));
 
+const categoryNodes = Effect.gen(function* () {
+  const sql = yield* PgClient.PgClient;
+  return yield* sql`SELECT id, parent_id AS "parentId", name, slug, tree, position FROM categories ORDER BY tree DESC, position, name`.pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Category))),
+  );
+});
+
+type PeriodQuery = {
+  currency: string;
+  basis: FlowInput["basis"];
+  period: Period;
+  comparison: Period;
+};
+
+// Sums facts for both periods in one pass, grouped by measure and category.
+const factRows = Effect.fn("factRows")(function* ({
+  currency,
+  basis,
+  period,
+  comparison,
+}: PeriodQuery) {
+  const sql = yield* PgClient.PgClient;
+  const on = basis === "spending" ? sql`f.spending_on` : sql`f.posted_on`;
+  const current = sql`${on} >= ${period.start}::date AND ${on} < ${period.endExclusive}::date`;
+  const previous = sql`${on} >= ${comparison.start}::date AND ${on} < ${comparison.endExclusive}::date`;
+  return yield* sql`SELECT f.measure, f.category_id AS "categoryId", f.top_category_id AS "topCategoryId",
+      COALESCE(sum(f.amount_minor) FILTER (WHERE ${current}), 0)::text AS current,
+      COALESCE(sum(f.amount_minor) FILTER (WHERE ${previous}), 0)::text AS previous,
+      COALESCE(sum(f.amount_minor) FILTER (WHERE ${current} AND f.model_assigned), 0)::text AS "modelCurrent",
+      count(DISTINCT f.event_id) FILTER (WHERE ${current} AND f.purchase AND f.amount_minor > 0)::int AS purchases,
+      count(DISTINCT f.event_id) FILTER (WHERE ${previous} AND f.purchase AND f.amount_minor > 0)::int AS "previousPurchases"
+    FROM ledger_facts f
+    WHERE f.currency = ${currency} AND ((${current}) OR (${previous}))
+    GROUP BY f.measure, f.category_id, f.top_category_id`.pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Row))),
+  );
+});
+
+const loanCostTotals = Effect.fn("loanCostTotals")(function* ({
+  currency,
+  basis,
+  period,
+  comparison,
+}: PeriodQuery) {
+  const sql = yield* PgClient.PgClient;
+  const on = basis === "spending" ? sql`f.spending_on` : sql`f.posted_on`;
+  const [row] =
+    yield* sql`SELECT COALESCE(sum(f.amount_minor) FILTER (WHERE ${on} >= ${period.start}::date AND ${on} < ${period.endExclusive}::date), 0)::text AS current,
+        COALESCE(sum(f.amount_minor) FILTER (WHERE ${on} >= ${comparison.start}::date AND ${on} < ${comparison.endExclusive}::date), 0)::text AS previous
+      FROM ledger_facts f JOIN accounts a ON a.id = f.account_id
+      WHERE a.kind = 'loan' AND f.measure = 'spending' AND f.currency = ${currency}`.pipe(
+      Effect.flatMap(
+        Schema.decodeUnknownEffect(
+          Schema.Tuple([
+            Schema.Struct({ current: Schema.BigIntFromString, previous: Schema.BigIntFromString }),
+          ]),
+        ),
+      ),
+    );
+  return row;
+});
+
+// The flow of one period from stored facts. Previews run it before and after writing
+// a change's facts, so a preview and the screens can never disagree.
+export const summarizePeriod = Effect.fn("summarizePeriod")(function* (query: PeriodQuery) {
+  const [rows, categories, loanCosts] = yield* Effect.all([
+    factRows(query),
+    categoryNodes,
+    loanCostTotals(query),
+  ]);
+  return summarizeFlow({ rows, categories, loanCosts, currency: query.currency });
+});
+
 export class Flows extends Context.Service<
   Flows,
   {
@@ -123,58 +196,18 @@ export class Flows extends Context.Service<
         );
         return { period, comparison, calculatedAt: clock.calculatedAt };
       });
-      const categories =
-        sql`SELECT id, parent_id AS "parentId", name, slug, tree, position FROM categories ORDER BY tree DESC, position, name`.pipe(
-          Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Category))),
-        );
+      const provide = Effect.provideService(PgClient.PgClient, sql);
+      const categories = categoryNodes.pipe(provide);
       const dateColumn = (basis: FlowInput["basis"]) =>
         basis === "spending" ? sql`f.spending_on` : sql`f.posted_on`;
-
-      // Sums facts for both periods in one pass, grouped by measure and category.
-      const rows = Effect.fn("Flows.rows")(function* (
-        input: FlowInput,
-        period: Period,
-        comparison: Period,
-      ) {
-        const on = dateColumn(input.basis);
-        const current = sql`${on} >= ${period.start}::date AND ${on} < ${period.endExclusive}::date`;
-        const previous = sql`${on} >= ${comparison.start}::date AND ${on} < ${comparison.endExclusive}::date`;
-        return yield* sql`SELECT f.measure, f.category_id AS "categoryId", f.top_category_id AS "topCategoryId",
-            COALESCE(sum(f.amount_minor) FILTER (WHERE ${current}), 0)::text AS current,
-            COALESCE(sum(f.amount_minor) FILTER (WHERE ${previous}), 0)::text AS previous,
-            COALESCE(sum(f.amount_minor) FILTER (WHERE ${current} AND f.model_assigned), 0)::text AS "modelCurrent",
-            count(DISTINCT f.event_id) FILTER (WHERE ${current} AND f.purchase AND f.amount_minor > 0)::int AS purchases,
-            count(DISTINCT f.event_id) FILTER (WHERE ${previous} AND f.purchase AND f.amount_minor > 0)::int AS "previousPurchases"
-          FROM ledger_facts f
-          WHERE f.currency = ${input.currency} AND ((${current}) OR (${previous}))
-          GROUP BY f.measure, f.category_id, f.top_category_id`.pipe(
-          Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Row))),
+      const rows = (input: FlowInput, period: Period, comparison: Period) =>
+        factRows({ currency: input.currency, basis: input.basis, period, comparison }).pipe(
+          provide,
         );
-      });
-      const loanCosts = Effect.fn("Flows.loanCosts")(function* (
-        input: FlowInput,
-        period: Period,
-        comparison: Period,
-      ) {
-        const on = dateColumn(input.basis);
-        const [row] =
-          yield* sql`SELECT COALESCE(sum(f.amount_minor) FILTER (WHERE ${on} >= ${period.start}::date AND ${on} < ${period.endExclusive}::date), 0)::text AS current,
-              COALESCE(sum(f.amount_minor) FILTER (WHERE ${on} >= ${comparison.start}::date AND ${on} < ${comparison.endExclusive}::date), 0)::text AS previous
-            FROM ledger_facts f JOIN accounts a ON a.id = f.account_id
-            WHERE a.kind = 'loan' AND f.measure = 'spending' AND f.currency = ${input.currency}`.pipe(
-            Effect.flatMap(
-              Schema.decodeUnknownEffect(
-                Schema.Tuple([
-                  Schema.Struct({
-                    current: Schema.BigIntFromString,
-                    previous: Schema.BigIntFromString,
-                  }),
-                ]),
-              ),
-            ),
-          );
-        return row;
-      });
+      const loanCosts = (input: FlowInput, period: Period, comparison: Period) =>
+        loanCostTotals({ currency: input.currency, basis: input.basis, period, comparison }).pipe(
+          provide,
+        );
       const coverageSources = Effect.fn("Flows.coverageSources")(function* (currency: string) {
         const accounts =
           yield* sql`SELECT ${accountFields(sql)} FROM accounts WHERE currency = ${currency} ORDER BY label, id`.pipe(

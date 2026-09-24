@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useCommand } from "@/lib/use-command";
 
 import { getCorrectionHistory, previewCorrection, undoCorrection } from "./functions";
-import { ImpactTable } from "./impact";
+import { ImpactTables } from "./impact";
 
 export function EventHistory({ eventId }: { eventId: typeof EventId.Type }) {
   const history = useQuery({
@@ -86,7 +86,7 @@ function HistoryItem({ correction }: { correction: typeof Correction.Type }) {
       {preview.error && <p role="alert">{preview.error.message}</p>}
       {preview.data && (
         <>
-          <ImpactTable impact={preview.data.impact} />
+          <ImpactTables impacts={preview.data.impacts} />
           <Button
             disabled={mutation.isPending}
             onClick={() => {

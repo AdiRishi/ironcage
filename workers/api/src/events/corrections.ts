@@ -12,6 +12,7 @@ import {
 import { correctEvent } from "@repo/finance";
 import { Context, Crypto, Effect, Layer, Schema } from "effect";
 
+import { previewImpacts } from "../analysis/preview.ts";
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
 import {
@@ -21,7 +22,6 @@ import {
   writeEvent,
   validateEventRelationships,
 } from "./correction-records.ts";
-import { previewImpact } from "./impact.ts";
 import { readEvent } from "./repository.ts";
 
 export class Corrections extends Context.Service<
@@ -63,7 +63,7 @@ export class Corrections extends Context.Service<
               return {
                 change,
                 expectedVersions: [{ eventId: event.id, version: event.version }],
-                impact: yield* previewImpact(event, accepted),
+                impacts: yield* previewImpacts({ before: [event], after: [accepted] }),
               } satisfies typeof CorrectionPreview.Type;
             }),
           );

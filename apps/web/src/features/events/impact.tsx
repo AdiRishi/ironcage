@@ -10,26 +10,42 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { monthLabel } from "@/lib/period";
 
+// The same totals the overview shows for the month, so a preview matches the screens
+// once the change is saved.
 const measures = {
-  grossCosts: "Gross costs",
-  netPersonalCosts: "Net personal costs",
+  inflow: "Came in",
+  outflow: "Went out",
+  spending: "Spending",
   income: "Income",
-  cashChange: "Cash balance change",
-  loanRepayments: "Loan repayments",
-  financingCosts: "Loan interest and fees",
-  netPrincipalReduction: "Net principal reduction",
+  loanPrincipal: "Loan principal",
+  unresolvedOut: "Out, not yet understood",
+  unresolvedIn: "In, not yet understood",
+  internal: "Moved between your accounts",
 } as const;
-export function ImpactTable({ impact }: { impact: typeof MeasureImpact.Type }) {
+
+export function ImpactTables({ impacts }: { impacts: readonly (typeof MeasureImpact.Type)[] }) {
+  if (impacts.length === 0)
+    return <p className="type-small text-slate">This change does not move any totals.</p>;
+  return (
+    <>
+      {impacts.map((impact) => (
+        <ImpactTable key={`${impact.currency}:${impact.start}`} impact={impact} />
+      ))}
+    </>
+  );
+}
+
+function ImpactTable({ impact }: { impact: typeof MeasureImpact.Type }) {
   return (
     <section
       className="space-y-3 rounded-lg border border-rule bg-sheet p-4"
-      aria-label="Financial impact"
+      aria-label={`Effect on ${monthLabel(impact.start.slice(0, 7))}`}
     >
-      <h3 className="font-semibold">Effect on {impact.start.slice(0, 7)}</h3>
+      <h3 className="font-semibold">Effect on {monthLabel(impact.start.slice(0, 7))}</h3>
       <p className="type-small text-slate">
-        Posted basis · {impact.currency} · All {impact.accountIds.length} accounts · Calculated{" "}
-        {impact.calculatedAt}
+        By spending date · {impact.currency} · Calculated {impact.calculatedAt}
       </p>
       <Table>
         <TableHeader>
@@ -47,26 +63,19 @@ export function ImpactTable({ impact }: { impact: typeof MeasureImpact.Type }) {
             return (
               <TableRow key={key}>
                 <TableCell>{label}</TableCell>
-                <TableCell>{before ? formatCurrency(before) : "Incomplete coverage"}</TableCell>
-                <TableCell>{after ? formatCurrency(after) : "Incomplete coverage"}</TableCell>
+                <TableCell>{formatCurrency(before)}</TableCell>
+                <TableCell>{formatCurrency(after)}</TableCell>
                 <TableCell>
-                  {before && after
-                    ? formatCurrency({ ...after, minor: after.minor - before.minor })
-                    : "Unavailable"}
+                  {formatCurrency({ ...after, minor: after.minor - before.minor })}
                 </TableCell>
               </TableRow>
             );
           })}
         </TableBody>
       </Table>
-      {impact.after.unresolvedCount > 0 && (
-        <p className="type-small text-slate">
-          {impact.after.unresolvedCount} unresolved events may change these totals.
-        </p>
-      )}
       <p className="type-small text-slate">
-        Observed deposit movement: {formatCurrency(impact.after.observedCashMovement)}. Bank records
-        stay unchanged.
+        Of spending after the change, {formatCurrency(impact.after.modelShare)} rests on the model's
+        judgement. Bank records stay unchanged.
       </p>
     </section>
   );

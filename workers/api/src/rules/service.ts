@@ -13,9 +13,9 @@ import {
 import { allocationRole } from "@repo/finance";
 import { Array as Arr, Context, Crypto, Effect, Layer, Schema } from "effect";
 
+import { previewImpacts } from "../analysis/preview.ts";
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
-import { previewPeriod } from "../events/impact.ts";
 import { readEvents } from "../events/repository.ts";
 import { claimRules, reinterpret } from "../interpretation/engine.ts";
 import { planRule } from "./plan.ts";
@@ -126,29 +126,7 @@ export class Rules extends Context.Service<
                     }
                   : event;
               });
-              const periods = [
-                ...new Map(
-                  prior.flatMap((event) =>
-                    event.postings.map(
-                      (posting) =>
-                        [
-                          `${posting.amount.currency}:${posting.postedOn.slice(0, 7)}`,
-                          { currency: posting.amount.currency, on: posting.postedOn },
-                        ] as const,
-                    ),
-                  ),
-                ).values(),
-              ];
-              const impacts = yield* Effect.forEach(periods, (period) => {
-                const inCurrency = (event: (typeof prior)[number]) =>
-                  event.magnitude.currency === period.currency;
-                return previewPeriod(
-                  prior.filter(inCurrency),
-                  accepted.filter(inCurrency),
-                  undefined,
-                  period.on,
-                );
-              });
+              const impacts = yield* previewImpacts({ before: prior, after: accepted });
               return {
                 ...input,
                 matched: plan.matches.length,
