@@ -17,7 +17,7 @@ Each entry records a decision, the reason, and what would change it. Newer entri
 
 **Decision.** The model resolves alias keys to counterparties with default categories and roles. Transactions inherit from their counterparty.
 
-**Why.** Around 9,000 postings come from a few hundred to 1,500 counterparties. Resolving each one once gives the model room to research unknown names, costs far less, sends only descriptor text, and makes one correction fix every transaction from that counterparty.
+**Why.** Around 9,000 postings come from a few hundred to 1,500 counterparties. Resolving each alias once costs far fewer model calls, sends only descriptor text without amounts, and makes one correction fix every transaction from that counterparty.
 
 **Would change if** a counterparty often needs different categories per purchase. Mixed retailers default to Shopping, then General, and a split handles the exceptions.
 
@@ -37,7 +37,7 @@ Each entry records a decision, the reason, and what would change it. Newer entri
 
 **Decision.** Web, API, and processor are separate Workers. Only the API has a database binding.
 
-**Why.** One writer makes the write protocol, receipts, and the advisory lock the single place consistency is enforced. PDF.js and model SDKs stay out of the writer's bundle and CPU budget. The analyst will get its own Durable Object runtime.
+**Why.** One writer makes the write protocol, receipts, and the advisory lock the single place consistency is enforced. PDF.js stays out of the writer's bundle and CPU budget. Model calls run in the processor's enrichment Workflow through the Workers AI binding, so a slow or failed call never holds a write transaction open. The analyst will get its own Durable Object runtime.
 
 ## Postgres for financial records
 

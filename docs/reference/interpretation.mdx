@@ -40,64 +40,88 @@ type Descriptor = {
 };
 ```
 
-CommBank shapes the profile recognizes, with invented examples:
+CommBank shapes the profile recognizes, with invented examples from `packages/finance/tests/descriptors/commbank.test.ts`:
 
-| Shape                                                        | Channel        | Counterparty text       |
-| ------------------------------------------------------------ | -------------- | ----------------------- |
-| `WOOLWORTHS 1234 SYDNEY AU Card xx1234 Value Date: ...`      | `card`         | `WOOLWORTHS SYDNEY AU`  |
-| `NETFLIX.COM Card xx1234 USD 15.99 Value Date: ...`          | `card`         | `NETFLIX.COM`           |
-| `Refund Purchase MYER SYDNEY`, `Return UNIQLO Card xx1234`   | `card`         | `MYER SYDNEY`           |
-| `Transfer To Jane Smith NetBank Rent`                        | `transfer`     | `Jane Smith`            |
-| `Transfer To Jane Smith PayID 04... from CommBank app`       | `transfer`     | `Jane Smith`            |
-| `Transfer to xx5678 CommBank app`                            | `transfer`     | none, own suffix `5678` |
-| `Fast Transfer From John Citizen Dinner`                     | `transfer`     | `John Citizen`          |
-| `Direct Debit 123456 ORIGIN ENERGY 0012345`                  | `directDebit`  | `ORIGIN ENERGY`         |
-| `Direct Credit 123456 ATO ATO0123`                           | `directCredit` | `ATO`                   |
-| `Salary ACME PTY LTD HR123456`                               | `salary`       | `ACME PTY LTD`          |
-| `International Transaction Fee`                              | `fee`          | none                    |
-| `Credit Interest`, `Bonus Interest`, `Interest charged`      | `interest`     | none                    |
-| `Repayment/Payment`, `Loan Repayment LN REPAY 123`           | `loan`         | none                    |
-| `Wdl ATM CBA ATM SYDNEY`                                     | `cash`         | none                    |
-| Card account row with no marker, such as `SPOTIFY STOCKHOLM` | `card`         | `SPOTIFY STOCKHOLM`     |
-| Card account credit starting `Payment`                       | `cardPayment`  | none                    |
+| Shape                                                                                         | Channel        | Counterparty text              |
+| --------------------------------------------------------------------------------------------- | -------------- | ------------------------------ |
+| `WOOLWORTHS 1234 SYDNEY AU Card xx1234 Value Date: ...`                                       | `card`         | `WOOLWORTHS 1234 SYDNEY AU`    |
+| `NETFLIX.COM Card xx1234 USD 15.99`                                                           | `card`         | `NETFLIX.COM`                  |
+| `Refund Purchase MYER SYDNEY`, `Return UNIQLO 12345 Card xx1234`                              | `card`         | `MYER SYDNEY`, `UNIQLO 12345`  |
+| `Transfer To Jane Smith NetBank Rent`                                                         | `transfer`     | `Jane Smith`, reference `Rent` |
+| `Transfer To Jane Smith PayID 0412345678 from CommBank app dinner`                            | `transfer`     | `Jane Smith`                   |
+| `Transfer to xx5678 CommBank app Savings`                                                     | `transfer`     | none, own suffix `5678`        |
+| `Fast Transfer From John Citizen dinner split`                                                | `transfer`     | `John Citizen`                 |
+| `Direct Debit 123456 ORIGIN ENERGY 0012345678`                                                | `directDebit`  | `ORIGIN ENERGY`                |
+| `Direct Credit 654321 ATO ATO012345 1`                                                        | `directCredit` | `ATO`                          |
+| `Salary ACME PTY LTD HR123456`                                                                | `salary`       | `ACME PTY LTD`                 |
+| `BPAY` followed by a biller name and reference                                                | `bpay`         | The biller name                |
+| `International Transaction Fee`, or a debit with no card marker that contains `Fee` or `Fees` | `fee`          | none                           |
+| `Credit Interest`, `Bonus Interest`, `Interest charged`                                       | `interest`     | none                           |
+| `Repayment/Payment`, `Loan Repayment LN REPAY 123456789`                                      | `loan`         | none                           |
+| `Wdl ATM CBA ATM SYDNEY 123456`                                                               | `cash`         | none                           |
+| Card account row with no marker, such as `SPOTIFY STOCKHOLM SE`                               | `card`         | `SPOTIFY STOCKHOLM SE`         |
+| Card account credit starting `Payment`                                                        | `cardPayment`  | none                           |
+| Deposit row with no marker, such as `UBER *TRIP HELP.UBER.COM`                                | `other`        | `UBER *TRIP HELP.UBER.COM`     |
 
-The alias key uppercases the counterparty text, removes punctuation and tokens that contain digits, drops a trailing country code, and collapses spaces. `WOOLWORTHS 1234 SYDNEY AU` and `WOOLWORTHS 5678 SYDNEY AU` share the key `WOOLWORTHS SYDNEY`. A transfer to an own-account suffix gets the key `ACCOUNT 5678`, so an account outside the ledger can be answered once.
+An incoming transfer with no channel word, such as the `Fast Transfer From` row, takes up to four capitalised words as the name. The rest is the reference. Direct debits, direct credits, salary, and BPAY rows end the name at the first word that contains a digit.
+
+The alias key uppercases the counterparty text, turns punctuation other than `&` and `'` into spaces, removes words that contain digits, drops a trailing country code, and collapses spaces. `WOOLWORTHS 1234 SYDNEY AU` and `WOOLWORTHS 5678 SYDNEY AU` share the key `WOOLWORTHS SYDNEY`. A transfer to an own-account suffix gets the key `ACCOUNT 5678`, so an account outside the ledger can be answered once.
 
 On the corpus, the profile yields 1,203 alias keys for 9,224 postings, and 378 transfers name an own-account suffix. 272 of those name one of the four accounts; the other 106 name two accounts outside the ledger.
 
 ## Counterparties
 
-A counterparty is who is on the other side: a `business`, a `person`, an `ownAccount` held outside the ledger, or an `institution` such as the ATO, a bank, or an insurer. It has a name, an optional brand, a default category, and for people an optional default role.
+A counterparty is who is on the other side: a `business`, a `person`, an `ownAccount` held outside the ledger, or an `institution` such as the ATO, a bank, or an insurer. It has a name, an optional brand, a default category, and for people and institutions an optional default role.
 
-Aliases map alias keys to counterparties. Many aliases can point at one counterparty: `WOOLWORTHS SYDNEY`, `WOOLWORTHS METRO`, and `WW METRO` are all Woolworths. An event takes the counterparty of its primary posting's alias.
+Aliases map alias keys to counterparties. Many aliases can point at one counterparty: `WOOLWORTHS SYDNEY`, `WOOLWORTHS METRO`, and `WW METRO` are all Woolworths. An event takes the counterparty of its primary posting's applied alias, unless you assigned one to the event.
 
 Counterparties and aliases carry provenance: `model` when the enrichment pipeline created them, `user` when you did. A counterparty's status is `applied` or `proposed`. Only applied counterparties lend their defaults to events; a proposed one still names the events it identifies, so the ledger can show it. A user-made counterparty or alias is never changed by the model.
+
+An alias's status is also `applied` or `proposed`. A proposed alias comes from a model answer below the auto-apply threshold that named an existing counterparty. It stores the model's confidence and reason. The engine reads only applied aliases, so the events of a proposed alias have no counterparty until you answer its `alias` question.
+
+The commands in `workers/api/src/interpretation/counterparties.ts` change these records, and each one recomputes the events it affects:
+
+- `saveCounterparty` creates or updates a counterparty with `user` provenance and status `applied`. Creating one can claim alias keys, which become applied user aliases.
+- `mergeCounterparties` moves every alias and event of one counterparty to another, points rules that named it at the target, deletes it, and makes the target a user counterparty with status `applied`.
+- `moveAlias` points one alias key at a counterparty as an applied user alias.
+- `assignEventCounterparty` sets one event's counterparty with source `user`, which overrides its alias. Clearing it returns the event to its alias.
 
 ## Roles
 
 The role of an event comes from, in order:
 
-1. **Your correction** on the event.
-2. **A rule** that sets a role.
-3. **Account structure.** Deterministic facts the bank states:
-   - A transfer whose own-account suffix matches one of your accounts is a `transfer`. When the other posting exists, the two link as one event. A card account's suffix makes it a `cardSettlement`, and a loan's makes it a `loanPayment`.
-   - `interest` debits and `fee` rows are `financingCost`. `interest` credits are `income`.
-   - `loan` rows on the loan account are `loanPayment` or `borrowing` by sign. The deposit side links to them.
-   - `cardPayment` credits on the card account are `cardSettlement`.
-   - `card`, `directDebit`, `bpay`, and `cash` debits are `purchase`. A `card` credit is a `refund`.
-   - `salary` credits are `income`.
-4. **The counterparty's default role**, set by you or proposed by the model. This decides transfers to and from people and direct credits: rent to a landlord is a `purchase`, a friend repaying dinner is a `reimbursement`, and money to your own account at another bank is a `transfer` to an external endpoint.
-5. **Otherwise** the event is `unresolved` and raises a question.
+1. Your correction on the event. A movement link also fixes the role, and so does an accepted credit link or fee association that depends on it.
+2. A rule that sets a role.
+3. Bank structure, described below.
+4. The counterparty's default role, set by you or proposed by the model. This decides transfers to and from people and direct credits: rent to a landlord is a `purchase`, a friend repaying dinner is a `reimbursement`, and money to your own account at another bank is a `transfer` to an external endpoint.
+5. Otherwise the event is `unresolved` and raises a question.
 
-A counterparty without a default role still decides by kind: a business receives purchases and pays refunds, an institution receives purchases and pays income, and an own account is a transfer. A person always needs a default role.
+Bank structure is `bankReading` in `packages/finance/src/interpretation.ts`. It uses the descriptor, the sign, and the account kind. An own-account suffix matches one of your accounts when it equals the last four digits of the account number.
 
-Events whose role an accepted credit link or fee association depends on keep their role.
+| Descriptor                                            | Debit            | Credit           |
+| ----------------------------------------------------- | ---------------- | ---------------- |
+| Own-account suffix of a deposit account               | `transfer`       | `transfer`       |
+| Own-account suffix of a card account                  | `cardSettlement` | `transfer`       |
+| Own-account suffix of a loan account                  | `loanPayment`    | `borrowing`      |
+| `interest`                                            | `financingCost`  | `income`         |
+| `fee`                                                 | `financingCost`  | `refund`         |
+| `loan` on the loan account                            | `borrowing`      | `loanPayment`    |
+| `loan` on another account                             | `loanPayment`    | `borrowing`      |
+| `cardPayment`                                         | `cardSettlement` | `cardSettlement` |
+| `card`, `directDebit`, `bpay`                         | `purchase`       | `refund`         |
+| `cash`                                                | `purchase`       | none             |
+| `salary`                                              | none             | `income`         |
+| `transfer`, `directCredit`, `other` on a card account | `purchase`       | none             |
+| `transfer`, `directCredit`, `other` on other accounts | none             | none             |
+| Own-account suffix that matches none of your accounts | none             | none             |
+
+Where bank structure gives no role, the counterparty decides. A default role of `income`, `refund`, or `reimbursement` applies to credits, and a debit to that counterparty is still a `purchase`. A default role of `purchase` makes debits purchases and credits refunds, and `transfer` applies both ways. A counterparty without a default role still decides by kind: a business receives purchases and pays refunds, an institution receives purchases and pays income, and an own account is always a transfer. A person always needs a default role.
 
 A transfer is never internal because of its wording. `Transfer To Jane Smith` is spending until you or a counterparty default says otherwise.
 
 ## Categories
 
-Categories form two trees, spending and income, two levels deep. The default taxonomy is seeded by migration, with stable slugs such as `food.groceries`. Top-level spending categories:
+Categories form two trees, spending and income, two levels deep. The default taxonomy is seeded by migration `0015_understanding.sql`, with stable slugs such as `food.groceries` and `income-salary`. A category you create has no slug. Top-level spending categories:
 
 | Category            | Subcategories                                                                                      |
 | ------------------- | -------------------------------------------------------------------------------------------------- |
@@ -107,7 +131,7 @@ Categories form two trees, spending and income, two levels deep. The default tax
 | Transport           | Fuel, Public transport, Rideshare, Parking and tolls, Car maintenance, Car insurance, Registration |
 | Shopping            | General, Clothing, Electronics, Home and furniture, Gifts                                          |
 | Health              | Medical, Pharmacy, Dental, Fitness, Health insurance                                               |
-| Personal care       | Hair and beauty, Personal care                                                                     |
+| Personal care       | Hair and beauty, Personal care products                                                            |
 | Entertainment       | Streaming, Events, Games, Hobbies                                                                  |
 | Travel              | Flights, Accommodation, Travel activities                                                          |
 | Subscriptions       | Software, News and media, Memberships                                                              |
@@ -117,11 +141,22 @@ Categories form two trees, spending and income, two levels deep. The default tax
 | Government          | Tax, Fines                                                                                         |
 | Cash                | Cash withdrawals                                                                                   |
 
-The income tree has Salary, Interest, Refunds and reimbursements, Government, and Other income.
+The income tree has Salary, Interest, Refunds and reimbursements, Government, and Other income, with no subcategories.
 
-A spending allocation's category comes from, in order: your correction, a rule, the counterparty's default category, then the bank structure (for example, a foreign transaction fee is Fees and interest, then Foreign transaction fees). Mixed retailers default to Shopping, then General.
+A spending allocation's category comes from, in order: your correction, a rule, the counterparty's default category, then the bank structure. A category applies only when it is in the tree the role uses. Purchases, financing costs, refunds, and reimbursements take a spending category. Income takes an income category. Transfers, card settlements, borrowing, loan payments, and unresolved events take none. The model puts mixed retailers in Shopping, then General.
+
+Bank structure sets these categories:
+
+- An `interest` debit is Mortgage interest on a loan account, Card interest on a card account, and Bank fees on a deposit account. An `interest` credit is income Interest.
+- A `fee` row is Foreign transaction fees when its description starts `International Transaction Fee`, and Bank fees otherwise. A fee refund takes the same category.
+- A `cash` debit is Cash withdrawals.
+- A `salary` credit is income Salary.
 
 When the model finds a cluster of counterparties that no subcategory fits, it records a proposed subcategory. You accept or dismiss it in Questions. The model never changes the taxonomy on its own.
+
+## Tags and personal events
+
+Tags and personal events are labels on allocations. You manage them in Settings beside the categories and attach them to an allocation when you edit an event. A personal event has a name and a date range, such as a wedding or a move. The ledger filters by either one. A personal event also stores an exclude-from-ordinary flag that no measure reads yet. A tag or personal event that an allocation uses cannot be deleted.
 
 ## Provenance
 
@@ -130,9 +165,12 @@ Every assignment stores its source:
 | Source         | Meaning                                                                                                  |
 | -------------- | -------------------------------------------------------------------------------------------------------- |
 | `user`         | A correction on this event or allocation. Never overwritten by anything else.                            |
+| `link`         | A role set by a movement link. Kept until you remove the link.                                           |
 | `rule`         | A user-accepted rule. The rule's ID is recorded.                                                         |
 | `counterparty` | Inherited from the counterparty. The counterparty's own provenance says whether you or the model set it. |
 | `bank`         | Deterministic from the descriptor and account structure.                                                 |
+
+`link` applies to roles only. An event's counterparty has its own source: `alias` when it comes from the alias, `user` when you assigned it.
 
 A result can therefore report how much of an amount rests on the model's judgment: the sum of allocations whose value came from a counterparty the model set.
 
@@ -144,27 +182,42 @@ Reinterpreting a posting, whether after a profile version change or after a new 
 
 ## Questions
 
-Questions are computed from current records, not stored, so answering one makes it disappear. The Questions operation groups them and orders them by the money they affect:
+Questions are computed from current records, not stored, so answering one makes it disappear. The Questions operation in `workers/api/src/interpretation/questions.ts` reads events in the reporting currency. It groups them, orders the groups by the money they cover, outflow plus inflow, and returns at most 300 groups. `ruleConflict` questions come after the groups, one per event.
 
-| Kind           | Raised when                                                                                                 | Grouped by            |
-| -------------- | ----------------------------------------------------------------------------------------------------------- | --------------------- |
-| `counterparty` | The model proposed a counterparty below the auto-apply threshold, so its defaults are not applied.          | Counterparty          |
-| `person`       | A person counterparty has no default role, or the model proposed one. The model cannot know who someone is. | Counterparty          |
-| `ownAccount`   | A transfer names an own-account suffix that matches none of your accounts. Its alias key is `ACCOUNT 9921`. | Alias key             |
-| `unresolved`   | An event is still `unresolved` after every source above.                                                    | Alias key, else event |
-| `ruleConflict` | Two claimed rules set different values that neither your correction nor a link has fixed.                   | Event                 |
+| Kind           | Raised when                                                                                                                    | Grouped by                               |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- |
+| `counterparty` | The event's counterparty is a proposed model counterparty that is not a person, so its defaults are not applied.               | Counterparty                             |
+| `alias`        | The event has no counterparty and its alias key has a proposed alias. The question asks "Is this" and the counterparty's name. | Alias key                                |
+| `person`       | A person counterparty has no default role, or the model proposed it. The model cannot know who someone is.                     | Counterparty                             |
+| `ownAccount`   | An unresolved transfer names an own-account suffix that matches none of your accounts. Its alias key is `ACCOUNT 9921`.        | Alias key                                |
+| `unresolved`   | An event is still `unresolved` after every source above.                                                                       | Counterparty, else alias key, else event |
+| `ruleConflict` | Two claimed rules set different values, and no correction, split, or link fixes that value.                                    | Event                                    |
 
-Answering a counterparty, person, or own-account question saves the counterparty with `user` provenance, which applies to every event from it. Source reviews from the importer are separate records and appear in the same list in the UI.
+Answering a counterparty, person, own-account, or unresolved question saves the counterparty with `user` provenance, which applies to every event from it. For an `alias` question, Yes calls `moveAlias` and makes the alias an applied user alias of the suggested counterparty. Someone else creates a new counterparty that takes over the alias key. A rule conflict, or an unresolved event with no alias key, links to the transaction instead.
+
+Below the questions, the Questions screen shows proposed subcategories, open source reviews from the importer, and movements to confirm.
 
 ## Links and credits
 
-Movement links join the two sides of a transfer, card settlement, loan payment, or borrowing into one event. Automatic linking needs structure: equal opposite amounts in one currency, within three days, and an own-account suffix that names the other account. Amount and date alone produce a proposal, never a link.
+Movement links join the two sides of a transfer, card settlement, loan payment, or borrowing into one event. Only you make a link, through the `applyRelationship` command in `workers/api/src/relationships/plan.ts`. The counterpart is either another event or an external endpoint with a label. Linking another event moves its posting into the linked event and makes its own event inactive. The link sets the role with source `link`. A card settlement must pay into a card account, a loan payment must pay into a loan account, and borrowing must come from one. Both accounts must use the event's currency. Removing the link restores both events.
+
+After an import creates events, `proposeMovements` in `workers/api/src/relationships/proposals.ts` looks for pairs and records each one as a `relationship` review item. A pair is two active events on different accounts whose primary postings have exactly opposite amounts in one currency, posted within three days of each other. Both events must be a transfer, card settlement, loan payment, borrowing, or unresolved, and at least one must not be unresolved. Neither event may already have a movement link, and a pair that was proposed before, including a dismissed one, is not proposed again. The rule does not read own-account suffixes. Amount and date alone produce a proposal, never a link.
+
+Proposals appear under Movements to confirm in Questions. Review opens the transaction so you can link it, and Not a movement dismisses the proposal. Any relationship change to either event resolves its open proposals. Look for more runs the same search on demand.
 
 A refund or reimbursement counts against its category in the month it arrives. Linking it to a specific purchase with a credit link moves that amount to the purchase's period instead. The applied amount cannot exceed the remaining credit or the remaining cost.
 
 ## Rules
 
-A rule matches account, channel, counterparty, and description text, combined with AND. It sets one category or one role, with a scope of past, future, or both. Rules are for patterns a counterparty default cannot express, such as a transfer to one person that is rent only on the 1st. Two rules that disagree on an event create a `ruleConflict` question and apply neither.
+A rule's conditions are an account, a role, a counterparty, a channel, and description text, combined with AND. Every condition is optional. The account is the event's reporting account. The role condition compares with the event's current role. The description matches when any posting of the event contains the text, ignoring case, and empty text matches every event.
+
+A rule sets one category or one role, with a scope of `past`, `future`, or `both`. Saving a rule with `past` or `both` scope claims every matching event at once. Rules with `future` or `both` scope claim matching events when an import creates them. A claim stores a snapshot of the rule, so editing a `future` rule leaves its earlier claims as they were. When you save a rule you can exclude specific events. `rule_exceptions` records them, and the rule never claims them.
+
+Rules are for patterns a counterparty default cannot express. A rule with counterparty Jane Smith, role `purchase`, and description `rent` can set Housing, then Rent, while her other payments keep her default category. Two rules that disagree on an event create a `ruleConflict` question and apply neither.
+
+## Account history
+
+`workers/api/src/accounts/periods.ts` stores two kinds of dated account record. A label period gives an account a different label for a date range. A posting shows the label of the period that covers its posted date, or the account's own label when none does. An offset relationship pairs a deposit account with a loan account in the same currency for a date range. Nothing reads offset relationships yet. End dates are exclusive, and periods of one kind cannot overlap for one account.
 
 ## Corrections and history
 

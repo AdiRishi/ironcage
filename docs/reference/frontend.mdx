@@ -7,15 +7,19 @@ The web app is React, TanStack Start, TanStack Router, TanStack Query, Tailwind 
 
 ## Routes
 
-| Route             | Screen                                                                                          |
-| ----------------- | ----------------------------------------------------------------------------------------------- |
-| `/`               | Overview for the selected period.                                                               |
-| `/spending`       | Category breakdown. `?category=` drills into a subtree.                                         |
-| `/ledger`         | Transactions. `/ledger/$id` opens one posting with its meaning and evidence.                    |
-| `/counterparties` | Counterparties paid or paid by in the period. `/counterparties/$counterpartyId` opens one.      |
-| `/questions`      | Computed questions, records to check, and movements to confirm. `?importId=` narrows to a file. |
-| `/sources`        | Upload, coverage, imports that need you, files, and export. `/sources/imports/$importId`.       |
-| `/settings`       | Accounts, account history, identification, and display. `/settings/categories` and `/rules`.    |
+| Route             | Screen                                                                                                                      |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `/`               | Overview for the selected period.                                                                                           |
+| `/spending`       | Category breakdown. `?category=` drills into a subtree.                                                                     |
+| `/ledger`         | Transactions. `/ledger/$id` opens one posting with its meaning and evidence.                                                |
+| `/counterparties` | Counterparties paid or paid by in the period. `/counterparties/$counterpartyId` opens one.                                  |
+| `/questions`      | Computed questions, records to check, and movements to confirm. `?importId=` narrows to a file.                             |
+| `/sources`        | Upload, imports that need you, coverage, files, and exports. `/sources/imports/$importId`.                                  |
+| `/settings`       | Accounts, account history, identification, model usage, display, and backups. `/settings/categories` and `/settings/rules`. |
+
+Three server routes pass requests through to the API's HTTP handler without rendering a screen. `POST /uploads` forwards an upload with its headers and body. `GET /sources/$sourceFileId` returns an original file, and `GET /exports/$exportId` returns an export's ZIP.
+
+The top bar links to Overview, Spending, Ledger, Counterparties, Sources, Questions with its open count, Settings, and Upload. On a phone, the menu holds the destinations and Settings.
 
 The period strip shows on the overview, spending, ledger, and counterparties. Without a `?period=`, those screens read the current month, or redirect to the latest month with records when this month has none yet.
 
@@ -29,13 +33,13 @@ Archivo is loaded from `@fontsource-variable/archivo` with its width axis. Text 
 
 ## State
 
-The period, comparison, filters, and drill-down path live in validated search parameters, so the back button and bookmarks restore a view. The period is shared by every screen: navigating keeps the current `period` parameter. Query keys are the operation name plus its normalized input. Loaders call `ensureQueryData` so a route renders with data.
+The period, filters, and drill-down path live in validated search parameters, so the back button and bookmarks restore a view. The period is `?period=2026-08` for a month or `?period=2026` for a year, and it is shared by every screen: navigating keeps the current `period` parameter. The comparison is not a parameter. `flowInput` in `src/lib/period.ts` always compares with the previous period and uses the spending date. Query keys are the operation name plus its normalized input. Loaders call `ensureQueryData` so a route renders with data.
 
-Server functions call the API through the typed binding. They validate input with the contracts schemas first.
+Server functions call the API through the typed binding. They validate input with the contracts schemas first. `callApiRpc` in `src/server/api-client.server.ts` creates the stub with `makeRpcStub(env.API, { errors: [FinanceError] })`, so a `FinanceError` arrives with its kind and message, and it times each call out after 10 seconds as `unavailable`.
 
 ## Commands
 
-A write generates a `commandId` with `crypto.randomUUID()` when you confirm, sends it with the expected versions, and shows a pending state until the server responds. On a network failure, Retry resends the same `commandId`. On `stale`, the form keeps your input, shows the current record, and asks again. On success, the queries the write affects are invalidated: the record, the lists that contain it, and any result that reads it. A change to a counterparty default invalidates every period result.
+A write generates a `commandId` with `crypto.randomUUID()` when you confirm, sends it with the expected versions, and shows a pending state until the server responds. On a network failure, Retry resends the same `commandId`. On `stale`, the form keeps your input, shows the current record, and asks again. On success, most writes call `client.invalidateQueries()` with no filter, so every cached query refetches. Uploads, import completion, and source review decisions do the same. A few writes invalidate only the queries they name: display settings, account edits, source removal, export requests, and import retry. A `stale` failure also invalidates every query.
 
 A change that affects money shows a preview first: the affected records, their versions, and the financial impact. Accepting sends those versions.
 
@@ -45,8 +49,8 @@ A change that affects money shows a preview first: the affected records, their v
 
 ## Charts
 
-Charts use Recharts through the shadcn chart wrapper. The flow diagram uses Recharts' Sankey with custom node and link renderers. Every chart has a title, a text summary, and a table view. Chart coordinates may be floats; displayed amounts come from the result's `Money` values.
+The flow diagram uses Recharts' `Sankey` directly, with custom node and link renderers, in `src/features/overview/flow-diagram.tsx`. Below the `md` breakpoint it shows bars instead. It has a text summary, a screen-reader table, and a button that shows the table in place of the diagram. The other charts, such as the spending bars and 12-month sparklines, are hand-built HTML and SVG with screen-reader text and no table view. The shadcn chart wrapper in `src/components/ui/chart.tsx` is unused. Chart coordinates may be floats; displayed amounts come from the result's `Money` values.
 
 ## Accessibility
 
-Every action works at 390 pixels wide and by keyboard. Focus returns to the triggering control when a sheet or dialog closes. Loading is announced once. Provenance marks and flow streams have text equivalents. Reduced-motion preferences disable the flow draw and the sheet slide. Tables of amounts scroll within their container rather than the page. A horizontal scroller is `relative`, so the absolutely positioned `sr-only` text inside it cannot widen the page.
+Every action works at 390 pixels wide and by keyboard. Focus returns to the triggering control when a dialog closes. A transaction's detail is its own route, `/ledger/$id`, not a sheet. Provenance marks and flow streams have text equivalents. A global rule in `src/global-styles/tailwind.css` shortens every animation and transition to 0.01 ms when reduced motion is preferred, which covers the flow's reveal. Tables of amounts scroll within their container rather than the page. A horizontal scroller is `relative`, so the absolutely positioned `sr-only` text inside it cannot widen the page.

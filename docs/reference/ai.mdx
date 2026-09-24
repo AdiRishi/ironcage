@@ -3,11 +3,7 @@ title: AI
 description: Where models are used, what they receive, how their output is applied, and what they can never do.
 ---
 
-Models are used in three places:
-
-- **Enrichment**, which resolves counterparties and their defaults.
-- **Document extraction** for a statement page the parser cannot read. No page in the corpus needs it.
-- **The analyst**, which is on the [roadmap](/roadmap).
+Enrichment is the only model call. It resolves counterparties and their defaults. Document extraction is not built: the statement parser reads every page, and a page it cannot read becomes a `value` source review. The analyst is on the [roadmap](/roadmap).
 
 A model never computes a total and never changes a booked field.
 
@@ -23,29 +19,38 @@ A request that fails is retried three times with exponential backoff from 5 seco
 
 Enrichment runs as a Cloudflare Workflow in the processor. It turns alias keys that have no counterparty into counterparties with defaults.
 
-1. **Collect.** Requesting a run records every alias key without a counterparty, largest total amount first. The amounts order the work and never reach the model. Each batch carries up to three descriptor samples per alias, its channels, directions, account kinds, and transaction count.
-2. **Resolve.** A batch of up to 25 aliases goes to the model with the taxonomy, each category keyed by its slug (or ID for a category you created), and the existing counterparties. For each alias, the model returns:
-   - whether it belongs to an existing counterparty or a new one
-   - the counterparty's name, kind, brand, and default category slug
+Enrichment is off by default. Migration `0016_enrichment.sql` seeds `enrichment_settings` with `enabled` false, a usage warning of $20.00, and an auto-apply threshold of 0.8. You switch it on and change both values in Settings. Only one run is active at a time. Requesting a run while another is pending or running fails with `conflict`.
+
+1. Collect. Requesting a run records every alias key that has counterparty text and no alias row, largest total amount first. Aliases with no counterparty text, such as `ACCOUNT 5678` for an own-account transfer, are never collected. The amounts order the work and never reach the model. Each alias in a batch carries its three most frequent counterparty texts, its channels, directions, account kinds, and transaction count.
+2. Resolve. A batch of up to 25 aliases goes to the model with the taxonomy, each category keyed by its slug (or ID for a category you created), and the existing counterparties. For each alias, the model returns:
+   - the ID of an existing counterparty, or null for a new one
+   - the counterparty's name, kind, brand, and default category key
    - a default role for people and institutions, if it can tell
    - a confidence from 0 to 1, and a one-line reason
      The model may propose a subcategory that does not exist yet.
-3. **Apply.** The API validates the response against the current taxonomy and counterparties, then applies it in one command:
-   - A confidence at or above the auto-apply threshold (0.8 by default) creates or links the counterparty with `model` provenance and status `applied`, and its defaults apply to events immediately.
-   - A lower confidence, or any person counterparty, creates the counterparty with status `proposed`, which raises a question with the model's proposal.
+3. Apply. The API applies each result in one command, in `applyResult` in `workers/api/src/interpretation/enrichment.ts`.
 
-A counterparty with the same name as the model's answer is reused, so aliases of one business resolved in different batches still meet. Proposed subcategories appear in Questions. Accepting one creates it and moves the counterparties the model placed in its parent, or in a sibling subcategory, into it. Counterparties you set are never moved. Rerunning enrichment only touches aliases without a counterparty. A counterparty you edited is never sent back to the model.
+`applyResult` first looks for an existing counterparty: the one whose ID the model returned, otherwise one with the same name, ignoring case. The name match prefers a counterparty you made, so aliases of one business resolved in different batches still meet. What happens next depends on whether one was found:
+
+- No existing counterparty: the API creates one with `model` provenance. Its status is `applied` when the confidence is at or above the auto-apply threshold and the kind is not a person. Otherwise it is `proposed`, which raises a `counterparty` or `person` question. The alias is applied, so the events name the counterparty, but a proposed counterparty's defaults do not apply.
+- An existing counterparty and a confidence at or above the threshold: the alias is applied, and the counterparty's defaults apply to its events.
+- An existing counterparty and a lower confidence: the alias is `proposed`, with the model's confidence and reason. Its events get no counterparty and raise an `alias` question until you answer it.
+
+The default role is kept only for people and institutions. An unknown category key leaves the default category empty. Results for alias keys outside the batch are ignored, and an alias that the model left out is marked skipped and stays without a counterparty. An alias you answered while the batch ran keeps your answer. Rerunning enrichment only touches aliases without an alias row, so an alias the model proposed is not sent again. A counterparty you edited is never sent back to the model.
+
+Proposed subcategories appear in Questions. Accepting one creates it under its parent. It then moves the counterparties reached through the proposal's own alias keys, when the model created them and their default category is the parent or one of its subcategories. Counterparties you set are never moved, and a transaction you categorised yourself keeps its category.
 
 The corpus has 1,203 alias keys, which is 49 batches.
 
 ### What the model receives
 
-- The descriptor samples with card suffixes, own-account suffixes, PayIDs, references, and value dates removed
-- The channel, the direction, and the transaction count
-- The taxonomy's slugs and names
-- Existing counterparty names
+- Up to three counterparty texts per alias, the part of a descriptor that names the other side. Card suffixes, own-account suffixes, PayIDs, references, and value dates are not part of it.
+- The channels, the directions, the account kinds, and the transaction count
+- The taxonomy's keys, names, parent keys, and trees
+- Existing counterparties' IDs, names, and kinds
+- Up to 20 examples from your answers
 
-It never receives amounts, balances, dates, account numbers, or notes. Settings shows this list.
+It never receives amounts, balances, dates, account numbers, or notes. Settings summarises this: the model receives descriptor text, payment channels, directions, account kinds, and category names, and never receives amounts, balances, dates, or account numbers.
 
 ### Learning from corrections
 
@@ -55,13 +60,11 @@ Every counterparty you created or edited becomes an example. Each batch includes
 
 There is no evaluation yet. The intended set is your answers: every counterparty you created or corrected, with its descriptors and your answer. A candidate model or prompt would be scored on name agreement, category agreement at both levels, kind agreement, and calibration: of the answers above the auto-apply threshold, the share that matched.
 
-## Document extraction
-
-The statement parser runs first. A page it cannot read becomes a `value` source review showing the page. If a statement ever needs it, one model call per page can extract rows with page locators. The result goes through the same candidate validation, reconciliation, and matching as parser output. There is no switch for this until a statement needs it.
-
 ## Usage and limits
 
-Every batch writes a usage record with the task, model, time, reported tokens, and estimated cost. The estimate prices cached input tokens at the cached rate. A batch without a usable usage report stores unknown usage, not zero. A USD warning threshold blocks new calls once recorded usage reaches it. Delayed reports and concurrent calls can overshoot it, and Settings says so.
+Every batch writes a usage record with the task, model, time, reported tokens, and estimated cost. The estimate prices cached input tokens at the cached rate. A batch without a usable usage report stores unknown usage, not zero. A USD warning threshold blocks new runs and new batches once the total recorded cost reaches it, and you can clear it to have no warning. Delayed reports and concurrent calls can overshoot it.
+
+Settings shows the model usage: calls, input and output tokens, recorded cost, and how many calls have incomplete usage reports. It says that only counterparty identification calls a model. It does not mention that usage can overshoot the warning. Once usage reaches the warning, requesting a run fails with a message to raise the warning in Settings. A run that reaches it between batches stops and asks you to check the model settings and usage.
 
 Each batch has a 16,000-token output limit and a ten-minute Workflow step timeout. The Workflow never repeats a batch whose retries ran out. A failed batch leaves its aliases unresolved and the run moves on; three failed batches in a row stop the run. The next run picks up every alias still without a counterparty, including the failed ones.
 
@@ -69,4 +72,4 @@ Logs carry operation IDs and timings, never prompts, completions, or description
 
 ## Safety
 
-Descriptors and model output are untrusted data. Model output is validated against a schema and against current records before anything is written. Text in a description has no authority. A model can propose a correction, but only your action applies one.
+Descriptors and model output are untrusted data. Model output is decoded against a schema and checked against current records before anything is written. Text in a description has no authority. A model can propose a correction, but only your action applies one.

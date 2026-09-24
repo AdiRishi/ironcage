@@ -16,16 +16,16 @@ description: Three Workers, one database writer, and the ownership rules that ke
 flowchart LR
     Browser --> Web
     Web --> API[Financial API]
-    Web --> Analyst
+    Web -.-> Analyst[Analyst, planned]
     API --> DB[(PlanetScale Postgres)]
     API --> Sources[(R2 sources)]
     API --> Processor
     Processor --> API
     Processor --> Sources
-    Analyst --> API
+    Analyst -.-> API
 ```
 
-The API is the only Worker that writes financial records and the only one with a database binding. The processor reads R2 and calls the API. The analyst stores conversation messages in its own Durable Object storage through the SDK and reads financial data through the API.
+The API is the only Worker that writes financial records and the only one with a database binding. The processor reads R2 and calls the API. The analyst is not built. The plan is for it to keep conversation messages in its own Durable Object storage and to read financial data only through the API.
 
 ## Shared packages
 
@@ -40,15 +40,15 @@ File parsers live in the processor, because they carry large libraries such as P
 ## RPC chain
 
 1. A Worker's `index.ts` composes its Effect services and returns a handler object.
-2. Its Alchemy Worker class in `infra/src/` picks the exposed methods with `Pick`. The bridge infers argument, success, and tagged failure types for callers.
+2. Its Alchemy Worker class in `infra/src/` names the exposed methods. `infra/src/api.ts` uses `ApiOperations`, a type map written by hand in `workers/api/src/index.ts` that points each operation at its service method's type. Deriving the type from the handler would make the Worker class refer to itself through its bindings. `infra/src/processor.ts` picks the processor's methods with `Pick`. The bridge infers argument, success, and tagged failure types for callers.
 3. `infra/src/worker-bindings.ts` gives each Worker its bindings, including service bindings to other Workers.
-4. The web app's server functions validate browser input with the contracts schemas and call the API through the typed binding.
+4. The web app's server functions validate browser input with the contracts schemas and call the API through the typed binding. `apps/web/src/server/api-client.server.ts` keeps its own `Pick` list of the `Api` methods the web calls. It leaves out operations the web does not call, such as `publishImport`.
 
-Method signatures are defined once, in the implementation. Payload schemas are shared where two sides need them. There is no generated HTTP client and no handwritten interface file.
+Method signatures come from the service implementations. Each `ApiOperations` entry refers to a service's type instead of restating it, apart from `getRetention`, so a changed service signature reaches every caller. Payload schemas are shared where two sides need them. There is no generated HTTP client.
 
 ## Boundary rules
 
-- The web Worker validates the Access JWT's signature, issuer, audience, and expiry on every request, including downloads, server functions, and analyst WebSocket upgrades. Local development uses a local identity only when the stage is `dev`.
+- The web Worker validates the Access JWT's signature, issuer, audience, and expiry on every request, including downloads and server functions. The planned analyst's WebSocket upgrades will go through the same check. Local development uses a local identity only when the stage is `dev`.
 - The API and processor have no public routes. Service bindings are the only way in.
 - Responses carry what a screen or tool needs: record fields and evidence references. They never carry storage keys, credentials, or full bank account numbers beyond what the account settings screen shows.
 - Browser input, stored JSON, and model output are validated at the boundary. Inside a Worker, decoded types are trusted.
@@ -78,7 +78,7 @@ A failed step is visible on its owning screen with a retry action that starts ne
 
 ## Infrastructure ownership
 
-Each service module under `infra/src/` declares the resources that service owns: the API declares Postgres, Hyperdrive, and the sources bucket; the processor declares the Workflow; the analyst declares its Durable Object namespace; the web module declares the site, domain, and Access application. Deployment values and secrets stay in the stack and never enter a runtime bundle. Runtime entry points may import their inferred binding types from `@repo/infra/worker-bindings` as type-only imports.
+Each service module under `infra/src/` declares the resources that service owns. The API in `infra/src/api.ts` declares Postgres, Hyperdrive, the sources bucket, and the `TemporaryExports` bucket with its seven-day expiry. The processor in `infra/src/processor.ts` declares three Workflows: `ImportWorkflow`, `ExportWorkflow`, and `EnrichmentWorkflow`. The web module declares the site, domain, and Access application. The planned analyst will declare its Durable Object namespace. Deployment values and secrets stay in the stack and never enter a runtime bundle. Runtime entry points may import their inferred binding types from `@repo/infra/worker-bindings` as type-only imports.
 
 The processor's enrichment service owns an AI Gateway in `infra/src/enrichment.ts`,
 and `infra/src/worker-bindings.ts` composes its binding into the enrichment

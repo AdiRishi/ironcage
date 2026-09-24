@@ -3,7 +3,7 @@ title: Analysis
 description: Measures, the flow of money, ledger facts, and comparisons, with the arithmetic spelled out.
 ---
 
-The API computes every number with functions in `packages/finance/src/`. The model narrates results and never computes them. Money examples are invented.
+The API computes every number. SQL sums ledger facts and postings, and functions in `packages/finance/src/` do the rest of the arithmetic. No model computes a result. Narrating results is the planned analyst's job. Money examples are invented.
 
 ## Events and allocations
 
@@ -25,17 +25,20 @@ Magnitude is the absolute amount of the primary posting. A linked pair counts th
 
 ## Measures
 
-| Measure                 | Definition                                                                                                               |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Spending                | Purchase and financing-cost allocations, minus refund and reimbursement allocations. Non-personal portions are excluded. |
-| Gross spending          | Purchase and financing-cost allocations before any credit.                                                               |
-| Income                  | Income allocations. Excludes borrowing, transfers, refunds, and reimbursements.                                          |
-| Surplus                 | Income minus spending.                                                                                                   |
-| Unresolved outflow      | Unresolved debits. Shown beside every total they could change.                                                           |
-| Cash balance change     | Closing minus opening balance across selected deposit accounts. Requires both anchors.                                   |
-| Net principal reduction | Loan-side repayments minus interest and fees charged in the period. Requires full loan coverage of the period.           |
-| Purchase count          | Distinct purchase events, including fully refunded ones.                                                                 |
-| Model share             | The part of a total whose category or role came from a counterparty the model set.                                       |
+These measures come from ledger facts. [Preview impact](#preview-impact) uses a separate set with different definitions.
+
+| Measure            | Result                         | Definition                                                                                                               |
+| ------------------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| Spending           | Flow, spending, monthly series | Purchase and financing-cost allocations, minus refund and reimbursement allocations. Non-personal portions are excluded. |
+| Income             | Flow                           | Income allocations. Excludes borrowing, transfers, refunds, and reimbursements.                                          |
+| Inflow             | Flow, monthly series           | The sum of the flow's in streams.                                                                                        |
+| Outflow            | Flow, monthly series           | The sum of the flow's out streams.                                                                                       |
+| Internal           | Flow                           | Movements between ledger accounts. Reported as a total and never drawn.                                                  |
+| Left over          | Overview                       | Inflow minus outflow. The overview says "Short by" when it is negative.                                                  |
+| Unresolved outflow | Flow                           | Unresolved debits, shown as the out stream "Not yet understood".                                                         |
+| Loan principal     | Flow                           | Loan repayments minus the interest and fees charged on loan accounts in the same period, never below zero.               |
+| Purchase count     | Spending, flow changes         | Distinct purchase events with positive spending, including fully refunded ones.                                          |
+| Model share        | Flow, spending                 | The part of spending whose category or role came from a counterparty the model set.                                      |
 
 A refund or reimbursement reduces spending in its own category on its own date. When a credit link applies it to a specific purchase, the linked amount reduces spending in the purchase's category and period instead. Unlinked credits without a category reduce nothing and are listed as unresolved inflow.
 
@@ -43,7 +46,7 @@ Every flow and spending result names its period, comparison period, date basis, 
 
 ## Ledger facts
 
-Analysis reads a projection, not the event tables. `ledger_facts` holds one row per allocation per effect, computed by `eventLedgerFacts` in `packages/finance/src/analysis/facts.ts`:
+The flow, the monthly series, and spending read a projection, not the event tables. Previews and the counterparty screens read events directly, as described in [Reads outside the projection](#reads-outside-the-projection). `ledger_facts` holds one row per allocation per effect, computed by `eventLedgerFacts` in `packages/finance/src/analysis/facts.ts`:
 
 | Measure                         | Rows                                                                                                            |
 | ------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -57,7 +60,9 @@ Analysis reads a projection, not the event tables. `ledger_facts` holds one row 
 
 Each row carries its account, counterparty, category and top-level category, posted and spending dates, amount, whether it is a purchase, and whether the value that placed it came from a model-set counterparty. A credit linked to a purchase carries the purchase's category, dates, and account.
 
-Triggers keep the projection honest. Any change to an event, its allocations, a credit link, a counterparty's kind or source, or a category's parent marks the affected events stale. `Commands.run` refreshes stale events before it writes its receipt, inside the same transaction, so no write path can leave the projection behind. Period queries sum facts over indexes on `(currency, measure, spending_on)` and `(currency, measure, posted_on)`.
+Triggers mark events stale. Any change to an event, its allocations, a credit link, a counterparty's kind or source, or a category's parent marks the affected events stale. So does a change to a posting's posted date, value date, account, currency, or amount, for the events that contain it. `Commands.run` in `workers/api/src/database/commands.ts` refreshes every stale event after the command's work and before it writes its receipt, inside the same transaction. Every write to those tables runs as a command, so a committed write leaves no event stale. Period queries sum facts over indexes on `(currency, measure, spending_on)` and `(currency, measure, posted_on)`.
+
+A refresh recomputes facts from the event as it is stored. That leaves one known gap. A reviewed correction that changes a posting's amount or currency rewrites the posting but not the event's magnitude or allocations, which are set only when the event is created. The refreshed facts keep the old allocation amounts, so the flow and spending disagree with the posting. No command recomputes the magnitude, and a correction's allocations must still sum to the old magnitude.
 
 ## Flow
 
@@ -72,9 +77,11 @@ Loan principal is repayments minus the interest and fees charged on loan account
 
 The overview's list of changes is the six subcategories whose spending changed most, each split into a purchases part and an average part.
 
+`getMonthlyFlow` in `workers/api/src/analysis/flows.ts` returns inflow, outflow, and spending for every calendar month from the first month with a ledger fact through the current month, by spending date. It runs `summarizeFlow` once per month. Each month carries a coverage mark. A month is `complete` when every account whose records span it has no missing days in it, `partial` when some account has observed days in it, and `missing` otherwise. The period strip, spending, and Sources read the series, and a screen without `?period=` uses it to find the latest month with records.
+
 ## Comparisons
 
-The flow and spending operations take `{ period, comparison, basis, currency }` and sum ledger facts for both periods in one query. Spending also takes a category, and a null category means all spending.
+The flow and spending operations take `{ period, comparison, basis, currency }` and sum ledger facts for both periods in one query. Spending also takes a category, and a null category means all spending. Its rows are the selected category's direct children, or the top-level categories when none is selected. Each row also carries a 12-month series that ends with the month containing the period's last day. The result lists the 25 counterparties with the most spending in the period within the selected category.
 
 ### Periods
 
@@ -87,3 +94,25 @@ Absolute change is current minus previous. Relative change is the absolute chang
 The purchases part of a change is `(n1 - n0) * (p0 + p1) / 2` and the average part is `(p1 - p0) * (n0 + n1) / 2`, where `n` is the purchase count and `p` the average purchase. The two sum exactly to the change. Intermediate values are exact rationals. `purchaseDecomposition` floors each part to cents and gives the remaining cent to the part with the larger remainder, so the parts sum to the change.
 
 Example: 10 delivery orders totalling $200 in July, 12 totalling $300 in August. The change is $100. The purchases part is `(12 - 10) * (20 + 25) / 2 = $45`, and the average part is `(25 - 20) * (10 + 12) / 2 = $55`.
+
+## Reads outside the projection
+
+### Preview impact
+
+Correction, rule, and relationship previews compute their impact from events and allocations, not from `ledger_facts`. `previewPeriod` in `workers/api/src/events/impact.ts` works one calendar month at a time. It reads every active event whose primary posting falls in the month, swaps in the proposed events, and runs `periodMeasures` from `packages/finance/src/impact.ts` before and after. A preview uses the posted date and every account in the currency. A change whose postings span several months returns one impact per month.
+
+| Measure                 | Definition                                                                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Gross costs             | Purchase and financing-cost allocations, including non-personal portions.                                                                                           |
+| Net personal costs      | Gross costs of personal allocations minus the credits linked to them.                                                                                               |
+| Income                  | Income allocations.                                                                                                                                                 |
+| Cash balance change     | The sum of deposit-account postings in the month. Absent unless every deposit account has reconciled coverage for the whole month.                                  |
+| Loan repayments         | Loan payments reported on a loan account.                                                                                                                           |
+| Loan interest and fees  | Financing costs reported on a loan account.                                                                                                                         |
+| Net principal reduction | Loan repayments minus loan interest and fees. Absent unless every loan account has reconciled coverage for the month and no unresolved event is reported on a loan. |
+
+These definitions differ from the flow's. Net personal costs subtracts only linked credits, while Spending also subtracts unlinked refunds and reimbursements that have a category. Net principal reduction has no floor, so interest charged before a repayment makes it negative, while the flow's loan principal stops at zero. Previews always use the posted date, and the screens use the spending date. A preview's figures can therefore disagree with the flow for the same month.
+
+### Counterparty totals
+
+The counterparty list and detail read events and their primary postings directly, through `summaries` in `workers/api/src/interpretation/counterparties.ts`. Outflow and inflow are the booked amounts of each active event's primary posting, split by sign. The list limits them to the selected period by posted date. The detail's totals and its monthly history cover all records. These totals include transfers, non-personal portions, and unresolved events, and a refund counts as inflow instead of reducing spending. A counterparty's amounts can therefore differ from its spending on the Spending screen.

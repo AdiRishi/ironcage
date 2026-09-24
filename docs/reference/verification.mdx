@@ -5,18 +5,21 @@ description: Test layout, the invariants the system protects, and the regression
 
 This page holds the test layout, the invariants, and the regression cases with known answers.
 
-Test through public operations with real in-process collaborators and independently known expected values. Replace only true external seams: the model provider, and Cloudflare bindings when running outside the local runtime. Enrichment tests use recorded model responses, and the evaluation runs the real model against your answers. Before writing a test, name the user-visible regression it catches.
+Test through public operations with real in-process collaborators and independently known expected values. Replace only true external seams: the model, and Cloudflare bindings when running outside the local runtime. Enrichment tests replace the model with a runner that returns synthetic replies, and no test calls a real model. Before writing a test, name the user-visible regression it catches.
 
 ## Layout
 
-| Workspace            | Tool                                 | Covers                                                                     |
-| -------------------- | ------------------------------------ | -------------------------------------------------------------------------- |
-| `packages/finance`   | `@effect/vitest`                     | Money, dates, matching, calculations, with fixture tables of known values. |
-| `packages/contracts` | `@effect/vitest`                     | Schema round-trips and rejection cases.                                    |
-| `workers/processor`  | `@effect/vitest`                     | Parsers on synthetic files and, locally, on the corpus.                    |
-| `workers/api`        | `@effect/vitest` with local Postgres | Publication, commands, concurrency, queries.                               |
-| `apps/web`           | Vitest Browser Mode                  | Components and server function error mapping.                              |
-| `infra`              | `alchemy/Test/Vitest`, Playwright    | Bindings in the local Cloudflare runtime, end-to-end browser flows.        |
+| Workspace            | Tool                                                   | Covers                                                                                                                       |
+| -------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `packages/finance`   | Vitest and `@effect/vitest`                            | Money, dates, matching, descriptors, interpretation, periods, ledger facts, the flow, and preview measures.                  |
+| `packages/contracts` | None                                                   | No tests. Typecheck only.                                                                                                    |
+| `workers/processor`  | `@effect/vitest`                                       | Parsers on synthetic files and, locally, on the corpus. The enrichment model client with synthetic replies.                  |
+| `workers/api`        | Vitest with `alchemy/Test/Vitest` and a local Postgres | Publication, commands, concurrency, reviews, corrections, relationships, rules, flows, enrichment, exports.                  |
+| `apps/web`           | Vitest in Node, and Vitest Browser Mode                | Access validation, RPC error mapping, period keys, and query retry in Node. Dialogs, uploads, and command retry in Chromium. |
+| `infra`              | Vitest with `alchemy/Test/Vitest`                      | Deployment stages, and the platform suite in the local Cloudflare runtime, driven over HTTP.                                 |
+| `scripts`            | `node --test`                                          | The reference repository sync.                                                                                               |
+
+Browser Mode runs `.test.tsx` files in headless Chromium through the Playwright provider, configured in `apps/web/vitest.config.ts`. Plain `.test.ts` files run in Node.
 
 Tests live under each workspace's `tests/` mirroring `src/`, with their own `tsconfig.json`. `pnpm test` runs everything locally. `pnpm test:unit` skips infra, as CI does. `pnpm test:infra-live` deploys an isolated stage on Cloudflare.
 
@@ -24,9 +27,7 @@ Corpus-backed tests read `fixtures/commbank/` and skip when it is absent, so CI 
 
 ## Database
 
-Concurrency and publication tests run on real Postgres with the production migrations. Cover: two overlapping imports publishing at once, two commands claiming the same remaining credit, a repeated command ID, a stale preview, a failure injected before commit, and a committed write whose response is lost. A read after a commit through Hyperdrive sees the commit.
-
-Migration tests run from empty and from a populated database.
+Concurrency and publication tests run on real Postgres. Each test stage starts a fresh Docker Postgres and applies the production migrations to it. The tests cover two overlapping imports publishing at once, two commands claiming the same remaining credit, a repeated command ID, a stale preview, a failure injected before commit, and a committed write whose response is lost.
 
 ## Financial invariants
 
@@ -42,37 +43,43 @@ Migration tests run from empty and from a populated database.
 | A transfer between owned accounts or a card settlement counts as spending or income.  |
 | A payment to a person disappears from spending because the bank called it a transfer. |
 | Reinterpretation, enrichment, or a counterparty default overwrites a value you set.   |
-| Ledger facts disagree with the events they project after any command.                 |
+| Ledger facts lag behind a correction, a counterparty default, or a reviewed date.     |
 | A headline and its rows come from different data.                                     |
 | A change's purchases part and average part do not sum to the change.                  |
-| The flow's inflows minus outflows differ from surplus plus external transfers.        |
+| Cash out counts loan interest twice, as spending and again inside the repayment.      |
 
 ## Regression cases
 
 Each case has a known answer that does not come from the implementation.
 
-| Case                                                                                 | Expected                                                                                      |
-| ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| OFX row with `FITID` on account A, then the same `FITID` on account B.               | Two postings. IDs are scoped to the account.                                                  |
-| CSV row with a value-date suffix and its OFX row with `DTUSER`.                      | One posting, `valueOn` set, description without the suffix, both literals in `raw`.           |
-| `DTASOF` of `20260831140000` with display timezone Australia/Sydney.                 | Anchor date 31 August. The timezone does not move it.                                         |
-| Two identical rows on one day in file A, then file B with the same two rows.         | Two postings, four observations.                                                              |
-| File B with one of two identical rows and no running balance.                        | One `duplicate` review item listing two candidates.                                           |
-| A reparse that changes a description on an accepted row.                             | `source_conflict` review item, posting unchanged.                                             |
-| `Transfer to xx5678 CommBank app` where 5678 ends one of your account numbers.       | Descriptor own suffix `5678`; role `transfer`; no spending.                                   |
-| `Transfer To Jane Smith NetBank Rent` for $1,840 with no counterparty default.       | Counterparty `Jane Smith`, kind `person`; a `person` question; counted as unresolved outflow. |
-| The same payment after Jane Smith's default is set to Housing, then Rent.            | $1,840 spending in Housing, then Rent, with source `counterparty`.                            |
-| `WOOLWORTHS 1234 SYDNEY AU Card xx1234` and `WOOLWORTHS 5678 SYDNEY AU Card xx1234`. | One alias key, `WOOLWORTHS SYDNEY AU`.                                                        |
-| A counterparty default changes after one of its events was corrected by hand.        | Every event follows the new default except the corrected one.                                 |
-| $120 purchase in Clothing in March, $40 refund in April, unlinked.                   | March Clothing $120, April Clothing −$40.                                                     |
-| The same refund linked to the purchase.                                              | March Clothing $80, April nothing.                                                            |
-| Cost 30000, credit 20000 applied, then another 20000.                                | Remaining 10000; second application fails with `conflict`.                                    |
-| Interest on 31 August, repayment on 2 September, linked.                             | August cost 280000, September repayment 390000, interest date unchanged.                      |
-| Split 10000 into 4000, 3500, 2600.                                                   | Rejected.                                                                                     |
+| Case                                                                                          | Expected                                                                                                                       |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| OFX row with `DTUSER` and a `Value Date:` suffix in its memo.                                 | `valueOn` set, description without the suffix, the literal memo in `raw`.                                                      |
+| `DTASOF` of `20260831140000`.                                                                 | Closing anchor on 31 August.                                                                                                   |
+| `DTASOF` of `20260831235959`.                                                                 | Closing anchor on 1 September.                                                                                                 |
+| Two identical rows on one day in file A, then file B with the same two rows.                  | Two postings, four observations.                                                                                               |
+| One row matching two identical postings, with no running balance.                             | One `duplicate` review item listing both postings.                                                                             |
+| A reparse that changes a description on an accepted row.                                      | `source_conflict` review item, posting unchanged.                                                                              |
+| `Transfer to xx5678 CommBank app` where 5678 ends one of your account numbers.                | Descriptor own suffix `5678`; role `transfer`; no spending.                                                                    |
+| `Transfer To Jane Smith NetBank Rent` for $1,840 with no counterparty.                        | Role `unresolved`; an `unresolved` question for alias `JANE SMITH`; $1,840 of unresolved outflow.                              |
+| Jane Smith saved as a `person` with no default.                                               | A `person` question.                                                                                                           |
+| Jane Smith's default set to Rent with role `purchase`.                                        | $1,840 spending in Housing, role source `counterparty`, and no question.                                                       |
+| `WOOLWORTHS 1234 SYDNEY AU Card xx1234` and `WOOLWORTHS 5678 SYDNEY AU Card xx1234`.          | One alias key, `WOOLWORTHS SYDNEY`.                                                                                            |
+| A counterparty default changes after one of its events was corrected by hand.                 | Every event follows the new default except the corrected one.                                                                  |
+| $120 purchase in Clothing in March, $40 refund in April, unlinked.                            | March Clothing $120, April Clothing −$40.                                                                                      |
+| The same refund linked to the purchase.                                                       | March Clothing $80, April nothing.                                                                                             |
+| Cost 30000, two credits of 20000 linked to it at once.                                        | One link succeeds, the other fails with `conflict`; remaining 10000.                                                           |
+| Preview measures for loan interest 280000 on 31 August and a repayment 390000 on 6 September. | August gross costs 280000. September net principal reduction 390000, or 110000 when the interest posts on 7 September instead. |
+| Split a $150 purchase into $100 and $50, then into allocations totalling $151.                | The first split keeps net personal costs at $150. The second fails with `conflict`.                                            |
 
-## Browser flows
+## Not built yet
 
-Playwright covers upload to transaction detail, a question answered, a source review resolved, retry after a failed file, and refresh during processing. Every flow runs at desktop and phone width and once by keyboard only.
+These checks are planned and have no test yet:
+
+- Playwright flows from upload to transaction detail, a question answered, a source review resolved, retry after a failed file, and refresh during processing, at desktop and phone width and by keyboard only.
+- Migrations applied to a database that already holds records. Every test stage applies them to an empty one.
+- An evaluation of enrichment against the real model and your answers.
+- An OFX `FITID` reused on a second account. Matching reads only the postings of the file's account, but no test pins it.
 
 ## Hosted checks
 
