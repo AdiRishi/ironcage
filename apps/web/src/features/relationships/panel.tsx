@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useCommand } from "@/lib/use-command";
 
 import { getEvent } from "../events/functions";
-import { ImpactTable } from "../events/impact";
+import { ImpactTables } from "../events/impact";
 import { RelationshipEditor } from "./editor";
 import { applyRelationship, getEventRelationships, previewRelationship } from "./functions";
 
@@ -191,9 +191,7 @@ export function RelationshipsPanel({ event }: { event: FinancialEvent }) {
       {preview.error && <p role="alert">{preview.error.message}</p>}
       {preview.data && (
         <div className="space-y-4">
-          {preview.data.impacts.map((impact) => (
-            <ImpactTable key={impact.start} impact={impact} />
-          ))}
+          <ImpactTables impacts={preview.data.impacts} />
           <Button
             disabled={mutation.isPending}
             onClick={() => {

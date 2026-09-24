@@ -2,7 +2,7 @@ import { Schema } from "effect";
 
 import { Allocation, FinancialEvent } from "./events.ts";
 import { EventId, FinancialRole } from "./interpretation.ts";
-import { AccountId, CalendarDate, CommandId, Instant, Money, Version } from "./values.ts";
+import { CalendarDate, CommandId, Instant, Money, Version } from "./values.ts";
 
 export const CorrectionId = Schema.String.check(Schema.isUUID()).pipe(Schema.brand("CorrectionId"));
 export const EventChange = Schema.Struct({
@@ -34,23 +34,24 @@ export const Correction = Schema.Struct({
   createdAt: Instant,
 });
 export const CorrectionHistory = Schema.Array(Correction);
+// A period's flow totals, as the overview computes them from ledger facts.
 export const PeriodMeasures = Schema.Struct({
-  grossCosts: Money,
-  netPersonalCosts: Money,
+  inflow: Money,
+  outflow: Money,
+  spending: Money,
   income: Money,
-  cashChange: Schema.NullOr(Money),
-  observedCashMovement: Money,
-  loanRepayments: Money,
-  financingCosts: Money,
-  netPrincipalReduction: Schema.NullOr(Money),
-  unresolvedCount: Schema.Int,
+  internal: Money,
+  loanPrincipal: Money,
+  unresolvedOut: Money,
+  unresolvedIn: Money,
+  modelShare: Money,
 });
+// One calendar month of spending dates that a change touches, before and after it.
 export const MeasureImpact = Schema.Struct({
   start: CalendarDate,
   endExclusive: CalendarDate,
-  basis: Schema.Literal("posted"),
+  basis: Schema.Literal("spending"),
   currency: Schema.String,
-  accountIds: Schema.Array(AccountId),
   calculatedAt: Instant,
   before: PeriodMeasures,
   after: PeriodMeasures,
@@ -58,5 +59,5 @@ export const MeasureImpact = Schema.Struct({
 export const CorrectionPreview = Schema.Struct({
   change: EventChange,
   expectedVersions: Schema.NonEmptyArray(ExpectedEventVersion),
-  impact: MeasureImpact,
+  impacts: Schema.Array(MeasureImpact),
 });

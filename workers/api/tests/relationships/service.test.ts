@@ -107,8 +107,13 @@ test(
       movementKind: "cardSettlement",
       counterpart: { kind: "event", eventId: credit.id },
     });
-    expect(preview.impacts[0]?.after.grossCosts.minor).toBe(10000n);
-    expect(preview.impacts[0]?.after.observedCashMovement.minor).toBe(-10000n);
+    expect(preview.impacts[0]?.before.unresolvedOut.minor).toBe(10000n);
+    expect(preview.impacts[0]?.after).toMatchObject({
+      spending: { minor: 10000n },
+      outflow: { minor: 10000n },
+      unresolvedOut: { minor: 0n },
+      internal: { minor: 10000n },
+    });
     const events = yield* Events;
     const linked = yield* events.get({ eventId: debit.id });
     expect(
@@ -161,8 +166,7 @@ test(
         } satisfies RelationshipChange;
         const preview = yield* relationships.preview({ change });
         expect(
-          preview.impacts.find((impact) => impact.start === "2026-09-01")?.after.netPersonalCosts
-            .minor,
+          preview.impacts.find((impact) => impact.start === "2026-09-01")?.after.spending.minor,
         ).toBe(10000n);
         expect(
           preview.impacts.find((impact) => impact.start === "2026-10-01")?.after.income.minor,
@@ -200,7 +204,7 @@ test(
     if (!link) return yield* Effect.die("Expected applied credit");
     const removed = yield* apply({ kind: "unlinkCredit", creditLinkId: link.id });
     expect(
-      removed.impacts.find((impact) => impact.start === "2026-09-01")?.after.netPersonalCosts.minor,
+      removed.impacts.find((impact) => impact.start === "2026-09-01")?.after.spending.minor,
     ).toBe(30000n);
   }).pipe(Effect.provide(services)),
 );
@@ -223,7 +227,7 @@ test(
       movementKind: "transfer",
       counterpart: { kind: "external", label: "External savings" },
     });
-    expect(preview.impacts[0]?.after.grossCosts.minor).toBe(10300n);
+    expect(preview.impacts[0]?.after.spending.minor).toBe(10300n);
     expect(preview.impacts[0]?.after.income.minor).toBe(0n);
     const fee = find(rows, "International Fee");
     const purchase = find(rows, "Purchase Card xx1234");

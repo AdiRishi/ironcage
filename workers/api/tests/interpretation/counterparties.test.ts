@@ -259,6 +259,7 @@ test(
         question: false,
       },
     ]);
+    // The refund reduces August's spending, as it does on the overview.
     expect((yield* counterparties.get({ counterpartyId: woolworths.id })).months).toEqual([
       {
         month: "2026-07",
@@ -267,8 +268,8 @@ test(
       },
       {
         month: "2026-08",
-        outflow: { currency: "AUD", minor: 2500n },
-        inflow: { currency: "AUD", minor: 500n },
+        outflow: { currency: "AUD", minor: 2000n },
+        inflow: { currency: "AUD", minor: 0n },
       },
     ]);
   }).pipe(Effect.provide(services)),

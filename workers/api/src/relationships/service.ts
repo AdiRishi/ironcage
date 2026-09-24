@@ -11,10 +11,10 @@ import {
 } from "@repo/contracts/finance";
 import { Context, Crypto, Effect, Layer, Schema } from "effect";
 
+import { previewImpacts } from "../analysis/preview.ts";
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
 import { checkEventVersions } from "../events/correction-records.ts";
-import { previewPeriod } from "../events/impact.ts";
 import { relationshipCandidates } from "./candidates.ts";
 import { planRelationship } from "./plan.ts";
 import { readRelationships } from "./repository.ts";
@@ -67,17 +67,11 @@ export class Relationships extends Context.Service<
           snapshot(
             Effect.gen(function* () {
               const plan = yield* planRelationship(change);
-              const dates = [
-                ...new Map(
-                  plan.before
-                    .filter((event) => event.active)
-                    .flatMap((event) => event.postings)
-                    .map((posting) => [posting.postedOn.slice(0, 7), posting.postedOn]),
-                ).values(),
-              ];
-              const impacts = yield* Effect.forEach(dates, (on) =>
-                previewPeriod(plan.before, plan.after, plan.credits, on),
-              );
+              const impacts = yield* previewImpacts({
+                before: plan.before,
+                after: plan.after,
+                links: plan.credits,
+              });
               const [first, ...rest] = plan.before;
               return {
                 change,
