@@ -90,4 +90,6 @@ only the gateway's cloud resource provider and make no model calls.
 
 `pnpm dev` runs the whole stack locally against a Docker Postgres on host port 54329, which stays fixed so a Docker restart does not strand the recorded connection. Test stages let Docker choose their ports.
 
+Editing code under `workers/` rebuilds that Worker's bundle and restarts its local runtime. A Workflow step that is running dies with it, and the local Workflow engine never resumes the instance, so it reports `running` indefinitely. The import, export, or enrichment run it belongs to stays running too. Mark that run failed in the local database; for enrichment, the next run picks up the aliases that were left. Avoid editing Worker code, or packages the Workers share, while a long run is in progress.
+
 `pnpm dev` uses the Cloudflare runtime’s supported registry polling mode. The native directory watcher failed to propagate API worker registrations to the separate Vite process on macOS; polling restores service bindings. This changes local discovery only. Hosted workers use Cloudflare service bindings.
