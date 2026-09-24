@@ -37,9 +37,7 @@ export function EventHistory({ eventId }: { eventId: typeof EventId.Type }) {
           </Button>
         </p>
       )}
-      {history.data?.length === 0 && (
-        <p className="text-sm text-muted-foreground">No corrections yet.</p>
-      )}
+      {history.data?.length === 0 && <p className="type-small text-slate">No corrections yet.</p>}
       {history.data?.map((correction) => (
         <HistoryItem key={correction.id} correction={correction} />
       ))}

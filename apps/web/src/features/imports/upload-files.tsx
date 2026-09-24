@@ -103,7 +103,7 @@ export function UploadFiles() {
         </div>
         <CreateAccountDialog />
       </div>
-      <p className="mb-5 text-sm text-muted-foreground">
+      <p className="mb-5 type-small text-slate">
         Choose an account for CSV. OFX and PDF can identify its account automatically; select an
         account you added manually to connect it.
       </p>
@@ -122,7 +122,7 @@ export function UploadFiles() {
       >
         <UploadCloud className="mx-auto mb-4 size-8 text-primary" />
         <h2 className="text-lg font-medium">Drop your bank exports here</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 type-small text-slate">
           CommBank CSV, OFX and PDF. Up to 10 MB per file.
         </p>
         <Label className="mx-auto mt-5 flex max-w-sm flex-col gap-2">
@@ -144,15 +144,13 @@ export function UploadFiles() {
           {uploads.map((item) => (
             <div key={item.id} className="flex flex-wrap justify-between gap-2 text-sm">
               <span className="break-all">{item.fileName}</span>
-              <span
-                className={item.status === "failed" ? "text-destructive" : "text-muted-foreground"}
-              >
+              <span className={item.status === "failed" ? "text-destructive" : "text-slate"}>
                 {item.message}
                 {(item.status === "uploaded" || item.status === "existing") && (
                   <Link
-                    to="/imports/$importId"
+                    to="/sources/imports/$importId"
                     params={{ importId: item.importId }}
-                    className="ml-3 text-primary underline underline-offset-4"
+                    className="ml-3 underline underline-offset-4"
                   >
                     View import
                   </Link>

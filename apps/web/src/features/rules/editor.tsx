@@ -81,7 +81,7 @@ export function RuleEditor({
   const change = () => preview.reset();
   return (
     <form
-      className="space-y-5 rounded-lg border p-5"
+      className="space-y-5 rounded-lg border border-rule bg-sheet p-5"
       onChange={change}
       onSubmit={(e) => {
         e.preventDefault();
@@ -249,7 +249,7 @@ export function RuleEditor({
           {preview.data.impacts.map((impact) => (
             <ImpactTable key={`${impact.currency}:${impact.start}`} impact={impact} />
           ))}
-          <p className="text-sm text-muted-foreground">
+          <p className="type-small text-slate">
             Exclude individual events below, then preview again. Specific corrections and splits
             always take precedence.
           </p>
@@ -260,14 +260,10 @@ export function RuleEditor({
                 className="flex flex-wrap items-start justify-between gap-3 rounded border p-3"
               >
                 <div>
-                  <Link
-                    className="underline"
-                    to="/transactions/$id"
-                    params={{ id: match.postingId }}
-                  >
+                  <Link className="underline" to="/ledger/$id" params={{ id: match.postingId }}>
                     {match.postedOn} · {match.description}
                   </Link>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="type-small text-slate">
                     {preview.data?.exceptions.find((row) => row.eventId === match.eventId)
                       ?.reason ??
                       (preview.data?.conflicts.includes(match.eventId)

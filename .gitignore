@@ -21,3 +21,5 @@ playwright-report/
 /fixtures/commbank/
 .blume-verify/
 .playwright-mcp/
+.vitest-attachments/
+__screenshots__/

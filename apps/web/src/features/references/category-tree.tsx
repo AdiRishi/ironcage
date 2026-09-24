@@ -15,7 +15,7 @@ export function CategoryTree({ categories, parentId = null, onEdit, onDelete, di
   const children = categories.filter((category) => category.parentId === parentId);
   if (children.length === 0) return null;
   return (
-    <ul className={parentId ? "ml-4 border-l pl-3" : "rounded-lg border p-3"}>
+    <ul className={parentId ? "ml-4 border-l pl-3" : "rounded-lg border border-rule bg-sheet p-3"}>
       {children.map((category) => (
         <li key={category.id}>
           <div className="flex flex-wrap items-center justify-between gap-2 py-2">

@@ -75,10 +75,10 @@ export function ReferencesPage() {
   return (
     <div className="max-w-4xl space-y-8">
       <header>
-        <Link to="/settings" className="text-primary underline">
+        <Link to="/settings" className="underline underline-offset-4">
           Settings
         </Link>
-        <h1 className="mt-3 text-3xl font-semibold">Categories and labels</h1>
+        <h1 className="mt-3 type-title">Categories and labels</h1>
       </header>
       {draft && (
         <ReferenceEditor
@@ -105,7 +105,7 @@ export function ReferencesPage() {
       {sections.map((section) => (
         <section key={section.kind} className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">{section.label}</h2>
+            <h2 className="type-heading">{section.label}</h2>
             <Button variant="outline" onClick={() => setDraft(section.create)}>
               Add {section.kind === "personalEvent" ? "personal event" : section.kind}
             </Button>
@@ -142,7 +142,7 @@ export function ReferencesPage() {
                     <div>
                       <p className="font-medium">{record.name}</p>
                       {record.kind === "personalEvent" && (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="type-small text-slate">
                           {record.startOn} through {record.endOn}
                           {record.excludeFromOrdinary && " · Excluded from ordinary costs"}
                         </p>
@@ -203,7 +203,7 @@ export function ReferencesPage() {
           )}
           {section.kind !== "category" &&
             !records.some((record) => record.kind === section.kind) && (
-              <p className="text-sm text-muted-foreground">None yet.</p>
+              <p className="type-small text-slate">None yet.</p>
             )}
         </section>
       ))}

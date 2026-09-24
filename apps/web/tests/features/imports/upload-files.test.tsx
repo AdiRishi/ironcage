@@ -68,7 +68,7 @@ test("an invalid upload response fails that file while a sibling completes and m
     .toBeVisible();
   await expect
     .element(screen.getByRole("link", { name: "View import" }))
-    .toHaveAttribute("href", "/imports/00000000-0000-4000-8000-000000000001");
+    .toHaveAttribute("href", "/sources/imports/00000000-0000-4000-8000-000000000001");
   await screen.getByRole("button", { name: "Dismiss upload messages" }).click();
   await expect.element(screen.getByText("bad.csv")).not.toBeInTheDocument();
   await expect.element(screen.getByText("good.csv")).not.toBeInTheDocument();

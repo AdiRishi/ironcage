@@ -50,13 +50,13 @@ export function RowChoice({
       {row.locator.kind === "pdfRow" &&
         (review.bytesAvailable ? (
           <a
-            className="text-sm text-primary underline"
+            className="text-sm underline underline-offset-4"
             href={sourceHref(review.sourceFileId, row.locator)}
           >
             Open statement page {row.locator.page}
           </a>
         ) : (
-          <Link to="/imports" className="text-sm text-primary underline">
+          <Link to="/sources" className="text-sm underline underline-offset-4">
             Original bytes removed. Reupload the statement.
           </Link>
         ))}
@@ -65,7 +65,7 @@ export function RowChoice({
           .filter(([key]) => key !== "positions")
           .map(([key, value]) => (
             <div key={key} className="contents">
-              <dt className="text-muted-foreground">{key}</dt>
+              <dt className="text-slate">{key}</dt>
               <dd className="min-w-0 font-mono break-words whitespace-pre-wrap">
                 {value || "Empty"}
               </dd>
@@ -103,11 +103,7 @@ export function RowChoice({
               key={posting.id}
               className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-background p-3"
             >
-              <Link
-                to="/transactions/$id"
-                params={{ id: posting.id }}
-                className="text-sm underline"
-              >
+              <Link to="/ledger/$id" params={{ id: posting.id }} className="text-sm underline">
                 {posting.postedOn} · {formatMoney(posting.amount)} · {posting.description}
               </Link>
               <div className="w-full space-y-1 text-xs">
@@ -115,7 +111,7 @@ export function RowChoice({
                   source.bytesAvailable ? (
                     <a
                       key={source.sourceFileId}
-                      className="block text-primary underline"
+                      className="block underline underline-offset-4"
                       href={sourceHref(source.sourceFileId, source.locator)}
                     >
                       {source.fileName}

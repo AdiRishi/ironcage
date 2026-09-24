@@ -114,7 +114,6 @@ export const RelationshipCandidatePage = Schema.Struct({
 export const ProposeRelationships = Schema.Struct({ commandId: CommandId });
 export const InterpretationReview = Schema.Struct({
   id: ReviewItemId,
-  kind: Schema.Literals(["role", "relationship", "ruleConflict"]),
   eventIds: Schema.Array(EventId),
   postingId: Posting.fields.id,
   description: Schema.String,

@@ -1,35 +1,64 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/archivo/wdth.css";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.16 0.012 264);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.16 0.012 264);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.16 0.012 264);
-  --primary: oklch(0.56 0.22 262);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.97 0.006 264);
-  --secondary-foreground: oklch(0.22 0.014 264);
-  --muted: oklch(0.97 0.006 264);
-  --muted-foreground: oklch(0.5 0.015 264);
-  --accent: oklch(0.95 0.025 262);
-  --accent-foreground: oklch(0.3 0.15 262);
-  --destructive: oklch(0.58 0.22 27);
-  --border: oklch(0.9 0.008 264);
-  --input: oklch(0.9 0.008 264);
-  --ring: oklch(0.56 0.22 262);
-  --radius: 0.375rem;
+  /* The palette from docs/design: polymer substrate, intaglio ink. */
+  --polymer: #edf0eb;
+  --sheet: #f9faf7;
+  --intaglio: #16323a;
+  --slate: #5a6a6e;
+  --rule: #d2d9d1;
+  --eucalypt: #2e7d6b;
+  --wattle: #c58f14;
+  --waratah: #b0364a;
+
+  --background: var(--polymer);
+  --foreground: var(--intaglio);
+  --card: var(--sheet);
+  --card-foreground: var(--intaglio);
+  --popover: var(--sheet);
+  --popover-foreground: var(--intaglio);
+  --primary: var(--intaglio);
+  --primary-foreground: var(--sheet);
+  --secondary: #e1e7df;
+  --secondary-foreground: var(--intaglio);
+  --muted: #e3e8e1;
+  --muted-foreground: var(--slate);
+  --accent: #dfe6de;
+  --accent-foreground: var(--intaglio);
+  --destructive: var(--waratah);
+  --border: var(--rule);
+  --input: #c3ccc2;
+  --ring: var(--intaglio);
+  --radius: 0.5rem;
+
+  /* Categorical hues, validated in this order for adjacency (CVD ΔE ≥ 9,
+     normal-vision ΔE ≥ 18, ≥ 3:1 on polymer and sheet). Stack them in this order. */
+  --category-1: #5b4baf;
+  --category-2: #c8402f;
+  --category-3: #2f6fcf;
+  --category-4: #c9681a;
+  --category-5: #1a86ad;
+  --category-6: #3e8a2e;
+  --category-7: #c0467f;
+  --category-8: #8a6d00;
+  --category-other: #8c9a96;
 }
 
 @theme inline {
-  --font-mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
-  --font-sans: "Inter Variable", Inter, sans-serif;
+  --font-sans: "Archivo Variable", system-ui, sans-serif;
+  --color-polymer: var(--polymer);
+  --color-sheet: var(--sheet);
+  --color-intaglio: var(--intaglio);
+  --color-slate: var(--slate);
+  --color-rule: var(--rule);
+  --color-inflow: var(--eucalypt);
+  --color-outflow: var(--wattle);
+  --color-attention: var(--waratah);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -54,9 +83,71 @@
   --radius-xl: calc(var(--radius) + 6px);
 }
 
+/* Type roles from docs/design. Width carries the hierarchy. */
+@utility type-figure {
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 3.5rem;
+  line-height: 3.75rem;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@utility type-figure-s {
+  font-stretch: 118%;
+  font-weight: 540;
+  font-size: 1.75rem;
+  line-height: 2rem;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@utility type-title {
+  font-stretch: 112%;
+  font-weight: 640;
+  font-size: 1.5rem;
+  line-height: 1.875rem;
+  letter-spacing: -0.005em;
+}
+@utility type-heading {
+  font-stretch: 106%;
+  font-weight: 620;
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+@utility type-body {
+  font-stretch: 100%;
+  font-weight: 420;
+  font-size: 0.9375rem;
+  line-height: 1.5rem;
+}
+@utility type-small {
+  font-stretch: 100%;
+  font-weight: 440;
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+}
+@utility type-condensed {
+  font-stretch: 72%;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  line-height: 1rem;
+}
+@utility tabular {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* The overview's one orchestrated moment: the flow draws from left to right. */
+@keyframes flow-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
 
   html {
@@ -64,7 +155,12 @@
   }
 
   body {
-    @apply min-w-80 bg-background text-foreground antialiased;
+    @apply min-w-80 bg-background type-body text-foreground antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--intaglio);
+    outline-offset: 2px;
   }
 
   button,

@@ -19,6 +19,13 @@ import { useCommand } from "@/lib/use-command";
 import { requestEnrichment, updateEnrichmentSettings } from "./functions";
 import { enrichmentSettingsQuery, useEnrichmentRuns } from "./queries";
 
+const runStatusLabels = {
+  pending: "Waiting.",
+  running: "Running.",
+  completed: "Finished.",
+  failed: "Stopped.",
+} as const;
+
 export function EnrichmentSection() {
   const settings = useQuery(enrichmentSettingsQuery());
   const runs = useEnrichmentRuns();
@@ -28,9 +35,9 @@ export function EnrichmentSection() {
     onSuccess: () => client.invalidateQueries(),
   });
   return (
-    <section className="space-y-4 rounded-lg border p-5">
-      <h2 className="text-xl font-semibold">Counterparty identification</h2>
-      <p className="text-sm text-muted-foreground">
+    <section className="space-y-4">
+      <h2 className="type-heading">Counterparty identification</h2>
+      <p className="type-small text-slate">
         {settings.data?.provider.name} runs {settings.data?.provider.model}. It receives descriptor
         text, payment channels, directions, account kinds, and category names. It never receives
         amounts, balances, dates, or account numbers. Confident answers apply at once; the rest
@@ -43,14 +50,24 @@ export function EnrichmentSection() {
       >
         {request.uncertain ? "Retry identification" : "Identify new counterparties"}
       </Button>
-      {runs.data?.map((run) => (
-        <div key={run.id} className="space-y-1 border-t pt-3 text-sm">
-          <p>
-            {run.status}: {run.resolved} of {run.requested} descriptors identified
-          </p>
-          {run.failure && <p role="alert">{run.failure}</p>}
-        </div>
-      ))}
+      {runs.data && runs.data.length > 0 && (
+        <ul className="divide-y divide-rule border-y border-rule type-small">
+          {runs.data.slice(0, 5).map((run) => (
+            <li key={run.id} className="space-y-0.5 py-2">
+              <p>
+                <span className="font-[600]">{runStatusLabels[run.status]}</span>{" "}
+                {run.resolved.toLocaleString()} of {run.requested.toLocaleString()} names
+                identified.
+              </p>
+              {run.failure && (
+                <p role="alert" className="text-attention">
+                  {run.failure}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
       {[settings.error, runs.error, request.mutation.error]
         .filter((error) => error !== null)
         .map((error, index) => (

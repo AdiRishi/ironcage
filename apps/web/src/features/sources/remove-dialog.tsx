@@ -16,7 +16,7 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import { postingsQueryOptions } from "@/features/transactions/queries";
+import { ledgerQuery } from "@/features/ledger/queries";
 import { useCommand } from "@/lib/use-command";
 
 import { removeSourceBytes } from "./functions";
@@ -26,7 +26,7 @@ export function RemoveSourceDialog({ file }: { file: SourceFile }) {
   const resultRef = useRef<HTMLOutputElement>(null);
   const client = useQueryClient();
   const postings = useQuery({
-    ...postingsQueryOptions({ filter: { importId: file.importId } }),
+    ...ledgerQuery({ filter: { importId: file.importId } }),
     enabled: open,
   });
   const { mutation, submit, uncertain } = useCommand({
@@ -72,7 +72,7 @@ export function RemoveSourceDialog({ file }: { file: SourceFile }) {
                 {postings.data.rows.map((posting) => (
                   <li key={posting.id} className="flex justify-between gap-3 p-3 text-sm">
                     <Link
-                      to="/transactions/$id"
+                      to="/ledger/$id"
                       params={{ id: posting.id }}
                       className="min-w-0 underline underline-offset-4"
                     >
@@ -84,7 +84,7 @@ export function RemoveSourceDialog({ file }: { file: SourceFile }) {
               </ul>
               {postings.data.nextCursor && (
                 <Link
-                  to="/transactions"
+                  to="/ledger"
                   search={{ importId: file.importId }}
                   className="text-sm underline"
                 >
@@ -126,7 +126,7 @@ export function RemoveSourceDialog({ file }: { file: SourceFile }) {
         </p>
       )}
       {mutation.isSuccess && (
-        <output ref={resultRef} tabIndex={-1} className="block text-sm text-muted-foreground">
+        <output ref={resultRef} tabIndex={-1} className="block type-small text-slate">
           Bytes removed. {mutation.data.affectedPostingCount} transactions retained.
         </output>
       )}

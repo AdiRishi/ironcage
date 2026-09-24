@@ -80,7 +80,7 @@ export function ReferenceEditor({
   });
   return (
     <form
-      className="space-y-4 rounded-lg border p-5"
+      className="space-y-4 rounded-lg border border-rule bg-sheet p-5"
       onSubmit={(e) => {
         e.preventDefault();
         form.handleSubmit().catch(reportError);

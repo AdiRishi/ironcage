@@ -22,9 +22,12 @@ const measures = {
 } as const;
 export function ImpactTable({ impact }: { impact: typeof MeasureImpact.Type }) {
   return (
-    <section className="space-y-3 rounded-lg border p-4" aria-label="Financial impact">
+    <section
+      className="space-y-3 rounded-lg border border-rule bg-sheet p-4"
+      aria-label="Financial impact"
+    >
       <h3 className="font-semibold">Effect on {impact.start.slice(0, 7)}</h3>
-      <p className="text-sm text-muted-foreground">
+      <p className="type-small text-slate">
         Posted basis · {impact.currency} · All {impact.accountIds.length} accounts · Calculated{" "}
         {impact.calculatedAt}
       </p>
@@ -57,11 +60,11 @@ export function ImpactTable({ impact }: { impact: typeof MeasureImpact.Type }) {
         </TableBody>
       </Table>
       {impact.after.unresolvedCount > 0 && (
-        <p className="text-sm text-muted-foreground">
+        <p className="type-small text-slate">
           {impact.after.unresolvedCount} unresolved events may change these totals.
         </p>
       )}
-      <p className="text-sm text-muted-foreground">
+      <p className="type-small text-slate">
         Observed deposit movement: {formatMoney(impact.after.observedCashMovement)}. Bank records
         stay unchanged.
       </p>

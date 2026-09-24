@@ -98,10 +98,7 @@ test(
     const reviews = yield* InterpretationReviews;
     expect(
       (yield* reviews.list({})).rows.some(
-        (row) =>
-          row.kind === "relationship" &&
-          row.eventIds.includes(debit.id) &&
-          row.eventIds.includes(credit.id),
+        (row) => row.eventIds.includes(debit.id) && row.eventIds.includes(credit.id),
       ),
     ).toBe(true);
     const preview = yield* apply({

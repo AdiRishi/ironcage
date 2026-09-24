@@ -28,7 +28,7 @@ export function RelatedEvent({ eventId }: { eventId: typeof EventId.Type }) {
   return event ? (
     <Link
       className="underline underline-offset-4"
-      to="/transactions/$id"
+      to="/ledger/$id"
       params={{ id: event.primaryPostingId }}
     >
       {event.postings.find((posting) => posting.id === event.primaryPostingId)?.description} ·{" "}
@@ -84,7 +84,7 @@ export function RelationshipsPanel({ event }: { event: FinancialEvent }) {
           ))}
           {event.postings.map((posting) => (
             <p key={posting.id}>
-              <Link className="underline" to="/transactions/$id" params={{ id: posting.id }}>
+              <Link className="underline" to="/ledger/$id" params={{ id: posting.id }}>
                 {posting.postedOn} · {posting.description} · {formatMoney(posting.amount)}
               </Link>
             </p>
@@ -115,7 +115,7 @@ export function RelationshipsPanel({ event }: { event: FinancialEvent }) {
         </div>
       ))}
       {relationships?.remaining.map((row, index) => (
-        <p className="text-sm text-muted-foreground" key={row.allocationId}>
+        <p className="type-small text-slate" key={row.allocationId}>
           Allocation {index + 1}: {formatMoney(row.amount)} remaining
         </p>
       ))}

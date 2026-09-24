@@ -136,7 +136,7 @@ export function EditAccountDialog({ account }: { account: Account }) {
               )}
             </form.Field>
             {account.accountNumber && (
-              <p className="text-sm text-muted-foreground">
+              <p className="type-small text-slate">
                 Bank {account.bankId ?? "not supplied"} · Account {account.accountNumber} ·{" "}
                 {account.currency}
               </p>

@@ -24,7 +24,7 @@ const propose = createServerFn({ method: "POST" })
 const dismiss = createServerFn({ method: "POST" })
   .validator(Schema.toStandardSchemaV1(DismissInterpretationReview))
   .handler(({ data }) => callApiRpc((client) => client.dismissInterpretationReview(data)));
-export function InterpretationReviewSection() {
+export function MovementProposals() {
   const client = useQueryClient();
   const query = useInfiniteQuery({
     queryKey: ["interpretationReviews"],
@@ -41,64 +41,72 @@ export function InterpretationReviewSection() {
     mutationFn: (data: typeof DismissInterpretationReview.Type) => dismiss({ data }),
     onSuccess: () => client.invalidateQueries(),
   });
+  const rows = query.data?.pages.flatMap((page) => page.rows) ?? [];
   return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold">Interpretation review</h2>
+    <section aria-labelledby="movements-heading" className="space-y-4 border-t border-rule pt-8">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 id="movements-heading" className="type-heading">
+            Movements to confirm
+          </h2>
+          <p className="mt-1 type-small text-slate">
+            Pairs that look like money moving between your own accounts. Confirmed pairs leave both
+            spending and income.
+          </p>
+        </div>
         <Button
           variant="outline"
+          size="sm"
           disabled={proposals.mutation.isPending}
           onClick={() => proposals.submit({ commandId: CommandId.make(crypto.randomUUID()) })}
         >
-          {proposals.uncertain ? "Retry proposals" : "Find movement proposals"}
+          {proposals.uncertain ? "Retry" : "Look for more"}
         </Button>
       </div>
-      {query.data?.pages
-        .flatMap((page) => page.rows)
-        .map((row) => (
-          <div className="space-y-3 rounded-lg border p-4" key={row.id}>
-            <p className="font-medium">
-              {row.kind === "role"
-                ? "Choose financial role"
-                : row.kind === "relationship"
-                  ? "Confirm a proposed movement"
-                  : "Resolve conflicting rules"}
-            </p>
-            <p>
-              {row.postedOn} · {row.description}
-            </p>
-            {row.eventIds.map((eventId) => (
-              <p key={eventId}>
-                <RelatedEvent eventId={eventId} />
-              </p>
-            ))}
-            <div className="flex flex-wrap gap-3">
-              <Link className="underline" to="/transactions/$id" params={{ id: row.postingId }}>
-                Open interpretation
-              </Link>
-              {row.kind !== "role" && (
-                <Button
-                  variant="outline"
-                  disabled={dismissal.mutation.isPending}
-                  onClick={() =>
-                    dismissal.submit({
-                      commandId: CommandId.make(crypto.randomUUID()),
-                      reviewId: row.id,
-                      expectedVersion: row.version,
-                    })
-                  }
-                >
-                  {dismissal.uncertain ? "Retry dismissal" : "Dismiss proposal"}
-                </Button>
-              )}
+      {query.isSuccess && rows.length === 0 && (
+        <p className="text-slate">No movements are waiting.</p>
+      )}
+      <ul className="divide-y divide-rule border-y border-rule">
+        {rows.map((row) => (
+          <li className="grid gap-2 py-3 sm:grid-cols-[1fr_auto] sm:items-center" key={row.id}>
+            <div className="min-w-0 space-y-1 type-small">
+              {row.eventIds.map((eventId) => (
+                <p key={eventId} className="truncate">
+                  <RelatedEvent eventId={eventId} />
+                </p>
+              ))}
             </div>
-          </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                nativeButton={false}
+                render={<Link to="/ledger/$id" params={{ id: row.postingId }} />}
+              >
+                Review
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={dismissal.mutation.isPending}
+                onClick={() =>
+                  dismissal.submit({
+                    commandId: CommandId.make(crypto.randomUUID()),
+                    reviewId: row.id,
+                    expectedVersion: row.version,
+                  })
+                }
+              >
+                {dismissal.uncertain ? "Retry" : "Not a movement"}
+              </Button>
+            </div>
+          </li>
         ))}
-      {query.isPending && <p>Loading interpretation reviews…</p>}
+      </ul>
+      {query.isPending && <p className="text-slate">Loading…</p>}
       {[query.error, proposals.mutation.error, dismissal.mutation.error]
         .filter((error) => error !== null)
         .map((error, index) => (
-          <p role="alert" key={index}>
+          <p role="alert" className="type-small text-attention" key={index}>
             {error.message}
           </p>
         ))}
@@ -110,7 +118,7 @@ export function InterpretationReviewSection() {
             query.fetchNextPage().catch(reportError);
           }}
         >
-          More interpretation reviews
+          More movements
         </Button>
       )}
     </section>

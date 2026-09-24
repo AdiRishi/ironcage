@@ -18,8 +18,8 @@ export function RulesPage() {
   return (
     <div className="max-w-5xl space-y-6">
       <header>
-        <h1 className="text-3xl font-semibold">Interpretation rules</h1>
-        <p className="mt-2 text-muted-foreground">
+        <h1 className="type-title">Interpretation rules</h1>
+        <p className="mt-2 text-slate">
           Preview changes before applying them. Corrections and accepted relationships take
           precedence. Deleting a rule keeps its accepted interpretations and stops future use.
         </p>
@@ -27,12 +27,12 @@ export function RulesPage() {
       <Button onClick={() => setEditing({ rule: null })}>New rule</Button>
       {query.data?.map((rule) => (
         <section
-          className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4"
+          className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-rule bg-sheet p-4"
           key={rule.id}
         >
           <div>
             <h2 className="font-medium">{rule.name}</h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="type-small text-slate">
               {rule.action.kind === "category" ? "Set category" : "Set financial role"} ·{" "}
               {rule.scope}
             </p>

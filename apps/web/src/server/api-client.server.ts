@@ -8,15 +8,6 @@ import { runApiRequest } from "./api-request";
 
 type ApiMethods = Pick<
   Api,
-  | "saveAnalysis"
-  | "getAnalysis"
-  | "listAnalyses"
-  | "renameAnalysis"
-  | "deleteAnalysis"
-  | "overview"
-  | "compare"
-  | "contributors"
-  | "rows"
   | "getEventRelationships"
   | "listRelationshipCandidates"
   | "previewRelationship"
@@ -68,7 +59,7 @@ type ApiMethods = Pick<
   | "listAccounts"
   | "createAccount"
   | "updateAccount"
-  | "listPostings"
+  | "listLedger"
   | "getPosting"
   | "listImports"
   | "getImport"

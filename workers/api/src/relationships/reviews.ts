@@ -38,7 +38,7 @@ export class InterpretationReviews extends Context.Service<
           ? sql`AND (p.posted_on,r.id)<(${input.cursor.postedOn}::date,${input.cursor.id}::uuid)`
           : sql``;
         const rows =
-          yield* sql`SELECT r.id,r.kind,r.event_ids AS "eventIds",p.id AS "postingId",p.description,p.posted_on::text AS "postedOn",r.version FROM review_items r JOIN events e ON e.id=r.event_ids[1] JOIN postings p ON p.id=e.primary_posting_id WHERE r.kind IN ('role','relationship','ruleConflict') AND r.resolved_at IS NULL AND e.active ${cursor} ORDER BY p.posted_on DESC,r.id DESC LIMIT 51`.pipe(
+          yield* sql`SELECT r.id,r.event_ids AS "eventIds",p.id AS "postingId",p.description,p.posted_on::text AS "postedOn",r.version FROM review_items r JOIN events e ON e.id=r.event_ids[1] JOIN postings p ON p.id=e.primary_posting_id WHERE r.kind = 'relationship' AND r.resolved_at IS NULL AND e.active ${cursor} ORDER BY p.posted_on DESC,r.id DESC LIMIT 51`.pipe(
             Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(InterpretationReview))),
           );
         const last = rows[49];
@@ -68,7 +68,7 @@ export class InterpretationReviews extends Context.Service<
             result: Schema.Boolean,
             execute: Effect.gen(function* () {
               const rows =
-                yield* sql`UPDATE review_items SET resolved_at=now(),resolution='{"kind":"dismissed"}',version=version+1 WHERE id=${input.reviewId} AND version=${input.expectedVersion} AND kind IN ('relationship','ruleConflict') AND resolved_at IS NULL RETURNING id`;
+                yield* sql`UPDATE review_items SET resolved_at=now(),resolution='{"kind":"dismissed"}',version=version+1 WHERE id=${input.reviewId} AND version=${input.expectedVersion} AND kind = 'relationship' AND resolved_at IS NULL RETURNING id`;
               if (rows.length === 0)
                 return yield* new FinanceError({
                   kind: "stale",
