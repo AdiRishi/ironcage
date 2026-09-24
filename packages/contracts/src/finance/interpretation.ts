@@ -38,3 +38,30 @@ export const InterpretationFilter = Schema.Struct({
   personalEventId: Schema.optionalKey(PersonalEventId),
   interpretationReview: Schema.optionalKey(Schema.Boolean),
 });
+export const Channel = Schema.Literals([
+  "card",
+  "transfer",
+  "bpay",
+  "directDebit",
+  "directCredit",
+  "salary",
+  "cash",
+  "interest",
+  "fee",
+  "loan",
+  "cardPayment",
+  "other",
+]);
+export type Channel = typeof Channel.Type;
+export const Descriptor = Schema.Struct({
+  profileVersion: Schema.Int,
+  channel: Channel,
+  counterpartyText: Schema.NullOr(Schema.String),
+  aliasKey: Schema.NullOr(Schema.String),
+  cardSuffix: Schema.NullOr(Schema.String),
+  ownAccountSuffix: Schema.NullOr(Schema.String),
+  payId: Schema.NullOr(Schema.String),
+  reference: Schema.NullOr(Schema.String),
+  foreign: Schema.NullOr(Schema.Struct({ currency: Schema.String, amount: Schema.String })),
+});
+export type Descriptor = typeof Descriptor.Type;
