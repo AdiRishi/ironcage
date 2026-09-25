@@ -94,6 +94,33 @@ const reinterpret = (event: FinancialEvent, counterparty: CounterpartyDefaults) 
     categoryIdForSlug: () => null,
   });
 
+describe("correctEvent", () => {
+  const unchanged = (event: FinancialEvent) => ({
+    eventId: event.id,
+    kind: event.kind,
+    purchaseOn: event.purchaseOn,
+    allocations: event.allocations,
+  });
+
+  it.effect("makes a value it keeps yours only when the event's rules dispute it", () =>
+    Effect.gen(function* () {
+      const kept = yield* correctEvent(purchase(), unchanged(purchase()), []);
+      expect(kept.roleSource).toBe("bank");
+      expect(kept.allocations[0]?.categorySource).toBe("counterparty");
+
+      const category = yield* correctEvent(purchase(), unchanged(purchase()), ["category"]);
+      expect(category.roleSource).toBe("bank");
+      expect(category.allocations[0]).toMatchObject({
+        categoryId: groceries,
+        categorySource: "user",
+      });
+
+      const role = yield* correctEvent(purchase(), unchanged(purchase()), ["role"]);
+      expect(role.roleSource).toBe("user");
+    }),
+  );
+});
+
 describe("restoreEvent", () => {
   it.effect("returns an event's role and category with the sources they had before", () =>
     Effect.gen(function* () {
@@ -101,12 +128,16 @@ describe("restoreEvent", () => {
         roleSource: "counterparty",
         allocations: [{ ...purchase().allocations[0], categoryId: rent }],
       });
-      const corrected = yield* correctEvent(original, {
-        eventId: original.id,
-        kind: "transfer",
-        purchaseOn: null,
-        allocations: [{ ...original.allocations[0], role: "transfer", categoryId: null }],
-      });
+      const corrected = yield* correctEvent(
+        original,
+        {
+          eventId: original.id,
+          kind: "transfer",
+          purchaseOn: null,
+          allocations: [{ ...original.allocations[0], role: "transfer", categoryId: null }],
+        },
+        [],
+      );
       const restored = yield* restoreEvent(corrected, original);
       expect(restored.kind).toBe("purchase");
       expect(restored.roleSource).toBe("counterparty");
@@ -149,12 +180,16 @@ describe("restoreEvent", () => {
     () =>
       Effect.gen(function* () {
         const original = purchase();
-        const corrected = yield* correctEvent(original, {
-          eventId: original.id,
-          kind: "purchase",
-          purchaseOn: null,
-          allocations: [{ ...original.allocations[0], categoryId: diningOut }],
-        });
+        const corrected = yield* correctEvent(
+          original,
+          {
+            eventId: original.id,
+            kind: "purchase",
+            purchaseOn: null,
+            allocations: [{ ...original.allocations[0], categoryId: diningOut }],
+          },
+          [],
+        );
         const restored = yield* restoreEvent(corrected, original);
         const derived = reinterpret(restored, business({ defaultCategoryId: household }));
         expect(derived.categoryId).toBe(household);

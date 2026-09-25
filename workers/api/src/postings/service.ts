@@ -21,6 +21,7 @@ import { categorySubtree } from "../analysis/fact-sql.ts";
 import { postingFields } from "../database/columns.ts";
 import { toFinanceError } from "../database/failures.ts";
 import { readTransaction } from "../database/transactions.ts";
+import { questionEventsTable } from "../interpretation/question-events.ts";
 import { countedLedger } from "./counted.ts";
 import {
   allocationPredicates,
@@ -93,21 +94,42 @@ export class Postings extends Context.Service<
               : null,
         };
       };
-      const list = Effect.fn("Postings.list")(function* (input: typeof ListPostings.Type) {
-        const rows =
-          yield* sql`SELECT ${fields} FROM postings p JOIN accounts a ON a.id = p.account_id WHERE ${sql.and(predicatesFor(input))} ORDER BY p.posted_on DESC, p.id DESC LIMIT ${pageSize + 1}`.pipe(
-            Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Posting))),
+      const list = Effect.fn("Postings.list")(
+        function* (input: typeof ListPostings.Type) {
+          return yield* readTransaction(
+            sql,
+            Effect.gen(function* () {
+              const questions = yield* questionEventsTable(null);
+              const rows =
+                yield* sql`WITH ${questions} SELECT ${fields} FROM postings p JOIN accounts a ON a.id = p.account_id
+                  WHERE ${sql.and(predicatesFor(input))} ORDER BY p.posted_on DESC, p.id DESC LIMIT ${pageSize + 1}`.pipe(
+                  Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Posting))),
+                );
+              return page(rows);
+            }),
           );
-        return page(rows);
-      }, toFinanceError);
-      const ledger = Effect.fn("Postings.ledger")(function* (input: typeof ListPostings.Type) {
-        const rows =
-          yield* sql`SELECT ${ledgerRowColumns(sql)} FROM postings p JOIN accounts a ON a.id = p.account_id ${ledgerMeaning(sql)}
-            WHERE ${sql.and(predicatesFor(input))} ORDER BY p.posted_on DESC, p.id DESC LIMIT ${pageSize + 1}`.pipe(
-            Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(LedgerRow))),
+        },
+        Effect.provideService(PgClient.PgClient, sql),
+        toFinanceError,
+      );
+      const ledger = Effect.fn("Postings.ledger")(
+        function* (input: typeof ListPostings.Type) {
+          return yield* readTransaction(
+            sql,
+            Effect.gen(function* () {
+              const questions = yield* questionEventsTable(null);
+              const rows =
+                yield* sql`WITH ${questions} SELECT ${ledgerRowColumns(sql)} FROM postings p JOIN accounts a ON a.id = p.account_id ${ledgerMeaning(sql)}
+                  WHERE ${sql.and(predicatesFor(input))} ORDER BY p.posted_on DESC, p.id DESC LIMIT ${pageSize + 1}`.pipe(
+                  Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(LedgerRow))),
+                );
+              return page(rows);
+            }),
           );
-        return page(rows);
-      }, toFinanceError);
+        },
+        Effect.provideService(PgClient.PgClient, sql),
+        toFinanceError,
+      );
       const counted = Effect.fn("Postings.counted")(
         (input: typeof ListCountedLedger.Type) => readTransaction(sql, countedLedger(input)),
         Effect.provideService(PgClient.PgClient, sql),

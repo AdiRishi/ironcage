@@ -37,9 +37,7 @@ test(
     expect(yield* events.interpret(command)).toEqual({ descriptors: 0, created: 0, changed: 0 });
     expect(yield* events.forPosting({ postingId: purchase.id })).toEqual(original);
     expect(
-      (yield* postings.list({ filter: { interpretationReview: true } })).rows.map(
-        (row) => row.description,
-      ),
+      (yield* postings.list({ filter: { openQuestion: true } })).rows.map((row) => row.description),
     ).toEqual(["Unknown payment"]);
   }).pipe(Effect.provide(services)),
 );

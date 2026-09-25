@@ -1,53 +1,42 @@
 import {
   ApplyRelationship,
   CommandId,
-  DismissInterpretationReview,
+  type DismissInterpretationReview,
   RelationshipChange,
   type RelationshipProposal,
-  ListInterpretationReviews,
-  ProposeRelationships,
-  type InterpretationReviewCursor,
+  type ProposeRelationships,
 } from "@repo/contracts/finance";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 
 import { Button } from "@/components/ui/button";
 import { useCommand } from "@/lib/use-command";
-import { callApiRpc } from "@/server/api-client.server";
 
-import { applyRelationship, previewRelationship } from "./functions";
+import {
+  applyRelationship,
+  dismissInterpretationReview,
+  previewRelationship,
+  proposeRelationships,
+} from "./functions";
 import { RelatedEvent } from "./panel";
+import { interpretationReviewsQuery } from "./queries";
 
 type CreditProposalLink = Extract<typeof RelationshipProposal.Type, { kind: "credit" }>["link"];
-const list = createServerFn({ method: "GET" })
-  .validator(Schema.toStandardSchemaV1(ListInterpretationReviews))
-  .handler(({ data }) => callApiRpc((client) => client.listInterpretationReviews(data)));
-const propose = createServerFn({ method: "POST" })
-  .validator(Schema.toStandardSchemaV1(ProposeRelationships))
-  .handler(({ data }) => callApiRpc((client) => client.proposeRelationships(data)));
-const dismiss = createServerFn({ method: "POST" })
-  .validator(Schema.toStandardSchemaV1(DismissInterpretationReview))
-  .handler(({ data }) => callApiRpc((client) => client.dismissInterpretationReview(data)));
+
 export function RelationshipProposals() {
   const client = useQueryClient();
-  const query = useInfiniteQuery({
-    queryKey: ["interpretationReviews"],
-    initialPageParam: null,
-    queryFn: ({ pageParam }: { pageParam: typeof InterpretationReviewCursor.Type | null }) =>
-      list({ data: pageParam ? { cursor: pageParam } : {} }),
-    getNextPageParam: (page) => page.nextCursor,
-  });
+  const query = useSuspenseInfiniteQuery(interpretationReviewsQuery());
   const proposals = useCommand({
-    mutationFn: (data: typeof ProposeRelationships.Type) => propose({ data }),
+    mutationFn: (data: typeof ProposeRelationships.Type) => proposeRelationships({ data }),
     onSuccess: () => client.invalidateQueries(),
   });
   const dismissal = useCommand({
-    mutationFn: (data: typeof DismissInterpretationReview.Type) => dismiss({ data }),
+    mutationFn: (data: typeof DismissInterpretationReview.Type) =>
+      dismissInterpretationReview({ data }),
     onSuccess: () => client.invalidateQueries(),
   });
-  const rows = query.data?.pages.flatMap((page) => page.rows) ?? [];
+  const rows = query.data.pages.flatMap((page) => page.rows);
   const movements = rows.filter((row) => row.proposal.kind === "movement");
   const credits = rows.flatMap((row) =>
     row.proposal.kind === "credit" ? [{ ...row, link: row.proposal.link }] : [],
@@ -120,9 +109,7 @@ export function RelationshipProposals() {
             {proposals.uncertain ? "Retry" : "Look for more"}
           </Button>
         </div>
-        {query.isSuccess && movements.length === 0 && (
-          <p className="text-slate">No movements are waiting.</p>
-        )}
+        {movements.length === 0 && <p className="text-slate">No movements are waiting.</p>}
         <ul className="divide-y divide-rule border-y border-rule">
           {movements.map((row) => (
             <li className="grid gap-2 py-3 sm:grid-cols-[1fr_auto] sm:items-center" key={row.id}>
@@ -146,8 +133,7 @@ export function RelationshipProposals() {
             </li>
           ))}
         </ul>
-        {query.isPending && <p className="text-slate">Loading…</p>}
-        {[query.error, proposals.mutation.error, dismissal.mutation.error]
+        {[proposals.mutation.error, dismissal.mutation.error]
           .filter((error) => error !== null)
           .map((error, index) => (
             <p role="alert" className="type-small text-attention" key={index}>

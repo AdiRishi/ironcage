@@ -3,28 +3,54 @@ title: Questions
 description: What Ironcage needs you to confirm, ordered by how much money it affects.
 ---
 
-Questions collect everything that needs a decision from you, largest amount first. Each one says what Ironcage thinks, why, and what it affects. You answer with one selection.
+Questions collect everything that needs a decision from you, largest amount first. Each one says what Ironcage thinks, why, and what it affects, and you answer it on the card.
 
 ## Kinds of question
 
-| Question             | Example                                                                                                       |
-| -------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Who is this?         | `SQ *BLUE BOTTLE 0412` could be a café or a market stall. Proposed: Blue Bottle Coffee, café.                 |
-| Is this the same?    | `WOOLWORTHS METRO SURRY HILLS` probably belongs to the Woolworths you already have. Proposed: yes.            |
-| What is this person? | Twelve monthly payments of $1,840 to Jane Smith. Proposed: rent.                                              |
-| Is this yours?       | $5,000 to an account ending 9921 that is not one of yours. Proposed: your own account elsewhere.              |
-| Which category?      | A counterparty the model could not place confidently. Confirming it confirms its category too.                |
-| Which account?       | A CSV file that does not name its account.                                                                    |
-| Which row is which?  | Two same-day, same-amount rows the importer cannot pair on its own.                                           |
-| A new subcategory?   | Several pet shops sit in Shopping, General. Proposed: Shopping, Pets.                                         |
-| Is this a movement?  | $2,000 out of one account and into another the same day. Proposed: a transfer between them.                   |
-| Is this a refund of? | $40 back from Myer, two weeks after a $120 Myer purchase. Proposed: link it to that purchase.                 |
-| Two rules disagree   | Two of your rules match one transaction and set different roles or categories. You choose on the transaction. |
+| Question             | Example                                                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Who is this?         | `SQ *BLUE BOTTLE 0412` could be a café or a market stall. Proposed: Blue Bottle Coffee, café.                                               |
+| Is this the same?    | `WOOLWORTHS METRO SURRY HILLS` probably belongs to the Woolworths you already have. Proposed: yes.                                          |
+| What is this person? | Twelve payments of $1,840 to Jane Smith marked "Rent". Proposed: spending in Rent, because the reference names your Rent category.          |
+| Is this yours?       | $5,000 to an account ending 9921 that is not one of yours. Proposed: your own account elsewhere.                                            |
+| Which category?      | A counterparty the model could not place confidently. Confirming it confirms its category too.                                              |
+| Which account?       | A CSV file that does not name its account.                                                                                                  |
+| Which row is which?  | Two same-day, same-amount rows the importer cannot pair on its own.                                                                         |
+| A new subcategory?   | Several pet shops sit in Shopping, General. Proposed: Shopping, Pets.                                                                       |
+| Is this a movement?  | $2,000 out of one account and into another the same day. Proposed: a transfer between them.                                                 |
+| Is this a refund of? | $40 back from Myer, two weeks after a $120 Myer purchase. Proposed: link it to that purchase.                                               |
+| Two rules disagree   | Two of your rules match one transaction and set different roles or categories. You choose on the card, as a correction on that transaction. |
 
-A question about a counterparty is asked once, not once per transaction. Answering it applies to every transaction from that counterparty that you have not set by hand.
+A question about a counterparty is asked once, not once per transaction. Answering it applies to every transaction from that counterparty that you have not set by hand. A question covers only the transactions its answer can change: a transaction whose role and category you set yourself is not part of it, so a person's question closes once you have set each of their payments by hand.
+
+## A question card
+
+The card names what the question affects: how many transactions, the money out and in, and the dates they span, such as "12 transactions, 1 September 2025 to 1 August 2026: $22,080 out". Five of the transactions follow, and See all opens every one of them in the [ledger](/product/ledger), whatever the period. A rule conflict has one transaction, and its row opens it.
+
+The card also says what Ironcage proposes and why. For a counterparty, the basis is the model's reason and how sure it is. For payments to a person, it is the first of these that gives an answer:
+
+1. Your answer for the same reference on someone else: "You said the same about Sam Lee's payments with this reference."
+2. A category the reference names. Payments out marked "Rent Aug" propose spending in Rent when you have a Rent category.
+3. The model's role for a person it proposed, with its reason. The model never sees references, amounts, or dates, and does not read a role from a name, so it rarely proposes one.
+
+When nothing suggests an answer, the card says so and offers only your own.
 
 ## Answering
 
-Accept applies the proposal. Choosing something else records your answer as a correction and teaches the counterparty. Skip leaves it open. The overview shows how much money open questions affect in the selected period.
+Accept applies the proposal. Something else opens an answer of your own on the card. Skip leaves the question for later.
 
-Counterparty questions come first, as cards you answer in place, and chips narrow them to one kind: who is this, people, accounts, or rule conflicts. Suggested subcategories, records to check from the importer (which account a CSV belongs to, which row matches which), refunds to link, and movements to confirm follow in their own sections. Payments to a person are asked about once per reference, so rent and a bill split to the same person are separate questions; an answer can cover only the payments with that reference, or every payment to them. The count in the top bar is the counterparty questions.
+Before anything is saved, the card shows how many transactions change and which months' totals move, and Apply saves it. Your answer is saved on the counterparty, or on its default for one reference, with you as its source. Every transaction from the counterparty follows it, and the model learns from it.
+
+Who is this, Is this the same, and Is this yours ask who is behind a descriptor. You search the counterparties you have and choose one, or type a name and choose Create. Choosing one you have moves the descriptor to it, and for a counterparty the model proposed, merges the proposal into it, so an answer never makes a second Woolworths. A name you already have is offered only as that counterparty. Someone new gets a kind, a role, and a usual category, and a new person needs a role, or the question would stay open.
+
+Payments to a person are asked about once per reference, so rent and a bill split to the same person are separate questions. A reference counts as the same without its dates and numbers, so the card asks about payments "marked like" one of them, and "Rent Aug" stands for "Rent Sept" too. The answer covers only those payments, or, if you choose, every payment to them. Something else offers what the payments are and their category. If the person is you, at another bank, "It's me, at another bank" makes them your own account, so the money moves between your accounts instead of leaving.
+
+A rule conflict, and a transaction the bank printed no name for, open the transaction's editor on the card. It previews the correction and saves it on that one transaction. For a rule conflict, saving the value the transaction already has also settles it, because you chose it. Cancel closes the editor and returns you to the button that opened it.
+
+Skip moves the card to the end of the list until you leave the screen. Nothing is saved, and every count still includes the question. After you skip or answer, the next card takes focus, and a screen reader hears which question was skipped or answered.
+
+## Counts and periods
+
+Counterparty questions come first, and chips narrow them to one kind: who is this, people, accounts, or rule conflicts. Each chip shows how many questions it holds. More questions loads the next 25, and the first of them takes focus. Suggested subcategories, records to check from the importer (which account a CSV belongs to, which row matches which), refunds to link, and movements to confirm follow in their own sections.
+
+The count in the top bar is every question card over your whole history, and the screen opens on the whole history too. The overview's Needs your eye counts only the questions with a transaction in the selected period, and the money those transactions move, and selecting it opens this screen narrowed to that period. Each card then also says how many of its transactions fall in the period. Show every question returns to the whole history. A transaction falls in the period by its spending date: the purchase date when a purchase has one, otherwise the day it posted.

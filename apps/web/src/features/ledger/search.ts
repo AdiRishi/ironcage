@@ -37,12 +37,15 @@ export const postingFilter = (search: typeof PostingFilter.Type) =>
 export const countedFilter = (search: typeof CountedFilter.Type) =>
   Struct.pick(search, Struct.keys(CountedFilter.fields));
 
-// The ledger reads the selected period unless you chose your own dates or one import,
-// which shows everything that file supports.
+// The ledger reads the selected period unless you chose your own dates, one import, which
+// shows everything that file supports, or one question, which shows every transaction it
+// covers.
 export function ledgerInput(search: PostingSearch, period: PeriodChoice): typeof ListPostings.Type {
   const filter = postingFilter(search);
   const withPeriod =
-    filter.from || filter.to || filter.importId ? filter : { ...filter, ...periodDates(period) };
+    filter.from || filter.to || filter.importId || filter.questionId
+      ? filter
+      : { ...filter, ...periodDates(period) };
   return search.cursor ? { filter: withPeriod, cursor: search.cursor } : { filter: withPeriod };
 }
 

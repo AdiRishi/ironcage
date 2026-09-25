@@ -3,6 +3,7 @@ import {
   type EventChange,
   type FinancialEvent,
   FinanceError,
+  type RuleAction,
 } from "@repo/contracts/finance";
 import { Array as Arr, Effect } from "effect";
 
@@ -77,23 +78,28 @@ const checkEventChange = Effect.fn("checkEventChange")(function* (
     });
 });
 
+// Only the values a correction changes become yours, and the rest keep following rules and
+// defaults. A value the event's rules dispute also becomes yours as the correction leaves
+// it, because correcting the event chooses it.
 export const correctEvent = Effect.fn("correctEvent")(function* (
   event: FinancialEvent,
   change: EventChange,
+  disputed: readonly (typeof RuleAction.Type)["kind"][],
 ) {
   yield* checkEventChange(event, change);
   const split = change.allocations.length > 1 || event.allocations.length > 1;
   return {
     ...event,
     kind: change.kind,
-    roleSource: change.kind === event.kind ? event.roleSource : "user",
+    roleSource:
+      change.kind === event.kind && !disputed.includes("role") ? event.roleSource : "user",
     purchaseOn: change.purchaseOn,
     allocations: Arr.map(change.allocations, (allocation) => {
       const prior = event.allocations.find((row) => row.id === allocation.id);
       return {
         ...allocation,
         categorySource:
-          split || prior?.categoryId !== allocation.categoryId
+          split || disputed.includes("category") || prior?.categoryId !== allocation.categoryId
             ? allocation.categoryId === null
               ? null
               : "user"

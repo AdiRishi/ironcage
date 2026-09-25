@@ -17,6 +17,11 @@ export const postingFields = (
   ${money(sql, "p.currency", "p.amount_minor")} AS amount,
   ${nullableMoney(sql, "p.original_currency", "p.original_amount_minor")} AS "originalMoney"`;
 
+// The date an event from `events e` with primary posting `postings p` counts on, as ledger
+// facts place it: a purchase's purchase date when it has one, else the posted date.
+export const spendingDate = (sql: SqlClient.SqlClient) =>
+  sql`CASE WHEN e.kind = 'purchase' AND e.purchase_on IS NOT NULL THEN e.purchase_on ELSE p.posted_on END`;
+
 // A counterparty's own fields from `counterparties c`, as `CounterpartyRecord` reads them.
 export const counterpartyRecordColumns = (sql: SqlClient.SqlClient) =>
   sql`c.id, c.name, c.kind, c.brand, c.default_category_id AS "defaultCategoryId", c.default_role AS "defaultRole",

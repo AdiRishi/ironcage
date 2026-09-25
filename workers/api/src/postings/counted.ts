@@ -18,6 +18,7 @@ import {
 } from "../analysis/fact-sql.ts";
 import { resolveSelection } from "../analysis/periods.ts";
 import { scopePath } from "../analysis/scopes.ts";
+import { questionEventsTable } from "../interpretation/question-events.ts";
 import {
   allocationPredicates,
   ledgerMeaning,
@@ -47,9 +48,10 @@ export const countedLedger = Effect.fn("countedLedger")(function* ({
   const path = yield* scopePath(yield* categoryNodes, scope);
   const parts = measures[scope.measure].parts;
   const partOf = parts.map((part, index) => sql`WHEN ${partFacts(sql, part)} THEN ${index}::int`);
+  const questions = yield* questionEventsTable(null);
   // One row per record, part, and date. `amount` is what the facts add to the part, and
   // `counted` is the same money signed the way the bank booked it.
-  const records = sql`WITH scoped AS (
+  const records = sql`WITH ${questions}, scoped AS (
       SELECT COALESCE(credit.primary_posting_id, f.posting_id) AS posting_id,
         CASE ${sql.join(" ", false)(partOf)} END AS part, ${factDate(sql, basis)} AS counted_on, f.amount_minor,
         CASE WHEN ${factsGoing(sql, "out")} THEN -f.amount_minor ELSE f.amount_minor END AS counted

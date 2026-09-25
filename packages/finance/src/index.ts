@@ -20,4 +20,5 @@ export * from "./analysis/categories.ts";
 export * from "./analysis/spending.ts";
 export * from "./analysis/flow.ts";
 export * from "./proposals.ts";
+export * from "./questions.ts";
 export * from "./evaluation.ts";

@@ -17,7 +17,6 @@ import { Publication } from "../../src/imports/publication.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
 import { CounterpartyHistory } from "../../src/interpretation/counterparty-history.ts";
 import { Enrichment } from "../../src/interpretation/enrichment.ts";
-import { Questions } from "../../src/interpretation/questions.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { References } from "../../src/references/service.ts";
 import { Relationships } from "../../src/relationships/service.ts";
@@ -26,6 +25,7 @@ import { applicationTest } from "../support/application.ts";
 import {
   account,
   createCounterparty,
+  openQuestions,
   parsedRows,
   reset,
   source,
@@ -744,13 +744,12 @@ test(
       ["WOOLWORTHS METRO SURRY HILLS", "model", "proposed"],
     ]);
     expect((yield* activeEvent(metro)).counterpartyId).toBeNull();
-    const questions = yield* (yield* Questions).list({ currency: "AUD" });
-    expect(questions.filter((question) => question.kind === "alias")).toMatchObject([
+    expect((yield* openQuestions).filter((question) => question.kind === "alias")).toMatchObject([
       {
         aliasKey: "WOOLWORTHS METRO SURRY HILLS",
         aliasVersion: 2,
         counterparty: { id: group.id, name: "Woolworths Group" },
-        proposal: { confidence: 0.5, reason: "Probably the same supermarket chain." },
+        basis: { kind: "model", confidence: 0.5, reason: "Probably the same supermarket chain." },
       },
     ]);
   }).pipe(Effect.provide(services)),

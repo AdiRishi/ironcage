@@ -5,6 +5,7 @@ import {
   CommandId,
   type Counterparty,
   type CounterpartyFields,
+  type EnrichmentResult,
   ImportId,
   type ParsedFile,
   type SourceFormat,
@@ -14,11 +15,23 @@ import { Crypto, Effect, Struct } from "effect";
 
 import { Accounts } from "../../src/accounts/service.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
+import { Enrichment } from "../../src/interpretation/enrichment.ts";
+import { Questions } from "../../src/interpretation/questions.ts";
 
 export const reset = Effect.gen(function* () {
   const sql = yield* PgClient.PgClient;
   yield* sql`TRUNCATE rules, command_receipts, review_items, source_coverage, observations, postings, imports, source_files, accounts, exports, model_usage, counterparties, counterparty_changes, enrichment_runs, category_proposals CASCADE`;
   yield* sql`UPDATE enrichment_settings SET enabled = true, warning_minor = 2000, auto_apply_confidence = 0.8, version = 1 WHERE id = 1`;
+});
+// The open questions in AUD, when they fit on one page.
+export const openQuestions = Effect.gen(function* () {
+  const page = yield* (yield* Questions).list({
+    currency: "AUD",
+    filter: null,
+    period: null,
+    cursor: null,
+  });
+  return page.rows;
 });
 export const account = Effect.fn("fixtureAccount")(function* () {
   const accounts = yield* Accounts;
@@ -69,6 +82,41 @@ export const updateCounterparty = Effect.fn("fixtureCounterpartyUpdate")(functio
     },
   });
   return outcome.counterparty;
+});
+// Runs enrichment over every descriptor without a counterparty and applies these answers
+// from the model. Each is a business named with high confidence unless it says otherwise.
+export const enrich = Effect.fn("fixtureEnrichment")(function* (
+  answers: readonly (Partial<EnrichmentResult> & Pick<EnrichmentResult, "aliasKey" | "name">)[],
+) {
+  const enrichment = yield* Enrichment;
+  const commandId = Crypto.Crypto.use((crypto) => crypto.randomUUIDv4).pipe(
+    Effect.map((id) => CommandId.make(id)),
+  );
+  const run = yield* enrichment.request({ commandId: yield* commandId });
+  const batch = yield* enrichment.batch({ runId: run.id });
+  yield* enrichment.complete({
+    commandId: yield* commandId,
+    runId: run.id,
+    aliasKeys: batch.aliases.map((alias) => alias.aliasKey),
+    report: {
+      status: "success",
+      results: answers.map((fields) => ({
+        existingCounterpartyId: null,
+        kind: "business",
+        brand: null,
+        categoryKey: null,
+        defaultRole: null,
+        confidence: 0.95,
+        reason: "Synthetic reason.",
+        proposedSubcategory: null,
+        ...fields,
+      })),
+      inputTokens: 1000n,
+      outputTokens: 200n,
+      cost: { currency: "USD", minor: 2n },
+      failure: null,
+    },
+  });
 });
 export const source = Effect.fn("fixtureSource")(function* (
   accountId: typeof AccountId.Type | null,

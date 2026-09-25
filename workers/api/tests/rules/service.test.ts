@@ -5,12 +5,11 @@ import { expect } from "vitest";
 import { Corrections } from "../../src/events/corrections.ts";
 import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
-import { Questions } from "../../src/interpretation/questions.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { References } from "../../src/references/service.ts";
 import { Rules } from "../../src/rules/service.ts";
 import { applicationTest } from "../support/application.ts";
-import { account, parsed, reset, source } from "../support/fixtures.ts";
+import { account, openQuestions, parsed, reset, source } from "../support/fixtures.ts";
 const { test, services } = applicationTest();
 const uuid = Crypto.Crypto.use((crypto) => crypto.randomUUIDv4);
 const commandId = uuid.pipe(Effect.map((id) => CommandId.make(id)));
@@ -128,12 +127,9 @@ test(
       expectedVersions: conflict.expectedVersions,
     });
     expect((yield* events.get({ eventId: normal.id })).allocations[0].categoryId).toBeNull();
-    const questions = yield* Questions;
     expect(
-      (yield* questions.list({ currency: "AUD" })).some(
-        (question) =>
-          question.kind === "ruleConflict" &&
-          question.samples.some((sample) => sample.eventId === normal.id),
+      (yield* openQuestions).some(
+        (question) => question.kind === "ruleConflict" && question.eventId === normal.id,
       ),
     ).toBe(true);
     expect(yield* events.get({ eventId: split.id })).toEqual(corrected);

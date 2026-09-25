@@ -8,7 +8,9 @@ import {
   type CounterpartyChangeKind,
   CounterpartyId,
   CounterpartyImages,
+  type CounterpartyKind,
   CounterpartyRecord,
+  type CounterpartyRole,
   EventAssignment,
   EventId,
   type ExpectedEventVersion,
@@ -310,6 +312,19 @@ const checkChosenCategory = Effect.fn("checkChosenCategory")(function* (
     return yield* new FinanceError({ kind: "invalid", message: "Choose an active category." });
 });
 
+// Money with a person is never a transfer. You at another bank are your own account, for
+// every payment.
+const checkPersonRole = Effect.fn("checkPersonRole")(function* (
+  counterparty: { name: string; kind: CounterpartyKind },
+  role: typeof CounterpartyRole.Type | null,
+) {
+  if (counterparty.kind === "person" && role === "transfer")
+    return yield* new FinanceError({
+      kind: "invalid",
+      message: `Payments to a person cannot be transfers. If ${counterparty.name} is you at another bank, choose "It's me, at another bank" to make it your own account.`,
+    });
+});
+
 // A descriptor move chosen from one transaction takes it along, even if you had moved it
 // to another counterparty by hand. Its after image is the assignment the descriptor then
 // gives it.
@@ -370,6 +385,7 @@ export const planChange = Effect.fn("planChange")(function* (change: Counterpart
   const crypto = yield* Crypto.Crypto;
   switch (change.kind) {
     case "create": {
+      yield* checkPersonRole(change.fields, change.fields.defaultRole);
       yield* checkChosenCategory(change.fields.defaultCategoryId, null);
       const id = CounterpartyId.make(yield* crypto.randomUUIDv4);
       const claimed = [...new Map(change.aliases.map((alias) => [alias.aliasKey, alias])).values()];
@@ -415,6 +431,7 @@ export const planChange = Effect.fn("planChange")(function* (change: Counterpart
           kind: "stale",
           message: "This counterparty changed. Review it and save again.",
         });
+      yield* checkPersonRole(change.fields, change.fields.defaultRole);
       yield* checkChosenCategory(change.fields.defaultCategoryId, before.defaultCategoryId);
       return {
         counterpartyId: before.id,
@@ -532,6 +549,7 @@ export const planChange = Effect.fn("planChange")(function* (change: Counterpart
     }
     case "saveReference": {
       const counterparty = yield* readCounterpartyRecord(change.counterpartyId);
+      yield* checkPersonRole(counterparty, change.defaultRole);
       const [before] = yield* readReferences(
         sql`counterparty_id = ${counterparty.id} AND reference_key = ${change.referenceKey}`,
       );
@@ -541,6 +559,25 @@ export const planChange = Effect.fn("planChange")(function* (change: Counterpart
         counterpartyId: counterparty.id,
         images: altered({
           ...noImages,
+          // Answering for one reference confirms a person the model proposed. The model's
+          // defaults were never confirmed, so they go, and payments with other references
+          // still ask.
+          counterparties:
+            counterparty.kind === "person" && counterparty.status === "proposed"
+              ? [
+                  {
+                    before: counterparty,
+                    after: {
+                      ...counterparty,
+                      defaultRole: null,
+                      defaultCategoryId: null,
+                      source: "user",
+                      status: "applied",
+                      version: counterparty.version + 1,
+                    },
+                  },
+                ]
+              : [],
           references: [
             {
               before: before ?? null,

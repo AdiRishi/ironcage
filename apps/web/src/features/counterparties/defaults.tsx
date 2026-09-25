@@ -4,22 +4,16 @@ import { useForm, useStore } from "@tanstack/react-form";
 import { Schema } from "effect";
 import { useId, useState } from "react";
 
-import { CategorySelect } from "@/components/category-select";
+import { CategorySelect, categoryForRole, roleTree } from "@/components/category-select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useFocusRequest } from "@/lib/use-focus-request";
 
 import { ChangePreview } from "./change-preview";
-import { counterpartyKinds, counterpartyRoles, kindLabels } from "./choices";
+import { kindLabels, kindRole, rolesFor } from "./choices";
+import { KindSelect, RoleSelect } from "./fields";
 import { useCounterpartyChange } from "./use-counterparty-change";
 
 // The form edits a brand as text, empty for none, and trims both names on save.
@@ -38,11 +32,6 @@ const valuesOf = (counterparty: Counterparty) => ({
   defaultCategoryId: counterparty.defaultCategoryId,
   defaultRole: counterparty.defaultRole,
 });
-const kinds = Object.fromEntries(counterpartyKinds.map((kind) => [kind.value, kind.label]));
-const roles = {
-  "": "Decide from each payment",
-  ...Object.fromEntries(counterpartyRoles.map((role) => [role.value, role.label])),
-};
 
 // What a counterparty is and what its transactions mean by default. Saving previews how
 // many transactions change and which totals move, then applies it to all of them.
@@ -75,7 +64,7 @@ export function Defaults({
           name: value.name.trim(),
           kind: value.kind,
           brand: value.brand.trim() || null,
-          defaultRole: takesDefaultRole(value.kind) ? value.defaultRole : null,
+          defaultRole: kindRole(value.kind, value.defaultRole),
           defaultCategoryId: value.kind === "ownAccount" ? null : value.defaultCategoryId,
         },
       });
@@ -86,7 +75,13 @@ export function Defaults({
   const touched = useStore(form.store, (state) => state.isTouched);
   if (!touched && baseline !== counterparty) setBaseline(counterparty);
   const kind = useStore(form.store, (state) => state.values.kind);
-  const role = useStore(form.store, (state) => state.values.defaultRole);
+  const role = useStore(form.store, (state) =>
+    kindRole(state.values.kind, state.values.defaultRole),
+  );
+  const keepCategory = (next: typeof role) =>
+    form.setFieldValue("defaultCategoryId", (categoryId) =>
+      categoryForRole(references.categories, next, categoryId),
+    );
   const confirmed = baseline.source === "user" && baseline.status === "applied";
   const previewed = change.previewed;
   const category = references.categories.find((item) => item.id === counterparty.defaultCategoryId);
@@ -125,29 +120,23 @@ export function Defaults({
                 </Field>
               )}
             </form.Field>
-            <form.Field name="kind">
+            <form.Field
+              name="kind"
+              listeners={{
+                onChange: ({ value }) => {
+                  keepCategory(kindRole(value, form.getFieldValue("defaultRole")));
+                },
+              }}
+            >
               {(field) => (
                 <Field>
                   <FieldLabel htmlFor={`${id}-kind`}>Who they are</FieldLabel>
-                  <Select
-                    items={kinds}
+                  <KindSelect
+                    id={`${id}-kind`}
+                    className="w-full"
                     value={field.state.value}
-                    onValueChange={(value) => {
-                      const next = counterpartyKinds.find((item) => item.value === value);
-                      if (next) field.handleChange(next.value);
-                    }}
-                  >
-                    <SelectTrigger id={`${id}-kind`} className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {counterpartyKinds.map((item) => (
-                        <SelectItem key={item.value} value={item.value}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={field.handleChange}
+                  />
                 </Field>
               )}
             </form.Field>
@@ -169,30 +158,25 @@ export function Defaults({
               )}
             </form.Field>
             {takesDefaultRole(kind) && (
-              <form.Field name="defaultRole">
+              <form.Field
+                name="defaultRole"
+                listeners={{
+                  onChange: ({ value }) => {
+                    keepCategory(value);
+                  },
+                }}
+              >
                 {(field) => (
                   <Field>
                     <FieldLabel htmlFor={`${id}-role`}>Money to or from them is</FieldLabel>
-                    <Select
-                      items={roles}
-                      value={field.state.value ?? ""}
-                      onValueChange={(value) => {
-                        field.handleChange(
-                          counterpartyRoles.find((item) => item.value === value)?.value ?? null,
-                        );
-                      }}
-                    >
-                      <SelectTrigger id={`${id}-role`} className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(roles).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <RoleSelect
+                      id={`${id}-role`}
+                      className="w-full"
+                      roles={rolesFor(kind)}
+                      none="Decide from each payment"
+                      value={role}
+                      onValueChange={field.handleChange}
+                    />
                   </Field>
                 )}
               </form.Field>
@@ -205,7 +189,7 @@ export function Defaults({
                     <CategorySelect
                       id={`${id}-category`}
                       categories={references.categories}
-                      tree={role === "income" ? "income" : "spending"}
+                      tree={roleTree(role)}
                       value={field.state.value}
                       onChange={field.handleChange}
                     />

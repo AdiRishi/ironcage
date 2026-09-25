@@ -1,20 +1,22 @@
 import { PgClient } from "@effect/sql-pg";
 import { CategoryId, CommandId } from "@repo/contracts/finance";
-import { Crypto, Effect, Schema } from "effect";
+import { Crypto, Effect, Schema, Struct } from "effect";
 import { expect } from "vitest";
 
 import { Publication } from "../../src/imports/publication.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
-import { Questions } from "../../src/interpretation/questions.ts";
 import { applicationTest } from "../support/application.ts";
 import {
   account,
   createCounterparty,
+  enrich,
+  openQuestions,
   parsedRows,
   reset,
   source,
   updateCounterparty,
 } from "../support/fixtures.ts";
+import { counterpartyNamed } from "../support/populated.ts";
 
 const { test, services } = applicationTest();
 const commandId = Crypto.Crypto.use((crypto) => crypto.randomUUIDv4).pipe(
@@ -63,12 +65,11 @@ test(
     });
     const counterparties = yield* Counterparties;
     const jane = yield* createCounterparty({ name: "Jane Smith", kind: "person" }, ["JANE SMITH"]);
-    const questions = Effect.gen(function* () {
-      const list = yield* (yield* Questions).list({ currency: "AUD" });
-      return list
-        .filter((question) => question.kind === "person")
-        .map((question) => [question.reference?.key, question.eventCount]);
-    });
+    const questions = Effect.map(openQuestions, (rows) =>
+      rows.flatMap((question) =>
+        question.kind === "person" ? [[question.reference?.key, question.affects.eventCount]] : [],
+      ),
+    );
     expect(yield* questions).toEqual([
       ["rent", 2],
       ["dinner split", 1],
@@ -120,5 +121,88 @@ test(
       },
     });
     expect(yield* spendingBySlug).toEqual({ "food.dining-out": "372000" });
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "a reference default applies while the model's counterparty waits for an answer",
+  Effect.gen(function* () {
+    yield* reset;
+    const owner = yield* account();
+    const file = yield* source(owner.id);
+    yield* (yield* Publication).publish({
+      ...parsedRows([
+        { description: "Transfer To ATO NetBank tax", postedOn: "2026-08-20", minor: -250000n },
+      ]),
+      importId: file.importId,
+    });
+    yield* enrich([{ aliasKey: "ATO", name: "ATO", kind: "institution", confidence: 0.4 }]);
+    const ato = yield* counterpartyNamed("ATO");
+    expect(ato.status).toBe("proposed");
+    yield* (yield* Counterparties).apply({
+      commandId: yield* commandId,
+      change: {
+        kind: "saveReference",
+        counterpartyId: ato.id,
+        referenceKey: "tax",
+        expectedVersion: null,
+        defaultRole: "purchase",
+        defaultCategoryId: yield* category("government.tax"),
+      },
+    });
+    expect(yield* spendingBySlug).toEqual({ "government.tax": "250000" });
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "payments to a person cannot be transfers, by default or for a reference",
+  Effect.gen(function* () {
+    yield* reset;
+    const owner = yield* account();
+    const file = yield* source(owner.id);
+    yield* (yield* Publication).publish({
+      ...parsedRows([
+        {
+          description: "Transfer To Jane Smith NetBank savings",
+          postedOn: "2026-08-20",
+          minor: -50000n,
+        },
+      ]),
+      importId: file.importId,
+    });
+    const jane = yield* createCounterparty({ name: "Jane Smith", kind: "person" }, ["JANE SMITH"]);
+    const failure = yield* (yield* Counterparties)
+      .apply({
+        commandId: yield* commandId,
+        change: {
+          kind: "saveReference",
+          counterpartyId: jane.id,
+          referenceKey: "savings",
+          expectedVersion: null,
+          defaultRole: "transfer",
+          defaultCategoryId: null,
+        },
+      })
+      .pipe(Effect.flip);
+    expect(failure.kind).toBe("invalid");
+    expect(
+      (yield* (yield* Counterparties).get({ counterpartyId: jane.id })).references,
+    ).toMatchObject([{ referenceKey: "savings", defaultRole: null, version: null }]);
+    const updated = yield* (yield* Counterparties)
+      .apply({
+        commandId: yield* commandId,
+        change: {
+          kind: "update",
+          counterpartyId: jane.id,
+          expectedVersion: jane.version,
+          fields: {
+            ...Struct.pick(jane, ["name", "kind", "brand", "defaultCategoryId"]),
+            defaultRole: "transfer",
+          },
+        },
+      })
+      .pipe(Effect.flip);
+    expect(updated.kind).toBe("invalid");
+    expect(yield* counterpartyNamed("Jane Smith")).toMatchObject({ defaultRole: null });
   }).pipe(Effect.provide(services)),
 );

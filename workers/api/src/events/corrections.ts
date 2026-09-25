@@ -29,7 +29,7 @@ import {
   readChangeEntries,
   readCounterpartyNames,
 } from "../interpretation/counterparty-history.ts";
-import { reinterpret } from "../interpretation/engine.ts";
+import { disputedValues, reinterpret } from "../interpretation/engine.ts";
 import {
   checkEventVersions,
   readCorrections,
@@ -137,7 +137,7 @@ export class Corrections extends Context.Service<
             Effect.gen(function* () {
               yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
               const event = yield* readEvent(change.eventId);
-              const accepted = yield* correctEvent(event, change);
+              const accepted = yield* correctEvent(event, change, yield* disputedValues(event.id));
               yield* validateEventRelationships(accepted);
               return {
                 change,
@@ -162,7 +162,11 @@ export class Corrections extends Context.Service<
             execute: Effect.gen(function* () {
               const prior = yield* readEvent(input.change.eventId);
               yield* checkEventVersions([prior], input.expectedVersions);
-              const accepted = yield* correctEvent(prior, input.change);
+              const accepted = yield* correctEvent(
+                prior,
+                input.change,
+                yield* disputedValues(prior.id),
+              );
               yield* writeEvent(accepted);
               yield* recordCorrection({
                 prior,

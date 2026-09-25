@@ -6,6 +6,8 @@ import { postingFields } from "../database/columns.ts";
 export const pageSize = 50;
 
 // A ledger row's columns, from `postings p JOIN accounts a` followed by `ledgerMeaning`.
+// Its open-question mark, like the question filters in `postingPredicates`, reads
+// `question_events`, so a query built from them opens with `questionEventsTable` in `WITH`.
 export const ledgerRowColumns = (
   sql: SqlClient.SqlClient,
 ) => sql`${postingFields(sql)}, x."eventId", x.role, x."counterpartyId", x."counterpartyName", x."categoryId",
@@ -19,7 +21,7 @@ export const ledgerRowColumns = (
     WHEN x."roleSource" = 'bank' THEN 'bank'
     ELSE 'none'
   END AS "assignedBy",
-  COALESCE(x.question, false) AS question`;
+  COALESCE(x."eventId" IN (SELECT q.event_id FROM question_events q), false) AS question`;
 
 // What posting `p` means: its active event, the event's counterparty, and its first
 // allocation's category.
@@ -27,8 +29,7 @@ export const ledgerMeaning = (sql: SqlClient.SqlClient) => sql`LEFT JOIN LATERAL
     SELECT e.id AS "eventId", e.kind AS role, e.role_source AS "roleSource", c.id AS "counterpartyId",
       c.name AS "counterpartyName", c.source AS "counterpartySource", al.category_id AS "categoryId",
       k.name AS "categoryName", COALESCE(k.slug, parent.slug) AS "categorySlug", al.category_source AS "categorySource",
-      (SELECT count(*) FROM allocations x WHERE x.event_id = e.id) > 1 AS split,
-      (e.kind = 'unresolved' OR c.status = 'proposed' OR (c.kind = 'person' AND c.default_role IS NULL)) AS question
+      (SELECT count(*) FROM allocations x WHERE x.event_id = e.id) > 1 AS split
     FROM event_postings ep JOIN events e ON e.id = ep.event_id AND e.active
     LEFT JOIN counterparties c ON c.id = e.counterparty_id
     LEFT JOIN LATERAL (SELECT * FROM allocations WHERE event_id = e.id ORDER BY id LIMIT 1) al ON true
@@ -47,10 +48,16 @@ export const postingPredicates = (
     predicates.push(
       sql`EXISTS (SELECT 1 FROM events e JOIN event_postings ep ON ep.event_id = e.id WHERE ep.posting_id = p.id AND ep.active AND e.kind = ${filter.role})`,
     );
-  if (filter.interpretationReview !== undefined)
+  const behind = (where: Statement.Fragment) =>
+    sql`SELECT ep.posting_id FROM event_postings ep JOIN question_events q ON q.event_id = ep.event_id WHERE ep.active AND ${where}`;
+  if (filter.openQuestion !== undefined)
     predicates.push(
-      sql`EXISTS (SELECT 1 FROM event_postings ep JOIN events e ON e.id = ep.event_id LEFT JOIN counterparties c ON c.id = e.counterparty_id WHERE ep.posting_id = p.id AND ep.active AND (e.kind = 'unresolved' OR c.status = 'proposed' OR (c.kind = 'person' AND c.default_role IS NULL))) = ${filter.interpretationReview}`,
+      filter.openQuestion
+        ? sql`p.id IN (${behind(sql`true`)})`
+        : sql`p.id NOT IN (${behind(sql`true`)})`,
     );
+  if (filter.questionId)
+    predicates.push(sql`p.id IN (${behind(sql`q.key = ${filter.questionId}`)})`);
   if (filter.accountId) predicates.push(sql`p.account_id = ${filter.accountId}`);
   if (filter.minimum) predicates.push(sql`p.amount_minor >= ${filter.minimum}::bigint`);
   if (filter.maximum) predicates.push(sql`p.amount_minor <= ${filter.maximum}::bigint`);

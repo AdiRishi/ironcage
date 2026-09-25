@@ -33,10 +33,14 @@ import { ImpactTables } from "./impact";
 export function EventEditor({
   event,
   references,
+  onApplied,
   onClose,
 }: {
   event: FinancialEvent;
   references: typeof ReferenceData.Type;
+  // Runs once the correction is saved, before queries refresh, so a page can keep its
+  // place when the correction removes what it shows.
+  onApplied?: () => void;
   onClose: () => void;
 }) {
   const id = useId();
@@ -54,6 +58,7 @@ export function EventEditor({
         data: await Effect.runPromise(Schema.encodeEffect(ApplyCorrection)(data)),
       }),
     onSuccess: async () => {
+      onApplied?.();
       await client.invalidateQueries();
       onClose();
     },

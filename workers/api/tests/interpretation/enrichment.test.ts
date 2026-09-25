@@ -8,11 +8,17 @@ import { Publication } from "../../src/imports/publication.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
 import { CounterpartyHistory } from "../../src/interpretation/counterparty-history.ts";
 import { Enrichment } from "../../src/interpretation/enrichment.ts";
-import { Questions } from "../../src/interpretation/questions.ts";
 import { EnrichmentConfig, EnrichmentJobs } from "../../src/platform/services.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { applicationTest } from "../support/application.ts";
-import { account, createCounterparty, parsed, reset, source } from "../support/fixtures.ts";
+import {
+  account,
+  createCounterparty,
+  openQuestions,
+  parsed,
+  reset,
+  source,
+} from "../support/fixtures.ts";
 
 const { test, services } = applicationTest();
 const commandId = Crypto.Crypto.use((crypto) => crypto.randomUUIDv4).pipe(
@@ -123,11 +129,15 @@ test(
     expect(first.allocations[0]).toMatchObject({ categorySource: "counterparty" });
     expect((yield* event("SQ *NEW CAFE 0412 Card xx1234")).allocations[0].categoryId).toBeNull();
     expect((yield* event("Transfer To Jane Smith NetBank Rent")).kind).toBe("unresolved");
-    const questions = yield* (yield* Questions).list({ currency: "AUD" });
     expect(
-      questions
+      (yield* openQuestions)
         .toSorted((a, b) => a.kind.localeCompare(b.kind))
-        .map((question) => [question.kind, question.counterparty?.name]),
+        .map((question) => [
+          question.kind,
+          question.kind === "counterparty" || question.kind === "person"
+            ? question.counterparty.name
+            : null,
+        ]),
     ).toEqual([
       ["counterparty", "New Cafe"],
       ["person", "Jane Smith"],
@@ -157,14 +167,12 @@ test(
     expect(known.counterpartyId).not.toBeNull();
     expect(uncertain.counterpartyId).toBeNull();
     expect(uncertain.allocations[0]?.categoryId).toBeNull();
-    const question = (yield* (yield* Questions).list({ currency: "AUD" })).find(
-      (row) => row.kind === "alias",
-    );
+    const question = (yield* openQuestions).find((row) => row.kind === "alias");
     expect(question).toMatchObject({
       aliasKey: "WOOLWORTHS METRO SURRY HILLS",
       counterparty: { id: known.counterpartyId, name: "Woolworths" },
-      proposal: { confidence: 0.5, reason: "Probably the same supermarket chain." },
-      eventCount: 1,
+      basis: { kind: "model", confidence: 0.5, reason: "Probably the same supermarket chain." },
+      affects: { eventCount: 1 },
     });
     if (!question || !known.counterpartyId) return yield* Effect.die("Expected the question");
     yield* (yield* Counterparties).apply({
@@ -180,9 +188,7 @@ test(
     const confirmed = yield* event("WOOLWORTHS METRO 77 SURRY HILLS Card xx1234");
     expect(confirmed.counterpartyId).toBe(known.counterpartyId);
     expect(confirmed.allocations[0]?.categoryId).toBe(known.allocations[0]?.categoryId);
-    expect(
-      (yield* (yield* Questions).list({ currency: "AUD" })).some((row) => row.kind === "alias"),
-    ).toBe(false);
+    expect((yield* openQuestions).some((row) => row.kind === "alias")).toBe(false);
   }).pipe(Effect.provide(services)),
 );
 

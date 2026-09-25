@@ -32,7 +32,7 @@ Enrichment is off by default. Migration `0016_enrichment.sql` seeds `enrichment_
 
 `applyResult` first looks for an existing counterparty: the one whose ID the model returned, otherwise one with the same name, ignoring case. The name match prefers a counterparty you made, so aliases of one business resolved in different batches still meet. What happens next depends on whether one was found:
 
-- No existing counterparty: the API creates one with `model` provenance. Its status is `applied` when the confidence is at or above the auto-apply threshold and the kind is not a person. Otherwise it is `proposed`, which raises a `counterparty` or `person` question. The alias is applied, so the events name the counterparty, but a proposed counterparty's defaults do not apply.
+- No existing counterparty: the API creates one with `model` provenance. Its status is `applied` when the confidence is at or above the auto-apply threshold and the kind is not a person. Otherwise it is `proposed`, which raises a `counterparty` or `person` question. The alias is applied, so the events name the counterparty, but a proposed counterparty's defaults do not apply. The model sees no references and does not read a role from a name, so a person's question proposes your answer for the same reference, or a category the reference names, before the model's role (see [Questions](/reference/interpretation#questions)).
 - An existing counterparty and a confidence at or above the threshold: the alias is applied, and the counterparty's defaults apply to its events.
 - An existing counterparty and a lower confidence: the alias is `proposed`, with the model's confidence and reason. Its events get no counterparty and raise an `alias` question until you answer it.
 

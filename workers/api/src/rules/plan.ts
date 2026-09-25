@@ -6,7 +6,7 @@ import {
   loadEventSubjects,
   matchesSubject,
   planDerivation,
-  subjectRuleConflict,
+  subjectConflictingRules,
 } from "../interpretation/engine.ts";
 
 // What saving the rule would change, derived with the rule's claims in place.
@@ -37,7 +37,9 @@ export const planRule = Effect.fn("planRule")(function* (input: typeof PreviewRu
             ],
           }));
   const changes = planDerivation(simulated, reference);
-  const conflicts = simulated.filter(subjectRuleConflict).map((subject) => subject.id);
+  const conflicts = simulated
+    .filter((subject) => subjectConflictingRules(subject).length > 0)
+    .map((subject) => subject.id);
   const exceptions = matches.flatMap((subject) =>
     excluded.has(subject.id)
       ? [{ eventId: subject.id, reason: "Excluded from this rule" }]

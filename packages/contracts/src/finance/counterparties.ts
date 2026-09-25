@@ -9,17 +9,8 @@ import {
   CounterpartyId,
   CounterpartyKind,
   CounterpartyRole,
-  EventId,
 } from "./interpretation.ts";
-import {
-  CalendarDate,
-  CommandId,
-  Instant,
-  Money,
-  PostingId,
-  Version,
-  YearMonth,
-} from "./values.ts";
+import { CalendarDate, CommandId, Instant, Money, Version, YearMonth } from "./values.ts";
 
 export const AssignmentAuthor = Schema.Literals(["user", "model"]);
 // A proposed counterparty or alias waits for your answer to a question. Until then a
@@ -202,41 +193,3 @@ export const ReinterpretationSummary = Schema.Struct({
   created: Schema.Int,
   changed: Schema.Int,
 });
-
-export const QuestionKind = Schema.Literals([
-  "counterparty",
-  "alias",
-  "person",
-  "ownAccount",
-  "unresolved",
-  "ruleConflict",
-]);
-export type QuestionKind = typeof QuestionKind.Type;
-export const QuestionSample = Schema.Struct({
-  eventId: EventId,
-  postingId: PostingId,
-  postedOn: CalendarDate,
-  description: Schema.String,
-  amount: Money,
-});
-export const Question = Schema.Struct({
-  id: Schema.String,
-  kind: QuestionKind,
-  aliasKey: Schema.NullOr(Schema.String),
-  // The version of the alias for `aliasKey`, which an answer that moves the alias
-  // expects. Null when there is no alias key or no alias for it yet.
-  aliasVersion: Schema.NullOr(Version),
-  // For a person question: the payments' reference key and one reference as printed.
-  reference: Schema.NullOr(Schema.Struct({ key: Schema.String, sample: Schema.String })),
-  counterparty: Schema.NullOr(Counterparty),
-  // For an alias question: the model's confidence and reason that the alias belongs
-  // to the counterparty.
-  proposal: Schema.NullOr(Schema.Struct({ confidence: Schema.Finite, reason: Schema.String })),
-  eventCount: Schema.Int,
-  outflow: Money,
-  inflow: Money,
-  samples: Schema.Array(QuestionSample),
-});
-export type Question = typeof Question.Type;
-export const ListQuestions = Schema.Struct({ currency: Schema.String });
-export const QuestionList = Schema.Array(Question);

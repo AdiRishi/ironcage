@@ -16,7 +16,7 @@ import { PeriodStrip } from "@/components/shell/period-strip";
 import { Recalculating } from "@/components/shell/recalculating";
 import { TopBar } from "@/components/shell/top-bar";
 import { monthlyFlowQuery } from "@/features/flow/queries";
-import { questionsQuery } from "@/features/questions/queries";
+import { questionSummaryQuery } from "@/features/questions/queries";
 import { settingsQueryOptions } from "@/features/settings/queries";
 import { PeriodSearch, currentMonth, resolvePeriodKey } from "@/lib/period";
 
@@ -48,7 +48,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     const settings = await context.queryClient.ensureQueryData(settingsQueryOptions());
     await Promise.all([
       context.queryClient.ensureQueryData(monthlyFlowQuery(settings.reportingCurrency)),
-      context.queryClient.ensureQueryData(questionsQuery(settings.reportingCurrency)),
+      context.queryClient.ensureQueryData(
+        questionSummaryQuery({ currency: settings.reportingCurrency, period: null }),
+      ),
     ]);
   },
   head: () => ({
@@ -68,7 +70,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function Layout() {
   const { data: settings } = useSuspenseQuery(settingsQueryOptions());
   const months = useQuery(monthlyFlowQuery(settings.reportingCurrency)).data ?? [];
-  const questions = useQuery(questionsQuery(settings.reportingCurrency)).data ?? [];
+  const questions = useQuery(
+    questionSummaryQuery({ currency: settings.reportingCurrency, period: null }),
+  ).data;
   const period = resolvePeriodKey(Route.useSearch().period, settings.timezone);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const showStrip = readsPeriod(pathname);
@@ -80,7 +84,7 @@ function Layout() {
       >
         Skip to content
       </a>
-      <TopBar questionCount={questions.length} />
+      <TopBar questionCount={questions?.count ?? 0} />
       <Recalculating />
       {showStrip && months.length > 0 && (
         <PeriodStrip

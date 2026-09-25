@@ -168,8 +168,9 @@ export function ruleActions(rules: readonly Rule[]): RuleActions {
   };
 }
 
-// A disagreement between rules only matters for a value the rules would set.
-export function hasEffectiveRuleConflict({
+// The rules that disagree about a value they would set. A disagreement over a value you
+// fixed does not matter, so it names no rules.
+export function conflictingRules({
   rules,
   roleLocked,
   categoryLocked,
@@ -179,7 +180,11 @@ export function hasEffectiveRuleConflict({
   categoryLocked: boolean;
 }) {
   const actions = ruleActions(rules);
-  return (actions.roleConflict && !roleLocked) || (actions.categoryConflict && !categoryLocked);
+  return rules.filter((rule) =>
+    rule.action.kind === "role"
+      ? actions.roleConflict && !roleLocked
+      : actions.categoryConflict && !categoryLocked,
+  );
 }
 
 export type Derivation = {

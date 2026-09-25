@@ -4,17 +4,20 @@ import { expect } from "vitest";
 
 import { Corrections } from "../../src/events/corrections.ts";
 import { Publication } from "../../src/imports/publication.ts";
+import { Counterparties } from "../../src/interpretation/counterparties.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { applicationTest } from "../support/application.ts";
 import {
   account,
   createCounterparty,
+  enrich,
+  openQuestions,
   parsed,
   parsedRows,
   reset,
   source,
 } from "../support/fixtures.ts";
-import { activeEvent, populate } from "../support/populated.ts";
+import { activeEvent, categoryId, populate } from "../support/populated.ts";
 
 const { test, services } = applicationTest();
 test(
@@ -162,5 +165,75 @@ test(
     const transfer = yield* descriptor("Transfer to xx9999 CommBank app Card");
     expect(transfer).toMatchObject({ aliasKey: "ACCOUNT 9999" });
     expect(yield* descriptor("Payment Received, Thank You")).toEqual(transfer);
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "the ledger's open questions are exactly the transactions behind the questions",
+  Effect.gen(function* () {
+    yield* reset;
+    const owner = yield* account();
+    const file = yield* source(owner.id);
+    yield* (yield* Publication).publish({
+      ...parsedRows([
+        {
+          description: "WOOLWORTHS 1234 SYDNEY AU Card xx1234",
+          postedOn: "2026-08-01",
+          minor: -3000n,
+        },
+        {
+          description: "WOOLWORTHS METRO 77 SURRY HILLS Card xx1234",
+          postedOn: "2026-08-02",
+          minor: -2000n,
+        },
+        {
+          description: "Transfer To Jane Smith NetBank Rent Aug",
+          postedOn: "2026-08-03",
+          minor: -184000n,
+        },
+        {
+          description: "Transfer To Jane Smith NetBank dinner split",
+          postedOn: "2026-08-04",
+          minor: -4000n,
+        },
+        { description: "Transfer To Pat Kim NetBank", postedOn: "2026-08-05", minor: -9000n },
+      ]),
+      importId: file.importId,
+    });
+    yield* enrich([
+      { aliasKey: "WOOLWORTHS SYDNEY", name: "Woolworths" },
+      { aliasKey: "WOOLWORTHS METRO SURRY HILLS", name: "Woolworths", confidence: 0.5 },
+    ]);
+    const jane = yield* createCounterparty({ name: "Jane Smith", kind: "person" }, ["JANE SMITH"]);
+    yield* (yield* Counterparties).apply({
+      commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
+      change: {
+        kind: "saveReference",
+        counterpartyId: jane.id,
+        referenceKey: "rent",
+        expectedVersion: null,
+        defaultRole: "purchase",
+        defaultCategoryId: yield* categoryId("housing.rent"),
+      },
+    });
+
+    const postings = yield* Postings;
+    const descriptions = (rows: readonly { description: string }[]) =>
+      rows.map((row) => row.description).toSorted();
+    const open = descriptions((yield* postings.ledger({ filter: { openQuestion: true } })).rows);
+    expect(open).toEqual([
+      "Transfer To Jane Smith NetBank dinner split",
+      "Transfer To Pat Kim NetBank",
+      "WOOLWORTHS METRO 77 SURRY HILLS Card xx1234",
+    ]);
+    const behind = yield* Effect.forEach(yield* openQuestions, (question) =>
+      postings.ledger({ filter: { questionId: question.id } }),
+    );
+    expect(descriptions(behind.flatMap((page) => page.rows))).toEqual(open);
+    const { rows } = yield* postings.ledger({ filter: {} });
+    expect(descriptions(rows.filter((row) => row.question))).toEqual(open);
+    expect(
+      descriptions((yield* postings.ledger({ filter: { openQuestion: false } })).rows),
+    ).toEqual(["Transfer To Jane Smith NetBank Rent Aug", "WOOLWORTHS 1234 SYDNEY AU Card xx1234"]);
   }).pipe(Effect.provide(services)),
 );

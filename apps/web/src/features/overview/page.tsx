@@ -4,10 +4,10 @@ import type {
   Money,
   PeriodChange,
   PeriodFlow,
-  Question,
+  QuestionSummary,
   YearMonth,
 } from "@repo/contracts/finance";
-import { formatCurrency, leftOver, periodLabel } from "@repo/finance";
+import { affectedMoney, formatCurrency, leftOver, periodLabel } from "@repo/finance";
 import { Link } from "@tanstack/react-router";
 
 import { Amount } from "@/components/amount";
@@ -37,7 +37,7 @@ export function OverviewPage({
   onCompare: (compare: ComparisonKey | undefined) => void;
   firstMonth: YearMonth;
   today: CalendarDate;
-  questions: readonly Question[];
+  questions: typeof QuestionSummary.Type;
 }) {
   // The dates compared, which for a period in progress are only the same days.
   const previousLabel = periodLabel(flow.comparison);
@@ -144,7 +144,7 @@ export function OverviewPage({
           )}
         </section>
         <div className="space-y-10">
-          <NeedsAnswers questions={questions} currency={flow.currency} />
+          <NeedsYourEye questions={questions} label={period.label} />
           <Coverage coverage={flow.coverage} period={flow.period} />
         </div>
       </div>
@@ -248,31 +248,33 @@ function ChangeRow({ change, previousLabel }: { change: PeriodChange; previousLa
   );
 }
 
-function NeedsAnswers({
+// The questions whose transactions fall in the period, and the money those transactions
+// move. The figure opens Questions narrowed to the period.
+function NeedsYourEye({
   questions,
-  currency,
+  label,
 }: {
-  questions: readonly Question[];
-  currency: string;
+  questions: typeof QuestionSummary.Type;
+  label: string;
 }) {
-  const amount = questions.reduce(
-    (sum, question) => sum + question.outflow.minor + question.inflow.minor,
-    0n,
-  );
   return (
     <section aria-labelledby="questions-heading" className="space-y-3">
       <h2 id="questions-heading" className="type-heading">
-        Needs your answer
+        Needs your eye
       </h2>
-      {questions.length === 0 ? (
-        <p className="text-slate">Nothing is waiting on you.</p>
+      {questions.count === 0 ? (
+        <p className="text-slate">Nothing in {label} is waiting on you.</p>
       ) : (
-        <Link to="/questions" className="group block space-y-1 rounded-sm">
+        <Link
+          to="/questions"
+          search={{ scope: "period" }}
+          className="group block space-y-1 rounded-sm"
+        >
           <p>
-            <span className="type-figure-s text-attention tabular">{questions.length}</span>{" "}
-            {questions.length === 1 ? "question affects" : "questions affect"}{" "}
-            <Amount value={money(currency, amount)} cents={false} className="font-[560]" /> across
-            your history.
+            <span className="type-figure-s text-attention tabular">{questions.count}</span>{" "}
+            {questions.count === 1 ? "question affects" : "questions affect"}{" "}
+            <Amount value={affectedMoney(questions)} cents={false} className="font-[560]" /> in{" "}
+            {label}.
           </p>
           <p className="type-small text-slate group-hover:text-intaglio">
             Answer them to make every total more certain.

@@ -1,8 +1,28 @@
-import type { CategoryId, CategoryTree, ReferenceData } from "@repo/contracts/finance";
+import type {
+  CategoryId,
+  CategoryTree,
+  FinancialRole,
+  ReferenceData,
+} from "@repo/contracts/finance";
+import { categoryTreeForRole } from "@repo/finance";
 import { cn } from "cn";
 import type { Ref } from "react";
 
 type Categories = (typeof ReferenceData.Type)["categories"];
+
+// The tree a default for `role` takes its category from. Without a role, or with one that
+// takes no category, the choice is from spending.
+export const roleTree = (role: FinancialRole | null) =>
+  (role && categoryTreeForRole(role)) ?? "spending";
+
+// The category a form keeps when its role becomes `role`. One from the other tree would
+// show as no category but still be saved, so it is dropped.
+export const categoryForRole = (
+  categories: Categories,
+  role: FinancialRole | null,
+  id: typeof CategoryId.Type | null,
+) =>
+  categories.some((category) => category.id === id && category.tree === roleTree(role)) ? id : null;
 
 // Two levels as option groups; a top-level category is also a choice on its own.
 export function CategorySelect({

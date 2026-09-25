@@ -7,27 +7,16 @@ import type {
 import { useForm, useStore } from "@tanstack/react-form";
 import { useId } from "react";
 
-import { CategorySelect } from "@/components/category-select";
+import { CategorySelect, categoryForRole, roleTree } from "@/components/category-select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useFocusRequest } from "@/lib/use-focus-request";
 
 import { ChangePreview } from "./change-preview";
-import { counterpartyRoles } from "./choices";
+import { rolesFor } from "./choices";
+import { RoleSelect } from "./fields";
 import { useCounterpartyChange } from "./use-counterparty-change";
-
-const roles = {
-  "": "As the defaults say",
-  ...Object.fromEntries(counterpartyRoles.map((role) => [role.value, role.label])),
-};
 
 // Payments with one counterparty grouped by what their references say. A default for a
 // reference outranks the counterparty's own, so rent and a bill split to the same person
@@ -120,32 +109,28 @@ function ReferenceRow({
           }}
         >
           <fieldset disabled={change.pending || change.uncertain} className="contents">
-            <form.Field name="defaultRole">
+            <form.Field
+              name="defaultRole"
+              listeners={{
+                onChange: ({ value }) => {
+                  form.setFieldValue("defaultCategoryId", (categoryId) =>
+                    categoryForRole(references.categories, value, categoryId),
+                  );
+                },
+              }}
+            >
               {(field) => (
                 <Field className="w-auto gap-1">
                   <FieldLabel htmlFor={`${id}-role`} className="type-small text-slate">
                     These payments are
                   </FieldLabel>
-                  <Select
-                    items={roles}
-                    value={field.state.value ?? ""}
-                    onValueChange={(value) => {
-                      field.handleChange(
-                        counterpartyRoles.find((item) => item.value === value)?.value ?? null,
-                      );
-                    }}
-                  >
-                    <SelectTrigger id={`${id}-role`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(roles).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <RoleSelect
+                    id={`${id}-role`}
+                    roles={rolesFor(counterparty.kind)}
+                    none="As the defaults say"
+                    value={field.state.value}
+                    onValueChange={field.handleChange}
+                  />
                 </Field>
               )}
             </form.Field>
@@ -158,7 +143,7 @@ function ReferenceRow({
                   <CategorySelect
                     id={`${id}-category`}
                     categories={references.categories}
-                    tree={role === "income" ? "income" : "spending"}
+                    tree={roleTree(role)}
                     value={field.state.value}
                     onChange={field.handleChange}
                     disabled={!role || role === "transfer"}

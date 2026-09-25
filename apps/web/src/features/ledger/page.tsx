@@ -42,9 +42,11 @@ export function LedgerPage({
   const filter = postingFilter(search);
   const scope = filter.importId
     ? "One file"
-    : filter.from || filter.to
-      ? "Chosen dates"
-      : period.label;
+    : filter.questionId
+      ? "One question"
+      : filter.from || filter.to
+        ? "Chosen dates"
+        : period.label;
   const { nextCursor } = page;
   return (
     <div className="space-y-8">

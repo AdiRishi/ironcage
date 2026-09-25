@@ -27,7 +27,7 @@ import {
   type CounterpartyDefaults,
   deriveInterpretation,
   descriptorProfiles,
-  hasEffectiveRuleConflict,
+  conflictingRules,
   ruleActions,
   ruleMatches,
 } from "@repo/finance";
@@ -193,7 +193,8 @@ export type DerivedChange = {
 };
 
 // A counterparty's defaults for one payment: its default for the payment's reference
-// when you set one, otherwise its own.
+// when you set one, otherwise its own. A reference default is always yours, so it
+// applies even while the model's counterparty waits for your answer.
 function counterpartyDefaults(
   reference: Reference,
   counterpartyId: typeof CounterpartyId.Type,
@@ -209,6 +210,7 @@ function counterpartyDefaults(
         ...counterparty,
         defaultRole: byReference.defaultRole,
         defaultCategoryId: byReference.defaultCategoryId,
+        applied: true,
       }
     : counterparty;
 }
@@ -325,15 +327,23 @@ export const claimRules = Effect.fn("claimRules")(function* ({
   return claimed;
 });
 
-export function subjectRuleConflict(subject: Subject) {
+export function subjectConflictingRules(subject: Subject) {
   const [allocation, ...rest] = subject.allocations;
-  return hasEffectiveRuleConflict({
+  return conflictingRules({
     rules: subject.rules,
     roleLocked:
       subject.roleProtected || subject.roleSource === "user" || subject.roleSource === "link",
     categoryLocked: rest.length > 0 || allocation?.categorySource === "user",
   });
 }
+
+// What the rules claiming an event disagree about: its role, its category, or both.
+export const disputedValues = Effect.fn("disputedValues")(function* (eventId: typeof EventId.Type) {
+  const subjects = yield* loadSubjects([eventId]);
+  return subjects.flatMap((subject) =>
+    subjectConflictingRules(subject).map((rule) => rule.action.kind),
+  );
+});
 
 export function matchesSubject(
   rule: Rule,

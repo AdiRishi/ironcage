@@ -38,12 +38,7 @@ export function TransactionFilters({
     counterpartyId: filter.counterpartyId ?? null,
     tagId: filter.tagId ?? null,
     personalEventId: filter.personalEventId ?? null,
-    interpretationReview:
-      filter.interpretationReview === undefined
-        ? "all"
-        : filter.interpretationReview
-          ? "yes"
-          : "no",
+    openQuestion: filter.openQuestion === undefined ? "all" : filter.openQuestion ? "yes" : "no",
     role: filter.role ?? "all",
     accountId: filter.accountId ?? "",
     currency: filter.currency ?? "",
@@ -72,13 +67,13 @@ export function TransactionFilters({
           const input: Types.Mutable<typeof PostingFilter.Encoded> = {};
           if (value.role !== "all")
             input.role = yield* Schema.decodeUnknownEffect(FinancialRole)(value.role);
-          if (value.interpretationReview !== "all")
-            input.interpretationReview = value.interpretationReview === "yes";
+          if (value.openQuestion !== "all") input.openQuestion = value.openQuestion === "yes";
           if (value.categoryId) input.categoryId = value.categoryId;
           if (value.counterpartyId) input.counterpartyId = value.counterpartyId;
           if (value.tagId) input.tagId = value.tagId;
           if (value.personalEventId) input.personalEventId = value.personalEventId;
           if (filter.importId) input.importId = filter.importId;
+          if (filter.questionId) input.questionId = filter.questionId;
           if (value.accountId) input.accountId = value.accountId;
           if (value.currency) input.currency = value.currency;
           if (value.from) input.from = value.from;
@@ -171,24 +166,24 @@ export function TransactionFilters({
             />
           )}
         </form.Field>
-        <form.Field name="interpretationReview">
+        <form.Field name="openQuestion">
           {(field) => (
             <div className="space-y-2">
-              <Label htmlFor="interpretation-review">Interpretation review</Label>
+              <Label htmlFor="open-question">Open questions</Label>
               <Select
-                items={{ all: "All transactions", yes: "Needs review", no: "Reviewed" }}
+                items={{ all: "All transactions", yes: "Waiting for an answer", no: "Answered" }}
                 value={field.state.value}
                 onValueChange={(value) => {
                   if (value) field.handleChange(value);
                 }}
               >
-                <SelectTrigger id="interpretation-review">
+                <SelectTrigger id="open-question">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All transactions</SelectItem>
-                  <SelectItem value="yes">Needs review</SelectItem>
-                  <SelectItem value="no">Reviewed</SelectItem>
+                  <SelectItem value="yes">Waiting for an answer</SelectItem>
+                  <SelectItem value="no">Answered</SelectItem>
                 </SelectContent>
               </Select>
             </div>

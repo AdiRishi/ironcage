@@ -1,5 +1,10 @@
 import { PgClient } from "@effect/sql-pg";
-import { CalendarDate, CommandId, type FlowDirection } from "@repo/contracts/finance";
+import {
+  CalendarDate,
+  CommandId,
+  type FlowDirection,
+  type Question,
+} from "@repo/contracts/finance";
 import { Crypto, Effect } from "effect";
 import { expect } from "vitest";
 
@@ -8,12 +13,12 @@ import { Corrections } from "../../src/events/corrections.ts";
 import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
-import { Questions } from "../../src/interpretation/questions.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { applicationTest } from "../support/application.ts";
 import {
   account,
   createCounterparty,
+  openQuestions,
   parsed,
   parsedRows,
   reset,
@@ -99,16 +104,20 @@ test(
   "a payment to a person is a question until the person has a default, then it is spending",
   Effect.gen(function* () {
     const { event, category } = yield* setup;
-    const questions = yield* Questions;
     const rent = yield* event("Transfer To Jane Smith NetBank Rent");
     expect(rent.kind).toBe("unresolved");
     expect(
-      (yield* questions.list({ currency: "AUD" })).find((row) => row.aliasKey === "JANE SMITH"),
-    ).toMatchObject({ kind: "unresolved", eventCount: 1 });
+      (yield* openQuestions).find(
+        (row) =>
+          row.kind === "unresolved" &&
+          row.subject.kind === "alias" &&
+          row.subject.aliasKey === "JANE SMITH",
+      ),
+    ).toMatchObject({ affects: { eventCount: 1 } });
     const jane = yield* createCounterparty({ name: "Jane Smith", kind: "person" }, ["JANE SMITH"]);
-    expect(
-      (yield* questions.list({ currency: "AUD" })).find((row) => row.counterparty?.id === jane.id),
-    ).toMatchObject({ kind: "person" });
+    const asksAboutJane = (row: Question) =>
+      row.kind === "person" && row.counterparty.id === jane.id;
+    expect((yield* openQuestions).some(asksAboutJane)).toBe(true);
     yield* updateCounterparty(jane, {
       defaultCategoryId: category("housing.rent"),
       defaultRole: "purchase",
@@ -116,9 +125,7 @@ test(
     const answered = yield* event("Transfer To Jane Smith NetBank Rent");
     expect(answered).toMatchObject({ kind: "purchase", roleSource: "counterparty" });
     expect(answered.allocations[0].categoryId).toBe(category("housing.rent"));
-    expect(
-      (yield* questions.list({ currency: "AUD" })).some((row) => row.counterparty?.id === jane.id),
-    ).toBe(false);
+    expect((yield* openQuestions).some(asksAboutJane)).toBe(false);
   }).pipe(Effect.provide(services)),
 );
 
@@ -134,10 +141,10 @@ test(
       roleSource: "bank",
     });
     expect(
-      (yield* (yield* Questions).list({ currency: "AUD" })).find(
-        (row) => row.aliasKey === "ACCOUNT 9921",
+      (yield* openQuestions).find(
+        (row) => row.kind === "ownAccount" && row.aliasKey === "ACCOUNT 9921",
       ),
-    ).toMatchObject({ kind: "ownAccount", eventCount: 1 });
+    ).toMatchObject({ affects: { eventCount: 1 } });
   }).pipe(Effect.provide(services)),
 );
 

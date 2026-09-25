@@ -109,6 +109,7 @@ const operations = Effect.gen(function* () {
     previewCounterpartyUndo: counterpartyHistory.previewUndo,
     undoCounterpartyChange: counterpartyHistory.undo,
     listQuestions: questions.list,
+    summarizeQuestions: questions.summary,
     getEnrichmentSettings: () => enrichment.settings,
     updateEnrichmentSettings: enrichment.configure,
     requestEnrichment: enrichment.request,
