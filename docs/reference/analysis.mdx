@@ -42,7 +42,7 @@ These measures come from ledger facts, and every screen, preview, and counterpar
 
 A refund or reimbursement reduces spending in its own category on its own date. When a credit link applies it to a specific purchase, the linked amount reduces spending in the purchase's category and period instead. Unlinked credits without a category reduce nothing and are listed as unresolved inflow.
 
-Every flow and spending result names its period, comparison period, date basis, currency, and calculation time. The flow also reports coverage for each account: observed dates, reconciled intervals, missing periods, and the latest import.
+Every flow and spending result names its period, comparison period, date basis, currency, and calculation time, and says whether the comparison period has records (see [Periods](#periods)). The flow also reports coverage for each account: observed dates, reconciled intervals, missing periods, and the latest import.
 
 ## Ledger facts
 
@@ -85,19 +85,34 @@ Loan principal is repayments minus the interest and fees charged on loan account
 
 The overview's list of changes is the six subcategories whose spending changed most, each split into a purchases part and an average part.
 
-`getMonthlyFlow` in `workers/api/src/analysis/flows.ts` returns inflow, outflow, and spending for every calendar month from the first month with a ledger fact through the current month, by spending date. It runs `summarizeFlow` once per month. Each month carries a coverage mark. A month is `complete` when every account whose records span it has no missing days in it, `partial` when some account has observed days in it, and `missing` otherwise. The period strip, spending, and Sources read the series, and a screen without `?period=` uses it to find the latest month with records.
+`getMonthlyFlow` in `workers/api/src/analysis/flows.ts` returns inflow, outflow, and spending for every calendar month from the first month with a ledger fact through the month containing today in the settings timezone, by spending date. It runs `summarizeFlow` once per month. Each month carries a coverage mark. A month is `complete` when every account whose records span it has no missing days in it, `partial` when some account has observed days in it, and `missing` otherwise. The period strip, spending, and Sources read the series, and a screen without `?period=` uses it to find the latest month with records.
 
 ## Comparisons
 
-The flow and spending operations take `{ period, comparison, basis, currency }` and sum ledger facts for both periods in one query. Spending also takes a category, and a null category means all spending. Its rows are the selected category's direct children, or the top-level categories when none is selected. Each row also carries a 12-month series that ends with the month containing the period's last day. The result lists the 25 counterparties with the most spending in the period within the selected category.
+The flow and spending operations take `{ period, comparison, basis, currency }` and sum ledger facts for both periods in one query. Spending also takes a category, and a null category means all spending. Its rows are the selected category's direct children, or the top-level categories when none is selected. Each row also carries a 12-month series that ends with the month containing the period's last day, from `trailingYear` in `packages/finance/src/analysis/periods.ts`. A period in year 0001 has no twelve months behind it, so spending fails with `invalid`. The result lists the 25 counterparties with the most spending in the period within the selected category.
 
 ### Periods
 
-Periods are `[start, endExclusive)`. Relative selections support rolling day counts and calendar weeks, months, quarters, and years. Weeks start on Monday. A relative selection resolves once per request in the settings timezone. The comparison is the previous period, the same period a year earlier, or fixed dates. A period in progress compares with the same number of elapsed days of the comparison period, clamped at month end. Fixed dates never move. Neither alignment fills unobserved days with zero; missing coverage is reported.
+Periods are `[start, endExclusive)`. Every read that takes a selection resolves it once per request through `resolvePeriods` in `workers/api/src/analysis/periods.ts`. It reads today in the settings timezone inside the read's transaction and passes it to `resolvePeriod` and `comparisonPeriod` in `packages/finance/src/analysis/periods.ts`:
+
+| Selection  | Period                                                                                                                                                                                                                            |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `months`   | Whole calendar months, `from` through `to`, written `YYYY-MM`. The month containing today ends after today. Earlier and later months resolve whole. The last month is before December 9999, whose period would end in year 10000. |
+| `calendar` | Weeks, months, quarters, or years counted back from the one containing today. Weeks start on Monday.                                                                                                                              |
+| `rolling`  | A number of days ending today.                                                                                                                                                                                                    |
+| `fixed`    | The given dates.                                                                                                                                                                                                                  |
+
+`comparisonPeriod` moves the period back. `previous` moves it by its own span: a number of months for `months` and calendar months, quarters, and years, and a number of days for weeks, rolling, and fixed periods. `previousYear` moves it back twelve months. A `fixed` comparison is the given dates.
+
+A whole period made of months compares with whole months, so February 2029 compares with all of February 2028, 29 February included. Any other period, including a month in progress, ends the day after its last day moved back. Month arithmetic clamps that day to the end of a shorter month, so a comparison never runs past the end of its own months. On 25 September 2026, September so far compares with 1 to 25 August 2026, or with 1 to 25 September 2025 for the year before. July to September 2026 compares with 1 April to 25 June 2026. On 30 March 2027, March compares with all of February 2027 and nothing more. On 25 September 2028, 2028 compares with 1 January to 25 September 2027, the same calendar days rather than the same number of days.
+
+Neither period fills days without records with zero. `comparisonCoverage` in `packages/finance/src/analysis/coverage.ts` counts a day as covered for an account when it falls between the first and last record of one of the account's files, or inside a reconciled statement. A reconciled statement proves that its days without transactions had none. It looks for gaps only in the accounts that cover part of the period, since an account with no records in the period cannot make the comparison read as zero. For each one, the gaps are the comparison's days the account does not cover. The comparison is `missing` when no account covers any of it, `partial` when some account has a gap, and `complete` otherwise. So a card opened this month, compared with last month that the everyday account covers, is `partial` with the card's gap, not `missing`.
+
+`periodLabel` and `monthLabel` in `packages/finance/src/analysis/labels.ts` name periods in Australian English: "August 2026", "2026", "March to May 2026", "November 2025 to February 2026", "1 to 25 August 2026", "3 March to 14 April 2026", and "3 March 2026".
 
 ### Changes
 
-Absolute change is current minus previous. Relative change is the absolute change over previous, only when previous is nonzero. A zero previous gives no percentage, and the UI says "new".
+Absolute change is current minus previous. Relative change is the absolute change over previous, only when previous is nonzero. A zero previous gives no percentage. When the comparison period has records, Spending shows "New" and the overview says "none in" the comparison period. When `comparisonCoverage` is `missing`, both screens say there are no records to compare with (see [Periods](#periods)).
 
 The purchases part of a change is `(n1 - n0) * (p0 + p1) / 2` and the average part is `(p1 - p0) * (n0 + n1) / 2`, where `n` is the purchase count and `p` the average purchase. The two sum exactly to the change. Intermediate values are exact rationals. `purchaseDecomposition` floors each part to cents and gives the remaining cent to the part with the larger remainder, so the parts sum to the change.
 

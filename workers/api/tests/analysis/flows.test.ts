@@ -1,6 +1,7 @@
 import { PgClient } from "@effect/sql-pg";
-import { CalendarDate, CommandId, type FlowInput } from "@repo/contracts/finance";
-import { Crypto, Effect } from "effect";
+import { CalendarDate, CommandId, type FlowInput, YearMonth } from "@repo/contracts/finance";
+import { Crypto, DateTime, Effect } from "effect";
+import { TestClock } from "effect/testing";
 import { expect } from "vitest";
 
 import { Flows } from "../../src/analysis/flows.ts";
@@ -17,17 +18,13 @@ const commandId = Crypto.Crypto.use((crypto) => crypto.randomUUIDv4).pipe(
   Effect.map((id) => CommandId.make(id)),
 );
 const august: FlowInput = {
-  period: {
-    kind: "fixed",
-    start: CalendarDate.make("2026-08-01"),
-    endExclusive: CalendarDate.make("2026-09-01"),
-  },
+  period: { kind: "months", from: YearMonth.make("2026-08"), to: YearMonth.make("2026-08") },
   comparison: { kind: "previous" },
   basis: "posted",
   currency: "AUD",
 };
 
-const setup = Effect.gen(function* () {
+const setup = Effect.fn("flowSetup")(function* (earlier: Parameters<typeof parsedRows>[0] = []) {
   yield* reset;
   const owner = yield* account();
   const sql = yield* PgClient.PgClient;
@@ -35,6 +32,7 @@ const setup = Effect.gen(function* () {
   const file = yield* source(owner.id);
   yield* (yield* Publication).publish({
     ...parsedRows([
+      ...earlier,
       { description: "Salary ACME PTY LTD HR123", postedOn: "2026-08-01", minor: 850000n },
       { description: "UBER EATS Card xx1234", postedOn: "2026-07-10", minor: -2000n },
       { description: "UBER EATS Card xx1234", postedOn: "2026-08-10", minor: -2500n },
@@ -73,7 +71,7 @@ const setup = Effect.gen(function* () {
 test(
   "the flow counts a payment to a person as spending once it is answered, and never counts own-account moves",
   Effect.gen(function* () {
-    const { category, counterparties } = yield* setup;
+    const { category, counterparties } = yield* setup();
     const flows = yield* Flows;
     const before = yield* flows.period(august);
     expect(before.totals).toMatchObject({
@@ -113,7 +111,7 @@ test(
 test(
   "ledger facts follow a correction made after the counterparty default",
   Effect.gen(function* () {
-    const { events, category } = yield* setup;
+    const { events, category } = yield* setup();
     const [posting] = (yield* (yield* Postings).list({ filter: { description: "UBER EATS" } }))
       .rows;
     if (!posting) return yield* Effect.die("Expected a delivery");
@@ -144,9 +142,100 @@ test(
 test(
   "the monthly series runs from the first record to today with its spending",
   Effect.gen(function* () {
-    yield* setup;
+    yield* setup();
     const months = yield* (yield* Flows).monthly({ currency: "AUD" });
     expect(months[0]).toMatchObject({ month: "2026-07", spending: { minor: 2000n } });
     expect(months.find((row) => row.month === "2026-08")?.spending.minor).toBe(5000n);
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "a month compares with the same month a year earlier or with chosen dates",
+  Effect.gen(function* () {
+    yield* setup([
+      { description: "UBER EATS Card xx1234", postedOn: "2025-08-01", minor: -1200n },
+      { description: "UBER EATS Card xx1234", postedOn: "2025-08-21", minor: -3300n },
+    ]);
+    const flows = yield* Flows;
+    const yearBefore = yield* flows.period({ ...august, comparison: { kind: "previousYear" } });
+    expect(yearBefore.comparison).toEqual({ start: "2025-08-01", endExclusive: "2025-09-01" });
+    expect(yearBefore.previousTotals.spending.minor).toBe(4500n);
+    const chosen = {
+      kind: "fixed",
+      start: CalendarDate.make("2026-07-01"),
+      endExclusive: CalendarDate.make("2026-08-01"),
+    } as const;
+    expect(
+      (yield* flows.period({ ...august, comparison: chosen })).previousTotals.spending.minor,
+    ).toBe(2000n);
+    const spendingYearBefore = yield* flows.spending({
+      ...august,
+      comparison: { kind: "previousYear" },
+      categoryId: null,
+    });
+    expect(
+      spendingYearBefore.rows.map((row) => [row.label, row.previous.minor, row.previousPurchases]),
+    ).toEqual([["Food", 4500n, 2]]);
+    const spendingChosen = yield* flows.spending({
+      ...august,
+      comparison: chosen,
+      categoryId: null,
+    });
+    expect(
+      spendingChosen.rows.map((row) => [row.label, row.previous.minor, row.previousPurchases]),
+    ).toEqual([["Food", 2000n, 1]]);
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "a comparison before the first record is reported missing rather than as no spending",
+  Effect.gen(function* () {
+    yield* setup();
+    const flows = yield* Flows;
+    const beforeRecords = {
+      ...august,
+      comparison: {
+        kind: "fixed",
+        start: CalendarDate.make("2024-08-01"),
+        endExclusive: CalendarDate.make("2024-09-01"),
+      },
+    } as const;
+    const missing = {
+      state: "missing",
+      gaps: [
+        {
+          account: { label: "Everyday" },
+          missing: [{ start: "2024-08-01", endExclusive: "2024-09-01" }],
+        },
+      ],
+    };
+    expect((yield* flows.period(beforeRecords)).comparisonCoverage).toMatchObject(missing);
+    expect(
+      (yield* flows.spending({ ...beforeRecords, categoryId: null })).comparisonCoverage,
+    ).toMatchObject(missing);
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "a month in progress ends after today in the settings timezone, not in UTC",
+  Effect.gen(function* () {
+    yield* setup();
+    const flows = yield* Flows;
+    // 08:00 on 1 September in Sydney is still 31 August in UTC.
+    const sydneyMorning = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+      TestClock.setTime(DateTime.toEpochMillis(DateTime.makeUnsafe("2026-08-31T22:00:00Z"))).pipe(
+        Effect.andThen(effect),
+        Effect.provide(TestClock.layer()),
+      );
+    const september = yield* sydneyMorning(
+      flows.period({
+        ...august,
+        period: { kind: "months", from: YearMonth.make("2026-09"), to: YearMonth.make("2026-09") },
+      }),
+    );
+    expect(september.period).toEqual({ start: "2026-09-01", endExclusive: "2026-09-02" });
+    expect(september.comparison).toEqual({ start: "2026-08-01", endExclusive: "2026-08-02" });
+    const months = yield* sydneyMorning(flows.monthly({ currency: "AUD" }));
+    expect(months.at(-1)?.month).toBe("2026-09");
   }).pipe(Effect.provide(services)),
 );

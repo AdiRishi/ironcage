@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { ResolvedPeriod } from "@/lib/period";
+import type { PeriodChoice } from "@/lib/period";
 
 import { TransactionFilters } from "./filters";
 import { LedgerList } from "./list";
@@ -18,7 +18,7 @@ export function LedgerPage({
   navigate,
 }: {
   search: LedgerSearch;
-  period: ResolvedPeriod;
+  period: PeriodChoice;
   page: typeof LedgerResult.Type;
   accounts: readonly Account[];
   navigate: (search: LedgerSearch) => void;

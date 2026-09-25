@@ -46,7 +46,7 @@ Import publication follows the same shape. Its command ID is a UUID v5 of the im
 
 ## Reads
 
-Reads that return related totals, such as a period's flow and its coverage, run in one transaction with `REPEATABLE READ` so the parts agree. Lists use a cursor made of the sort key and ID of the last row. The cursor is validated as input; changing filters resets it. Hyperdrive caching is off so a read after a commit sees the commit.
+Reads that return related totals, such as a period's flow and its coverage, run in one `REPEATABLE READ READ ONLY` transaction through `readTransaction` in `workers/api/src/database/transactions.ts`, so the parts agree. It opens its own transaction, so a command calls repository functions and never another service's reads. Previews open a `REPEATABLE READ` transaction that is not read-only, because they write facts inside a savepoint and roll it back (see [Previews](/reference/analysis#previews)). Lists use a cursor made of the sort key and ID of the last row. The cursor is validated as input; changing filters resets it. Hyperdrive caching is off so a read after a commit sees the commit.
 
 ## Postings
 

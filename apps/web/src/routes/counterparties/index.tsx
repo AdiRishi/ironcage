@@ -1,3 +1,4 @@
+import { monthsPeriod } from "@repo/finance";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Schema } from "effect";
@@ -6,7 +7,7 @@ import { CounterpartiesPage } from "@/features/counterparties/list";
 import { counterpartiesQuery } from "@/features/counterparties/queries";
 import { referenceDataQuery } from "@/features/events/queries";
 import { settingsQueryOptions } from "@/features/settings/queries";
-import { periodRange, resolvePeriodKey } from "@/lib/period";
+import { resolvePeriodKey } from "@/lib/period";
 
 const Search = Schema.Struct({
   search: Schema.optional(Schema.String.check(Schema.isMaxLength(100))),
@@ -18,12 +19,13 @@ export const Route = createFileRoute("/counterparties/")({
   loaderDeps: ({ search }) => ({ period: search.period, search: search.search ?? "" }),
   loader: async ({ context, deps }) => {
     const settings = await context.queryClient.ensureQueryData(settingsQueryOptions());
+    const period = resolvePeriodKey(deps.period, settings.timezone);
     await Promise.all([
       context.queryClient.ensureQueryData(
         counterpartiesQuery({
           search: deps.search,
           currency: settings.reportingCurrency,
-          period: periodRange(resolvePeriodKey(deps.period)),
+          period: monthsPeriod(period.from, period.to),
         }),
       ),
       context.queryClient.ensureQueryData(referenceDataQuery()),
@@ -35,13 +37,13 @@ export const Route = createFileRoute("/counterparties/")({
 function Counterparties() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const period = resolvePeriodKey(search.period);
   const { data: settings } = useSuspenseQuery(settingsQueryOptions());
+  const period = resolvePeriodKey(search.period, settings.timezone);
   const { data: counterparties } = useSuspenseQuery(
     counterpartiesQuery({
       search: search.search ?? "",
       currency: settings.reportingCurrency,
-      period: periodRange(period),
+      period: monthsPeriod(period.from, period.to),
     }),
   );
   const { data: references } = useSuspenseQuery(referenceDataQuery());

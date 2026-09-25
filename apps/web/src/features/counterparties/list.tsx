@@ -7,7 +7,7 @@ import { ProvenanceMark } from "@/components/provenance";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { categoryColor } from "@/lib/category-colors";
-import type { ResolvedPeriod } from "@/lib/period";
+import type { PeriodChoice } from "@/lib/period";
 
 const kindLabels = {
   business: "Business",
@@ -27,7 +27,7 @@ export function CounterpartiesPage({
 }: {
   counterparties: typeof CounterpartyList.Type;
   references: typeof ReferenceData.Type;
-  period: ResolvedPeriod;
+  period: PeriodChoice;
   direction: "out" | "in";
   search: string;
   onSearch: (search: string) => void;

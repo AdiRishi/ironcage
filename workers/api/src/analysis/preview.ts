@@ -6,6 +6,7 @@ import {
   type MeasureImpact,
   type PeriodMeasures,
 } from "@repo/contracts/finance";
+import { monthsPeriod, yearMonthOf } from "@repo/finance";
 import { Data, DateTime, Effect, Schema } from "effect";
 
 import { readEvents } from "../events/repository.ts";
@@ -16,18 +17,8 @@ class Discard extends Data.TaggedError("Discard")<{
   readonly measures: readonly (typeof PeriodMeasures.Type)[];
 }> {}
 
-const monthOf = (on: string) => {
-  const start = CalendarDate.make(`${on.slice(0, 7)}-01`);
-  return {
-    start,
-    endExclusive: CalendarDate.make(
-      DateTime.formatIsoDateUtc(DateTime.add(DateTime.makeUnsafe(start), { months: 1 })),
-    ),
-  };
-};
-
-const measure = Effect.fn("measure")(function* (month: { currency: string; on: string }) {
-  const period = monthOf(month.on);
+const measure = Effect.fn("measure")(function* (month: { currency: string; on: CalendarDate }) {
+  const period = monthsPeriod(yearMonthOf(month.on));
   const flow = yield* summarizePeriod({
     currency: month.currency,
     basis: "spending",
@@ -85,14 +76,14 @@ export const previewImpacts = Effect.fn("previewImpacts")(function* ({
     yield* sql`SELECT DISTINCT currency, spending_on::text AS on FROM ledger_facts WHERE event_id = ANY(${affected}::uuid[])`.pipe(
       Effect.flatMap(
         Schema.decodeUnknownEffect(
-          Schema.Array(Schema.Struct({ currency: Schema.String, on: Schema.String })),
+          Schema.Array(Schema.Struct({ currency: Schema.String, on: CalendarDate })),
         ),
       ),
     );
   const months = [
     ...new Map(
       [...stored, ...facts.map((fact) => ({ currency: fact.currency, on: fact.spendingOn }))].map(
-        (month) => [`${month.currency}:${month.on.slice(0, 7)}`, month],
+        (month) => [`${month.currency}:${yearMonthOf(month.on)}`, month],
       ),
     ).values(),
   ].toSorted((a, b) => a.on.localeCompare(b.on) || a.currency.localeCompare(b.currency));
@@ -112,7 +103,7 @@ export const previewImpacts = Effect.fn("previewImpacts")(function* ({
     return beforeMonth && afterMonth
       ? [
           {
-            ...monthOf(month.on),
+            ...monthsPeriod(yearMonthOf(month.on)),
             basis: "spending",
             currency: month.currency,
             calculatedAt,

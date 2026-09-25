@@ -31,6 +31,10 @@ export const CalendarDate = Schema.String.check(
   }),
 ).pipe(Schema.brand("CalendarDate"));
 export type CalendarDate = typeof CalendarDate.Type;
+export const YearMonth = Schema.String.check(
+  Schema.isPattern(/^(?!0000)\d{4}-(0[1-9]|1[0-2])$/),
+).pipe(Schema.brand("YearMonth"));
+export type YearMonth = typeof YearMonth.Type;
 
 export class FinanceError extends Schema.TaggedError<FinanceError>()("FinanceError", {
   kind: Schema.Literals(["invalid", "notFound", "stale", "conflict", "needsReview", "unavailable"]),

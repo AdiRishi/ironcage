@@ -2,13 +2,15 @@ import { Schema } from "effect";
 
 import {
   AccountCoverage,
+  ComparisonCoverage,
   ComparisonSelection,
+  CoverageState,
   DateBasis,
   Period,
   PeriodSelection,
 } from "./analysis.ts";
 import { CategoryId, CounterpartyId } from "./interpretation.ts";
-import { Currency, Instant, Money } from "./values.ts";
+import { Currency, Instant, Money, YearMonth } from "./values.ts";
 
 export const FlowInput = Schema.Struct({
   period: PeriodSelection,
@@ -76,16 +78,17 @@ export const PeriodFlow = Schema.Struct({
   modelShare: Money,
   changes: Schema.Array(PeriodChange),
   coverage: Schema.Array(AccountCoverage),
+  comparisonCoverage: ComparisonCoverage,
 });
 export type PeriodFlow = typeof PeriodFlow.Type;
 
 export const MonthlyFlowInput = Schema.Struct({ currency: Currency });
 export const MonthTotal = Schema.Struct({
-  month: Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}$/)),
+  month: YearMonth,
   inflow: Money,
   outflow: Money,
   spending: Money,
-  coverage: Schema.Literals(["complete", "partial", "missing"]),
+  coverage: CoverageState,
 });
 export const MonthlyFlow = Schema.Array(MonthTotal);
 
@@ -126,9 +129,10 @@ export const SpendingBreakdown = Schema.Struct({
   total: Money,
   previousTotal: Money,
   modelAmount: Money,
-  // First day of each of the twelve months that end with the selected period.
-  months: Schema.Array(Schema.String),
+  // The twelve months that end with the month containing the period's last day.
+  months: Schema.Array(YearMonth),
   rows: Schema.Array(SpendingRow),
   counterparties: Schema.Array(SpendingCounterparty),
+  comparisonCoverage: ComparisonCoverage,
 });
 export type SpendingBreakdown = typeof SpendingBreakdown.Type;

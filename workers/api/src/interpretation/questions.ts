@@ -13,6 +13,7 @@ import { Context, Effect, Layer, Schema } from "effect";
 
 import { instant } from "../database/columns.ts";
 import { toFinanceError } from "../database/failures.ts";
+import { readTransaction } from "../database/transactions.ts";
 import { loadEventSubjects, subjectRuleConflict } from "./engine.ts";
 
 const Group = Schema.Struct({
@@ -43,9 +44,9 @@ export class Questions extends Context.Service<
       const sql = yield* PgClient.PgClient;
       const list = Effect.fn("Questions.list")(
         function* ({ currency }: typeof ListQuestions.Type) {
-          return yield* sql.withTransaction(
+          return yield* readTransaction(
+            sql,
             Effect.gen(function* () {
-              yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
               // One question per person or proposed counterparty, per proposed alias, per
               // unknown own account, and per alias key of the remaining unresolved events.
               const groups = yield* sql`WITH candidates AS (

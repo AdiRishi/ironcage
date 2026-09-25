@@ -1,26 +1,47 @@
-import type { MonthTotal, Money, SpendingBreakdown, SpendingRow } from "@repo/contracts/finance";
-import { formatCurrency } from "@repo/finance";
+import type {
+  CalendarDate,
+  MonthTotal,
+  Money,
+  SpendingBreakdown,
+  SpendingRow,
+  YearMonth,
+} from "@repo/contracts/finance";
+import { formatCurrency, monthLabel, periodLabel } from "@repo/finance";
 import { Link } from "@tanstack/react-router";
+import { Array as Arr } from "effect";
 
 import { Amount } from "@/components/amount";
+import { ComparisonControl } from "@/components/comparison-control";
+import { ComparisonCoverageNote } from "@/components/comparison-coverage";
 import { categoryColor } from "@/lib/category-colors";
-import { monthInitial, monthLabel, type ResolvedPeriod } from "@/lib/period";
+import { monthInitial, type ComparisonKey, type PeriodChoice } from "@/lib/period";
 
 const money = (currency: string, minor: bigint): Money => ({ currency, minor });
 
 export function SpendingPage({
   breakdown,
   period,
+  compare,
+  onCompare,
+  firstMonth,
+  today,
   parents,
   coverage,
 }: {
   breakdown: SpendingBreakdown;
-  period: ResolvedPeriod;
-  // Whether each month of the history has complete records, keyed by YYYY-MM.
-  coverage: ReadonlyMap<string, (typeof MonthTotal.Type)["coverage"]>;
+  period: PeriodChoice;
+  compare: ComparisonKey | undefined;
+  onCompare: (compare: ComparisonKey | undefined) => void;
+  firstMonth: YearMonth;
+  today: CalendarDate;
+  // Whether each month of the history has complete records.
+  coverage: ReadonlyMap<YearMonth, (typeof MonthTotal.Type)["coverage"]>;
   // Categories that have subcategories, so a row can open further.
   parents: ReadonlySet<string>;
 }) {
+  // The dates compared, which for a period in progress are only the same days.
+  const previousLabel = periodLabel(breakdown.comparison);
+  const unrecorded = breakdown.comparisonCoverage.state === "missing";
   const scope = breakdown.path.at(-1);
   const paid = breakdown.counterparties.filter((row) => row.current.minor > 0n);
   const delta = breakdown.total.minor - breakdown.previousTotal.minor;
@@ -62,17 +83,32 @@ export function SpendingPage({
             <h1 className="type-title">
               {scope ? scope.label : "Spending"} in {period.label}
             </h1>
-            <p className="mt-2 type-figure">{formatCurrency(breakdown.total, { cents: false })}</p>
+            <div className="mt-1 space-y-1">
+              <ComparisonControl
+                period={period}
+                current={breakdown.period}
+                comparison={breakdown.comparison}
+                value={compare}
+                onChange={onCompare}
+                firstMonth={firstMonth}
+                today={today}
+              />
+              <ComparisonCoverageNote
+                coverage={breakdown.comparisonCoverage}
+                comparison={breakdown.comparison}
+              />
+            </div>
+            <p className="mt-4 type-figure">{formatCurrency(breakdown.total, { cents: false })}</p>
             <p className="mt-1 type-small text-slate">
-              {delta === 0n ? (
-                "The same as the period before."
+              {unrecorded ? null : delta === 0n ? (
+                `The same as in ${previousLabel}.`
               ) : (
                 <>
                   <Amount
                     value={money(breakdown.currency, delta < 0n ? -delta : delta)}
                     cents={false}
                   />{" "}
-                  {delta > 0n ? "more" : "less"} than the period before, which was{" "}
+                  {delta > 0n ? "more" : "less"} than in {previousLabel}, which was{" "}
                   <Amount value={breakdown.previousTotal} cents={false} />.
                 </>
               )}{" "}
@@ -111,7 +147,7 @@ export function SpendingPage({
                     {period.label}
                   </th>
                   <th scope="col" className="py-2 text-right font-normal">
-                    Change
+                    Change<span className="sr-only"> from {previousLabel}</span>
                   </th>
                   <th scope="col" className="py-2 text-right font-normal">
                     Purchases
@@ -126,6 +162,7 @@ export function SpendingPage({
                   <Row
                     key={row.categoryId ?? "none"}
                     row={row}
+                    unrecorded={unrecorded}
                     months={breakdown.months}
                     largest={largest}
                     opens={
@@ -191,12 +228,12 @@ function ScopeHistory({
   label,
 }: {
   breakdown: SpendingBreakdown;
-  coverage: ReadonlyMap<string, (typeof MonthTotal.Type)["coverage"]>;
+  coverage: ReadonlyMap<YearMonth, (typeof MonthTotal.Type)["coverage"]>;
   color: string;
   label: string;
 }) {
   const totals = breakdown.months.map((month, index) => ({
-    month: month.slice(0, 7),
+    month,
     amount: money(
       breakdown.currency,
       breakdown.rows.reduce((sum, row) => sum + (row.months[index]?.minor ?? 0n), 0n),
@@ -243,13 +280,16 @@ function ScopeHistory({
 
 function Row({
   row,
+  unrecorded,
   months,
   largest,
   opens,
   topSlug,
 }: {
   row: SpendingRow;
-  months: readonly string[];
+  // The comparison period has no records, so a change cannot be told.
+  unrecorded: boolean;
+  months: readonly YearMonth[];
   largest: bigint;
   opens: boolean;
   topSlug: string | null;
@@ -300,9 +340,11 @@ function Row({
         <Amount value={row.current} cents={false} />
       </td>
       <td className="py-3 text-right type-small text-slate tabular">
-        {row.previous.minor === 0n
-          ? "New"
-          : `${delta >= 0n ? "+" : "−"}${formatCurrency({ ...row.current, minor: delta < 0n ? -delta : delta }, { cents: false })}`}
+        {unrecorded
+          ? "No records"
+          : row.previous.minor === 0n
+            ? "New"
+            : `${delta >= 0n ? "+" : "−"}${formatCurrency({ ...row.current, minor: delta < 0n ? -delta : delta }, { cents: false })}`}
       </td>
       <td className="py-3 text-right type-small text-slate tabular">
         {row.purchases > 0 ? row.purchases : ""}
@@ -321,39 +363,37 @@ function Sparkline({
   label,
 }: {
   values: readonly Money[];
-  months: readonly string[];
+  months: readonly YearMonth[];
   color: string;
   label: string;
 }) {
   const largest = values.reduce((max, value) => (value.minor > max ? value.minor : max), 1n);
-  const description = values
-    .map(
-      (value, index) =>
-        `${monthLabel(months[index]?.slice(0, 7) ?? "")}: ${formatCurrency(value, { cents: false })}`,
-    )
-    .join(", ");
+  const series = Arr.zip(months, values).map(([month, value]) => ({
+    month,
+    value,
+    text: `${monthLabel(month)}: ${formatCurrency(value, { cents: false })}`,
+  }));
+  const description = series.map((point) => point.text).join(", ");
   return (
     <>
       <span className="sr-only">{`${label} by month. ${description}`}</span>
       <svg viewBox="0 0 120 24" className="h-6 w-[120px]" aria-hidden>
-        {values.map((value, index) => {
+        {series.map(({ month, value, text }, index) => {
           const height =
             value.minor <= 0n ? 0 : Math.max(1.5, Number((value.minor * 24n) / largest));
           return (
             <rect
-              key={months[index] ?? index}
+              key={month}
               x={index * 10 + 1}
               y={24 - height}
               width={8}
               height={height}
               rx={1.5}
               fill={color}
-              opacity={index === values.length - 1 ? 1 : 0.45}
+              opacity={index === series.length - 1 ? 1 : 0.45}
             >
-              <title>
-                {monthLabel(months[index]?.slice(0, 7) ?? "")}:{" "}
-                {formatCurrency(value, { cents: false })}
-              </title>
+              {/* React renders a <title> with several children empty on the server. */}
+              <title>{text}</title>
             </rect>
           );
         })}

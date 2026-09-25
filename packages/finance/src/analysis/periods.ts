@@ -4,15 +4,15 @@ import {
   FinanceError,
   Period,
   type PeriodSelection,
+  type YearMonth,
 } from "@repo/contracts/finance";
 import { DateTime, Result, Schema } from "effect";
 
-export function addDays(on: CalendarDate, days: number) {
-  return CalendarDate.make(
-    DateTime.formatIsoDateUtc(DateTime.add(DateTime.makeUnsafe(on), { days })),
-  );
-}
-function daysInPeriod(period: Period) {
+import { addDays, monthCount, shiftYearMonth, yearMonthStart } from "../dates.ts";
+
+const monthsPerUnit = { month: 1, quarter: 3, year: 12 };
+
+export function daysInPeriod(period: Period) {
   return (
     (DateTime.toEpochMillis(DateTime.makeUnsafe(period.endExclusive)) -
       DateTime.toEpochMillis(DateTime.makeUnsafe(period.start))) /
@@ -26,10 +26,23 @@ function calendarShift(
 ) {
   return DateTime.add(
     on,
-    unit === "week"
-      ? { weeks: count }
-      : { months: count * (unit === "quarter" ? 3 : unit === "year" ? 12 : 1) },
+    unit === "week" ? { weeks: count } : { months: count * monthsPerUnit[unit] },
   );
+}
+// How far a selection reaches from its start once whole: calendar months for
+// selections made of months, days for weeks, rolling days, and fixed dates.
+function wholeSpan(selection: PeriodSelection, current: Period) {
+  switch (selection.kind) {
+    case "months":
+      return { unit: "months", count: monthCount(selection.from, selection.to) } as const;
+    case "calendar":
+      return selection.unit === "week"
+        ? ({ unit: "days", count: selection.count * 7 } as const)
+        : ({ unit: "months", count: selection.count * monthsPerUnit[selection.unit] } as const);
+    case "rolling":
+    case "fixed":
+      return { unit: "days", count: daysInPeriod(current) } as const;
+  }
 }
 function resolvedPeriod(start: DateTime.Utc, endExclusive: DateTime.Utc) {
   return Schema.decodeResult(Period)({
@@ -45,18 +58,41 @@ function resolvedPeriod(start: DateTime.Utc, endExclusive: DateTime.Utc) {
     ),
   );
 }
+
+// The whole months `from` through `to`.
+export function monthsPeriod(from: YearMonth, to: YearMonth = from): Period {
+  return { start: yearMonthStart(from), endExclusive: yearMonthStart(shiftYearMonth(to, 1)) };
+}
+// The twelve whole months that end with the month containing the period's last day.
+export function trailingYear(period: Period): Result.Result<Period, FinanceError> {
+  const lastMonth = DateTime.startOf(
+    DateTime.makeUnsafe(addDays(period.endExclusive, -1)),
+    "month",
+  );
+  return resolvedPeriod(
+    DateTime.add(lastMonth, { months: -11 }),
+    DateTime.add(lastMonth, { months: 1 }),
+  );
+}
+
 export function resolvePeriod(
   selection: PeriodSelection,
   today: CalendarDate,
 ): Result.Result<Period, FinanceError> {
   if (selection.kind === "fixed")
     return Result.succeed({ start: selection.start, endExclusive: selection.endExclusive });
-  const date = DateTime.makeUnsafe(today);
-  if (selection.kind === "rolling")
-    return resolvedPeriod(
-      DateTime.add(date, { days: 1 - selection.days }),
-      DateTime.add(date, { days: 1 }),
+  if (selection.kind === "months") {
+    const whole = monthsPeriod(selection.from, selection.to);
+    return Result.succeed(
+      whole.start <= today && today < whole.endExclusive
+        ? { start: whole.start, endExclusive: addDays(today, 1) }
+        : whole,
     );
+  }
+  const date = DateTime.makeUnsafe(today);
+  const tomorrow = DateTime.add(date, { days: 1 });
+  if (selection.kind === "rolling")
+    return resolvedPeriod(DateTime.add(date, { days: 1 - selection.days }), tomorrow);
   const start =
     selection.unit === "quarter"
       ? DateTime.add(DateTime.startOf(date, "month"), {
@@ -66,9 +102,7 @@ export function resolvePeriod(
   const endExclusive = calendarShift(start, selection.unit, selection.offset + 1);
   return resolvedPeriod(
     calendarShift(start, selection.unit, selection.offset + 1 - selection.count),
-    selection.offset === 0 && selection.alignment === "elapsed"
-      ? DateTime.add(date, { days: 1 })
-      : endExclusive,
+    selection.offset === 0 && selection.alignment === "elapsed" ? tomorrow : endExclusive,
   );
 }
 export function missingPeriods(period: Period, intervals: readonly Period[]): Period[] {
@@ -95,7 +129,14 @@ export function mergePeriods(intervals: readonly Period[]): Period[] {
   }
   return merged;
 }
+export function overlaps(a: Period, b: Period) {
+  return a.start < b.endExclusive && b.start < a.endExclusive;
+}
 
+// The comparison moves the period back by its own span, or by twelve months for the
+// year before. A whole period made of months compares with whole months. Any other
+// period ends one day after its last day moved back, and month arithmetic clamps that
+// day to the end of a shorter month, so a comparison never runs into the next month.
 export function comparisonPeriod(
   selection: PeriodSelection,
   comparison: typeof ComparisonSelection.Type,
@@ -103,21 +144,22 @@ export function comparisonPeriod(
 ): Result.Result<Period, FinanceError> {
   if (comparison.kind === "fixed")
     return Result.succeed({ start: comparison.start, endExclusive: comparison.endExclusive });
-  const currentStart = DateTime.makeUnsafe(current.start);
-  if (comparison.kind === "previousYear") {
-    const start = calendarShift(currentStart, "year", -1);
-    const endExclusive = calendarShift(DateTime.makeUnsafe(current.endExclusive), "year", -1);
-    return resolvedPeriod(start, DateTime.max(endExclusive, DateTime.add(start, { days: 1 })));
-  }
-  if (selection.kind !== "calendar") {
-    const days = daysInPeriod(current);
-    return resolvedPeriod(DateTime.add(currentStart, { days: -days }), currentStart);
-  }
-  const start = calendarShift(currentStart, selection.unit, -selection.count);
-  const wholeEnd = calendarShift(start, selection.unit, selection.count);
-  const elapsedEnd = DateTime.add(start, { days: daysInPeriod(current) });
+  const span = wholeSpan(selection, current);
+  const step =
+    comparison.kind === "previousYear"
+      ? { months: -12 }
+      : span.unit === "months"
+        ? { months: -span.count }
+        : { days: -span.count };
+  const start = DateTime.makeUnsafe(current.start);
+  const end = DateTime.makeUnsafe(current.endExclusive);
+  const whole =
+    span.unit === "months" &&
+    !DateTime.isLessThan(end, DateTime.add(start, { months: span.count }));
   return resolvedPeriod(
-    start,
-    selection.alignment === "elapsed" ? DateTime.min(elapsedEnd, wholeEnd) : wholeEnd,
+    DateTime.add(start, step),
+    whole
+      ? DateTime.add(end, step)
+      : DateTime.add(DateTime.add(DateTime.add(end, { days: -1 }), step), { days: 1 }),
   );
 }

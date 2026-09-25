@@ -12,6 +12,7 @@ export * from "./descriptors/commbank.ts";
 export * from "./descriptors/index.ts";
 export * from "./analysis/periods.ts";
 export * from "./analysis/coverage.ts";
+export * from "./analysis/labels.ts";
 export * from "./analysis/facts.ts";
 export * from "./analysis/decomposition.ts";
 export * from "./analysis/flow.ts";

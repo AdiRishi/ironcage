@@ -7,19 +7,27 @@ import { referenceDataQuery } from "@/features/events/queries";
 import { monthlyFlowQuery, spendingQuery } from "@/features/flow/queries";
 import { settingsQueryOptions } from "@/features/settings/queries";
 import { SpendingPage } from "@/features/spending/page";
-import { flowInput, resolvePeriodKey } from "@/lib/period";
+import { flowInput, resolvePeriodKey, today } from "@/lib/period";
 
 const Search = Schema.Struct({ category: Schema.optional(CategoryId) });
 
 export const Route = createFileRoute("/spending")({
   validateSearch: Schema.toStandardSchemaV1(Search),
-  loaderDeps: ({ search }) => ({ period: search.period, category: search.category }),
+  loaderDeps: ({ search }) => ({
+    period: search.period,
+    compare: search.compare,
+    category: search.category,
+  }),
   loader: async ({ context, deps }) => {
     const settings = await context.queryClient.ensureQueryData(settingsQueryOptions());
     await Promise.all([
       context.queryClient.ensureQueryData(
         spendingQuery({
-          ...flowInput(resolvePeriodKey(deps.period), settings.reportingCurrency),
+          ...flowInput(
+            resolvePeriodKey(deps.period, settings.timezone),
+            deps.compare,
+            settings.reportingCurrency,
+          ),
           categoryId: deps.category ?? null,
         }),
       ),
@@ -31,11 +39,12 @@ export const Route = createFileRoute("/spending")({
 
 function Spending() {
   const search = Route.useSearch();
+  const navigate = Route.useNavigate();
   const { data: settings } = useSuspenseQuery(settingsQueryOptions());
-  const period = resolvePeriodKey(search.period);
+  const period = resolvePeriodKey(search.period, settings.timezone);
   const { data: breakdown } = useSuspenseQuery(
     spendingQuery({
-      ...flowInput(period, settings.reportingCurrency),
+      ...flowInput(period, search.compare, settings.reportingCurrency),
       categoryId: search.category ?? null,
     }),
   );
@@ -46,6 +55,17 @@ function Spending() {
   const { data: months } = useSuspenseQuery(monthlyFlowQuery(settings.reportingCurrency));
   const coverage = new Map(months.map((month) => [month.month, month.coverage]));
   return (
-    <SpendingPage breakdown={breakdown} period={period} parents={parents} coverage={coverage} />
+    <SpendingPage
+      breakdown={breakdown}
+      period={period}
+      compare={search.compare}
+      onCompare={(compare) => {
+        navigate({ search: (previous) => ({ ...previous, compare }) }).catch(reportError);
+      }}
+      firstMonth={months[0]?.month ?? period.from}
+      today={today(settings.timezone)}
+      parents={parents}
+      coverage={coverage}
+    />
   );
 }

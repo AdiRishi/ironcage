@@ -8,7 +8,15 @@ import {
   CounterpartyRole,
   EventId,
 } from "./interpretation.ts";
-import { CalendarDate, CommandId, Instant, Money, PostingId, Version } from "./values.ts";
+import {
+  CalendarDate,
+  CommandId,
+  Instant,
+  Money,
+  PostingId,
+  Version,
+  YearMonth,
+} from "./values.ts";
 
 export const AssignmentAuthor = Schema.Literals(["user", "model"]);
 export const Counterparty = Schema.Struct({
@@ -50,7 +58,7 @@ export const CounterpartyAlias = Schema.Struct({
   eventCount: Schema.Int,
 });
 export const CounterpartyMonth = Schema.Struct({
-  month: Schema.String,
+  month: YearMonth,
   outflow: Money,
   inflow: Money,
 });

@@ -15,6 +15,7 @@ import { Context, Effect, Layer, Schema } from "effect";
 
 import { postingFields } from "../database/columns.ts";
 import { toFinanceError } from "../database/failures.ts";
+import { readTransaction } from "../database/transactions.ts";
 
 const pageSize = 50;
 export class Postings extends Context.Service<
@@ -143,9 +144,9 @@ export class Postings extends Context.Service<
         return page(rows);
       }, toFinanceError);
       const get = Effect.fn("Postings.get")(function* ({ postingId }: typeof PostingInput.Type) {
-        return yield* sql.withTransaction(
+        return yield* readTransaction(
+          sql,
           Effect.gen(function* () {
-            yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
             const [posting] =
               yield* sql`SELECT ${fields} FROM postings p JOIN accounts a ON a.id = p.account_id WHERE p.id = ${postingId}`.pipe(
                 Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Posting))),

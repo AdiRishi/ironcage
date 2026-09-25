@@ -1,15 +1,19 @@
 import type {
   AccountCoverage,
+  CalendarDate,
   Money,
   PeriodChange,
   PeriodFlow,
   Question,
+  YearMonth,
 } from "@repo/contracts/finance";
-import { formatCurrency } from "@repo/finance";
+import { formatCurrency, periodLabel } from "@repo/finance";
 import { Link } from "@tanstack/react-router";
 
 import { Amount } from "@/components/amount";
-import type { ResolvedPeriod } from "@/lib/period";
+import { ComparisonControl } from "@/components/comparison-control";
+import { ComparisonCoverageNote, RecordsNote } from "@/components/comparison-coverage";
+import type { ComparisonKey, PeriodChoice } from "@/lib/period";
 
 import { FlowDiagram } from "./flow-diagram";
 
@@ -20,13 +24,23 @@ const days = (start: string, end: string) =>
 export function OverviewPage({
   flow,
   period,
+  compare,
+  onCompare,
+  firstMonth,
+  today,
   questions,
 }: {
   flow: PeriodFlow;
-  period: ResolvedPeriod;
+  period: PeriodChoice;
+  compare: ComparisonKey | undefined;
+  onCompare: (compare: ComparisonKey | undefined) => void;
+  firstMonth: YearMonth;
+  today: CalendarDate;
   questions: readonly Question[];
 }) {
-  const previousLabel = comparisonLabel(period);
+  // The dates compared, which for a period in progress are only the same days.
+  const previousLabel = periodLabel(flow.comparison);
+  const unrecorded = flow.comparisonCoverage.state === "missing";
   const recordsEnd = lastRecordedDay(flow);
   const surplus = money(flow.currency, flow.totals.inflow.minor - flow.totals.outflow.minor);
   return (
@@ -34,36 +48,41 @@ export function OverviewPage({
       <header className="space-y-6">
         <div>
           <h1 className="type-title">{period.label}</h1>
-          {period.current && (
-            <p className="mt-1 type-small text-slate">
-              {days(flow.period.start, flow.period.endExclusive)} days so far, compared with the
-              same days of {previousLabel}.
-            </p>
-          )}
-          {recordsEnd && (
-            <p className="mt-1 type-small text-intaglio">
-              <span
-                aria-hidden
-                className="mr-1.5 inline-block size-2 rounded-full border-[1.5px] border-outflow"
-              />
-              Your records stop on {recordsEnd}, so this {period.unit} is incomplete. Upload later
-              statements to finish it.
-            </p>
-          )}
+          <div className="mt-1 space-y-1">
+            <ComparisonControl
+              period={period}
+              current={flow.period}
+              comparison={flow.comparison}
+              value={compare}
+              onChange={onCompare}
+              firstMonth={firstMonth}
+              today={today}
+            />
+            <ComparisonCoverageNote
+              coverage={flow.comparisonCoverage}
+              comparison={flow.comparison}
+            />
+            {recordsEnd && (
+              <RecordsNote>
+                Your records stop on {recordsEnd}, so {period.label} is incomplete. Upload later
+                statements to finish it.
+              </RecordsNote>
+            )}
+          </div>
         </div>
         <dl className="grid gap-x-12 gap-y-6 sm:grid-cols-[auto_auto_1fr]">
           <Figure
             label="Came in"
             swatch="bg-inflow"
             value={flow.totals.inflow}
-            previous={flow.previousTotals.inflow}
+            previous={unrecorded ? null : flow.previousTotals.inflow}
             previousLabel={previousLabel}
           />
           <Figure
             label="Went out"
             swatch="bg-outflow"
             value={flow.totals.outflow}
-            previous={flow.previousTotals.outflow}
+            previous={unrecorded ? null : flow.previousTotals.outflow}
             previousLabel={previousLabel}
             note={
               flow.modelShare.minor > 0n ? (
@@ -107,10 +126,12 @@ export function OverviewPage({
       <div className="grid gap-12 border-t border-rule pt-10 lg:grid-cols-[7fr_5fr]">
         <section aria-labelledby="changes-heading" className="space-y-4">
           <h2 id="changes-heading" className="type-heading">
-            What changed since {previousLabel}
+            What changed compared with {previousLabel}
           </h2>
-          {flow.changes.length === 0 ? (
-            <p className="text-slate">Spending looks the same as {previousLabel}.</p>
+          {unrecorded ? (
+            <p className="text-slate">There are no records to compare with.</p>
+          ) : flow.changes.length === 0 ? (
+            <p className="text-slate">Spending looks the same as in {previousLabel}.</p>
           ) : (
             <ul className="divide-y divide-rule">
               {flow.changes.map((change) => (
@@ -147,12 +168,6 @@ function lastRecordedDay(flow: PeriodFlow) {
   }).format(Date.parse(end) - 86_400_000);
 }
 
-function comparisonLabel(period: ResolvedPeriod) {
-  if (period.unit === "year") return String(period.year - 1);
-  const previous = new Date(period.year, (period.month ?? 1) - 2, 1);
-  return new Intl.DateTimeFormat("en-AU", { month: "long" }).format(previous);
-}
-
 function Figure({
   label,
   swatch,
@@ -164,11 +179,11 @@ function Figure({
   label: string;
   swatch: string;
   value: Money;
-  previous: Money;
+  // Null when the comparison period has no records.
+  previous: Money | null;
   previousLabel: string;
   note?: React.ReactNode;
 }) {
-  const delta = value.minor - previous.minor;
   return (
     <div>
       <dt className="flex items-center gap-2 type-small text-slate">
@@ -178,18 +193,31 @@ function Figure({
       <dd className="mt-1 space-y-1">
         <span className="block type-figure">{formatCurrency(value, { cents: false })}</span>
         <span className="block type-small text-slate">
-          {delta === 0n ? (
-            `The same as ${previousLabel}`
-          ) : (
-            <>
-              <Amount value={money(value.currency, delta < 0n ? -delta : delta)} cents={false} />{" "}
-              {delta > 0n ? "more" : "less"} than {previousLabel}
-            </>
-          )}
+          <Change value={value} previous={previous} previousLabel={previousLabel} />
         </span>
         {note && <span className="block type-small text-slate">{note}</span>}
       </dd>
     </div>
+  );
+}
+
+function Change({
+  value,
+  previous,
+  previousLabel,
+}: {
+  value: Money;
+  previous: Money | null;
+  previousLabel: string;
+}) {
+  if (!previous) return "No records to compare with";
+  const delta = value.minor - previous.minor;
+  if (delta === 0n) return `The same as in ${previousLabel}`;
+  return (
+    <>
+      <Amount value={money(value.currency, delta < 0n ? -delta : delta)} cents={false} />{" "}
+      {delta > 0n ? "more" : "less"} than in {previousLabel}
+    </>
   );
 }
 

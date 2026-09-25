@@ -26,6 +26,7 @@ import type { Statement } from "effect/unstable/sql";
 import { instant } from "../database/columns.ts";
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
+import { readTransaction } from "../database/transactions.ts";
 import { readEvent } from "../events/repository.ts";
 import { reinterpret } from "./engine.ts";
 
@@ -138,25 +139,23 @@ export class Counterparties extends Context.Service<
         input: typeof ListCounterparties.Type,
       ) {
         const search = `%${input.search}%`;
-        return yield* sql.withTransaction(
-          Effect.gen(function* () {
-            yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
-            return yield* summaries(
-              input.search
-                ? sql`(c.name ILIKE ${search} OR c.brand ILIKE ${search} OR EXISTS (SELECT 1 FROM counterparty_aliases a WHERE a.counterparty_id = c.id AND a.status = 'applied' AND a.alias_key ILIKE ${search}))`
-                : sql`true`,
-              input,
-            );
-          }),
+        return yield* readTransaction(
+          sql,
+          summaries(
+            input.search
+              ? sql`(c.name ILIKE ${search} OR c.brand ILIKE ${search} OR EXISTS (SELECT 1 FROM counterparty_aliases a WHERE a.counterparty_id = c.id AND a.status = 'applied' AND a.alias_key ILIKE ${search}))`
+              : sql`true`,
+            input,
+          ),
         );
       }, toFinanceError);
 
       const get = Effect.fn("Counterparties.get")(function* ({
         counterpartyId,
       }: typeof CounterpartyInput.Type) {
-        return yield* sql.withTransaction(
+        return yield* readTransaction(
+          sql,
           Effect.gen(function* () {
-            yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
             const [settings] =
               yield* sql`SELECT reporting_currency AS currency FROM settings WHERE id = 1`.pipe(
                 Effect.flatMap(

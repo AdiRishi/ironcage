@@ -9,7 +9,7 @@ import {
   type ReferenceData,
   type SaveCounterparty,
 } from "@repo/contracts/finance";
-import { formatCurrency } from "@repo/finance";
+import { formatCurrency, monthLabel } from "@repo/finance";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useId, useState } from "react";
@@ -21,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LedgerList } from "@/features/ledger/list";
 import { categoryColor } from "@/lib/category-colors";
-import { monthLabel } from "@/lib/period";
 import { useCommand } from "@/lib/use-command";
 
 import { counterpartyKinds, counterpartyRoles } from "./choices";

@@ -1,5 +1,5 @@
 import type { MeasureImpact } from "@repo/contracts/finance";
-import { formatCurrency } from "@repo/finance";
+import { formatCurrency, periodLabel } from "@repo/finance";
 import { Record } from "effect";
 
 import {
@@ -10,7 +10,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { monthLabel } from "@/lib/period";
 
 // The same totals the overview shows for the month, so a preview matches the screens
 // once the change is saved.
@@ -41,9 +40,9 @@ function ImpactTable({ impact }: { impact: typeof MeasureImpact.Type }) {
   return (
     <section
       className="space-y-3 rounded-lg border border-rule bg-sheet p-4"
-      aria-label={`Effect on ${monthLabel(impact.start.slice(0, 7))}`}
+      aria-label={`Effect on ${periodLabel(impact)}`}
     >
-      <h3 className="font-semibold">Effect on {monthLabel(impact.start.slice(0, 7))}</h3>
+      <h3 className="font-semibold">Effect on {periodLabel(impact)}</h3>
       <p className="type-small text-slate">
         By spending date · {impact.currency} · Calculated {impact.calculatedAt}
       </p>

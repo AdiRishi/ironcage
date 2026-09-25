@@ -30,7 +30,8 @@ export default defineConfig({
           browser: {
             enabled: true,
             headless: true,
-            provider: playwright(),
+            // East of UTC, a local midnight read through UTC falls on the day before.
+            provider: playwright({ contextOptions: { timezoneId: "Australia/Sydney" } }),
             instances: [{ browser: "chromium" }],
           },
         },
