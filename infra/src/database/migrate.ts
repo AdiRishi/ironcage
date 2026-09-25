@@ -10,7 +10,14 @@ const migrate = Effect.gen(function* () {
       const connection = new Client({ connectionString: Redacted.value(url) });
       await connection.connect();
       return connection;
-    }).pipe(Effect.retry({ times: 20, schedule: Schedule.spaced("500 millis") })),
+    }).pipe(
+      // A new container initialises its data directory before Postgres accepts TCP
+      // connections, and with other test stages starting beside it that can take well
+      // over ten seconds.
+      Effect.retry({
+        schedule: Schedule.spaced("500 millis").pipe(Schedule.upTo({ duration: "1 minute" })),
+      }),
+    ),
     (connection) => Effect.promise(() => connection.end()),
   );
   yield* applyMigrations({
