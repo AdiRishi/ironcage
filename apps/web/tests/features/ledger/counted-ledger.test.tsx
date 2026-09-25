@@ -21,7 +21,7 @@ import { expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { page } from "vitest/browser";
 
-import { getEventForPosting, getReferenceData } from "@/features/events/functions";
+import { getEventForPosting, getEventHistory, getReferenceData } from "@/features/events/functions";
 import { CountedList } from "@/features/ledger/list";
 import { CountedLedgerPage } from "@/features/ledger/page";
 import { resolvePeriodKey } from "@/lib/period";
@@ -30,6 +30,7 @@ import { createQueryClient } from "@/lib/query-client";
 // oxlint-disable-next-line anti-slop/no-module-mocking -- Server functions are the remote transport boundary.
 vi.mock("../../../src/features/events/functions", () => ({
   getEventForPosting: vi.fn<typeof getEventForPosting>(),
+  getEventHistory: vi.fn<typeof getEventHistory>(),
   getReferenceData: vi.fn<typeof getReferenceData>(),
 }));
 

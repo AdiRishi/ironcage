@@ -38,7 +38,7 @@ Enrichment is off by default. Migration `0016_enrichment.sql` seeds `enrichment_
 
 The default role is kept only for people and institutions. An unknown category key leaves the default category empty. Results for alias keys outside the batch are ignored, and an alias that the model left out is marked skipped and stays without a counterparty. An alias you answered while the batch ran keeps your answer. Rerunning enrichment only touches aliases without an alias row, so an alias the model proposed is not sent again. A counterparty you edited is never sent back to the model.
 
-Proposed subcategories appear in Questions. Accepting one creates it under its parent. It then moves the counterparties reached through the proposal's own alias keys, when the model created them and their default category is the parent or one of its subcategories. Counterparties you set are never moved, and a transaction you categorised yourself keeps its category.
+Proposed subcategories appear in Questions. Accepting one creates it under its parent. It then moves the counterparties reached through the proposal's own alias keys, when the model created them and their default category is the parent or one of its subcategories. Counterparties you set are never moved, and a transaction you categorised yourself keeps its category. The move is one `acceptCategory` [counterparty change](/reference/interpretation#corrections-and-history), so each moved counterparty's history lists it and undo returns it to its earlier category.
 
 The corpus has 1,203 alias keys, which is 49 batches.
 

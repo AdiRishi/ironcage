@@ -16,11 +16,11 @@ import { expect } from "vitest";
 import { Flows } from "../../src/analysis/flows.ts";
 import { Spending } from "../../src/analysis/spending.ts";
 import { Corrections } from "../../src/events/corrections.ts";
-import { Counterparties } from "../../src/interpretation/counterparties.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { References } from "../../src/references/service.ts";
 import { Relationships } from "../../src/relationships/service.ts";
 import { applicationTest } from "../support/application.ts";
+import { createCounterparty } from "../support/fixtures.ts";
 import { activeEvent, categoryId, populate } from "../support/populated.ts";
 
 const { test, services } = applicationTest();
@@ -70,17 +70,6 @@ const rowNamed = Effect.fn(function* (result: SpendingBreakdown, label: string) 
   if (!row) return yield* Effect.die(`Expected a row labelled ${label}`);
   return row;
 });
-const business = Effect.fn(function* (
-  name: string,
-  aliasKey: string,
-  defaultCategoryId: typeof CategoryId.Type | null,
-) {
-  return yield* (yield* Counterparties).save({
-    commandId: yield* commandId,
-    target: { kind: "create", aliasKeys: [aliasKey] },
-    fields: { name, kind: "business", brand: null, defaultCategoryId, defaultRole: null },
-  });
-});
 const correctAllocations = Effect.fn(function* (
   description: string,
   change: (
@@ -104,7 +93,9 @@ test(
   "Dining out opens its counterparties, and a counterparty's records add up to its row",
   Effect.gen(function* () {
     yield* populate;
-    const dinnerPlace = yield* business("Dinner Place", "DINNER PLACE SYDNEY", null);
+    const dinnerPlace = yield* createCounterparty({ name: "Dinner Place" }, [
+      "DINNER PLACE SYDNEY",
+    ]);
     const diningOut = categoryScope(yield* categoryId("food.dining-out"));
     const opened = yield* breakdown("2026-07", { category: diningOut });
     expect(opened.level).toBe("counterparties");
@@ -149,7 +140,7 @@ test(
   Effect.gen(function* () {
     yield* populate;
     const clothing = categoryScope(yield* categoryId("shopping.clothing"));
-    yield* business("Myer", "MYER SYDNEY", clothing.id);
+    yield* createCounterparty({ name: "Myer", defaultCategoryId: clothing.id }, ["MYER SYDNEY"]);
     // The $40 refund of 2 August, then the $120 purchase of 15 July and the $80 of Big
     // Shop's split in July.
     expect(amounts(yield* breakdown("2026-08", { category: clothing }))).toEqual([
@@ -351,7 +342,7 @@ test(
   "spending not yet categorised opens its counterparties, including Unidentified",
   Effect.gen(function* () {
     yield* populate;
-    yield* business("Myer", "MYER SYDNEY", null);
+    yield* createCounterparty({ name: "Myer" }, ["MYER SYDNEY"]);
     yield* correctAllocations("Dinner Place SYDNEY AU Card xx1234", (allocation) => ({
       ...allocation,
       categoryId: null,

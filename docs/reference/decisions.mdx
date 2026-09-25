@@ -5,6 +5,22 @@ description: Why the architecture looks the way it does.
 
 Each entry records a decision, the reason, and what would change it. Newer entries come first.
 
+## Counterparty history as row images, undone last first
+
+**Decision.** A counterparty change stores every record it wrote, counterparties, aliases, reference defaults, and the events, rules, and movement-link snapshots it pointed elsewhere, as it was before and as the change left it. Undo is a new change that writes the before images back, and only while every record is still as the change left it.
+
+**Why.** A merge deletes its source, and a descriptor move changes the meaning of every transaction the bank writes that way, so undo needs the rows themselves, not a description of the command. Replaying an earlier snapshot, as an event correction does, would silently revert later changes to the same records, such as renaming the target of an old merge. Refusing until the later change is undone keeps undo exact.
+
+**Would change if** undoing one change often has to wait on a long chain of later ones, which would call for a merge of images instead of last in, first out.
+
+## Previews run the write and roll it back
+
+**Decision.** A preview of a counterparty change, an undo, or a counterparty move runs the command's real write inside a write transaction, measures every month whose facts it changed, and rolls back.
+
+**Why.** A counterparty change reaches its transactions through reinterpretation, and a second model of that derivation for previews would drift from the command. Running the write gives the preview the same checks, the same derivation, and the same facts the overview will read. The write also reports how many transactions change meaning, which a totals-only preview misses when a change moves spending between categories and leaves every total as it was.
+
+**Would change if** previews of large merges hold write transactions long enough to cause serialization retries for other writers.
+
 ## Serializable writes instead of one lock
 
 **Decision.** Every write runs as a `SERIALIZABLE` transaction and runs again when Postgres reports a serialization failure. The events a transaction changed are noted in a transaction-local setting and their facts refreshed before commit.

@@ -17,5 +17,22 @@ export const postingFields = (
   ${money(sql, "p.currency", "p.amount_minor")} AS amount,
   ${nullableMoney(sql, "p.original_currency", "p.original_amount_minor")} AS "originalMoney"`;
 
+// A counterparty's own fields from `counterparties c`, as `CounterpartyRecord` reads them.
+export const counterpartyRecordColumns = (sql: SqlClient.SqlClient) =>
+  sql`c.id, c.name, c.kind, c.brand, c.default_category_id AS "defaultCategoryId", c.default_role AS "defaultRole",
+    c.source, c.status, c.model, c.confidence::float8 AS confidence, c.reason, c.version`;
+
+// A counterparty from `counterparties c`, as `Counterparty` reads it.
+export const counterpartyColumns = (sql: SqlClient.SqlClient) =>
+  sql`${counterpartyRecordColumns(sql)}, ${instant(sql, sql("c.updated_at"))} AS "updatedAt"`;
+
 export const accountFields = (sql: SqlClient.SqlClient) =>
   sql`id, kind, institution, label, currency, bank_id AS "bankId", account_number AS "accountNumber", version`;
+
+// Whether `column` contains `text`, ignoring case. The wildcards `%` and `_` in the text
+// match only themselves. A trigram index on the column serves the match.
+export const containsText = (
+  sql: SqlClient.SqlClient,
+  column: Statement.Fragment | Statement.Identifier,
+  text: string,
+) => sql`${column} ILIKE ${`%${text.replaceAll(/[\\%_]/g, (character) => `\\${character}`)}%`}`;

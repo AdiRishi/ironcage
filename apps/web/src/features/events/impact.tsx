@@ -24,6 +24,11 @@ const measures = {
   internal: "Moved between your accounts",
 } as const;
 
+// Whether a change moves any of the month's totals. A new default category can change
+// what many transactions mean and leave every total as it was.
+export const movesTotals = (impact: typeof MeasureImpact.Type) =>
+  Record.keys(measures).some((key) => impact.before[key].minor !== impact.after[key].minor);
+
 export function ImpactTables({ impacts }: { impacts: readonly (typeof MeasureImpact.Type)[] }) {
   if (impacts.length === 0)
     return <p className="type-small text-slate">This change does not move any totals.</p>;

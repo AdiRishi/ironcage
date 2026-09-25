@@ -2,6 +2,7 @@ import type {
   CategoryId,
   CategoryScope,
   FactMeasure,
+  FlowDirection,
   LedgerMeasure,
   PartSign,
 } from "@repo/contracts/finance";
@@ -19,7 +20,7 @@ export const factDirection = {
   borrowing: "in",
   externalIn: "in",
   unresolvedIn: "in",
-} as const satisfies Record<CountedFact, "in" | "out">;
+} as const satisfies Record<CountedFact, FlowDirection>;
 
 // The facts of one kind that make up part of a measure, optionally only those on loan
 // accounts.

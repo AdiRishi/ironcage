@@ -6,6 +6,13 @@ export const counterpartyKinds: ReadonlyArray<{ value: CounterpartyKind; label: 
   { value: "institution", label: "An institution" },
   { value: "ownAccount", label: "My own account elsewhere" },
 ];
+// A kind as a column or list names it.
+export const kindLabels = {
+  business: "Business",
+  person: "Person",
+  ownAccount: "Your account",
+  institution: "Institution",
+} satisfies Record<CounterpartyKind, string>;
 
 // What money to or from a person or institution usually is. No default means each
 // payment's direction decides.

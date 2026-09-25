@@ -130,7 +130,22 @@ export class Postings extends Context.Service<
               yield* sql`SELECT o.id, s.id AS "sourceFileId", s.file_name AS "fileName", s.bytes_available AS "bytesAvailable", o.locator, o.raw, o.candidate, o.match_method AS "matchMethod" FROM observations o JOIN source_files s ON s.id = o.source_file_id WHERE o.posting_id = ${postingId} ORDER BY s.uploaded_at, o.locator_key`.pipe(
                 Effect.flatMap(Schema.decodeUnknownEffect(PostingDetail.fields.evidence)),
               );
-            return { posting, evidence };
+            // The event's primary posting names its counterparty, whichever of its
+            // postings this is.
+            const [descriptor] =
+              yield* sql`SELECT d.alias_key AS "aliasKey", d.counterparty_text AS "counterpartyText",
+                  (SELECT count(*) FROM events ce JOIN posting_descriptors cd ON cd.posting_id = ce.primary_posting_id
+                    WHERE ce.active AND cd.alias_key = d.alias_key
+                      AND (ce.counterparty_source IS DISTINCT FROM 'user' OR ce.id = e.id))::int AS "eventCount",
+                  (SELECT a.version FROM counterparty_aliases a WHERE a.alias_key = d.alias_key) AS "aliasVersion"
+                FROM event_postings ep JOIN events e ON e.id = ep.event_id
+                JOIN posting_descriptors d ON d.posting_id = e.primary_posting_id
+                WHERE ep.posting_id = ${postingId} AND ep.active AND d.alias_key IS NOT NULL`.pipe(
+                Effect.flatMap(
+                  Schema.decodeUnknownEffect(Schema.Array(PostingDetail.fields.descriptor)),
+                ),
+              );
+            return { posting, evidence, descriptor: descriptor ?? null };
           }),
         );
       }, toFinanceError);

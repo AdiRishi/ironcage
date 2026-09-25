@@ -6,7 +6,14 @@ import { Corrections } from "../../src/events/corrections.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { applicationTest } from "../support/application.ts";
-import { account, parsed, reset, source } from "../support/fixtures.ts";
+import {
+  account,
+  createCounterparty,
+  parsed,
+  parsedRows,
+  reset,
+  source,
+} from "../support/fixtures.ts";
 import { activeEvent, populate } from "../support/populated.ts";
 
 const { test, services } = applicationTest();
@@ -72,5 +79,88 @@ test(
     expect(listed).not.toContain("Transfer to xx9999 CommBank app Card");
     expect(listed).not.toContain("Loan Repayment LN REPAY 123456789");
     expect(listed).not.toContain("Dinner Place SYDNEY AU Card xx1234");
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "a transaction's detail names its descriptor, how many transactions would move with it, and the version of the alias that holds it",
+  Effect.gen(function* () {
+    yield* reset;
+    const owner = yield* account();
+    const file = yield* source(owner.id);
+    yield* (yield* Publication).publish({
+      ...parsedRows([
+        {
+          description: "WOOLWORTHS 1234 SYDNEY AU Card xx1234",
+          postedOn: "2026-08-04",
+          minor: -4200n,
+        },
+        {
+          description: "WOOLWORTHS 5678 SYDNEY AU Card xx1234",
+          postedOn: "2026-08-05",
+          minor: -1500n,
+        },
+        {
+          description: "WOOLWORTHS METRO 77 SURRY HILLS Card xx1234",
+          postedOn: "2026-08-06",
+          minor: -2500n,
+        },
+        { description: "Interest charged", postedOn: "2026-08-31", minor: -300n },
+      ]),
+      importId: file.importId,
+    });
+    const postings = yield* Postings;
+    const descriptor = Effect.fn(function* (description: string) {
+      const event = yield* activeEvent(description);
+      return (yield* postings.get({ postingId: event.primaryPostingId })).descriptor;
+    });
+    expect(yield* descriptor("WOOLWORTHS 1234 SYDNEY AU Card xx1234")).toEqual({
+      aliasKey: "WOOLWORTHS SYDNEY",
+      counterpartyText: "WOOLWORTHS 1234 SYDNEY AU",
+      eventCount: 2,
+      aliasVersion: null,
+    });
+    expect(yield* descriptor("Interest charged")).toBeNull();
+    // Woolworths also holds the Metro descriptor, which the count leaves out.
+    yield* createCounterparty({ name: "Woolworths" }, [
+      "WOOLWORTHS SYDNEY",
+      "WOOLWORTHS METRO SURRY HILLS",
+    ]);
+    expect(yield* descriptor("WOOLWORTHS 1234 SYDNEY AU Card xx1234")).toMatchObject({
+      eventCount: 2,
+      aliasVersion: 1,
+    });
+    // A transaction moved to another counterparty by hand stays where it is when the
+    // descriptor moves, unless the move is made from that transaction.
+    const moved = yield* activeEvent("WOOLWORTHS 5678 SYDNEY AU Card xx1234");
+    yield* (yield* Corrections).assignCounterparty({
+      commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
+      eventId: moved.id,
+      counterpartyId: (yield* createCounterparty({ name: "Newsagency" }, [])).id,
+      expectedVersions: [{ eventId: moved.id, version: moved.version }],
+    });
+    expect(yield* descriptor("WOOLWORTHS 1234 SYDNEY AU Card xx1234")).toMatchObject({
+      eventCount: 1,
+    });
+    expect(yield* descriptor("WOOLWORTHS 5678 SYDNEY AU Card xx1234")).toMatchObject({
+      eventCount: 2,
+    });
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "either side of a linked movement names the descriptor of the side that names its counterparty",
+  Effect.gen(function* () {
+    yield* populate;
+    const postings = yield* Postings;
+    const { rows } = yield* postings.list({ filter: {} });
+    const descriptor = Effect.fn(function* (description: string) {
+      const posting = rows.find((row) => row.description === description);
+      if (!posting) return yield* Effect.die(`Expected a posting for ${description}`);
+      return (yield* postings.get({ postingId: posting.id })).descriptor;
+    });
+    const transfer = yield* descriptor("Transfer to xx9999 CommBank app Card");
+    expect(transfer).toMatchObject({ aliasKey: "ACCOUNT 9999" });
+    expect(yield* descriptor("Payment Received, Thank You")).toEqual(transfer);
   }).pipe(Effect.provide(services)),
 );

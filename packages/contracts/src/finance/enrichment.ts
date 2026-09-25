@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 
+import { FlowDirection } from "./analysis.ts";
 import {
   CategoryId,
   CategoryTree,
@@ -81,7 +82,7 @@ export const EnrichmentAlias = Schema.Struct({
   aliasKey: Schema.String,
   samples: Schema.Array(Schema.String),
   channels: Schema.Array(Channel),
-  directions: Schema.Array(Schema.Literals(["out", "in"])),
+  directions: Schema.Array(FlowDirection),
   accountKinds: Schema.Array(AccountKind),
   institutions: Schema.Array(Institution),
   transactionCount: Schema.Int,

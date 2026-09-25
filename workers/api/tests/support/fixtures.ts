@@ -3,18 +3,21 @@ import {
   AccountId,
   CalendarDate,
   CommandId,
+  type Counterparty,
+  type CounterpartyFields,
   ImportId,
   type ParsedFile,
   type SourceFormat,
   SourceFileId,
 } from "@repo/contracts/finance";
-import { Crypto, Effect } from "effect";
+import { Crypto, Effect, Struct } from "effect";
 
 import { Accounts } from "../../src/accounts/service.ts";
+import { Counterparties } from "../../src/interpretation/counterparties.ts";
 
 export const reset = Effect.gen(function* () {
   const sql = yield* PgClient.PgClient;
-  yield* sql`TRUNCATE rules, command_receipts, review_items, source_coverage, observations, postings, imports, source_files, accounts, exports, model_usage, counterparties, enrichment_runs, category_proposals CASCADE`;
+  yield* sql`TRUNCATE rules, command_receipts, review_items, source_coverage, observations, postings, imports, source_files, accounts, exports, model_usage, counterparties, counterparty_changes, enrichment_runs, category_proposals CASCADE`;
   yield* sql`UPDATE enrichment_settings SET enabled = true, warning_minor = 2000, auto_apply_confidence = 0.8, version = 1 WHERE id = 1`;
 });
 export const account = Effect.fn("fixtureAccount")(function* () {
@@ -26,6 +29,46 @@ export const account = Effect.fn("fixtureAccount")(function* () {
     institution: "commbank",
     currency: "AUD",
   });
+});
+// A counterparty you created, claiming descriptors that no counterparty holds yet.
+export const createCounterparty = Effect.fn("fixtureCounterparty")(function* (
+  fields: Pick<typeof CounterpartyFields.Type, "name"> & Partial<typeof CounterpartyFields.Type>,
+  aliasKeys: readonly string[],
+) {
+  const { counterparty } = yield* (yield* Counterparties).apply({
+    commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
+    change: {
+      kind: "create",
+      fields: {
+        kind: "business",
+        brand: null,
+        defaultCategoryId: null,
+        defaultRole: null,
+        ...fields,
+      },
+      aliases: aliasKeys.map((aliasKey) => ({ aliasKey, expectedVersion: null })),
+    },
+  });
+  return counterparty;
+});
+// Saves new fields for a counterparty at the version it was read.
+export const updateCounterparty = Effect.fn("fixtureCounterpartyUpdate")(function* (
+  counterparty: Counterparty,
+  fields: Partial<typeof CounterpartyFields.Type>,
+) {
+  const outcome = yield* (yield* Counterparties).apply({
+    commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
+    change: {
+      kind: "update",
+      counterpartyId: counterparty.id,
+      expectedVersion: counterparty.version,
+      fields: {
+        ...Struct.pick(counterparty, ["name", "kind", "brand", "defaultCategoryId", "defaultRole"]),
+        ...fields,
+      },
+    },
+  });
+  return outcome.counterparty;
 });
 export const source = Effect.fn("fixtureSource")(function* (
   accountId: typeof AccountId.Type | null,

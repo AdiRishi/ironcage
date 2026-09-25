@@ -7,18 +7,35 @@ A counterparty is whoever is on the other side of a transaction: a business such
 
 ## The list
 
-Counterparties for the selected period, largest outflow first, with inflows in their own tab. Each row shows the name, kind, default category, amount, and number of transactions. A search box matches names and the bank's descriptor text.
+Counterparties for the selected period, in two tabs: Money out and Money in. Each tab lists every counterparty with an amount in its direction, largest first, so one whose refunds exceed its purchases comes last with its net amount. Each row shows the name with its provenance, the kind, the usual category, the number of transactions behind the amount, and the amount. A refund counts under Money out, because it reduces what went out. On a phone, the kind and the count are hidden. A search box matches names, brands, and the bank's descriptor text as it was printed, so `5678` finds `WOOLWORTHS 5678 SYDNEY`.
 
 ## A counterparty
 
 The page for one counterparty shows:
 
 - its name, kind, parent brand, default category, and provenance
+- a monthly chart of what you paid and received across the whole history, with every month from the first to the last evenly spaced, and a table view. A month without records for the accounts you pay it from is a short dashed outline, and the table says "no records" rather than $0.
+- what it is: its name, kind, brand, default role, and usual category
+- its defaults by reference, for people paid for different things
+- its recent transactions
 - the descriptor texts that resolve to it, such as `WOOLWORTHS 1234 SYDNEY` and `WOOLWORTHS METRO 5678`
-- a monthly chart of what you paid or received across the whole history
-- its transactions
+- its history
 
-Changing the default category applies it to every transaction from this counterparty that you have not set by hand. Merging two counterparties moves every descriptor and transaction to one of them. Moving a descriptor fixes a misidentification, for example a descriptor that belongs to a different business with a similar name.
+Changing what it is applies to every transaction from this counterparty that you have not set by hand. Saving first shows how many transactions change and which months' totals move, then offers "Apply to all 42 Woolworths transactions". A new usual category often moves transactions between categories without changing any total, and the preview then says "Changes 42 transactions; totals stay the same".
+
+### Descriptors
+
+A descriptor that names the wrong counterparty moves with Move to…, for example a descriptor that belongs to a different business with a similar name. Every transaction the bank writes that way moves with it.
+
+Take a descriptor works the other way. You search the text the bank printed, or the counterparty it resolves to now, and choose it from Other counterparties or Not identified. Each match shows who it resolves to and how many transactions it has. Taking it previews the transactions that move, then moves the descriptor to this counterparty. If another change moved the descriptor while you were choosing, nothing is saved, and the dialog shows who holds it now so you can preview again.
+
+Merging joins this counterparty into the one it duplicates. Its descriptors, the transactions you moved to it by hand, and the rules that name it move to the other counterparty, and this one is removed. Where both have a default for the same reference, the other counterparty's default stays. Merging also confirms the other counterparty, so if the model only proposed it, its defaults now apply to its own transactions as well. The merge is previewed first, and the page then opens the counterparty that remains.
+
+### History
+
+History lists every change to the counterparty, its descriptors, and its reference defaults, newest first. Each entry says what changed, when, which transactions it reached, and how many of them it changed, such as "Default category changed from Groceries to Dining out. 25 Sept 2026, 4:30 pm · Every Woolworths transaction, 42 transactions changed". Show earlier changes loads older entries.
+
+Undo previews the reversal, then applies it as a new entry. A change can be undone only while no later change has touched the same records, so undoing runs from the latest change back. An entry that a later change touched says "Changed again later", and one already undone says "Undone". Undoing the creation of a counterparty removes it, and the page returns to the list.
 
 ## People
 

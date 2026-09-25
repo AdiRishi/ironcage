@@ -3,6 +3,7 @@ import type {
   CategoryScope,
   CounterpartyScope,
   DateBasis,
+  FlowDirection,
   Period,
 } from "@repo/contracts/finance";
 import { factDirection, type MeasurePart } from "@repo/finance";
@@ -54,7 +55,7 @@ export const partFacts = (sql: SqlClient.SqlClient, part: MeasurePart) =>
     : sql`f.measure = ${part.fact}`;
 
 // Facts whose money moved in, or out.
-export const factsGoing = (sql: SqlClient.SqlClient, direction: "in" | "out") =>
+export const factsGoing = (sql: SqlClient.SqlClient, direction: FlowDirection) =>
   sql.in(
     "f.measure",
     Object.entries(factDirection).flatMap(([measure, going]) =>

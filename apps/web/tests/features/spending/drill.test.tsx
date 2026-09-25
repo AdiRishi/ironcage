@@ -28,7 +28,7 @@ import { expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { page } from "vitest/browser";
 
-import { getEventForPosting, getReferenceData } from "@/features/events/functions";
+import { getEventForPosting, getEventHistory, getReferenceData } from "@/features/events/functions";
 import { getPosting, listCountedLedger, listLedger } from "@/features/ledger/functions";
 import { getSpending } from "@/features/spending/functions";
 import { SpendingPage } from "@/features/spending/page";
@@ -55,6 +55,7 @@ vi.mock("../../../src/features/ledger/functions", () => ({
 // oxlint-disable-next-line anti-slop/no-module-mocking -- Server functions are the remote transport boundary.
 vi.mock("../../../src/features/events/functions", () => ({
   getEventForPosting: vi.fn<typeof getEventForPosting>(),
+  getEventHistory: vi.fn<typeof getEventHistory>(),
   getReferenceData: vi.fn<typeof getReferenceData>(),
 }));
 

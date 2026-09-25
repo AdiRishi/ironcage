@@ -6,9 +6,11 @@ import { expect } from "vitest";
 import { FactRebuilds } from "../../src/analysis/rebuild.ts";
 import { Corrections } from "../../src/events/corrections.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
+import { CounterpartyHistory } from "../../src/interpretation/counterparty-history.ts";
 import { Relationships } from "../../src/relationships/service.ts";
 import { applicationTest } from "../support/application.ts";
-import { activeEvent, categoryId, populate } from "../support/populated.ts";
+import { createCounterparty, updateCounterparty } from "../support/fixtures.ts";
+import { activeEvent, categoryId, counterpartyNamed, populate } from "../support/populated.ts";
 
 const { test, services } = applicationTest();
 const commandId = Crypto.Crypto.use((crypto) => crypto.randomUUIDv4).pipe(
@@ -64,23 +66,8 @@ test(
   Effect.gen(function* () {
     yield* populate;
     yield* recategoriseDinner;
-    const counterparties = yield* Counterparties;
-    const [jane] = (yield* counterparties.list({
-      search: "Jane",
-      currency: "AUD",
-      period: null,
-    })).filter((row) => row.name === "Jane Smith");
-    if (!jane) return yield* Effect.die("Expected Jane Smith");
-    yield* counterparties.save({
-      commandId: yield* commandId,
-      target: { kind: "update", id: jane.id, expectedVersion: jane.version },
-      fields: {
-        name: jane.name,
-        kind: jane.kind,
-        brand: jane.brand,
-        defaultCategoryId: yield* categoryId("housing.strata"),
-        defaultRole: jane.defaultRole,
-      },
+    const jane = yield* updateCounterparty(yield* counterpartyNamed("Jane Smith"), {
+      defaultCategoryId: yield* categoryId("housing.strata"),
     });
     const relationships = yield* Relationships;
     const relate = Effect.fn(function* (
@@ -111,6 +98,50 @@ test(
         kind: "event",
         eventId: (yield* activeEvent("Loan Repayment LN REPAY 123456789")).id,
       },
+    });
+
+    const counterparties = yield* Counterparties;
+    const change = Effect.fn(function* (
+      counterpartyChange: Parameters<(typeof counterparties)["apply"]>[0]["change"],
+    ) {
+      return yield* counterparties.apply({
+        commandId: yield* commandId,
+        change: counterpartyChange,
+      });
+    });
+    const supermarket = yield* createCounterparty({ name: "Supermarket" }, []);
+    yield* change({
+      kind: "moveAlias",
+      aliasKey: "WOOLWORTHS SYDNEY",
+      expectedVersion: 1,
+      counterpartyId: supermarket.id,
+      event: null,
+    });
+    const john = yield* counterpartyNamed("John Citizen");
+    const merged = yield* change({
+      kind: "merge",
+      sourceId: john.id,
+      sourceVersion: john.version,
+      targetId: jane.id,
+      targetVersion: jane.version,
+    });
+    const history = yield* CounterpartyHistory;
+    if (!merged.changeId) return yield* Effect.die("Expected the merge in history");
+    yield* history.undo({ commandId: yield* commandId, changeId: merged.changeId });
+    const corrections = yield* Corrections;
+    const myer = yield* activeEvent("MYER SYDNEY AU Card xx1234");
+    const assigned = yield* corrections.assignCounterparty({
+      commandId: yield* commandId,
+      eventId: myer.id,
+      counterpartyId: jane.id,
+      expectedVersions: [{ eventId: myer.id, version: myer.version }],
+    });
+    const [assignment] = (yield* corrections.history({ eventId: myer.id })).entries;
+    if (assignment?.kind !== "correction") return yield* Effect.die("Expected the assignment");
+    yield* corrections.undo({
+      commandId: yield* commandId,
+      correctionId: assignment.correction.id,
+      expectedVersions: [{ eventId: myer.id, version: assigned.version }],
     });
 
     const incremental = yield* snapshot;

@@ -27,7 +27,7 @@ const longDate = (date: string) => dateFormat.format(new Date(`${date}T00:00:00`
 
 export function LedgerDetail({ id }: { id: typeof PostingId.Type }) {
   const {
-    data: { posting, evidence },
+    data: { posting, evidence, descriptor },
   } = useSuspenseQuery(postingQueryOptions({ postingId: id }));
   const inflow = posting.amount.minor > 0n;
   return (
@@ -48,7 +48,7 @@ export function LedgerDetail({ id }: { id: typeof PostingId.Type }) {
         </div>
       </header>
 
-      <Meaning postingId={id} />
+      <Meaning postingId={id} descriptor={descriptor} />
 
       <section aria-labelledby="bank-heading" className="space-y-4 border-t border-rule pt-8">
         <h2 id="bank-heading" className="type-heading">

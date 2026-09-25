@@ -38,9 +38,20 @@ You can change the counterparty, role, category, tags, personal event, or purcha
 When you change the category of a transaction whose counterparty has other transactions, Ironcage asks where the change applies:
 
 - **Only this one.** For example, one Bunnings trip was a gift.
-- **Everything from this counterparty.** This sets the counterparty's default. Future and past transactions follow it, except those you set by hand.
+- **Every Bunnings transaction.** This sets the counterparty's default after a preview. Future and past transactions follow it, except those you set by hand.
 
-A change that affects spending, income, cash, or debt shows its effect before it is saved. History lists every change with its time and scope. Nothing is erased.
+Change, next to the counterparty, moves the transaction to another counterparty. When the bank writes other transactions the same way, Ironcage asks which of them move:
+
+- **Only this one.** The transaction keeps the counterparty you chose, whatever its description says.
+- **Every transaction written as WOOLWORTHS METRO (3).** The descriptor moves to the counterparty you chose, with every transaction the bank writes that way, past and future. That includes this transaction if you had moved it by hand. Other transactions you moved by hand stay where you put them, and the count leaves them out.
+
+A transaction you moved by hand can follow the bank's description again. The preview shows the counterparty, role, and category the transaction ends up with.
+
+A change that affects spending, income, cash, or debt shows its effect before it is saved.
+
+### History
+
+History lists every change that set something on the transaction, newest first: its own corrections, and every counterparty change that changed what it means. Each entry says what changed, when, and its scope: "Only this transaction", "Every Woolworths transaction", or "Every transaction the bank writes as WOOLWORTHS METRO". Undo previews first and adds a new entry, so nothing is erased. A counterparty change that a later change touched says "Changed again later" instead of offering Undo.
 
 ## Money counted once
 

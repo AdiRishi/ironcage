@@ -66,15 +66,22 @@ test(
         yield* sql`SELECT e.id FROM events e JOIN allocations a ON a.event_id = e.id WHERE e.active
           GROUP BY e.id, e.magnitude_minor HAVING sum(a.amount_minor) <> e.magnitude_minor`;
       expect(unbalanced).toEqual([]);
-      // The fixture's 13 facts name their event's primary posting until the rebuild.
-      const [backfilled] =
-        yield* sql`SELECT count(*)::int AS count FROM ledger_facts f JOIN events e ON e.id = f.event_id
-          WHERE f.posting_id = e.primary_posting_id AND f.credit_event_id IS NULL`.pipe(
+      // The fixture holds the split and the salary's category as corrections, and the
+      // salary's as undone. Each set the allocations.
+      const corrections =
+        yield* sql`SELECT action, change, count(*)::int AS count FROM corrections GROUP BY 1, 2 ORDER BY 1, 2`.pipe(
           Effect.flatMap(
-            Schema.decodeUnknownEffect(Schema.Tuple([Schema.Struct({ count: Schema.Int })])),
+            Schema.decodeUnknownEffect(
+              Schema.Array(
+                Schema.Struct({ action: Schema.String, change: Schema.String, count: Schema.Int }),
+              ),
+            ),
           ),
         );
-      expect(backfilled.count).toBe(13);
+      expect(corrections).toEqual([
+        { action: "correct", change: "allocations", count: 2 },
+        { action: "undo", change: "allocations", count: 1 },
+      ]);
 
       // July's spending, counted by hand from the fixture: rent 1,840.00, groceries
       // 84.50, dinner 300.00 less the 200.00 linked repayment, two 120.00 purchases,

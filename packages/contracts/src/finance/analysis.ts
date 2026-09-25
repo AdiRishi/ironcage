@@ -38,6 +38,9 @@ export const PeriodSelection = Schema.Union([
 ]);
 export type PeriodSelection = typeof PeriodSelection.Type;
 export const DateBasis = Schema.Literals(["posted", "spending"]);
+// Which way money moved: out of your accounts, or into them.
+export const FlowDirection = Schema.Literals(["out", "in"]);
+export type FlowDirection = typeof FlowDirection.Type;
 export const ComparisonSelection = Schema.Union([
   Schema.Struct({ kind: Schema.Literals(["previous", "previousYear"]) }),
   Schema.Struct({ kind: Schema.Literal("fixed"), ...Period.fields }).check(

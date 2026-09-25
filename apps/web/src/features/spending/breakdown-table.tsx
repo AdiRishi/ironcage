@@ -202,7 +202,7 @@ export function BreakdownTable({
   );
   const table = useTable({ features, columns, data: rows, getRowId: rowId });
   return (
-    <Table className="min-w-[760px] type-body">
+    <Table className="min-w-[760px] type-body!">
       <TableHeader>
         {table.getHeaderGroups().map((group) => (
           <TableRow key={group.id} className="border-rule hover:bg-transparent">

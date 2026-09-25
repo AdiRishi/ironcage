@@ -27,7 +27,7 @@ import {
   UpdateEnrichmentSettings,
   CounterpartyId,
 } from "@repo/contracts/finance";
-import { scoreEvaluation } from "@repo/finance";
+import { scoreEvaluation, takesDefaultRole } from "@repo/finance";
 import { Context, Crypto, Effect, Layer, Schema, Struct } from "effect";
 import type { Statement } from "effect/unstable/sql";
 
@@ -40,6 +40,13 @@ import {
   ensureWorkflowStatus,
   workflowEnded,
 } from "../platform/services.ts";
+import {
+  applyImages,
+  noImages,
+  readCounterpartyRecords,
+  recordChange,
+} from "./counterparty-changes.ts";
+import { descriptorSamples } from "./descriptors.ts";
 import { reinterpret } from "./engine.ts";
 
 const batchSize = 25;
@@ -212,8 +219,7 @@ const applyResult = Effect.fn("applyEnrichmentResult")(function* ({
   if (!counterpartyId) {
     counterpartyId = CounterpartyId.make(yield* crypto.randomUUIDv4);
     const applied = result.kind !== "person" && result.confidence >= threshold;
-    const defaultRole =
-      result.kind === "person" || result.kind === "institution" ? result.defaultRole : null;
+    const defaultRole = takesDefaultRole(result.kind) ? result.defaultRole : null;
     yield* sql`INSERT INTO counterparties (id, name, kind, brand, default_category_id, default_role, source, status, model, confidence, reason)
       VALUES (${counterpartyId}, ${result.name}, ${result.kind}, ${result.brand}, ${yield* resolveCategory(result.categoryKey)}, ${defaultRole},
         'model', ${applied ? "applied" : "proposed"}, ${model}, ${result.confidence}, ${result.reason})`;
@@ -443,7 +449,7 @@ export class Enrichment extends Context.Service<
                 run.status === "completed" || run.status === "failed"
                   ? []
                   : yield* sql`SELECT i.alias_key AS "aliasKey",
-                        ARRAY(SELECT s.text FROM (SELECT d.counterparty_text AS text, count(*) AS n FROM posting_descriptors d WHERE d.alias_key = i.alias_key AND d.counterparty_text IS NOT NULL GROUP BY 1 ORDER BY n DESC, 1 LIMIT 3) s) AS samples,
+                        ${descriptorSamples(sql, sql("i.alias_key"))} AS samples,
                         ARRAY(SELECT DISTINCT d.channel FROM posting_descriptors d WHERE d.alias_key = i.alias_key ORDER BY 1) AS channels,
                         ARRAY(SELECT DISTINCT CASE WHEN p.amount_minor < 0 THEN 'out' ELSE 'in' END FROM posting_descriptors d JOIN postings p ON p.id = d.posting_id WHERE d.alias_key = i.alias_key ORDER BY 1) AS directions,
                         ARRAY(SELECT DISTINCT a.kind FROM posting_descriptors d JOIN postings p ON p.id = d.posting_id JOIN accounts a ON a.id = p.account_id WHERE d.alias_key = i.alias_key ORDER BY 1) AS "accountKinds",
@@ -628,26 +634,25 @@ export class Enrichment extends Context.Service<
               }
               const categoryId = CategoryId.make(yield* crypto.randomUUIDv4);
               yield* sql`INSERT INTO categories (id, name, tree, parent_id) VALUES (${categoryId}, ${proposal.name}, ${proposal.tree}, ${proposal.parentId})`;
-              const moved =
-                yield* sql`UPDATE counterparties SET default_category_id = ${categoryId}, version = version + 1, updated_at = now()
-                  WHERE id IN (SELECT m.id FROM (${movable(sql`${input.proposalId}::uuid`)}) m) RETURNING id`.pipe(
-                  Effect.flatMap(
-                    Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: CounterpartyId }))),
-                  ),
-                );
+              const moved = yield* readCounterpartyRecords(
+                sql`id IN (SELECT m.id FROM (${movable(sql`${input.proposalId}::uuid`)}) m)`,
+              );
+              const images = {
+                ...noImages,
+                counterparties: moved.map((before) => ({
+                  before,
+                  after: { ...before, defaultCategoryId: categoryId, version: before.version + 1 },
+                })),
+              };
+              yield* applyImages(images);
+              if (moved.length > 0)
+                yield* recordChange({
+                  commandId: input.commandId,
+                  kind: "acceptCategory",
+                  undoes: null,
+                  images,
+                });
               yield* sql`UPDATE category_proposals SET status = 'accepted' WHERE id = ${input.proposalId}`;
-              const affected =
-                moved.length === 0
-                  ? []
-                  : yield* sql`SELECT id FROM events WHERE active AND ${sql.in(
-                      "counterparty_id",
-                      moved.map((row) => row.id),
-                    )}`.pipe(
-                      Effect.flatMap(
-                        Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: EventId }))),
-                      ),
-                    );
-              yield* reinterpret(affected.map((row) => row.id));
               return { categoryId, moved: moved.length };
             }),
           ),

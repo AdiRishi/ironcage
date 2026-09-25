@@ -8,10 +8,11 @@ import {
   QuestionKind,
   QuestionList,
   QuestionSample,
+  Version,
 } from "@repo/contracts/finance";
 import { Context, Effect, Layer, Schema } from "effect";
 
-import { instant } from "../database/columns.ts";
+import { counterpartyColumns } from "../database/columns.ts";
 import { toFinanceError } from "../database/failures.ts";
 import { readTransaction } from "../database/transactions.ts";
 import { loadEventSubjects, subjectRuleConflict } from "./engine.ts";
@@ -95,9 +96,18 @@ export class Questions extends Context.Service<
               const counterparties =
                 counterpartyIds.length === 0
                   ? []
-                  : yield* sql`SELECT c.id, c.name, c.kind, c.brand, c.default_category_id AS "defaultCategoryId", c.default_role AS "defaultRole", c.source, c.status, c.model, c.confidence::float8 AS confidence, c.reason, c.version, ${instant(sql, sql("c.updated_at"))} AS "updatedAt" FROM counterparties c WHERE ${sql.in("c.id", counterpartyIds)}`.pipe(
+                  : yield* sql`SELECT ${counterpartyColumns(sql)} FROM counterparties c WHERE ${sql.in("c.id", counterpartyIds)}`.pipe(
                       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Counterparty))),
                     );
+              const aliasKeys = groups.flatMap((group) => (group.aliasKey ? [group.aliasKey] : []));
+              const aliases =
+                yield* sql`SELECT alias_key AS "aliasKey", version FROM counterparty_aliases WHERE ${sql.in("alias_key", aliasKeys)}`.pipe(
+                  Effect.flatMap(
+                    Schema.decodeUnknownEffect(
+                      Schema.Array(Schema.Struct({ aliasKey: Schema.String, version: Version })),
+                    ),
+                  ),
+                );
               const claimed =
                 yield* sql`SELECT r.event_id AS id FROM rule_applications r JOIN events e ON e.id = r.event_id AND e.active AND e.currency = ${currency} WHERE jsonb_array_length(r.applied_rules) > 1`.pipe(
                   Effect.flatMap(
@@ -113,6 +123,8 @@ export class Questions extends Context.Service<
                   id: group.key,
                   kind: group.kind,
                   aliasKey: group.aliasKey,
+                  aliasVersion:
+                    aliases.find((row) => row.aliasKey === group.aliasKey)?.version ?? null,
                   reference: group.reference,
                   counterparty:
                     counterparties.find((row) => row.id === group.counterpartyId) ?? null,
@@ -129,6 +141,7 @@ export class Questions extends Context.Service<
                   id: `ruleConflict:${subject.id}`,
                   kind: "ruleConflict",
                   aliasKey: null,
+                  aliasVersion: null,
                   reference: null,
                   counterparty: null,
                   proposal: null,

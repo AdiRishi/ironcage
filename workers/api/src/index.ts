@@ -19,6 +19,7 @@ import { Publication } from "./imports/publication.ts";
 import { Imports } from "./imports/service.ts";
 import { Uploads } from "./imports/uploads.ts";
 import { Counterparties } from "./interpretation/counterparties.ts";
+import { CounterpartyHistory } from "./interpretation/counterparty-history.ts";
 import { Enrichment } from "./interpretation/enrichment.ts";
 import { Questions } from "./interpretation/questions.ts";
 import { Models } from "./models/service.ts";
@@ -56,6 +57,7 @@ const operations = Effect.gen(function* () {
   const events = yield* Events;
   const sourceFiles = yield* SourceFiles;
   const counterparties = yield* Counterparties;
+  const counterpartyHistory = yield* CounterpartyHistory;
   const questions = yield* Questions;
   const enrichment = yield* Enrichment;
   const models = yield* Models;
@@ -92,17 +94,20 @@ const operations = Effect.gen(function* () {
     deleteReference: references.remove,
     previewCorrection: corrections.preview,
     applyCorrection: corrections.apply,
+    previewEventCounterparty: corrections.previewCounterparty,
+    assignEventCounterparty: corrections.assignCounterparty,
+    previewUndoCorrection: corrections.previewUndo,
     undoCorrection: corrections.undo,
-    getCorrectionHistory: corrections.history,
+    getEventHistory: corrections.history,
     reinterpretPostings: events.interpret,
     listCounterparties: counterparties.list,
     getCounterparty: counterparties.get,
-    saveCounterparty: counterparties.save,
-    mergeCounterparties: counterparties.merge,
-    moveAlias: counterparties.moveAlias,
-    saveReferenceDefault: counterparties.saveReference,
-    deleteReferenceDefault: counterparties.deleteReference,
-    assignEventCounterparty: counterparties.assignEvent,
+    searchDescriptors: counterparties.searchDescriptors,
+    previewCounterpartyChange: counterparties.preview,
+    applyCounterpartyChange: counterparties.apply,
+    listCounterpartyHistory: counterpartyHistory.list,
+    previewCounterpartyUndo: counterpartyHistory.previewUndo,
+    undoCounterpartyChange: counterpartyHistory.undo,
     listQuestions: questions.list,
     getEnrichmentSettings: () => enrichment.settings,
     updateEnrichmentSettings: enrichment.configure,
@@ -180,6 +185,7 @@ export const api = Effect.fn("Api.initialize")(function* (
     SourceFiles.layer,
     Models.layer,
     Counterparties.layer,
+    CounterpartyHistory.layer,
     Questions.layer,
     Enrichment.layer,
     Reviews.layer,

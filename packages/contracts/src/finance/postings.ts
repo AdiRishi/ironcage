@@ -27,6 +27,7 @@ import {
   ObservationId,
   PostingId,
   SourceFileId,
+  Version,
 } from "./values.ts";
 
 export const Posting = Schema.Struct({
@@ -75,7 +76,23 @@ export const Evidence = Schema.Struct({
   candidate: Schema.NullOr(Candidate),
   matchMethod: Schema.NullOr(MatchMethod),
 });
-export const PostingDetail = Schema.Struct({ posting: Posting, evidence: Schema.Array(Evidence) });
+// `descriptor` is the alias key that names the transaction's counterparty: the one its
+// primary posting's text reduces to, null when that text names no counterparty.
+// `eventCount` counts the transactions that move with the descriptor: those written with
+// that key whose counterparty you did not set by hand, and this one. `aliasVersion` is
+// null while no counterparty holds the key.
+export const PostingDetail = Schema.Struct({
+  posting: Posting,
+  evidence: Schema.Array(Evidence),
+  descriptor: Schema.NullOr(
+    Schema.Struct({
+      aliasKey: Schema.String,
+      counterpartyText: Schema.NullOr(Schema.String),
+      eventCount: Schema.Int,
+      aliasVersion: Schema.NullOr(Version),
+    }),
+  ),
+});
 
 // A posting with what it means, for the ledger list.
 export const LedgerRow = Schema.Struct({

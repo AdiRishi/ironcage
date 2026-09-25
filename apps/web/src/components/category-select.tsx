@@ -1,5 +1,6 @@
 import type { CategoryId, CategoryTree, ReferenceData } from "@repo/contracts/finance";
 import { cn } from "cn";
+import type { Ref } from "react";
 
 type Categories = (typeof ReferenceData.Type)["categories"];
 
@@ -12,6 +13,7 @@ export function CategorySelect({
   id,
   className,
   disabled,
+  ref,
 }: {
   categories: Categories;
   tree: CategoryTree;
@@ -20,11 +22,13 @@ export function CategorySelect({
   id?: string;
   className?: string;
   disabled?: boolean;
+  ref?: Ref<HTMLSelectElement>;
 }) {
   const active = categories.filter((category) => !category.archived && category.tree === tree);
   const tops = active.filter((category) => category.parentId === null);
   return (
     <select
+      ref={ref}
       id={id}
       disabled={disabled}
       value={value ?? ""}

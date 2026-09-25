@@ -98,6 +98,12 @@ export type CounterpartyDefaults = {
   applied: boolean;
 };
 
+// Only people and institutions take a default role. A business and an own account decide
+// by their kind.
+export function takesDefaultRole(kind: CounterpartyKind) {
+  return kind === "person" || kind === "institution";
+}
+
 export function counterpartyRole(
   counterparty: CounterpartyDefaults,
   amountMinor: bigint,

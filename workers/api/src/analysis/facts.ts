@@ -99,17 +99,24 @@ export const refreshFacts = Effect.fn("refreshFacts")(function* (
   return eventIds.length;
 });
 
-// Rebuilds the facts of every event this transaction's statements changed, as noted by
-// the triggers in migration 0022. A write transaction runs this before it commits, so a
-// committed write leaves no fact behind.
-export const refreshNotedFacts = Effect.gen(function* () {
+// Every event this transaction's statements changed, as noted by the triggers in
+// migration 0022.
+export const readNotedEvents = Effect.gen(function* () {
   const sql = yield* PgClient.PgClient;
   const noted =
     yield* sql`SELECT DISTINCT unnest(string_to_array(NULLIF(current_setting('ironcage.fact_events', true), ''), ','))::uuid AS id ORDER BY id`.pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: EventId })))),
     );
+  return noted.map((row) => row.id);
+});
+
+// Rebuilds the facts of every noted event. A write transaction runs this before it
+// commits, so a committed write leaves no fact behind.
+export const refreshNotedFacts = Effect.gen(function* () {
+  const sql = yield* PgClient.PgClient;
+  const noted = yield* readNotedEvents;
   if (noted.length === 0) return 0;
-  yield* refreshFacts(noted.map((row) => row.id));
+  yield* refreshFacts(noted);
   yield* sql`SELECT set_config('ironcage.fact_events', '', true)`;
   return noted.length;
 });

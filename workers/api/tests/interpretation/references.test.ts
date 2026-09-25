@@ -7,7 +7,14 @@ import { Publication } from "../../src/imports/publication.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
 import { Questions } from "../../src/interpretation/questions.ts";
 import { applicationTest } from "../support/application.ts";
-import { account, parsedRows, reset, source } from "../support/fixtures.ts";
+import {
+  account,
+  createCounterparty,
+  parsedRows,
+  reset,
+  source,
+  updateCounterparty,
+} from "../support/fixtures.ts";
 
 const { test, services } = applicationTest();
 const commandId = Crypto.Crypto.use((crypto) => crypto.randomUUIDv4).pipe(
@@ -55,17 +62,7 @@ test(
       importId: file.importId,
     });
     const counterparties = yield* Counterparties;
-    const jane = yield* counterparties.save({
-      commandId: yield* commandId,
-      target: { kind: "create", aliasKeys: ["JANE SMITH"] },
-      fields: {
-        name: "Jane Smith",
-        kind: "person",
-        brand: null,
-        defaultCategoryId: null,
-        defaultRole: null,
-      },
-    });
+    const jane = yield* createCounterparty({ name: "Jane Smith", kind: "person" }, ["JANE SMITH"]);
     const questions = Effect.gen(function* () {
       const list = yield* (yield* Questions).list({ currency: "AUD" });
       return list
@@ -77,29 +74,28 @@ test(
       ["dinner split", 1],
     ]);
 
-    yield* counterparties.saveReference({
+    yield* counterparties.apply({
       commandId: yield* commandId,
-      counterpartyId: jane.id,
-      referenceKey: "rent",
-      defaultRole: "purchase",
-      defaultCategoryId: yield* category("housing.rent"),
+      change: {
+        kind: "saveReference",
+        counterpartyId: jane.id,
+        referenceKey: "rent",
+        expectedVersion: null,
+        defaultRole: "purchase",
+        defaultCategoryId: yield* category("housing.rent"),
+      },
     });
     expect(yield* questions).toEqual([["dinner split", 1]]);
     expect(yield* spendingBySlug).toEqual({ "housing.rent": "368000" });
 
     // Her own default covers the rest, and the reference still outranks it.
-    const current = (yield* counterparties.get({ counterpartyId: jane.id })).counterparty;
-    yield* counterparties.save({
-      commandId: yield* commandId,
-      target: { kind: "update", id: jane.id, expectedVersion: current.version },
-      fields: {
-        name: current.name,
-        kind: "person",
-        brand: null,
+    yield* updateCounterparty(
+      (yield* counterparties.get({ counterpartyId: jane.id })).counterparty,
+      {
         defaultCategoryId: yield* category("food.dining-out"),
         defaultRole: "purchase",
       },
-    });
+    );
     expect(yield* questions).toEqual([]);
     expect(yield* spendingBySlug).toEqual({ "food.dining-out": "4000", "housing.rent": "368000" });
     expect(
@@ -107,16 +103,21 @@ test(
         row.referenceKey,
         row.eventCount,
         row.defaultRole,
+        row.version,
       ]),
     ).toEqual([
-      ["rent", 2, "purchase"],
-      ["dinner split", 1, null],
+      ["rent", 2, "purchase", 1],
+      ["dinner split", 1, null, null],
     ]);
 
-    yield* counterparties.deleteReference({
+    yield* counterparties.apply({
       commandId: yield* commandId,
-      counterpartyId: jane.id,
-      referenceKey: "rent",
+      change: {
+        kind: "deleteReference",
+        counterpartyId: jane.id,
+        referenceKey: "rent",
+        expectedVersion: 1,
+      },
     });
     expect(yield* spendingBySlug).toEqual({ "food.dining-out": "372000" });
   }).pipe(Effect.provide(services)),

@@ -47,7 +47,7 @@ export function HistoryChart({
         </Button>
       </figcaption>
       {asTable ? (
-        <Table className="type-body">
+        <Table className="type-body!">
           <TableCaption className="sr-only">{caption}</TableCaption>
           <TableHeader>
             <TableRow className="hover:bg-transparent">

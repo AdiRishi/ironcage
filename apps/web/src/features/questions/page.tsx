@@ -1,15 +1,16 @@
 import {
+  type ApplyCounterpartyChange,
   CommandId,
   type Counterparty,
+  type CounterpartyChange,
+  type CounterpartyFields,
   type CounterpartyKind,
   type CounterpartyRole,
-  type MoveAlias,
   type Question,
   type QuestionKind,
   type ReferenceData,
-  type SaveCounterparty,
-  type SaveReferenceDefault,
 } from "@repo/contracts/finance";
+import { takesDefaultRole } from "@repo/finance";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useId, useState } from "react";
@@ -19,14 +20,11 @@ import { CategorySelect } from "@/components/category-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { counterpartyKinds, counterpartyRoles } from "@/features/counterparties/choices";
-import {
-  moveAlias,
-  saveCounterparty,
-  saveReferenceDefault,
-} from "@/features/counterparties/functions";
+import { applyCounterpartyChange } from "@/features/counterparties/functions";
 import { useCommand } from "@/lib/use-command";
 
 export type QuestionFilter = "who" | "people" | "accounts" | "rules";
+type Fields = typeof CounterpartyFields.Type;
 
 const filters: ReadonlyArray<{
   value: QuestionFilter;
@@ -207,20 +205,28 @@ function Answer({
 }) {
   const client = useQueryClient();
   const save = useCommand({
-    mutationFn: (data: typeof SaveCounterparty.Type) => saveCounterparty({ data }),
+    mutationFn: (data: typeof ApplyCounterpartyChange.Type) => applyCounterpartyChange({ data }),
     onSuccess: () => client.invalidateQueries(),
   });
   const counterparty = question.counterparty;
-  const saveAs =
-    (target: (typeof SaveCounterparty.Type)["target"]) =>
-    (fields: (typeof SaveCounterparty.Type)["fields"]) =>
-      save.submit({ commandId: CommandId.make(crypto.randomUUID()), target, fields });
-  const create = saveAs({
-    kind: "create",
-    aliasKeys: question.aliasKey ? [question.aliasKey] : [],
-  });
+  const apply = (change: CounterpartyChange) =>
+    save.submit({ commandId: CommandId.make(crypto.randomUUID()), change });
+  const create = (fields: Fields) =>
+    apply({
+      kind: "create",
+      fields,
+      aliases: question.aliasKey
+        ? [{ aliasKey: question.aliasKey, expectedVersion: question.aliasVersion }]
+        : [],
+    });
   const submit = counterparty
-    ? saveAs({ kind: "update", id: counterparty.id, expectedVersion: counterparty.version })
+    ? (fields: Fields) =>
+        apply({
+          kind: "update",
+          counterpartyId: counterparty.id,
+          expectedVersion: counterparty.version,
+          fields,
+        })
     : create;
   const busy = save.mutation.isPending;
   const status = save.mutation.error && (
@@ -250,6 +256,7 @@ function Answer({
         references={references}
         busy={busy}
         onSaveCounterparty={submit}
+        onApply={apply}
         status={status}
       />
     );
@@ -304,15 +311,24 @@ function Answer({
     return <OwnAccountAnswer question={question} busy={busy} onSave={submit} status={status} />;
   }
 
-  if (question.kind === "alias" && counterparty && question.aliasKey) {
+  const { aliasKey } = question;
+  if (question.kind === "alias" && counterparty && aliasKey) {
     return (
       <AliasAnswer
         question={question}
-        aliasKey={question.aliasKey}
         counterparty={counterparty}
         references={references}
         busy={busy}
         onCreate={create}
+        onConfirm={() =>
+          apply({
+            kind: "moveAlias",
+            aliasKey,
+            expectedVersion: question.aliasVersion,
+            counterpartyId: counterparty.id,
+            event: null,
+          })
+        }
         status={status}
       />
     );
@@ -334,42 +350,26 @@ function Answer({
 // the counterparty it really belongs to.
 function AliasAnswer({
   question,
-  aliasKey,
   counterparty,
   references,
   busy,
   onCreate,
+  onConfirm,
   status,
 }: {
   question: Question;
-  aliasKey: string;
   counterparty: Counterparty;
   references: typeof ReferenceData.Type;
   busy: boolean;
-  onCreate: (fields: (typeof SaveCounterparty.Type)["fields"]) => void;
+  onCreate: (fields: Fields) => void;
+  onConfirm: () => void;
   status: React.ReactNode;
 }) {
-  const client = useQueryClient();
   const [someoneElse, setSomeoneElse] = useState(false);
-  const confirm = useCommand({
-    mutationFn: (data: typeof MoveAlias.Type) => moveAlias({ data }),
-    onSuccess: () => client.invalidateQueries(),
-  });
-  const pending = busy || confirm.mutation.isPending;
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          disabled={pending}
-          onClick={() =>
-            confirm.submit({
-              commandId: CommandId.make(crypto.randomUUID()),
-              aliasKey,
-              counterpartyId: counterparty.id,
-            })
-          }
-        >
+        <Button size="sm" disabled={busy} onClick={onConfirm}>
           Yes, it's {counterparty.name}
         </Button>
         <Button
@@ -386,15 +386,10 @@ function AliasAnswer({
           question={question}
           counterparty={null}
           references={references}
-          busy={pending}
+          busy={busy}
           onSave={onCreate}
           status={status}
         />
-      )}
-      {confirm.mutation.error && (
-        <p role="alert" className="type-small text-attention">
-          {confirm.mutation.error.message}
-        </p>
       )}
       {!someoneElse && status}
     </div>
@@ -409,7 +404,7 @@ function OwnAccountAnswer({
 }: {
   question: Question;
   busy: boolean;
-  onSave: (fields: (typeof SaveCounterparty.Type)["fields"]) => void;
+  onSave: (fields: Fields) => void;
   status: React.ReactNode;
 }) {
   const id = useId();
@@ -474,7 +469,7 @@ function Identify({
   counterparty: Counterparty | null;
   references: typeof ReferenceData.Type;
   busy: boolean;
-  onSave: (fields: (typeof SaveCounterparty.Type)["fields"]) => void;
+  onSave: (fields: Fields) => void;
   status: React.ReactNode;
 }) {
   const id = useId();
@@ -484,7 +479,7 @@ function Identify({
     counterparty?.defaultRole ?? "",
   );
   const [categoryId, setCategoryId] = useState(counterparty?.defaultCategoryId ?? null);
-  const hasRole = kind === "person" || kind === "institution";
+  const hasRole = takesDefaultRole(kind);
   return (
     <form
       className="grid gap-3 sm:grid-cols-2"
@@ -573,30 +568,30 @@ function PersonAnswer({
   references,
   busy,
   onSaveCounterparty,
+  onApply,
   status,
 }: {
   question: Question;
   counterparty: Counterparty;
   references: typeof ReferenceData.Type;
   busy: boolean;
-  onSaveCounterparty: (fields: (typeof SaveCounterparty.Type)["fields"]) => void;
+  onSaveCounterparty: (fields: Fields) => void;
+  onApply: (change: CounterpartyChange) => void;
   status: React.ReactNode;
 }) {
   const id = useId();
-  const client = useQueryClient();
   const reference = question.reference;
   const [onlyReference, setOnlyReference] = useState(reference !== null);
   const [categoryId, setCategoryId] = useState(counterparty.defaultCategoryId);
-  const byReference = useCommand({
-    mutationFn: (data: typeof SaveReferenceDefault.Type) => saveReferenceDefault({ data }),
-    onSuccess: () => client.invalidateQueries(),
-  });
+  // A person question is asked only about a reference without a default, so the
+  // answer creates one.
   const answer = (role: typeof CounterpartyRole.Type) => {
     if (reference && onlyReference) {
-      byReference.submit({
-        commandId: CommandId.make(crypto.randomUUID()),
+      onApply({
+        kind: "saveReference",
         counterpartyId: counterparty.id,
         referenceKey: reference.key,
+        expectedVersion: null,
         defaultRole: role,
         defaultCategoryId: role === "transfer" ? null : categoryId,
       });
@@ -610,7 +605,6 @@ function PersonAnswer({
       defaultRole: role === "transfer" ? null : role,
     });
   };
-  const pending = busy || byReference.mutation.isPending;
   return (
     <div className="space-y-3">
       {reference && (
@@ -644,7 +638,7 @@ function PersonAnswer({
           tree="spending"
           value={categoryId}
           onChange={setCategoryId}
-          disabled={pending}
+          disabled={busy}
         />
       </label>
       <fieldset className="flex flex-wrap gap-2">
@@ -654,18 +648,13 @@ function PersonAnswer({
             key={role.value}
             size="sm"
             variant="outline"
-            disabled={pending}
+            disabled={busy}
             onClick={() => answer(role.value)}
           >
             {role.value === "transfer" ? "This is me, moving my own money" : role.label}
           </Button>
         ))}
       </fieldset>
-      {byReference.mutation.error && (
-        <p role="alert" className="type-small text-attention">
-          {byReference.mutation.error.message}
-        </p>
-      )}
       {status}
     </div>
   );

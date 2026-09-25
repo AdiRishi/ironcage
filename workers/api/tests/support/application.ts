@@ -18,6 +18,7 @@ import { Corrections } from "../../src/events/corrections.ts";
 import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
+import { CounterpartyHistory } from "../../src/interpretation/counterparty-history.ts";
 import { Enrichment } from "../../src/interpretation/enrichment.ts";
 import { Questions } from "../../src/interpretation/questions.ts";
 import { EnrichmentConfig, EnrichmentJobs, FactJobs } from "../../src/platform/services.ts";
@@ -81,6 +82,7 @@ export const applicationServices = <E>(
     Reviews.layer,
     Settings.layer,
     Counterparties.layer,
+    CounterpartyHistory.layer,
     Questions.layer,
     Enrichment.layer,
   ).pipe(

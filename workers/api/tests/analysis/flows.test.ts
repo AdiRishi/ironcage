@@ -9,10 +9,9 @@ import { Spending } from "../../src/analysis/spending.ts";
 import { Corrections } from "../../src/events/corrections.ts";
 import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
-import { Counterparties } from "../../src/interpretation/counterparties.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { applicationTest } from "../support/application.ts";
-import { account, parsedRows, reset, source } from "../support/fixtures.ts";
+import { account, createCounterparty, parsedRows, reset, source } from "../support/fixtures.ts";
 import { populate } from "../support/populated.ts";
 
 const { test, services } = applicationTest();
@@ -56,25 +55,16 @@ const setup = Effect.fn("flowSetup")(function* (earlier: Parameters<typeof parse
     if (!found) throw new Error(`Expected ${slug}`);
     return found.id;
   };
-  const counterparties = yield* Counterparties;
-  yield* counterparties.save({
-    commandId: yield* commandId,
-    target: { kind: "create", aliasKeys: ["UBER EATS"] },
-    fields: {
-      name: "Uber Eats",
-      kind: "business",
-      brand: null,
-      defaultCategoryId: category("food.delivery"),
-      defaultRole: null,
-    },
-  });
-  return { events, category, counterparties };
+  yield* createCounterparty({ name: "Uber Eats", defaultCategoryId: category("food.delivery") }, [
+    "UBER EATS",
+  ]);
+  return { events, category };
 });
 
 test(
   "the flow counts a payment to a person as spending once it is answered, and never counts own-account moves",
   Effect.gen(function* () {
-    const { category, counterparties } = yield* setup();
+    const { category } = yield* setup();
     const flows = yield* Flows;
     const before = yield* flows.period(august);
     expect(before.totals).toMatchObject({
@@ -86,17 +76,15 @@ test(
     expect(before.outflows.find((stream) => stream.kind === "unresolvedOut")?.amount.minor).toBe(
       184000n,
     );
-    yield* counterparties.save({
-      commandId: yield* commandId,
-      target: { kind: "create", aliasKeys: ["JANE SMITH"] },
-      fields: {
+    yield* createCounterparty(
+      {
         name: "Jane Smith",
         kind: "person",
-        brand: null,
         defaultCategoryId: category("housing.rent"),
         defaultRole: "purchase",
       },
-    });
+      ["JANE SMITH"],
+    );
     const after = yield* flows.period(august);
     expect(after.totals.spending.minor).toBe(189000n);
     expect(after.outflows.map((stream) => [stream.label, stream.amount.minor])).toEqual([

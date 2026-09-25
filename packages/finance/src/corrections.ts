@@ -1,17 +1,26 @@
-import { type EventChange, type FinancialEvent, FinanceError } from "@repo/contracts/finance";
+import {
+  type CounterpartyId,
+  type EventChange,
+  type FinancialEvent,
+  FinanceError,
+} from "@repo/contracts/finance";
 import { Array as Arr, Effect } from "effect";
 
 import { allocationRole } from "./events.ts";
 
-export const correctEvent = Effect.fn("correctEvent")(function* (
-  event: FinancialEvent,
-  change: EventChange,
-) {
+const checkActive = Effect.fn("checkActive")(function* (event: FinancialEvent) {
   if (!event.active)
     return yield* new FinanceError({
       kind: "conflict",
       message: "This event was joined to another event. Open its active interpretation.",
     });
+});
+
+const checkEventChange = Effect.fn("checkEventChange")(function* (
+  event: FinancialEvent,
+  change: Pick<EventChange, "kind" | "purchaseOn" | "allocations">,
+) {
+  yield* checkActive(event);
   if (
     change.allocations.some(
       (allocation) =>
@@ -66,6 +75,13 @@ export const correctEvent = Effect.fn("correctEvent")(function* (
       kind: "invalid",
       message: "Only purchases have a purchase date.",
     });
+});
+
+export const correctEvent = Effect.fn("correctEvent")(function* (
+  event: FinancialEvent,
+  change: EventChange,
+) {
+  yield* checkEventChange(event, change);
   const split = change.allocations.length > 1 || event.allocations.length > 1;
   return {
     ...event,
@@ -86,4 +102,41 @@ export const correctEvent = Effect.fn("correctEvent")(function* (
     }),
     version: event.version + 1,
   };
+});
+
+// Returns an event's role, purchase date, and allocations to what they were before a
+// correction, with the sources they had then, so only values you set stay yours. A
+// movement link fixes the role only while the link exists.
+export const restoreEvent = Effect.fn("restoreEvent")(function* (
+  current: FinancialEvent,
+  prior: FinancialEvent,
+) {
+  yield* checkEventChange(current, prior);
+  return {
+    ...current,
+    kind: prior.kind,
+    roleSource:
+      current.roleSource === "link"
+        ? "link"
+        : prior.roleSource === "link"
+          ? null
+          : prior.roleSource,
+    purchaseOn: prior.purchaseOn,
+    allocations: prior.allocations,
+    version: current.version + 1,
+  } satisfies FinancialEvent;
+});
+
+// A null counterparty returns the event to the counterparty its descriptor names.
+export const assignCounterparty = Effect.fn("assignCounterparty")(function* (
+  event: FinancialEvent,
+  counterpartyId: typeof CounterpartyId.Type | null,
+) {
+  yield* checkActive(event);
+  return {
+    ...event,
+    counterpartyId,
+    counterpartySource: counterpartyId === null ? null : "user",
+    version: event.version + 1,
+  } satisfies FinancialEvent;
 });

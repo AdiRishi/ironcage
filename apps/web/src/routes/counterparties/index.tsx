@@ -1,3 +1,4 @@
+import { FlowDirection, ListCounterparties } from "@repo/contracts/finance";
 import { monthsPeriod } from "@repo/finance";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -10,13 +11,17 @@ import { settingsQueryOptions } from "@/features/settings/queries";
 import { resolvePeriodKey } from "@/lib/period";
 
 const Search = Schema.Struct({
-  search: Schema.optional(Schema.String.check(Schema.isMaxLength(100))),
-  direction: Schema.optional(Schema.Literals(["out", "in"])),
+  search: Schema.optional(ListCounterparties.fields.search),
+  direction: Schema.optional(FlowDirection),
 });
 
 export const Route = createFileRoute("/counterparties/")({
   validateSearch: Schema.toStandardSchemaV1(Search),
-  loaderDeps: ({ search }) => ({ period: search.period, search: search.search ?? "" }),
+  loaderDeps: ({ search }) => ({
+    period: search.period,
+    search: search.search ?? "",
+    direction: search.direction ?? "out",
+  }),
   loader: async ({ context, deps }) => {
     const settings = await context.queryClient.ensureQueryData(settingsQueryOptions());
     const period = resolvePeriodKey(deps.period, settings.timezone);
@@ -26,6 +31,7 @@ export const Route = createFileRoute("/counterparties/")({
           search: deps.search,
           currency: settings.reportingCurrency,
           period: monthsPeriod(period.from, period.to),
+          direction: deps.direction,
         }),
       ),
       context.queryClient.ensureQueryData(referenceDataQuery()),
@@ -39,11 +45,13 @@ function Counterparties() {
   const navigate = Route.useNavigate();
   const { data: settings } = useSuspenseQuery(settingsQueryOptions());
   const period = resolvePeriodKey(search.period, settings.timezone);
+  const direction = search.direction ?? "out";
   const { data: counterparties } = useSuspenseQuery(
     counterpartiesQuery({
       search: search.search ?? "",
       currency: settings.reportingCurrency,
       period: monthsPeriod(period.from, period.to),
+      direction,
     }),
   );
   const { data: references } = useSuspenseQuery(referenceDataQuery());
@@ -52,7 +60,7 @@ function Counterparties() {
       counterparties={counterparties}
       references={references}
       period={period}
-      direction={search.direction ?? "out"}
+      direction={direction}
       search={search.search ?? ""}
       onSearch={(value) => {
         navigate({ search: (previous) => ({ ...previous, search: value || undefined }) }).catch(

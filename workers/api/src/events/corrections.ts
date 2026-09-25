@@ -1,28 +1,98 @@
 import { PgClient } from "@effect/sql-pg";
 import {
   ApplyCorrection,
-  CorrectionHistory,
+  AssignEventCounterparty,
+  Correction,
+  type CorrectionId,
   CorrectionPreview,
+  type CounterpartyId,
+  type EventHistory,
+  EventHistoryEntry,
   EventInput,
+  type EventPreview,
   FinancialEvent,
   FinanceError,
   PreviewCorrection,
+  type PreviewEventCounterparty,
+  type PreviewUndoCorrection,
   UndoCorrection,
 } from "@repo/contracts/finance";
-import { correctEvent } from "@repo/finance";
-import { Context, Crypto, Effect, Layer, Schema } from "effect";
+import { assignCounterparty, correctEvent, restoreEvent } from "@repo/finance";
+import { Context, Crypto, Effect, Layer, Predicate, Schema, Struct } from "effect";
 
-import { previewImpacts } from "../analysis/preview.ts";
+import { previewImpacts, previewWrite } from "../analysis/preview.ts";
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
+import { readTransaction } from "../database/transactions.ts";
+import { readCounterparty } from "../interpretation/counterparties.ts";
+import {
+  readChangeEntries,
+  readCounterpartyNames,
+} from "../interpretation/counterparty-history.ts";
+import { reinterpret } from "../interpretation/engine.ts";
 import {
   checkEventVersions,
-  correctionHistory,
+  readCorrections,
   recordCorrection,
   writeEvent,
   validateEventRelationships,
 } from "./correction-records.ts";
 import { readEvent } from "./repository.ts";
+
+// Gives an event the counterparty you chose, or with null returns it to the one its
+// descriptor names, and derives what follows from that counterparty.
+const assignWrite = Effect.fn("assignWrite")(function* (
+  event: FinancialEvent,
+  counterpartyId: typeof CounterpartyId.Type | null,
+) {
+  const sql = yield* PgClient.PgClient;
+  const assigned = yield* assignCounterparty(event, counterpartyId);
+  yield* sql`UPDATE events SET counterparty_id = ${assigned.counterpartyId}, counterparty_source = ${assigned.counterpartySource}, version = ${assigned.version} WHERE id = ${assigned.id}`;
+  yield* reinterpret([assigned.id]);
+  return yield* readEvent(assigned.id);
+});
+
+const readCorrection = Effect.fn("readCorrection")(function* (
+  correctionId: typeof CorrectionId.Type,
+) {
+  const sql = yield* PgClient.PgClient;
+  const [saved] = yield* sql`SELECT prior, change FROM corrections WHERE id = ${correctionId}`.pipe(
+    Effect.flatMap(
+      Schema.decodeUnknownEffect(
+        Schema.Array(Correction.mapFields(Struct.pick(["prior", "change"]))),
+      ),
+    ),
+  );
+  if (!saved)
+    return yield* new FinanceError({ kind: "notFound", message: "Correction not found." });
+  return saved;
+});
+
+// Sets back the part of an event a correction changed, with the sources its values had
+// then, and derives the rest again.
+const undoWrite = Effect.fn("undoCorrectionWrite")(function* (
+  event: FinancialEvent,
+  { prior, change }: Pick<typeof Correction.Type, "prior" | "change">,
+) {
+  const sql = yield* PgClient.PgClient;
+  if (change === "counterparty") {
+    const counterpartyId = prior.counterpartySource === "user" ? prior.counterpartyId : null;
+    if (
+      counterpartyId &&
+      (yield* sql`SELECT id FROM counterparties WHERE id = ${counterpartyId}`).length === 0
+    )
+      return yield* new FinanceError({
+        kind: "conflict",
+        message:
+          "That counterparty was merged or removed. Use Change to choose who the transaction was with.",
+      });
+    return yield* assignWrite(event, counterpartyId);
+  }
+  const restored = yield* restoreEvent(event, prior);
+  yield* writeEvent(restored);
+  yield* reinterpret([restored.id]);
+  return yield* readEvent(restored.id);
+});
 
 export class Corrections extends Context.Service<
   Corrections,
@@ -33,12 +103,21 @@ export class Corrections extends Context.Service<
     readonly apply: (
       input: typeof ApplyCorrection.Type,
     ) => Effect.Effect<FinancialEvent, FinanceError>;
+    readonly previewCounterparty: (
+      input: typeof PreviewEventCounterparty.Type,
+    ) => Effect.Effect<typeof EventPreview.Type, FinanceError>;
+    readonly assignCounterparty: (
+      input: typeof AssignEventCounterparty.Type,
+    ) => Effect.Effect<FinancialEvent, FinanceError>;
+    readonly previewUndo: (
+      input: typeof PreviewUndoCorrection.Type,
+    ) => Effect.Effect<typeof EventPreview.Type, FinanceError>;
     readonly undo: (
       input: typeof UndoCorrection.Type,
     ) => Effect.Effect<FinancialEvent, FinanceError>;
     readonly history: (
       input: typeof EventInput.Type,
-    ) => Effect.Effect<typeof CorrectionHistory.Type, FinanceError>;
+    ) => Effect.Effect<typeof EventHistory.Type, FinanceError>;
   }
 >()("@repo/api/events/Corrections") {
   static readonly layer = Layer.effect(
@@ -89,11 +168,67 @@ export class Corrections extends Context.Service<
                 prior,
                 accepted,
                 commandId: input.commandId,
-                scope: "event",
+                action: "correct",
+                change: "allocations",
               });
               return accepted;
             }),
           });
+        },
+        provide,
+        toFinanceError,
+      );
+      const previewCounterparty = Effect.fn("Corrections.previewCounterparty")(
+        function* ({ eventId, counterpartyId }: typeof PreviewEventCounterparty.Type) {
+          return eventPreview(
+            yield* previewWrite(
+              Effect.gen(function* () {
+                const prior = yield* readEvent(eventId);
+                if (counterpartyId) yield* readCounterparty(counterpartyId);
+                return { prior, after: yield* assignWrite(prior, counterpartyId) };
+              }),
+            ),
+          );
+        },
+        provide,
+        toFinanceError,
+      );
+      const assignCounterpartyCommand = Effect.fn("Corrections.assignCounterparty")(
+        function* (input: typeof AssignEventCounterparty.Type) {
+          return yield* commands.run({
+            commandId: input.commandId,
+            input: { operation: "assignEventCounterparty", ...input },
+            result: Schema.toCodecJson(FinancialEvent),
+            execute: Effect.gen(function* () {
+              const prior = yield* readEvent(input.eventId);
+              yield* checkEventVersions([prior], input.expectedVersions);
+              if (input.counterpartyId) yield* readCounterparty(input.counterpartyId);
+              const accepted = yield* assignWrite(prior, input.counterpartyId);
+              yield* recordCorrection({
+                prior,
+                accepted,
+                commandId: input.commandId,
+                action: "correct",
+                change: "counterparty",
+              });
+              return accepted;
+            }),
+          });
+        },
+        provide,
+        toFinanceError,
+      );
+      const previewUndo = Effect.fn("Corrections.previewUndo")(
+        function* ({ correctionId }: typeof PreviewUndoCorrection.Type) {
+          return eventPreview(
+            yield* previewWrite(
+              Effect.gen(function* () {
+                const saved = yield* readCorrection(correctionId);
+                const prior = yield* readEvent(saved.prior.id);
+                return { prior, after: yield* undoWrite(prior, saved) };
+              }),
+            ),
+          );
         },
         provide,
         toFinanceError,
@@ -105,35 +240,16 @@ export class Corrections extends Context.Service<
             input: { operation: "undoCorrection", ...input },
             result: Schema.toCodecJson(FinancialEvent),
             execute: Effect.gen(function* () {
-              const [saved] =
-                yield* sql`SELECT prior, accepted FROM corrections WHERE id = ${input.correctionId}`.pipe(
-                  Effect.flatMap(
-                    Schema.decodeUnknownEffect(
-                      Schema.Array(
-                        Schema.Struct({ prior: FinancialEvent, accepted: FinancialEvent }),
-                      ),
-                    ),
-                  ),
-                );
-              if (!saved)
-                return yield* new FinanceError({
-                  kind: "notFound",
-                  message: "Correction not found.",
-                });
+              const saved = yield* readCorrection(input.correctionId);
               const prior = yield* readEvent(saved.prior.id);
               yield* checkEventVersions([prior], input.expectedVersions);
-              const accepted = yield* correctEvent(prior, {
-                eventId: prior.id,
-                kind: saved.prior.kind,
-                purchaseOn: saved.prior.purchaseOn,
-                allocations: saved.prior.allocations,
-              });
-              yield* writeEvent(accepted);
+              const accepted = yield* undoWrite(prior, saved);
               yield* recordCorrection({
                 prior,
                 accepted,
                 commandId: input.commandId,
-                scope: "undo",
+                action: "undo",
+                change: saved.change,
               });
               return accepted;
             }),
@@ -142,14 +258,78 @@ export class Corrections extends Context.Service<
         provide,
         toFinanceError,
       );
+      // The event's corrections and the counterparty changes that changed what it
+      // means, newest first.
       const history = Effect.fn("Corrections.history")(
         function* ({ eventId }: typeof EventInput.Type) {
-          return yield* correctionHistory(eventId);
+          return yield* readTransaction(
+            sql,
+            Effect.gen(function* () {
+              const corrections = yield* readCorrections(eventId);
+              const changes = yield* readChangeEntries(
+                sql`c.id IN (SELECT ce.change_id FROM counterparty_change_events ce WHERE ce.event_id = ${eventId})`,
+                null,
+              );
+              const entries = [
+                ...corrections.map((correction) => ({ kind: "correction" as const, correction })),
+                ...changes.map((change) => ({ kind: "counterparty" as const, change })),
+              ].toSorted((a, b) => {
+                const first = entryStamp(a);
+                const second = entryStamp(b);
+                return (
+                  second.createdAt.localeCompare(first.createdAt) ||
+                  second.id.localeCompare(first.id)
+                );
+              });
+              return {
+                entries,
+                names: yield* readCounterpartyNames([
+                  ...new Set(
+                    corrections
+                      .flatMap(({ prior, accepted }) => [
+                        prior.counterpartyId,
+                        accepted.counterpartyId,
+                      ])
+                      .filter(Predicate.isNotNull),
+                  ),
+                ]),
+              } satisfies typeof EventHistory.Type;
+            }),
+          );
         },
         provide,
         toFinanceError,
       );
-      return Corrections.of({ preview, apply, undo, history });
+      return Corrections.of({
+        preview,
+        apply,
+        previewCounterparty,
+        assignCounterparty: assignCounterpartyCommand,
+        previewUndo,
+        undo,
+        history,
+      });
     }),
   );
 }
+
+// A previewed write's event as it leaves it, with the version it expects the event at.
+function eventPreview({
+  result,
+  impacts,
+}: {
+  readonly result: { readonly prior: FinancialEvent; readonly after: FinancialEvent };
+  readonly impacts: (typeof EventPreview.Type)["impacts"];
+}): typeof EventPreview.Type {
+  return {
+    after: result.after,
+    expectedVersions: [{ eventId: result.prior.id, version: result.prior.version }],
+    impacts,
+  };
+}
+
+// When an entry was written, and its ID for entries written at the same time.
+const entryStamp = EventHistoryEntry.match({
+  correction: ({ correction }) => correction,
+  counterparty: ({ change }) => change,
+});
