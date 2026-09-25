@@ -2,6 +2,7 @@ import type { MonthlyFlow } from "@repo/contracts/finance";
 import { formatCurrency, monthLabel } from "@repo/finance";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
+import { Struct } from "effect";
 import { useEffect, useRef } from "react";
 
 import { monthInitial, type PeriodChoice } from "@/lib/period";
@@ -10,6 +11,8 @@ import { MonthRangePicker } from "./month-range-picker";
 
 // One short bar per month of outflow. It is the period control and a picture of the
 // whole history at once. A month with no records is an outline, never a zero bar.
+// Choosing a period drops the ledger's page cursor, which belongs to the period it was
+// read in.
 export function PeriodStrip({
   months,
   period,
@@ -53,7 +56,10 @@ export function PeriodStrip({
                       <li key={month.month}>
                         <Link
                           to="."
-                          search={(previous) => ({ ...previous, period: month.month })}
+                          search={(previous) => ({
+                            ...Struct.omit(previous, ["cursor"]),
+                            period: month.month,
+                          })}
                           ref={month.month === lastSelected ? selected : undefined}
                           aria-current={
                             period.from === month.month && period.to === month.month
@@ -101,7 +107,10 @@ export function PeriodStrip({
               </ol>
               <Link
                 to="."
-                search={(previous) => ({ ...previous, period: year })}
+                search={(previous) => ({
+                  ...Struct.omit(previous, ["cursor"]),
+                  period: Number(year),
+                })}
                 aria-current={isYear(year) ? "true" : undefined}
                 className={cn(
                   "type-small tabular self-start rounded-sm",
@@ -117,9 +126,10 @@ export function PeriodStrip({
           months={months.map((month) => month.month)}
           period={period}
           onChange={(key) => {
-            navigate({ to: ".", search: (previous) => ({ ...previous, period: key }) }).catch(
-              reportError,
-            );
+            navigate({
+              to: ".",
+              search: (previous) => ({ ...Struct.omit(previous, ["cursor"]), period: key }),
+            }).catch(reportError);
           }}
         />
       </div>

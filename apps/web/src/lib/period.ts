@@ -1,6 +1,7 @@
 import {
   CalendarDate,
   type ComparisonSelection,
+  type DateBasis,
   type FlowInput,
   PeriodSelection,
   YearMonth,
@@ -118,15 +119,23 @@ export function comparisonSelection(
   };
 }
 
+// Screens place facts on spending dates, so a number and the records it opens read the
+// same days.
+export const analysisBasis = "spending" as const satisfies typeof DateBasis.Type;
+
+export function periodSelection(period: PeriodChoice) {
+  return { kind: "months", from: period.from, to: period.to } satisfies PeriodSelection;
+}
+
 export function flowInput(
   period: PeriodChoice,
   compare: ComparisonKey | undefined,
   currency: string,
 ): FlowInput {
   return {
-    period: { kind: "months", from: period.from, to: period.to },
+    period: periodSelection(period),
     comparison: comparisonSelection(compare),
-    basis: "spending",
+    basis: analysisBasis,
     currency,
   };
 }

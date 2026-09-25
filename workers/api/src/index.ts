@@ -133,6 +133,7 @@ const operations = Effect.gen(function* () {
     updateAccount: accounts.update,
     listPostings: postings.list,
     listLedger: postings.ledger,
+    listCountedLedger: postings.counted,
     getPosting: postings.get,
     retryImport: imports.retry,
     listImports: imports.list,

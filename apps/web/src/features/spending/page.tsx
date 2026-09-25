@@ -1,5 +1,7 @@
 import type {
   CalendarDate,
+  CategoryId,
+  CategoryScope,
   MonthTotal,
   Money,
   SpendingBreakdown,
@@ -7,12 +9,13 @@ import type {
   YearMonth,
 } from "@repo/contracts/finance";
 import { formatCurrency, monthLabel, periodLabel } from "@repo/finance";
-import { Link } from "@tanstack/react-router";
+import { Link, linkOptions } from "@tanstack/react-router";
 import { Array as Arr } from "effect";
 
 import { Amount } from "@/components/amount";
 import { ComparisonControl } from "@/components/comparison-control";
 import { ComparisonCoverageNote } from "@/components/comparison-coverage";
+import { countedSearch } from "@/features/ledger/search";
 import { categoryColor } from "@/lib/category-colors";
 import { monthInitial, type ComparisonKey, type PeriodChoice } from "@/lib/period";
 
@@ -165,11 +168,7 @@ export function SpendingPage({
                     unrecorded={unrecorded}
                     months={breakdown.months}
                     largest={largest}
-                    opens={
-                      row.categoryId !== null &&
-                      parents.has(row.categoryId) &&
-                      row.categoryId !== scope?.id
-                    }
+                    link={rowLink(row, scope?.id, parents)}
                     topSlug={scope?.slug ?? row.slug}
                   />
                 ))}
@@ -278,12 +277,34 @@ function ScopeHistory({
   );
 }
 
+// A category with subcategories opens them. Every other row opens the records it
+// counts, so the ledger's total is the row's amount.
+function rowLink(
+  row: SpendingRow,
+  scopeId: typeof CategoryId.Type | undefined,
+  parents: ReadonlySet<string>,
+) {
+  const { categoryId } = row;
+  if (categoryId !== null && categoryId !== scopeId && parents.has(categoryId))
+    return linkOptions({ to: "/spending", search: { category: categoryId } });
+  const category: CategoryScope =
+    categoryId === null
+      ? { kind: "uncategorised" }
+      : categoryId === scopeId
+        ? { kind: "unspecified", id: categoryId }
+        : { kind: "category", id: categoryId };
+  return linkOptions({
+    to: "/ledger",
+    search: countedSearch({ measure: "spending", category, counterparty: { kind: "all" } }),
+  });
+}
+
 function Row({
   row,
   unrecorded,
   months,
   largest,
-  opens,
+  link,
   topSlug,
 }: {
   row: SpendingRow;
@@ -291,7 +312,7 @@ function Row({
   unrecorded: boolean;
   months: readonly YearMonth[];
   largest: bigint;
-  opens: boolean;
+  link: ReturnType<typeof rowLink>;
   topSlug: string | null;
 }) {
   const delta = row.current.minor - row.previous.minor;
@@ -314,27 +335,9 @@ function Row({
   return (
     <tr className="border-b border-rule">
       <th scope="row" className="py-3 pr-4 text-left font-normal">
-        {opens && row.categoryId ? (
-          <Link
-            to="/spending"
-            search={{ category: row.categoryId }}
-            className="block rounded-sm hover:text-intaglio"
-          >
-            {label}
-          </Link>
-        ) : row.categoryId ? (
-          <Link
-            to="/ledger"
-            search={{ categoryId: row.categoryId }}
-            className="block rounded-sm hover:text-intaglio"
-          >
-            {label}
-          </Link>
-        ) : (
-          <Link to="/questions" className="block rounded-sm hover:text-intaglio">
-            {label}
-          </Link>
-        )}
+        <Link {...link} className="block rounded-sm hover:text-intaglio">
+          {label}
+        </Link>
       </th>
       <td className="py-3 text-right">
         <Amount value={row.current} cents={false} />

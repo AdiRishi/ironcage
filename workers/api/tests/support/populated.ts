@@ -10,6 +10,7 @@ import {
   CalendarDate,
   CategoryId,
   CommandId,
+  EventId,
   RuleId,
   type Account,
   type Rule,
@@ -107,13 +108,24 @@ const eventFor = (events: readonly FinancialEvent[], description: string) => {
   return event;
 };
 
-const categoryId = Effect.fn(function* (slug: string) {
+export const categoryId = Effect.fn(function* (slug: string) {
   const sql = yield* PgClient.PgClient;
   const [row] = yield* sql`SELECT id FROM categories WHERE slug = ${slug}`.pipe(
     Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: CategoryId })))),
   );
   if (!row) return yield* Effect.die(`Expected seeded category ${slug}`);
   return row.id;
+});
+
+// The active event whose primary posting has this description.
+export const activeEvent = Effect.fn(function* (description: string) {
+  const sql = yield* PgClient.PgClient;
+  const [row] =
+    yield* sql`SELECT e.id FROM events e JOIN postings p ON p.id = e.primary_posting_id WHERE e.active AND p.description = ${description}`.pipe(
+      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: EventId })))),
+    );
+  if (!row) return yield* Effect.die(`Expected an event for ${description}`);
+  return yield* (yield* Events).get({ eventId: row.id });
 });
 
 // A synthetic history that reaches every kind of record a migration might rewrite:

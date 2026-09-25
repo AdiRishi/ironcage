@@ -4,8 +4,10 @@ import {
   AccountId,
   CalendarDate,
   CategoryId,
+  type CategoryScope,
   CategoryTree,
   CounterpartyId,
+  FactMeasure,
   FinanceError,
   FlowInput,
   Instant,
@@ -21,6 +23,7 @@ import {
   accountCoverage,
   addDays,
   comparisonCoverage,
+  inCategoryScope,
   largestChanges,
   mergePeriods,
   monthsPeriod,
@@ -28,6 +31,8 @@ import {
   shiftYearMonth,
   summarizeFlow,
   trailingYear,
+  uncategorisedLabel,
+  unspecifiedLabel,
   yearMonthOf,
   type CategoryNode,
   type FlowRow,
@@ -37,23 +42,13 @@ import { Context, Effect, Layer, Schema } from "effect";
 import { accountFields, instant } from "../database/columns.ts";
 import { toFinanceError } from "../database/failures.ts";
 import { readTransaction } from "../database/transactions.ts";
+import { categoryFacts, factDate, factsIn, onLoanAccount } from "./fact-sql.ts";
 import { readToday, resolvePeriods } from "./periods.ts";
 
-const Measure = Schema.Literals([
-  "spending",
-  "income",
-  "internal",
-  "externalOut",
-  "externalIn",
-  "loanRepayment",
-  "borrowing",
-  "unresolvedOut",
-  "unresolvedIn",
-]);
 const Row = Schema.Struct({
-  measure: Measure,
+  measure: FactMeasure,
   categoryId: Schema.NullOr(CategoryId),
-  topCategoryId: Schema.NullOr(CategoryId),
+  loanAccount: Schema.Boolean,
   current: Schema.BigIntFromString,
   previous: Schema.BigIntFromString,
   modelCurrent: Schema.BigIntFromString,
@@ -91,7 +86,8 @@ type PeriodQuery = {
   comparison: Period;
 };
 
-// Sums facts for both periods in one pass, grouped by measure and category.
+// Sums facts for both periods in one pass, grouped by measure, category, and whether
+// they sit on a loan account.
 const factRows = Effect.fn("factRows")(function* ({
   currency,
   basis,
@@ -99,10 +95,9 @@ const factRows = Effect.fn("factRows")(function* ({
   comparison,
 }: PeriodQuery) {
   const sql = yield* PgClient.PgClient;
-  const on = basis === "spending" ? sql`f.spending_on` : sql`f.posted_on`;
-  const current = sql`${on} >= ${period.start}::date AND ${on} < ${period.endExclusive}::date`;
-  const previous = sql`${on} >= ${comparison.start}::date AND ${on} < ${comparison.endExclusive}::date`;
-  return yield* sql`SELECT f.measure, f.category_id AS "categoryId", f.top_category_id AS "topCategoryId",
+  const current = factsIn(sql, basis, period);
+  const previous = factsIn(sql, basis, comparison);
+  return yield* sql`SELECT f.measure, f.category_id AS "categoryId", ${onLoanAccount(sql)} AS "loanAccount",
       COALESCE(sum(f.amount_minor) FILTER (WHERE ${current}), 0)::text AS current,
       COALESCE(sum(f.amount_minor) FILTER (WHERE ${previous}), 0)::text AS previous,
       COALESCE(sum(f.amount_minor) FILTER (WHERE ${current} AND f.model_assigned), 0)::text AS "modelCurrent",
@@ -110,44 +105,14 @@ const factRows = Effect.fn("factRows")(function* ({
       count(DISTINCT f.event_id) FILTER (WHERE ${previous} AND f.purchase AND f.amount_minor > 0)::int AS "previousPurchases"
     FROM ledger_facts f
     WHERE f.currency = ${currency} AND ((${current}) OR (${previous}))
-    GROUP BY f.measure, f.category_id, f.top_category_id`.pipe(
-    Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Row))),
-  );
-});
-
-const loanCostTotals = Effect.fn("loanCostTotals")(function* ({
-  currency,
-  basis,
-  period,
-  comparison,
-}: PeriodQuery) {
-  const sql = yield* PgClient.PgClient;
-  const on = basis === "spending" ? sql`f.spending_on` : sql`f.posted_on`;
-  const [row] =
-    yield* sql`SELECT COALESCE(sum(f.amount_minor) FILTER (WHERE ${on} >= ${period.start}::date AND ${on} < ${period.endExclusive}::date), 0)::text AS current,
-        COALESCE(sum(f.amount_minor) FILTER (WHERE ${on} >= ${comparison.start}::date AND ${on} < ${comparison.endExclusive}::date), 0)::text AS previous
-      FROM ledger_facts f JOIN accounts a ON a.id = f.account_id
-      WHERE a.kind = 'loan' AND f.measure = 'spending' AND f.currency = ${currency}`.pipe(
-      Effect.flatMap(
-        Schema.decodeUnknownEffect(
-          Schema.Tuple([
-            Schema.Struct({ current: Schema.BigIntFromString, previous: Schema.BigIntFromString }),
-          ]),
-        ),
-      ),
-    );
-  return row;
+    GROUP BY 1, 2, 3`.pipe(Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Row))));
 });
 
 // The flow of one period from stored facts. Previews run it before and after writing
 // a change's facts, so a preview and the screens can never disagree.
 export const summarizePeriod = Effect.fn("summarizePeriod")(function* (query: PeriodQuery) {
-  const [rows, categories, loanCosts] = yield* Effect.all([
-    factRows(query),
-    categoryNodes,
-    loanCostTotals(query),
-  ]);
-  return summarizeFlow({ rows, categories, loanCosts, currency: query.currency });
+  const [rows, categories] = yield* Effect.all([factRows(query), categoryNodes]);
+  return summarizeFlow({ rows, categories, currency: query.currency });
 });
 
 export class Flows extends Context.Service<
@@ -165,8 +130,6 @@ export class Flows extends Context.Service<
     Effect.gen(function* () {
       const sql = yield* PgClient.PgClient;
       const provide = Effect.provideService(PgClient.PgClient, sql);
-      const dateColumn = (basis: FlowInput["basis"]) =>
-        basis === "spending" ? sql`f.spending_on` : sql`f.posted_on`;
       const coverageSources = Effect.fn("Flows.coverageSources")(function* (currency: string) {
         const accounts =
           yield* sql`SELECT ${accountFields(sql)} FROM accounts WHERE currency = ${currency} ORDER BY label, id`.pipe(
@@ -198,10 +161,9 @@ export class Flows extends Context.Service<
             Effect.gen(function* () {
               const resolved = yield* resolvePeriods(input);
               const query = { ...input, ...resolved };
-              const [facts, tree, costs, sources] = yield* Effect.all([
+              const [facts, tree, sources] = yield* Effect.all([
                 factRows(query),
                 categoryNodes,
-                loanCostTotals(query),
                 coverageSources(input.currency),
               ]);
               const coverage = accountCoverage(sources, resolved.period);
@@ -209,12 +171,7 @@ export class Flows extends Context.Service<
                 ...resolved,
                 basis: input.basis,
                 currency: input.currency,
-                ...summarizeFlow({
-                  rows: facts,
-                  categories: tree,
-                  loanCosts: costs,
-                  currency: input.currency,
-                }),
+                ...summarizeFlow({ rows: facts, categories: tree, currency: input.currency }),
                 changes: largestChanges({
                   rows: facts,
                   categories: tree,
@@ -242,15 +199,15 @@ export class Flows extends Context.Service<
               const { today } = yield* readToday;
               const Month = Schema.Struct({
                 month: YearMonth,
-                measure: Measure,
+                measure: FactMeasure,
+                loanAccount: Schema.Boolean,
                 amount: Schema.BigIntFromString,
-                loanCosts: Schema.BigIntFromString,
               });
               const totals =
-                yield* sql`SELECT to_char(f.spending_on, 'YYYY-MM') AS month, f.measure, sum(f.amount_minor)::text AS amount,
-                  COALESCE(sum(f.amount_minor) FILTER (WHERE a.kind = 'loan' AND f.measure = 'spending'), 0)::text AS "loanCosts"
-                FROM ledger_facts f JOIN accounts a ON a.id = f.account_id
-                WHERE f.currency = ${currency} GROUP BY 1, 2 ORDER BY 1`.pipe(
+                yield* sql`SELECT to_char(f.spending_on, 'YYYY-MM') AS month, f.measure, ${onLoanAccount(sql)} AS "loanAccount",
+                  sum(f.amount_minor)::text AS amount
+                FROM ledger_facts f
+                WHERE f.currency = ${currency} GROUP BY 1, 2, 3 ORDER BY 1`.pipe(
                   Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Month))),
                 );
               const first = totals[0]?.month;
@@ -286,14 +243,10 @@ export class Flows extends Context.Service<
                 const flow = summarizeFlow({
                   currency,
                   categories: tree,
-                  loanCosts: {
-                    current: selected.reduce((sum, row) => sum + row.loanCosts, 0n),
-                    previous: 0n,
-                  },
                   rows: selected.map((row): FlowRow => ({
                     measure: row.measure,
                     categoryId: null,
-                    topCategoryId: null,
+                    loanAccount: row.loanAccount,
                     current: row.amount,
                     previous: 0n,
                     modelCurrent: 0n,
@@ -347,20 +300,19 @@ export class Flows extends Context.Service<
                 while (at && at.parentId !== parentId) at = node(at.parentId);
                 return at?.id ?? (parentId && categoryId === parentId ? parentId : null);
               };
-              const inScope = (categoryId: string | null) => {
-                if (!parentId) return true;
-                for (let at = node(categoryId); at; at = node(at.parentId))
-                  if (at.id === parentId) return true;
-                return false;
-              };
+              const scope: CategoryScope = parentId
+                ? { kind: "category", id: parentId }
+                : { kind: "all" };
+              const parents = new Map(tree.map((row) => [row.id, row.parentId]));
               const facts = (yield* factRows({ ...input, ...resolved })).filter(
-                (row) => row.measure === "spending" && inScope(row.categoryId),
+                (row) =>
+                  row.measure === "spending" && inCategoryScope(scope, row.categoryId, parents),
               );
               const series = yield* Effect.fromResult(trailingYear(resolved.period));
               const months = Array.from({ length: 12 }, (_, index) =>
                 shiftYearMonth(yearMonthOf(series.start), index),
               );
-              const on = dateColumn(input.basis);
+              const on = factDate(sql, input.basis);
               const MonthRow = Schema.Struct({
                 categoryId: Schema.NullOr(CategoryId),
                 month: YearMonth,
@@ -369,7 +321,7 @@ export class Flows extends Context.Service<
               const monthly =
                 yield* sql`SELECT f.category_id AS "categoryId", to_char(${on}, 'YYYY-MM') AS month, sum(f.amount_minor)::text AS amount
                 FROM ledger_facts f WHERE f.currency = ${input.currency} AND f.measure = 'spending'
-                  AND ${on} >= ${series.start}::date AND ${on} < ${series.endExclusive}::date
+                  AND ${factsIn(sql, input.basis, series)}
                 GROUP BY 1, 2`.pipe(
                   Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(MonthRow))),
                 );
@@ -388,9 +340,9 @@ export class Flows extends Context.Service<
                     categoryId: category?.id ?? null,
                     slug: category?.slug ?? null,
                     label: !category
-                      ? "Not yet categorised"
+                      ? uncategorisedLabel
                       : category.id === parentId
-                        ? `${category.name}, unspecified`
+                        ? unspecifiedLabel(category.name)
                         : category.name,
                     current: money(total(selected, (row) => row.current)),
                     previous: money(total(selected, (row) => row.previous)),
@@ -406,7 +358,7 @@ export class Flows extends Context.Service<
                           .filter(
                             (row) =>
                               row.month === month &&
-                              inScope(row.categoryId) &&
+                              inCategoryScope(scope, row.categoryId, parents) &&
                               rowKey(row.categoryId) === key,
                           )
                           .reduce((sum, row) => sum + row.amount, 0n),
@@ -422,11 +374,8 @@ export class Flows extends Context.Service<
                       ? -1
                       : 0,
                 );
-              const scope = parentId
-                ? sql`f.category_id = ANY(${tree.filter((row) => inScope(row.id)).map((row) => row.id)}::uuid[])`
-                : sql`true`;
-              const current = sql`${on} >= ${resolved.period.start}::date AND ${on} < ${resolved.period.endExclusive}::date`;
-              const previous = sql`${on} >= ${resolved.comparison.start}::date AND ${on} < ${resolved.comparison.endExclusive}::date`;
+              const current = factsIn(sql, input.basis, resolved.period);
+              const previous = factsIn(sql, input.basis, resolved.comparison);
               const Counterparty = Schema.Struct({
                 counterpartyId: Schema.NullOr(CounterpartyId),
                 label: Schema.NullOr(Schema.String),
@@ -442,7 +391,7 @@ export class Flows extends Context.Service<
                   count(DISTINCT f.event_id) FILTER (WHERE ${current} AND f.purchase AND f.amount_minor > 0)::int AS purchases,
                   count(DISTINCT f.event_id) FILTER (WHERE ${previous} AND f.purchase AND f.amount_minor > 0)::int AS "previousPurchases"
                 FROM ledger_facts f LEFT JOIN counterparties c ON c.id = f.counterparty_id
-                WHERE f.currency = ${input.currency} AND f.measure = 'spending' AND ${scope} AND ((${current}) OR (${previous}))
+                WHERE f.currency = ${input.currency} AND f.measure = 'spending' AND ${categoryFacts(sql, scope)} AND ((${current}) OR (${previous}))
                 GROUP BY f.counterparty_id, c.name
                 ORDER BY COALESCE(sum(f.amount_minor) FILTER (WHERE ${current}), 0) DESC LIMIT 25`.pipe(
                   Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Counterparty))),

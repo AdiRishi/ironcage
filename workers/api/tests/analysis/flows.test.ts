@@ -12,6 +12,7 @@ import { Counterparties } from "../../src/interpretation/counterparties.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { applicationTest } from "../support/application.ts";
 import { account, parsedRows, reset, source } from "../support/fixtures.ts";
+import { populate } from "../support/populated.ts";
 
 const { test, services } = applicationTest();
 const commandId = Crypto.Crypto.use((crypto) => crypto.randomUUIDv4).pipe(
@@ -146,6 +147,24 @@ test(
     const months = yield* (yield* Flows).monthly({ currency: "AUD" });
     expect(months[0]).toMatchObject({ month: "2026-07", spending: { minor: 2000n } });
     expect(months.find((row) => row.month === "2026-08")?.spending.minor).toBe(5000n);
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "a month in the series goes out by what the overview counts for it, with loan principal instead of the whole repayment",
+  Effect.gen(function* () {
+    yield* populate;
+    const flows = yield* Flows;
+    const july = (yield* flows.monthly({ currency: "AUD" })).find((row) => row.month === "2026-07");
+    // $5,064.50 of spending, and the $3,900 repayment less the $2,800 of loan interest.
+    expect(july?.outflow.minor).toBe(616450n);
+    const overview = yield* flows.period({
+      period: { kind: "months", from: YearMonth.make("2026-07"), to: YearMonth.make("2026-07") },
+      comparison: { kind: "previous" },
+      basis: "spending",
+      currency: "AUD",
+    });
+    expect(overview.totals.outflow).toEqual(july?.outflow);
   }).pipe(Effect.provide(services)),
 );
 

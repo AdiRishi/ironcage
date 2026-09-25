@@ -1,19 +1,24 @@
 import type {
   CategoryId,
+  CategoryScope,
   CategoryTree,
+  CountedScope,
+  FactMeasure,
   FlowStream,
+  LedgerMeasure,
   PeriodChange,
-  StreamKind,
+  PeriodTotals,
 } from "@repo/contracts/finance";
 
 import { purchaseDecomposition } from "./decomposition.ts";
-import type { FactMeasure } from "./facts.ts";
+import { inCategoryScope, measures, measureTotal, uncategorisedLabel } from "./measures.ts";
 
-// Ledger facts summed for the current and comparison periods, per measure and category.
+// Ledger facts summed for the current and comparison periods, per measure, category, and
+// whether they sit on a loan account.
 export type FlowRow = {
   measure: FactMeasure;
   categoryId: typeof CategoryId.Type | null;
-  topCategoryId: typeof CategoryId.Type | null;
+  loanAccount: boolean;
   current: bigint;
   previous: bigint;
   modelCurrent: bigint;
@@ -32,123 +37,118 @@ export type CategoryNode = {
 const sum = (rows: readonly FlowRow[], pick: (row: FlowRow) => bigint) =>
   rows.reduce((total, row) => total + pick(row), 0n);
 
-// Repayments include the interest already counted as spending on the loan, so only
-// the rest reduces the principal. A month where interest posts before the repayment
-// shows no principal rather than a negative one.
-function principal(repayments: bigint, loanCosts: bigint) {
-  return repayments > loanCosts ? repayments - loanCosts : 0n;
-}
-
+// Each stream sums the rows its counted scope selects: spending and income by top-level
+// category with one more stream for each without a category, then every other measure
+// whole.
 export function summarizeFlow({
   rows,
   categories,
-  loanCosts,
   currency,
 }: {
   rows: readonly FlowRow[];
   categories: readonly CategoryNode[];
-  loanCosts: { current: bigint; previous: bigint };
   currency: string;
 }) {
   const money = (minor: bigint) => ({ currency, minor });
   const of = (measure: FactMeasure) => rows.filter((row) => row.measure === measure);
-  const category = (id: string | null) => categories.find((row) => row.id === id);
-  const stream = (
-    key: string,
-    kind: StreamKind,
-    label: string,
-    selected: readonly FlowRow[],
-    categoryId: typeof CategoryId.Type | null = null,
-  ): FlowStream => ({
-    key,
-    kind,
-    categoryId,
-    slug: category(categoryId)?.slug ?? null,
-    label,
-    amount: money(sum(selected, (row) => row.current)),
-    previous: money(sum(selected, (row) => row.previous)),
-    modelAmount: money(sum(selected, (row) => row.modelCurrent)),
-  });
-
-  const spending = of("spending");
-  const byTop = new Map<string | null, FlowRow[]>();
-  for (const row of spending)
-    byTop.set(row.topCategoryId, [...(byTop.get(row.topCategoryId) ?? []), row]);
-  const spendingStreams = [...byTop.entries()]
-    .map(([top, selected]) => {
-      const node = category(top);
-      return node
-        ? stream(`category:${node.id}`, "category", node.name, selected, node.id)
-        : stream("uncategorized", "uncategorized", "Not yet categorised", selected);
-    })
-    .toSorted(
-      (a, b) =>
-        (category(a.categoryId)?.position ?? 999) - (category(b.categoryId)?.position ?? 999),
-    );
-
-  const repayments = of("loanRepayment");
-  const loanPrincipal: FlowStream = {
-    ...stream("loanPrincipal", "loanPrincipal", "Loan principal", repayments),
-    amount: money(
-      principal(
-        sum(repayments, (row) => row.current),
-        loanCosts.current,
-      ),
-    ),
-    previous: money(
-      principal(
-        sum(repayments, (row) => row.previous),
-        loanCosts.previous,
-      ),
-    ),
-  };
-  const outflows = [
-    ...spendingStreams,
-    loanPrincipal,
-    stream("externalOut", "externalOut", "To your other accounts", of("externalOut")),
-    stream("unresolvedOut", "unresolvedOut", "Not yet understood", of("unresolvedOut")),
-  ].filter((row) => row.amount.minor !== 0n || row.previous.minor !== 0n);
-
-  const income = of("income");
-  const incomeByCategory = new Map<string | null, FlowRow[]>();
-  for (const row of income)
-    incomeByCategory.set(row.categoryId, [...(incomeByCategory.get(row.categoryId) ?? []), row]);
-  const inflows = [
-    ...[...incomeByCategory.entries()].map(([id, selected]) => {
-      const node = category(id);
-      return stream(
-        `income:${id ?? "other"}`,
-        "income",
-        node?.name ?? "Other income",
-        selected,
-        node?.id ?? null,
+  const parents = new Map(categories.map((node) => [node.id, node.parentId]));
+  const figures = (measure: LedgerMeasure, category: CategoryScope) => {
+    const total = (pick: (row: FlowRow) => bigint) =>
+      measureTotal(measure, (part) =>
+        sum(
+          rows.filter(
+            (row) =>
+              row.measure === part.fact &&
+              (!part.loanAccounts || row.loanAccount) &&
+              inCategoryScope(category, row.categoryId, parents),
+          ),
+          pick,
+        ),
       );
-    }),
-    stream("borrowing", "borrowing", "Borrowed", of("borrowing")),
-    stream("externalIn", "externalIn", "From your other accounts", of("externalIn")),
-    stream("unresolvedIn", "unresolvedIn", "Not yet understood", of("unresolvedIn")),
-  ].filter((row) => row.amount.minor !== 0n || row.previous.minor !== 0n);
+    return {
+      scope: { measure, category, counterparty: { kind: "all" } } satisfies CountedScope,
+      amount: money(total((row) => row.current)),
+      previous: money(total((row) => row.previous)),
+      modelAmount: money(total((row) => row.modelCurrent)),
+    };
+  };
+  const measureStream = (measure: Exclude<LedgerMeasure, "spending" | "income">): FlowStream => ({
+    kind: measure,
+    key: measure,
+    label: measures[measure].label,
+    ...figures(measure, { kind: "all" }),
+  });
+  const tops = categories
+    .filter((node) => node.parentId === null)
+    .toSorted((a, b) => a.position - b.position || a.name.localeCompare(b.name));
+  const drawn = (stream: FlowStream) => stream.amount.minor !== 0n || stream.previous.minor !== 0n;
+
+  const outflows = [
+    ...tops.map((node): FlowStream => ({
+      kind: "category",
+      key: `category:${node.id}`,
+      categoryId: node.id,
+      slug: node.slug,
+      label: node.name,
+      ...figures("spending", { kind: "category", id: node.id }),
+    })),
+    {
+      kind: "uncategorised",
+      key: "uncategorised",
+      label: uncategorisedLabel,
+      ...figures("spending", { kind: "uncategorised" }),
+    } satisfies FlowStream,
+    measureStream("loanPrincipal"),
+    measureStream("externalOut"),
+    measureStream("unresolvedOut"),
+  ].filter(drawn);
+  const inflows = [
+    ...tops.map((node): FlowStream => ({
+      kind: "income",
+      key: `income:${node.id}`,
+      label: node.name,
+      ...figures("income", { kind: "category", id: node.id }),
+    })),
+    {
+      kind: "income",
+      key: "income:uncategorised",
+      label: uncategorisedLabel,
+      ...figures("income", { kind: "uncategorised" }),
+    } satisfies FlowStream,
+    measureStream("borrowing"),
+    measureStream("externalIn"),
+    measureStream("unresolvedIn"),
+  ].filter(drawn);
 
   const totals = (pick: (stream: FlowStream) => bigint, pickRow: (row: FlowRow) => bigint) => ({
-    inflow: money(inflows.reduce((total, row) => total + pick(row), 0n)),
-    outflow: money(outflows.reduce((total, row) => total + pick(row), 0n)),
-    spending: money(sum(spending, pickRow)),
-    income: money(sum(income, pickRow)),
+    inflow: money(inflows.reduce((total, stream) => total + pick(stream), 0n)),
+    outflow: money(outflows.reduce((total, stream) => total + pick(stream), 0n)),
+    spending: money(sum(of("spending"), pickRow)),
+    income: money(sum(of("income"), pickRow)),
     internal: money(sum(of("internal"), pickRow)),
   });
   return {
     totals: totals(
-      (row) => row.amount.minor,
+      (stream) => stream.amount.minor,
       (row) => row.current,
     ),
     previousTotals: totals(
-      (row) => row.previous.minor,
+      (stream) => stream.previous.minor,
       (row) => row.previous,
     ),
     inflows,
     outflows,
-    modelShare: money(sum(spending, (row) => row.modelCurrent)),
+    modelShare: money(sum(of("spending"), (row) => row.modelCurrent)),
   };
+}
+
+// What came in less what went out: the overview's left over, or its shortfall when
+// negative.
+export function leftOver({
+  inflow,
+  outflow,
+}: Pick<typeof PeriodTotals.Type, "inflow" | "outflow">) {
+  return { currency: inflow.currency, minor: inflow.minor - outflow.minor };
 }
 
 // The subcategories whose spending changed most, largest absolute change first.
@@ -183,7 +183,7 @@ export function largestChanges({
       });
       return {
         categoryId: node?.id ?? null,
-        label: node?.name ?? "Not yet categorised",
+        label: node?.name ?? uncategorisedLabel,
         parentLabel: parent?.name ?? null,
         current: money(current),
         previous: money(previous),

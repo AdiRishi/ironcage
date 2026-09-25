@@ -1,6 +1,7 @@
 import { Schema } from "effect";
 
 import { Account } from "./accounts.ts";
+import { CategoryId, CounterpartyId } from "./interpretation.ts";
 import { CalendarDate, Instant, YearMonth } from "./values.ts";
 
 export const Period = Schema.Struct({ start: CalendarDate, endExclusive: CalendarDate }).check(
@@ -68,6 +69,59 @@ export const ComparisonCoverage = Schema.Struct({
   ),
 });
 export type ComparisonCoverage = typeof ComparisonCoverage.Type;
+
+// What one ledger fact contributes to. `internal` moves money between ledger accounts
+// and counts toward no measure.
+export const FactMeasure = Schema.Literals([
+  "spending",
+  "income",
+  "internal",
+  "externalOut",
+  "externalIn",
+  "loanRepayment",
+  "borrowing",
+  "unresolvedOut",
+  "unresolvedIn",
+]);
+export type FactMeasure = typeof FactMeasure.Type;
+// A number the flow draws from ledger facts, whose records the counted ledger lists.
+export const LedgerMeasure = Schema.Literals([
+  "spending",
+  "income",
+  "borrowing",
+  "externalIn",
+  "externalOut",
+  "loanPrincipal",
+  "unresolvedIn",
+  "unresolvedOut",
+]);
+export type LedgerMeasure = typeof LedgerMeasure.Type;
+// Whether a part of a measure adds to it or is taken off it.
+export const PartSign = Schema.Literals(["add", "less"]);
+export type PartSign = typeof PartSign.Type;
+// A category with everything below it, only what sits on the category itself, or what
+// has no category yet.
+export const CategoryScope = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("all") }),
+  Schema.Struct({ kind: Schema.Literal("category"), id: CategoryId }),
+  Schema.Struct({ kind: Schema.Literal("unspecified"), id: CategoryId }),
+  Schema.Struct({ kind: Schema.Literal("uncategorised") }),
+]).pipe(Schema.toTaggedUnion("kind"));
+export type CategoryScope = typeof CategoryScope.Type;
+export const CounterpartyScope = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("all") }),
+  Schema.Struct({ kind: Schema.Literal("counterparty"), id: CounterpartyId }),
+  Schema.Struct({ kind: Schema.Literal("unidentified") }),
+]).pipe(Schema.toTaggedUnion("kind"));
+export type CounterpartyScope = typeof CounterpartyScope.Type;
+// The ledger facts behind one number: a measure narrowed to categories and a
+// counterparty. A period, a date basis, and a currency place it in time.
+export const CountedScope = Schema.Struct({
+  measure: LedgerMeasure,
+  category: CategoryScope,
+  counterparty: CounterpartyScope,
+});
+export type CountedScope = typeof CountedScope.Type;
 
 // Events whose ledger facts an older derivation built, and whether a background
 // rebuild is working through them.

@@ -12,6 +12,7 @@ sidebar:
 - **Understanding.** Descriptors, counterparties, and a two-level taxonomy. GLM-5.3-Flash on Workers AI names counterparties and their defaults when you start a run from Settings. It applies what it is confident about with provenance and asks about the rest. Answering a question or editing a counterparty applies to every transaction from it. See [Interpretation](/reference/interpretation) and [AI](/reference/ai).
 - **The analysis projection.** Ledger facts are rewritten inside every write that changes what they read, and rebuilt in the background when their derivation changes. The flow, spending, previews, and counterparty totals all read them, so the same question gives the same number everywhere. See [Analysis](/reference/analysis#ledger-facts).
 - **Comparisons.** The overview and spending read a month, a range of months, or a year, and compare it with the period before, the same period last year, or chosen dates. A comparison period without records is shown as missing, never as zero. Spending rows open their subcategories, and a leaf opens its transactions in the ledger.
+- **Records behind the flow.** Every flow stream opens the transactions behind it, in the diagram, its table, and the phone bars. A spending category opens Spending, and every other stream opens the ledger with what each transaction counts toward the stream and a total equal to it. See [Records behind a number](/reference/analysis#records-behind-a-number).
 - **Exports and source removal.** A full ZIP export, and removing original file bytes without changing any posting.
 
 ## Being built
@@ -19,7 +20,6 @@ sidebar:
 Each item gets a working screen before the next item starts.
 
 1. **Finishing the application design.** The [design language](/design), the layout, and the screens for the month, the flow of money, spending, the ledger, counterparties, questions, sources, and settings are in place. What remains, measured against [Product](/product):
-   - Flow streams open the records behind them.
    - Spending drills from a subcategory to its counterparties and then their transactions, and the ledger it opens reads the same date basis as spending.
    - Questions can be skipped, answered in place, and show a proposed answer for people.
    - Counterparties can take a descriptor from another counterparty, and a transaction can move to a different counterparty. Counterparty-level changes appear in history and can be undone.

@@ -13,23 +13,27 @@ Three figures lead the page: what came in, what went out, and what was left over
 
 A flow diagram sits below the headline. Inflows enter from the left, grouped by source:
 
-- income, split by income category, such as salary and interest
+- income, split by top-level income category, such as salary and interest, with anything not yet categorised as its own stream
 - money borrowed
 - money from your accounts outside Ironcage
-- anything not yet interpreted
+- anything not yet understood, as "Not yet understood, incoming"
 
 Outflows leave to the right, grouped by destination:
 
 - spending, split into top-level categories, with anything not yet categorised as its own stream
 - loan principal: repayments less the interest already counted as spending
 - money sent to your accounts outside Ironcage, such as savings and investments
-- anything not yet interpreted
+- anything not yet understood, as "Not yet understood, outgoing"
 
 Refunds and reimbursements are not inflows. They reduce the spending they return, so a $300 dinner with $200 repaid is $100 of dining. Loan interest is spending in its category, not part of a loan stream.
 
-When more came in than went out, a "Kept" stream on the right balances the two sides. When more went out, a "From savings" stream on the left does. A button switches the diagram to a table of the same streams, and on a phone the streams are stacked bars.
+When more came in than went out, a "Kept" stream on the right balances the two sides. When more went out, a "From savings" stream on the left does. Either one equals the left-over figure or the shortfall in the headline. They have no records of their own, so they cannot be selected, and each says what it is: what came in less what went out, or what went out beyond what came in.
 
-The streams are proportional. Selecting a stream opens it: a spending category opens [Spending](/product/spending) at that category, and any other stream opens the [Ledger](/product/ledger) filtered to its records.
+A spending category where more came back than went out, such as a travel refund that arrives a month after the trip, is drawn on the left as "Travel, net money back" with the amount returned. What went out in the headline is already net of it, so the line above the diagram names it apart from the sources: "$9,000 came in from 2 sources, and $5,260 went out to 4 destinations after $300 in Travel came back."
+
+A button switches the diagram to a table of the same streams, grouped into what came in and what went out, and on a phone the streams are stacked bars.
+
+The streams are proportional. Selecting a stream opens the records behind it: a spending category opens [Spending](/product/spending) at that category, and any other stream opens the [Ledger](/product/ledger#opened-from-a-number) at the transactions it counts, with a total equal to the stream. Every stream except Kept and From savings can be selected in the diagram, the table, and the bars, by pointer or keyboard. Each one is named with its direction and amount, such as "Not yet categorised, $120 went out", so income and spending not yet categorised stay apart.
 
 The left-over figure is inflow minus outflow. It is not available cash.
 

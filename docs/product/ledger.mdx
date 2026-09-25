@@ -7,7 +7,21 @@ description: Every transaction, what it means, and the evidence behind it.
 
 Every posting from every account in one list, newest first. Each row shows the date, the counterparty (or the bank's description when none is known), the category, the account, and the signed amount. Rows the model assigned show a small mark. Rows waiting on a question show a different one.
 
-Filters cover account, dates, amount, text, counterparty, category, role, provenance, and open questions. Filters live in the URL.
+Filters cover account, dates, amount, text, counterparty, category, role, provenance, and open questions. Each choice starts at everything, such as "All categories". The category filter also offers "Not yet categorised": purchases, refunds, and income that have no category yet. Filters live in the URL.
+
+## Opened from a number
+
+Selecting a stream in the [flow](/product/overview#flow) opens the ledger at the transactions behind that number, in the same period. A spending category opens [Spending](/product/spending) instead, where a category without subcategories, a category's own part such as "Food, unspecified", and "Not yet categorised" open the ledger the same way. The title names the number and the period, such as "Loan principal in July 2026", "Salary in July 2026", or "Dining out in July 2026", and the total beneath it equals the number it came from. Money in and money out that are not yet understood are separate numbers, "Not yet understood, incoming" and "Not yet understood, outgoing".
+
+Each transaction shows what it counts toward the number, which can differ from what the bank booked:
+
+- A $120 purchase split into $80 of Clothing and $40 of Home counts "−$80.00 of −$120.00" in Clothing.
+- A $300 dinner with $200 repaid by a friend counts −$300, and the repayment counts +$200 on the dinner's date. Dining out totals $100.
+- A purchase made on 30 June and posted on 3 July counts on 30 June and says "Posted 3 July 2026".
+
+Transactions are grouped by the day they count on. Loan principal lists two parts, each with a subtotal: the repayments, and the interest and fees charged on your loans, which are taken off because they already count as spending. Principal is never below zero.
+
+The number sets the category, counterparty, currency, and dates, so those filters are not offered. The other filters narrow the list, and the total then counts only what matches. A link under the title shows every transaction in the period instead. When nothing counts toward the number in the period, the page says so and suggests another period.
 
 ## The detail
 

@@ -11,7 +11,7 @@ The web app is React, TanStack Start, TanStack Router, TanStack Query, Tailwind 
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `/`               | Overview for the selected period.                                                                                           |
 | `/spending`       | Category breakdown. `?category=` drills into a subtree.                                                                     |
-| `/ledger`         | Transactions. `/ledger/$id` opens one posting with its meaning and evidence.                                                |
+| `/ledger`         | Transactions. `?measure=` opens the records behind a number. `/ledger/$id` opens one posting with its meaning and evidence. |
 | `/counterparties` | Counterparties paid or paid by in the period. `/counterparties/$counterpartyId` opens one.                                  |
 | `/questions`      | Computed questions, records to check, and movements to confirm. `?importId=` narrows to a file.                             |
 | `/sources`        | Upload, imports that need you, coverage, files, and exports. `/sources/imports/$importId`.                                  |
@@ -42,6 +42,22 @@ The period, the comparison, filters, and drill-down path live in validated searc
 
 TanStack's search parser reads a typed `?period=2026` as the number 2026, so the year key also decodes an integer. Ranges must not run backwards, and months and dates must exist. A period key is also refused when its months, the months before them, or the same months a year earlier would fall outside years 0001 to 9999, so every comparison the screens name can be resolved. The root route validates both parameters and keeps them on every navigation with `retainSearchParams`. Setting one to `undefined` removes it. `periodKey` writes chosen months as the shortest key: a single month, a calendar year, or a range.
 
+The ledger's parameters are `LedgerSearch` in `src/features/ledger/search.ts`, a union of two schemas. Without `?measure=`, they are the posting filters and a cursor of posted date and ID. `?categoryId=` takes a category ID or `uncategorised`. With `?measure=`, they open the records behind a number, the counted ledger:
+
+| Parameter        | Values                                                                    |
+| ---------------- | ------------------------------------------------------------------------- |
+| `?measure=`      | A ledger measure, such as `spending`, `income`, or `loanPrincipal`.       |
+| `?category=`     | A category ID, which includes everything below it, or `uncategorised`.    |
+| `?unspecified=`  | `true` for only what sits on the category itself. It needs a category ID. |
+| `?counterparty=` | A counterparty ID or `unidentified`.                                      |
+| `?cursor=`       | The part, date, and posting ID the next page starts after.                |
+
+The counted ledger also takes every posting filter that its scope does not set, so category, counterparty, currency, and dates are left out. `countedSearch` writes a scope as these parameters, and `countedLedgerInput` reads them back into `listCountedLedger`'s input with the months from `?period=`, the `analysisBasis` that `flowInput` also sends, and the reporting currency. So the ledger opened from a stream reads the same facts as the stream. The route's loader picks `listLedger` or `listCountedLedger` from `?measure=`. The period strip drops `?cursor=` when it changes the period, because a cursor belongs to the period it was read in.
+
+Spending's rows open the next level or the records they count. A category with subcategories opens `/spending?category=`. Every other row opens the counted ledger through `countedSearch`: a leaf at its `category` scope, the selected category's own row at its `unspecified` scope, and "Not yet categorised" at the `uncategorised` scope, so the ledger's total is the row's amount. When a counted ledger has no rows and no filters, it says nothing counts toward the number in the period and points to the period strip.
+
+Filters that choose a reference pass `ReferenceChoice` an `emptyLabel`, such as "All categories", in place of the "None" that editors show.
+
 `resolvePeriodKey` turns a key into its first and last month. Without a key, it takes `currentMonth` in the settings timezone, which Sources also uses to end the whole history. `currentMonth` and the comparison calendar read `today` in the settings timezone, and period resolution reads no other clock. `flowInput` sends the months as `{ kind: "months", from, to }`, with the comparison from `comparisonSelection` and the spending date. The API decides whether the last month is still in progress, so the result, not the browser's clock, says how many days a period has so far. Titles come from `periodLabel` and `monthLabel` in `@repo/finance`. `wholeComparison` gives the whole months a comparison covers, which the control's trigger and options name, so September in progress compares with "the same days of August 2026". Every sentence that states or compares an amount names the dates the result compared, `periodLabel` of its `comparison`: "$310 more than in August 2026" for a whole month, and "$310 more than in 1 to 25 August 2026" while September is in progress, so a partial total never carries a whole month's name.
 
 Query keys are the operation name plus its normalized input. Loaders call `ensureQueryData` so a route renders with data.
@@ -60,7 +76,13 @@ A change that affects money shows a preview first: the affected records, their v
 
 ## Charts
 
-The flow diagram uses Recharts' `Sankey` directly, with custom node and link renderers, in `src/features/overview/flow-diagram.tsx`. Below the `md` breakpoint it shows bars instead. It has a text summary, a screen-reader table, and a button that shows the table in place of the diagram. The other charts, such as the spending bars and 12-month sparklines, are hand-built HTML and SVG with screen-reader text and no table view. Chart coordinates may be floats; displayed amounts come from the result's `Money` values.
+The flow diagram uses Recharts' `Sankey` directly, with custom node and link renderers, in `src/features/overview/flow-diagram.tsx`. `flowStreams` in `src/features/overview/flow-streams.ts` turns a flow into the entries it draws. Each entry is a `stream`, a `moneyBack` category, or a `balance`. A spending category whose money back exceeds its spending moves to the in side as "Travel, net money back", a `moneyBack` entry. Kept and From savings are the `balance` entries, from `leftOver` in `@repo/finance`, which the headline also reads, so the diagram shows the headline's figure. The figure's caption counts only `stream` entries as sources and destinations, and names money back apart, because the headline's outflow is already net of it.
+
+Labels sit beside their nodes in margins as wide as the widest label on each side. `useLabelRoom` draws every label into an invisible SVG outside the diagram, measures each with `getBBox`, and measures again once web fonts load, so no label is clipped. The ruler sits outside the part phones hide, so the diagram has its margins when a window widens past `md`.
+
+Every stream is a TanStack `Link` from `streamLink`: a spending category opens `/spending?category=`, and every other stream opens `/ledger` at its scope through `countedSearch`. In the Sankey, the node is the link. Its accessible name reads "Food, $620 went out", and a transparent hit area across its label draws the 2 pixel Intaglio focus ring. The band repeats the link for the pointer with `tabIndex={-1}` and `aria-hidden`, and cancels `mousedown` so a click never focuses a link hidden from screen readers. `accessibilityLayer` is off, so the SVG is not a tab stop, and the tooltip finds its entry from Recharts' `activeIndex` by position, not by name. Kept and From savings are not links. The tooltip, the table, and the phone bars say what each one is.
+
+Below the `md` breakpoint the diagram shows stacked bars instead, and a button shows a table in place of the diagram. Both carry the same links with the same accessible names, so there is no separate screen-reader table, and the income and spending streams both called "Not yet categorised" stay apart. The table has a column header row and one `tbody` per side under a `rowgroup` header, "Came in" or "Went out", and each stream's name is its row header. The hidden Sankey keeps its height on `ResponsiveContainer` rather than on a wrapper, because Recharts warns about a chart with neither width nor height. The other charts, such as the spending bars and 12-month sparklines, are hand-built HTML and SVG with screen-reader text and no table view. Chart coordinates may be floats; displayed amounts come from the result's `Money` values.
 
 ## Accessibility
 

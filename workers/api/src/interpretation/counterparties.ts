@@ -23,6 +23,7 @@ import {
 import { Context, Crypto, Effect, Layer, Schema } from "effect";
 import type { Statement } from "effect/unstable/sql";
 
+import { factsGoing, factsIn } from "../analysis/fact-sql.ts";
 import { instant } from "../database/columns.ts";
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
@@ -113,12 +114,10 @@ export class Counterparties extends Context.Service<
       // A counterparty's amounts are its share of the flow: what it adds to the out
       // streams, with refunds reducing spending, and what it adds to the in streams.
       // Money moved between your own accounts is in neither.
-      const outflowFacts = sql`f.measure IN ('spending', 'externalOut', 'loanRepayment', 'unresolvedOut')`;
-      const inflowFacts = sql`f.measure IN ('income', 'borrowing', 'externalIn', 'unresolvedIn')`;
+      const outflowFacts = factsGoing(sql, "out");
+      const inflowFacts = factsGoing(sql, "in");
       const summaries = (predicate: Statement.Fragment, input: typeof ListCounterparties.Type) => {
-        const inPeriod = input.period
-          ? sql`f.spending_on >= ${input.period.start}::date AND f.spending_on < ${input.period.endExclusive}::date`
-          : sql`true`;
+        const inPeriod = input.period ? factsIn(sql, "spending", input.period) : sql`true`;
         const outflow = sql`COALESCE(sum(f.amount_minor) FILTER (WHERE ${inPeriod} AND ${outflowFacts}), 0)`;
         const inflow = sql`COALESCE(sum(f.amount_minor) FILTER (WHERE ${inPeriod} AND ${inflowFacts}), 0)`;
         return sql`SELECT ${counterpartyColumns(sql)},

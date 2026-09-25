@@ -1,23 +1,33 @@
+import type { Account } from "@repo/contracts/finance";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Schema, Struct } from "effect";
+import { Schema } from "effect";
 
 import { accountsQueryOptions } from "@/features/accounts/queries";
-import { LedgerPage } from "@/features/ledger/page";
-import { ledgerQuery } from "@/features/ledger/queries";
-import { LedgerSearch, ledgerInput } from "@/features/ledger/search";
+import { CountedLedgerPage, LedgerPage } from "@/features/ledger/page";
+import { countedLedgerQuery, ledgerQuery } from "@/features/ledger/queries";
+import {
+  type CountedSearch,
+  countedLedgerInput,
+  LedgerSearch,
+  ledgerInput,
+  type PostingSearch,
+} from "@/features/ledger/search";
 import { settingsQueryOptions } from "@/features/settings/queries";
-import { resolvePeriodKey } from "@/lib/period";
+import { type PeriodChoice, resolvePeriodKey } from "@/lib/period";
 
 export const Route = createFileRoute("/ledger/")({
   validateSearch: Schema.toStandardSchemaV1(LedgerSearch),
-  loaderDeps: ({ search }) => Struct.omit(search, ["compare"]),
-  loader: async ({ context, deps: { period, ...search } }) => {
+  loaderDeps: ({ search }) => search,
+  loader: async ({ context, deps: search }) => {
     const settings = await context.queryClient.ensureQueryData(settingsQueryOptions());
+    const period = resolvePeriodKey(search.period, settings.timezone);
     await Promise.all([
-      context.queryClient.ensureQueryData(
-        ledgerQuery(ledgerInput(search, resolvePeriodKey(period, settings.timezone))),
-      ),
+      search.measure
+        ? context.queryClient.ensureQueryData(
+            countedLedgerQuery(countedLedgerInput(search, period, settings.reportingCurrency)),
+          )
+        : context.queryClient.ensureQueryData(ledgerQuery(ledgerInput(search, period))),
       context.queryClient.ensureQueryData(accountsQueryOptions()),
     ]);
   },
@@ -25,21 +35,43 @@ export const Route = createFileRoute("/ledger/")({
 });
 
 function Ledger() {
-  const { period: key, ...search } = Struct.omit(Route.useSearch(), ["compare"]);
+  const search = Route.useSearch();
   const { data: settings } = useSuspenseQuery(settingsQueryOptions());
-  const period = resolvePeriodKey(key, settings.timezone);
-  const navigate = Route.useNavigate();
-  const { data: page } = useSuspenseQuery(ledgerQuery(ledgerInput(search, period)));
+  const period = resolvePeriodKey(search.period, settings.timezone);
   const { data: accounts } = useSuspenseQuery(accountsQueryOptions());
-  return (
-    <LedgerPage
-      search={search}
-      period={period}
-      page={page}
-      accounts={accounts}
-      navigate={(next) => {
-        navigate({ search: { ...next, period: key } }).catch(reportError);
-      }}
-    />
+  const navigate = Route.useNavigate();
+  const view = {
+    period,
+    accounts,
+    navigate: (next: LedgerSearch) => {
+      navigate({ search: next }).catch(reportError);
+    },
+  };
+  return search.measure ? (
+    <CountedLedger {...view} search={search} currency={settings.reportingCurrency} />
+  ) : (
+    <PostingLedger {...view} search={search} />
   );
+}
+
+type View = {
+  period: PeriodChoice;
+  accounts: readonly Account[];
+  navigate: (search: LedgerSearch) => void;
+};
+
+function PostingLedger({ search, ...view }: View & { search: PostingSearch }) {
+  const { data: page } = useSuspenseQuery(ledgerQuery(ledgerInput(search, view.period)));
+  return <LedgerPage {...view} search={search} page={page} />;
+}
+
+function CountedLedger({
+  search,
+  currency,
+  ...view
+}: View & { search: CountedSearch; currency: string }) {
+  const { data: page } = useSuspenseQuery(
+    countedLedgerQuery(countedLedgerInput(search, view.period, currency)),
+  );
+  return <CountedLedgerPage {...view} search={search} page={page} />;
 }

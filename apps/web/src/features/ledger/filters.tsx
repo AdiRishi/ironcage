@@ -1,5 +1,5 @@
 import { type Account, PostingFilter, FinancialRole } from "@repo/contracts/finance";
-import { formatDecimal, parseMoney, financialRoleLabels } from "@repo/finance";
+import { formatDecimal, parseMoney, financialRoleLabels, uncategorisedLabel } from "@repo/finance";
 import { useForm } from "@tanstack/react-form";
 import { useQuery } from "@tanstack/react-query";
 import { Effect, Schema, type Types } from "effect";
@@ -21,14 +21,18 @@ import { referenceDataQuery } from "@/features/events/queries";
 export function TransactionFilters({
   filter,
   accounts,
+  counted,
   onApply,
 }: {
   filter: typeof PostingFilter.Type;
   accounts: ReadonlyArray<Account>;
+  // On a counted ledger the scope sets the category, counterparty, currency, and dates.
+  counted?: { currency: string };
   onApply: (filter: typeof PostingFilter.Type) => Promise<void>;
 }) {
   const references = useQuery(referenceDataQuery());
   const [error, setError] = useState<string | null>(null);
+  const amountCurrency = counted?.currency ?? filter.currency ?? "AUD";
   const defaults = {
     categoryId: filter.categoryId ?? null,
     counterpartyId: filter.counterpartyId ?? null,
@@ -46,10 +50,10 @@ export function TransactionFilters({
     from: filter.from ?? "",
     to: filter.to ?? "",
     minimum: filter.minimum
-      ? formatDecimal({ minor: BigInt(filter.minimum), currency: filter.currency ?? "AUD" })
+      ? formatDecimal({ minor: BigInt(filter.minimum), currency: amountCurrency })
       : "",
     maximum: filter.maximum
-      ? formatDecimal({ minor: BigInt(filter.maximum), currency: filter.currency ?? "AUD" })
+      ? formatDecimal({ minor: BigInt(filter.maximum), currency: amountCurrency })
       : "",
     description: filter.description ?? "",
     needsReview: filter.needsReview === undefined ? "all" : filter.needsReview ? "yes" : "no",
@@ -58,7 +62,8 @@ export function TransactionFilters({
     defaultValues: defaults,
     onSubmit: async ({ value }) => {
       setError(null);
-      if ((value.minimum || value.maximum) && !value.currency) {
+      const currency = counted?.currency ?? value.currency;
+      if ((value.minimum || value.maximum) && !currency) {
         setError("Choose a currency for the amount range.");
         return;
       }
@@ -79,9 +84,9 @@ export function TransactionFilters({
           if (value.from) input.from = value.from;
           if (value.to) input.to = value.to;
           if (value.minimum)
-            input.minimum = (yield* parseMoney(value.minimum, value.currency)).minor.toString();
+            input.minimum = (yield* parseMoney(value.minimum, currency)).minor.toString();
           if (value.maximum)
-            input.maximum = (yield* parseMoney(value.maximum, value.currency)).minor.toString();
+            input.maximum = (yield* parseMoney(value.maximum, currency)).minor.toString();
           if (value.description) input.description = value.description;
           if (value.needsReview !== "all") input.needsReview = value.needsReview === "yes";
           return yield* Schema.decodeEffect(PostingFilter)(input);
@@ -115,30 +120,40 @@ export function TransactionFilters({
       }}
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <form.Field name="categoryId">
-          {(field) => (
-            <ReferenceChoice
-              label="Category"
-              value={field.state.value}
-              options={references.data?.categories ?? []}
-              onChange={field.handleChange}
-            />
-          )}
-        </form.Field>
-        <form.Field name="counterpartyId">
-          {(field) => (
-            <ReferenceChoice
-              label="Counterparty"
-              value={field.state.value}
-              options={references.data?.counterparties ?? []}
-              onChange={field.handleChange}
-            />
-          )}
-        </form.Field>
+        {!counted && (
+          <>
+            <form.Field name="categoryId">
+              {(field) => (
+                <ReferenceChoice
+                  label="Category"
+                  emptyLabel="All categories"
+                  value={field.state.value}
+                  options={[
+                    { id: "uncategorised", name: uncategorisedLabel },
+                    ...(references.data?.categories ?? []),
+                  ]}
+                  onChange={field.handleChange}
+                />
+              )}
+            </form.Field>
+            <form.Field name="counterpartyId">
+              {(field) => (
+                <ReferenceChoice
+                  label="Counterparty"
+                  emptyLabel="All counterparties"
+                  value={field.state.value}
+                  options={references.data?.counterparties ?? []}
+                  onChange={field.handleChange}
+                />
+              )}
+            </form.Field>
+          </>
+        )}
         <form.Field name="tagId">
           {(field) => (
             <ReferenceChoice
               label="Tag"
+              emptyLabel="All tags"
               value={field.state.value}
               options={references.data?.tags ?? []}
               onChange={field.handleChange}
@@ -149,6 +164,7 @@ export function TransactionFilters({
           {(field) => (
             <ReferenceChoice
               label="Personal event"
+              emptyLabel="All personal events"
               value={field.state.value}
               options={references.data?.personalEvents ?? []}
               onChange={field.handleChange}
@@ -245,29 +261,31 @@ export function TransactionFilters({
             </div>
           )}
         </form.Field>
-        <form.Field name="currency">
-          {(field) => (
-            <div className="space-y-2">
-              <Label htmlFor="filter-currency">Currency</Label>
-              <Input
-                id="filter-currency"
-                value={field.state.value}
-                onChange={(event) => field.handleChange(event.target.value.toUpperCase())}
-                placeholder="All currencies"
-                pattern="[A-Z]{3}"
-                maxLength={3}
-                list="filter-currencies"
-              />
-              <datalist id="filter-currencies">
-                {[...new Set(accounts.map((account) => account.currency))].map((currency) => (
-                  <option key={currency} value={currency}>
-                    {currency}
-                  </option>
-                ))}
-              </datalist>
-            </div>
-          )}
-        </form.Field>
+        {!counted && (
+          <form.Field name="currency">
+            {(field) => (
+              <div className="space-y-2">
+                <Label htmlFor="filter-currency">Currency</Label>
+                <Input
+                  id="filter-currency"
+                  value={field.state.value}
+                  onChange={(event) => field.handleChange(event.target.value.toUpperCase())}
+                  placeholder="All currencies"
+                  pattern="[A-Z]{3}"
+                  maxLength={3}
+                  list="filter-currencies"
+                />
+                <datalist id="filter-currencies">
+                  {[...new Set(accounts.map((account) => account.currency))].map((currency) => (
+                    <option key={currency} value={currency}>
+                      {currency}
+                    </option>
+                  ))}
+                </datalist>
+              </div>
+            )}
+          </form.Field>
+        )}
         <form.Field name="needsReview">
           {(field) => (
             <div className="space-y-2">
@@ -298,22 +316,24 @@ export function TransactionFilters({
             { name: "minimum", label: "Minimum amount", type: "text" },
             { name: "maximum", label: "Maximum amount", type: "text" },
           ] as const
-        ).map(({ name, label, type }) => (
-          <form.Field key={name} name={name}>
-            {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={`filter-${name}`}>{label}</Label>
-                <Input
-                  id={`filter-${name}`}
-                  type={type}
-                  value={field.state.value}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                  placeholder={type === "text" ? "e.g. -100.00" : undefined}
-                />
-              </div>
-            )}
-          </form.Field>
-        ))}
+        )
+          .filter(({ type }) => !counted || type !== "date")
+          .map(({ name, label, type }) => (
+            <form.Field key={name} name={name}>
+              {(field) => (
+                <div className="space-y-2">
+                  <Label htmlFor={`filter-${name}`}>{label}</Label>
+                  <Input
+                    id={`filter-${name}`}
+                    type={type}
+                    value={field.state.value}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    placeholder={type === "text" ? "e.g. -100.00" : undefined}
+                  />
+                </div>
+              )}
+            </form.Field>
+          ))}
       </div>
       {error && (
         <p role="alert" className="text-sm text-destructive">

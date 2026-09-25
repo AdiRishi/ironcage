@@ -4,6 +4,7 @@ import {
   AccountCoverage,
   ComparisonCoverage,
   ComparisonSelection,
+  CountedScope,
   CoverageState,
   DateBasis,
   Period,
@@ -20,28 +21,37 @@ export const FlowInput = Schema.Struct({
 });
 export type FlowInput = typeof FlowInput.Type;
 
-export const StreamKind = Schema.Literals([
-  "category",
-  "uncategorized",
-  "income",
-  "borrowing",
-  "externalIn",
-  "externalOut",
-  "loanPrincipal",
-  "unresolvedIn",
-  "unresolvedOut",
-]);
-export type StreamKind = typeof StreamKind.Type;
-export const FlowStream = Schema.Struct({
+const StreamFields = {
   key: Schema.String,
-  kind: StreamKind,
-  categoryId: Schema.NullOr(CategoryId),
-  slug: Schema.NullOr(Schema.String),
   label: Schema.String,
   amount: Money,
   previous: Money,
   modelAmount: Money,
-});
+  // The ledger facts the stream sums. The counted ledger lists the records behind them.
+  scope: CountedScope,
+};
+export const FlowStream = Schema.Union([
+  // Spending in one top-level category.
+  Schema.Struct({
+    kind: Schema.Literal("category"),
+    categoryId: CategoryId,
+    slug: Schema.NullOr(Schema.String),
+    ...StreamFields,
+  }),
+  Schema.Struct({
+    kind: Schema.Literals([
+      "uncategorised",
+      "income",
+      "borrowing",
+      "externalIn",
+      "externalOut",
+      "loanPrincipal",
+      "unresolvedIn",
+      "unresolvedOut",
+    ]),
+    ...StreamFields,
+  }),
+]);
 export type FlowStream = typeof FlowStream.Type;
 
 // One of the largest changes against the comparison period, at subcategory level.

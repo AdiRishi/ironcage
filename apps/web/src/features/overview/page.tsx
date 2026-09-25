@@ -7,7 +7,7 @@ import type {
   Question,
   YearMonth,
 } from "@repo/contracts/finance";
-import { formatCurrency, periodLabel } from "@repo/finance";
+import { formatCurrency, leftOver, periodLabel } from "@repo/finance";
 import { Link } from "@tanstack/react-router";
 
 import { Amount } from "@/components/amount";
@@ -42,7 +42,7 @@ export function OverviewPage({
   const previousLabel = periodLabel(flow.comparison);
   const unrecorded = flow.comparisonCoverage.state === "missing";
   const recordsEnd = lastRecordedDay(flow);
-  const surplus = money(flow.currency, flow.totals.inflow.minor - flow.totals.outflow.minor);
+  const surplus = leftOver(flow.totals);
   return (
     <div className="space-y-12">
       <header className="space-y-6">

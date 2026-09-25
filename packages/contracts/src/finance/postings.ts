@@ -1,5 +1,6 @@
-import { Schema } from "effect";
+import { Schema, Struct } from "effect";
 
+import { CountedScope, DateBasis, PartSign, Period, PeriodSelection } from "./analysis.ts";
 import { Candidate, Locator } from "./imports.ts";
 import {
   CategoryId,
@@ -13,6 +14,7 @@ import {
   CalendarDate,
   Currency,
   ImportId,
+  Instant,
   MatchMethod,
   Money,
   ObservationId,
@@ -86,4 +88,51 @@ export type LedgerRow = typeof LedgerRow.Type;
 export const LedgerPage = Schema.Struct({
   rows: Schema.Array(LedgerRow),
   nextCursor: Schema.NullOr(PostingCursor),
+});
+
+// The records behind one number: every posting whose ledger facts count toward a scope
+// in a period. The scope replaces the category and counterparty filters, and the period
+// replaces the dates.
+export const CountedFilter = Schema.Struct(
+  Struct.omit(PostingFilter.fields, ["categoryId", "counterpartyId", "currency", "from", "to"]),
+);
+// The position of a part in its measure's definition.
+const PartIndex = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
+export const CountedCursor = Schema.Struct({ part: PartIndex, on: CalendarDate, id: PostingId });
+export const ListCountedLedger = Schema.Struct({
+  scope: CountedScope,
+  period: PeriodSelection,
+  basis: DateBasis,
+  currency: Currency,
+  filter: CountedFilter,
+  cursor: Schema.optionalKey(CountedCursor),
+});
+// `counted` is what the posting's facts add to the part, signed the way the bank booked
+// the money, and `on` is the date the basis places them on.
+export const CountedLedgerRow = Schema.Struct({
+  ...LedgerRow.fields,
+  part: PartIndex,
+  on: CalendarDate,
+  counted: Money,
+});
+// `amount` is the part as its measure counts it, which `sign` adds to the total or takes
+// off it.
+export const CountedPart = Schema.Struct({
+  label: Schema.String,
+  sign: PartSign,
+  amount: Money,
+  postings: Schema.Int,
+});
+// `total` equals the number the scope was opened from.
+export const CountedLedgerPage = Schema.Struct({
+  scope: CountedScope,
+  label: Schema.String,
+  period: Period,
+  basis: DateBasis,
+  currency: Currency,
+  calculatedAt: Instant,
+  total: Money,
+  parts: Schema.Array(CountedPart),
+  rows: Schema.Array(CountedLedgerRow),
+  nextCursor: Schema.NullOr(CountedCursor),
 });

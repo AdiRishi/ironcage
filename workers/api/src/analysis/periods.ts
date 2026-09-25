@@ -18,12 +18,19 @@ export const readToday = Effect.gen(function* () {
   };
 });
 
+export const resolveSelection = Effect.fn("resolveSelection")(function* (
+  selection: PeriodSelection,
+) {
+  const { today, calculatedAt } = yield* readToday;
+  const period = yield* Effect.fromResult(resolvePeriod(selection, today));
+  return { period, calculatedAt };
+});
+
 export const resolvePeriods = Effect.fn("resolvePeriods")(function* (input: {
   readonly period: PeriodSelection;
   readonly comparison: typeof ComparisonSelection.Type;
 }) {
-  const { today, calculatedAt } = yield* readToday;
-  const period = yield* Effect.fromResult(resolvePeriod(input.period, today));
+  const { period, calculatedAt } = yield* resolveSelection(input.period);
   const comparison = yield* Effect.fromResult(
     comparisonPeriod(input.period, input.comparison, period),
   );

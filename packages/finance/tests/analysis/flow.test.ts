@@ -9,6 +9,7 @@ const interest = id(2);
 const food = id(3);
 const delivery = id(4);
 const salary = id(5);
+const bonus = id(6);
 const categories: CategoryNode[] = [
   { id: housing, parentId: null, name: "Housing", slug: "housing", tree: "spending", position: 0 },
   {
@@ -36,10 +37,11 @@ const categories: CategoryNode[] = [
     tree: "income",
     position: 0,
   },
+  { id: bonus, parentId: salary, name: "Bonus", slug: null, tree: "income", position: 0 },
 ];
 const row = (fields: Partial<FlowRow> & Pick<FlowRow, "measure">): FlowRow => ({
   categoryId: null,
-  topCategoryId: null,
+  loanAccount: false,
   current: 0n,
   previous: 0n,
   modelCurrent: 0n,
@@ -53,22 +55,10 @@ describe("summarizeFlow", () => {
     const flow = summarizeFlow({
       currency: "AUD",
       categories,
-      loanCosts: { current: 280000n, previous: 0n },
       rows: [
         row({ measure: "income", categoryId: salary, current: 850000n }),
-        row({
-          measure: "spending",
-          categoryId: interest,
-          topCategoryId: housing,
-          current: 280000n,
-        }),
-        row({
-          measure: "spending",
-          categoryId: delivery,
-          topCategoryId: food,
-          current: 30000n,
-          modelCurrent: 30000n,
-        }),
+        row({ measure: "spending", categoryId: interest, loanAccount: true, current: 280000n }),
+        row({ measure: "spending", categoryId: delivery, current: 30000n, modelCurrent: 30000n }),
         row({ measure: "loanRepayment", current: 390000n }),
         row({ measure: "internal", current: 200000n }),
       ],
@@ -86,6 +76,41 @@ describe("summarizeFlow", () => {
     ]);
     expect(flow.modelShare.minor).toBe(30000n);
   });
+
+  it("draws no principal when loan interest exceeds the repayments", () => {
+    const flow = summarizeFlow({
+      currency: "AUD",
+      categories,
+      rows: [
+        row({ measure: "spending", categoryId: interest, loanAccount: true, current: 5000n }),
+        row({ measure: "loanRepayment", current: 3000n }),
+      ],
+    });
+    expect(flow.outflows.map((stream) => [stream.label, stream.amount.minor])).toEqual([
+      ["Housing", 5000n],
+    ]);
+    expect(flow.totals.outflow.minor).toBe(5000n);
+  });
+
+  it("keeps an income subcategory inside its top-level stream, and names income with no category", () => {
+    const flow = summarizeFlow({
+      currency: "AUD",
+      categories,
+      rows: [
+        row({ measure: "income", categoryId: salary, current: 850000n }),
+        row({ measure: "income", categoryId: bonus, current: 100000n }),
+        row({ measure: "income", current: 20000n }),
+      ],
+    });
+    expect(flow.inflows.map((stream) => [stream.label, stream.amount.minor])).toEqual([
+      ["Salary", 950000n],
+      ["Not yet categorised", 20000n],
+    ]);
+    expect(flow.inflows.map((stream) => stream.scope.category)).toEqual([
+      { kind: "category", id: salary },
+      { kind: "uncategorised" },
+    ]);
+  });
 });
 
 describe("largestChanges", () => {
@@ -98,7 +123,6 @@ describe("largestChanges", () => {
         row({
           measure: "spending",
           categoryId: delivery,
-          topCategoryId: food,
           current: 30000n,
           previous: 20000n,
           purchases: 12,

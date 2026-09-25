@@ -2,14 +2,12 @@ import { PgClient } from "@effect/sql-pg";
 import {
   AccountId,
   AccountKind,
-  CategoryId,
-  CounterpartyId,
-  CounterpartyKind,
+  Counterparty,
   EventId,
   type FinancialEvent,
 } from "@repo/contracts/finance";
 import { eventLedgerFacts, factsVersion, type FactLink, type LedgerFact } from "@repo/finance";
-import { Array as Arr, Effect, Schema } from "effect";
+import { Array as Arr, Effect, Schema, Struct } from "effect";
 
 import { readEvents } from "../events/repository.ts";
 import { readCredits } from "../relationships/repository.ts";
@@ -32,33 +30,16 @@ export const deriveFacts = Effect.fn("deriveFacts")(function* (
   const accountKinds = new Map<string, typeof AccountKind.Type>(
     accounts.map((row) => [row.id, row.kind]),
   );
-  const categories =
-    yield* sql`WITH RECURSIVE tops AS (SELECT id, id AS top FROM categories WHERE parent_id IS NULL
-        UNION ALL SELECT c.id, t.top FROM categories c JOIN tops t ON c.parent_id = t.id)
-      SELECT id, top FROM tops`.pipe(
-      Effect.flatMap(
-        Schema.decodeUnknownEffect(
-          Schema.Array(Schema.Struct({ id: CategoryId, top: CategoryId })),
-        ),
-      ),
-    );
-  const tops = new Map<string, typeof CategoryId.Type>(categories.map((row) => [row.id, row.top]));
   const counterpartyIds = [
     ...new Set(events.flatMap((event) => (event.counterpartyId ? [event.counterpartyId] : []))),
   ];
   const counterparties =
     counterpartyIds.length === 0
       ? []
-      : yield* sql`SELECT id, kind, source FROM counterparties WHERE id = ANY(${counterpartyIds}::uuid[])`.pipe(
+      : yield* sql`SELECT id, source FROM counterparties WHERE id = ANY(${counterpartyIds}::uuid[])`.pipe(
           Effect.flatMap(
             Schema.decodeUnknownEffect(
-              Schema.Array(
-                Schema.Struct({
-                  id: CounterpartyId,
-                  kind: CounterpartyKind,
-                  source: Schema.Literals(["user", "model"]),
-                }),
-              ),
+              Schema.Array(Counterparty.mapFields(Struct.pick(["id", "source"]))),
             ),
           ),
         );
@@ -73,7 +54,6 @@ export const deriveFacts = Effect.fn("deriveFacts")(function* (
         (link) =>
           allocationIds.has(link.creditAllocationId) || allocationIds.has(link.costAllocationId),
       ),
-      topCategory: (id) => tops.get(id) ?? null,
     });
   });
 });
@@ -90,10 +70,11 @@ export const writeFacts = Effect.fn("writeFacts")(function* (
       rows.map((fact) => ({
         event_id: fact.eventId,
         allocation_id: fact.allocationId,
+        posting_id: fact.postingId,
+        credit_event_id: fact.creditEventId,
         account_id: fact.accountId,
         counterparty_id: fact.counterpartyId,
         category_id: fact.categoryId,
-        top_category_id: fact.topCategoryId,
         measure: fact.measure,
         posted_on: fact.postedOn,
         spending_on: fact.spendingOn,

@@ -50,5 +50,5 @@ test("a whole calendar year is written as the year", async ({ onTestFinished }) 
 
   await choose("January 2025", "December 2025");
 
-  expect(onChange).toHaveBeenCalledWith("2025");
+  expect(onChange).toHaveBeenCalledWith(2025);
 });

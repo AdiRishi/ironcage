@@ -53,9 +53,13 @@ export const CounterpartyRole = Schema.Literals([
 ]);
 export const CategoryTree = Schema.Literals(["spending", "income"]);
 export type CategoryTree = typeof CategoryTree.Type;
+// A category with everything below it, or `uncategorised` for money whose role takes a
+// category that it does not have yet.
+export const CategoryChoice = Schema.Union([CategoryId, Schema.Literal("uncategorised")]);
+export type CategoryChoice = typeof CategoryChoice.Type;
 export const InterpretationFilter = Schema.Struct({
   role: Schema.optionalKey(FinancialRole),
-  categoryId: Schema.optionalKey(CategoryId),
+  categoryId: Schema.optionalKey(CategoryChoice),
   counterpartyId: Schema.optionalKey(CounterpartyId),
   tagId: Schema.optionalKey(TagId),
   personalEventId: Schema.optionalKey(PersonalEventId),
