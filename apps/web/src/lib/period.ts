@@ -3,6 +3,8 @@ import {
   type ComparisonSelection,
   type DateBasis,
   type FlowInput,
+  type MonthlyFlow,
+  type MonthTotal,
   PeriodSelection,
   YearMonth,
 } from "@repo/contracts/finance";
@@ -98,6 +100,24 @@ export function periodKey(from: YearMonth, to: YearMonth): PeriodKey {
   const year = from.slice(0, 4);
   if (from === `${year}-01` && to === `${year}-12`) return Number(year);
   return `${from}..${to}`;
+}
+
+// A month has records when a file covers some of its days. A purchase dated in a month
+// that no file covers still counts in that month, so its amounts alone prove nothing.
+export const hasRecords = (month: typeof MonthTotal.Type) => month.coverage !== "missing";
+
+export function periodMonths(months: typeof MonthlyFlow.Type, period: PeriodChoice) {
+  return months.filter((month) => period.from <= month.month && month.month <= period.to);
+}
+
+// The monthly flow is empty until the first file publishes a transaction.
+export type PeriodRecords = "none" | "missing" | "recorded";
+export function periodRecords(
+  months: typeof MonthlyFlow.Type,
+  period: PeriodChoice,
+): PeriodRecords {
+  if (months.length === 0) return "none";
+  return periodMonths(months, period).some(hasRecords) ? "recorded" : "missing";
 }
 
 // Inclusive calendar dates, for filters that take a first and last date.

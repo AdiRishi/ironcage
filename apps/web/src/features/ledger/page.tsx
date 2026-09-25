@@ -10,10 +10,11 @@ import { Struct } from "effect";
 import { useState } from "react";
 
 import { Amount } from "@/components/amount";
+import { NoRecords } from "@/components/no-records";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SpendingPath } from "@/features/spending/path";
-import type { PeriodChoice } from "@/lib/period";
+import type { PeriodChoice, PeriodRecords } from "@/lib/period";
 
 import { TransactionFilters } from "./filters";
 import { CountedList, LedgerList } from "./list";
@@ -29,17 +30,22 @@ import {
 export function LedgerPage({
   search,
   period,
+  records,
+  timezone,
   page,
   accounts,
   navigate,
 }: {
   search: PostingSearch;
   period: PeriodChoice;
+  records: PeriodRecords;
+  timezone: string;
   page: typeof LedgerResult.Type;
   accounts: readonly Account[];
   navigate: (search: PostingSearch) => void;
 }) {
   const filter = postingFilter(search);
+  const filtered = Object.keys(filter).length > 0;
   const scope = filter.importId
     ? "One file"
     : filter.questionId
@@ -74,15 +80,25 @@ export function LedgerPage({
           onApply={async (next) => navigate(next)}
         />
       </MoreFilters>
-      {page.rows.length === 0 ? (
-        <p className="text-slate">No transactions match. Try another period or fewer filters.</p>
+      {page.rows.length === 0 && !filtered && records !== "recorded" ? (
+        <NoRecords records={records} period={period} timezone={timezone} />
       ) : (
-        <LedgerList rows={page.rows} />
+        <>
+          {page.rows.length === 0 ? (
+            <p className="text-slate">
+              {filtered
+                ? "No transactions match. Try another period or fewer filters."
+                : `No transactions in ${period.label}.`}
+            </p>
+          ) : (
+            <LedgerList rows={page.rows} />
+          )}
+          <Pager
+            onNewest={search.cursor ? () => navigate(filter) : null}
+            onOlder={nextCursor ? () => navigate({ ...filter, cursor: nextCursor }) : null}
+          />
+        </>
       )}
-      <Pager
-        onNewest={search.cursor ? () => navigate(filter) : null}
-        onOlder={nextCursor ? () => navigate({ ...filter, cursor: nextCursor }) : null}
-      />
     </div>
   );
 }

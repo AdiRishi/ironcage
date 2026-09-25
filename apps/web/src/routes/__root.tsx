@@ -18,7 +18,7 @@ import { TopBar } from "@/components/shell/top-bar";
 import { monthlyFlowQuery } from "@/features/flow/queries";
 import { questionSummaryQuery } from "@/features/questions/queries";
 import { settingsQueryOptions } from "@/features/settings/queries";
-import { PeriodSearch, currentMonth, resolvePeriodKey } from "@/lib/period";
+import { PeriodSearch, currentMonth, hasRecords, resolvePeriodKey } from "@/lib/period";
 
 import appCss from "@/global-styles/tailwind.css?url";
 
@@ -38,7 +38,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     const months = await context.queryClient.ensureQueryData(
       monthlyFlowQuery(settings.reportingCurrency),
     );
-    const latest = months.findLast((month) => month.coverage !== "missing")?.month;
+    const latest = months.findLast(hasRecords)?.month;
     if (latest && latest < currentMonth(settings.timezone))
       throw redirect({
         href: `${location.pathname}${defaultStringifySearch({ ...location.search, period: latest })}`,

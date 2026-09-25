@@ -14,7 +14,7 @@ Questions collect everything that needs a decision from you, largest amount firs
 | What is this person? | Twelve payments of $1,840 to Jane Smith marked "Rent". Proposed: spending in Rent, because the reference names your Rent category.          |
 | Is this yours?       | $5,000 to an account ending 9921 that is not one of yours. Proposed: your own account elsewhere.                                            |
 | Which category?      | A counterparty the model could not place confidently. Confirming it confirms its category too.                                              |
-| Which account?       | A CSV file that does not name its account.                                                                                                  |
+| Which account?       | A CSV file, or an OFX for a deposit account ending 5678 while one you added has no bank number.                                             |
 | Which row is which?  | Two same-day, same-amount rows the importer cannot pair on its own.                                                                         |
 | A new subcategory?   | Several pet shops sit in Shopping, General. Proposed: Shopping, Pets.                                                                       |
 | Is this a movement?  | $2,000 out of one account and into another the same day. Proposed: a transfer between them.                                                 |
@@ -51,6 +51,6 @@ Skip moves the card to the end of the list until you leave the screen. Nothing i
 
 ## Counts and periods
 
-Counterparty questions come first, and chips narrow them to one kind: who is this, people, accounts, or rule conflicts. Each chip shows how many questions it holds. More questions loads the next 25, and the first of them takes focus. Suggested subcategories, records to check from the importer (which account a CSV belongs to, which row matches which), refunds to link, and movements to confirm follow in their own sections.
+Counterparty questions come first, and chips narrow them to one kind: who is this, people, accounts, or rule conflicts. Each chip shows how many questions it holds. More questions loads the next 25, and the first of them takes focus. Suggested subcategories, records to check from the importer (which account a file belongs to, which row matches which), refunds to link, and movements to confirm follow in their own sections.
 
 The count in the top bar is every question card over your whole history, and the screen opens on the whole history too. The overview's Needs your eye counts only the questions with a transaction in the selected period, and the money those transactions move, and selecting it opens this screen narrowed to that period. Each card then also says how many of its transactions fall in the period. Show every question returns to the whole history. A transaction falls in the period by its spending date: the purchase date when a purchase has one, otherwise the day it posted.

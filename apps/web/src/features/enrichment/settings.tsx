@@ -41,7 +41,7 @@ export function EnrichmentSection() {
     onSuccess: () => client.invalidateQueries(),
   });
   return (
-    <section className="space-y-4">
+    <section id="identification" className="space-y-4">
       <h2 className="type-heading">Counterparty identification</h2>
       <p className="type-small text-slate">
         {settings.data?.provider.name} runs {settings.data?.provider.model}. It receives descriptor

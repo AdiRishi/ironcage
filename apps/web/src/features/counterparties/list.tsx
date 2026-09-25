@@ -167,11 +167,48 @@ function CounterpartyTable({
   );
 }
 
+// The list holds only counterparties with money in the tab's direction, so without a search
+// an empty tab either had no money move that way or has nobody identified behind it.
+function EmptyTab({
+  direction,
+  period,
+  search,
+  moneyMoved,
+}: {
+  direction: FlowDirection;
+  period: PeriodChoice;
+  search: string;
+  moneyMoved: boolean;
+}) {
+  if (search) return `No counterparties match “${search}” in ${period.label}.`;
+  if (!moneyMoved)
+    return `Nothing ${direction === "out" ? "went out" : "came in"} during ${period.label}.`;
+  return (
+    <>
+      Ironcage has not identified anyone {direction === "out" ? "you paid" : "who paid you"} in{" "}
+      {period.label}. Run counterparty identification in{" "}
+      <Link
+        to="/settings"
+        hash="identification"
+        className="text-intaglio underline underline-offset-4"
+      >
+        Settings
+      </Link>
+      , or answer{" "}
+      <Link to="/questions" className="text-intaglio underline underline-offset-4">
+        Questions
+      </Link>
+      .
+    </>
+  );
+}
+
 export function CounterpartiesPage({
   counterparties,
   references,
   period,
   direction,
+  moneyMoved,
   search,
   onSearch,
   onDirection,
@@ -180,6 +217,7 @@ export function CounterpartiesPage({
   references: typeof ReferenceData.Type;
   period: PeriodChoice;
   direction: FlowDirection;
+  moneyMoved: boolean;
   search: string;
   onSearch: (search: string) => void;
   onDirection: (direction: FlowDirection) => void;
@@ -233,10 +271,13 @@ export function CounterpartiesPage({
         {directions.map((item) => (
           <TabsContent key={item.value} value={item.value}>
             {counterparties.length === 0 ? (
-              <p className="type-body text-slate">
-                {search
-                  ? `No counterparties match “${search}” in ${period.label}.`
-                  : `Nothing ${item.value === "out" ? "went out" : "came in"} in ${period.label}.`}
+              <p className="max-w-[72ch] type-body text-slate">
+                <EmptyTab
+                  direction={item.value}
+                  period={period}
+                  search={search}
+                  moneyMoved={moneyMoved}
+                />
               </p>
             ) : (
               <CounterpartyTable

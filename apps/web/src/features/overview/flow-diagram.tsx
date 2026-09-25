@@ -18,11 +18,7 @@ export function FlowDiagram({ flow }: { flow: PeriodFlow }) {
   const [asTable, setAsTable] = useState(false);
   const { inflows, outflows } = flowStreams(flow);
   if (inflows.length === 0 && outflows.length === 0)
-    return (
-      <p className="text-slate">
-        No money moved in this period, or its records have not been imported.
-      </p>
-    );
+    return <p className="text-slate">No money moved in this period.</p>;
   const sources = inflows.filter((entry) => entry.kind === "stream").length;
   const destinations = outflows.filter((entry) => entry.kind === "stream").length;
   // What went out is net of money back, which the diagram draws coming in.

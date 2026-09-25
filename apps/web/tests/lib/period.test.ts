@@ -1,4 +1,4 @@
-import { YearMonth } from "@repo/contracts/finance";
+import { type CoverageState, type MonthTotal, YearMonth } from "@repo/contracts/finance";
 import { monthsPeriod, periodLabel } from "@repo/finance";
 import { Schema } from "effect";
 import { expect, test, vi } from "vitest";
@@ -9,6 +9,7 @@ import {
   periodDates,
   type PeriodKey,
   periodKey,
+  periodRecords,
   PeriodSearch,
   resolvePeriodKey,
   wholeComparison,
@@ -16,6 +17,18 @@ import {
 
 const decode = Schema.decodeUnknownResult(PeriodSearch);
 const month = (value: string) => YearMonth.make(value);
+const aud = (minor: bigint) => ({ currency: "AUD", minor });
+const monthTotal = (
+  value: string,
+  coverage: CoverageState,
+  outflow = 0n,
+): typeof MonthTotal.Type => ({
+  month: month(value),
+  inflow: aud(0n),
+  outflow: aud(outflow),
+  spending: aud(outflow),
+  coverage,
+});
 
 test("the address accepts a year as a number, month ranges, and last year's comparison", () => {
   expect(decode({ period: 2026 })).toMatchObject({ success: { period: 2026 } });
@@ -94,4 +107,24 @@ test("the comparison is named after the whole months it covers", () => {
   expect(name(month("2026-09"), "2026-03-01..2026-04-14")).toBe("1 March to 14 April 2026");
   expect(name(periodKey(month("2026-01"), month("2026-12")))).toBe("2025");
   expect(name("2026-07..2026-09")).toBe("April to June 2026");
+});
+
+test("a month that no file covers has no records even when a purchase is dated in it", () => {
+  // A $31 purchase made on 31 January and posted on 2 February, when files cover only
+  // February, counts toward January's spending.
+  const months = [monthTotal("2025-01", "missing", 3100n), monthTotal("2025-02", "complete")];
+  expect(periodRecords(months, resolvePeriodKey(month("2025-01"), "UTC"))).toBe("missing");
+  expect(periodRecords(months, resolvePeriodKey(month("2025-02"), "UTC"))).toBe("recorded");
+});
+
+test("a year with any partly covered month has records", () => {
+  const months = [monthTotal("2024-12", "missing"), monthTotal("2025-06", "partial")];
+  expect(periodRecords(months, resolvePeriodKey(2025, "UTC"))).toBe("recorded");
+  expect(periodRecords(months, resolvePeriodKey(2024, "UTC"))).toBe("missing");
+  expect(periodRecords(months, resolvePeriodKey(month("2019-03"), "UTC"))).toBe("missing");
+});
+
+test("no months means nothing has been imported", () => {
+  expect(periodRecords([], resolvePeriodKey(month("2025-03"), "UTC"))).toBe("none");
+  expect(periodRecords([], resolvePeriodKey(2025, "UTC"))).toBe("none");
 });

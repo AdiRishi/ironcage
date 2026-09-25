@@ -94,8 +94,19 @@ export class AccountResolution extends Context.Service<
             kind: "needsReview",
             message: "Choose the account this file belongs to.",
           });
+        const name = `${institutionNames[identity.institution]} ${identity.kind}`;
+        const ending = identity.accountNumber.slice(-4);
+        // An account added by hand may be this file's account, and a second one would count its
+        // transactions twice.
+        const unnumbered =
+          yield* sql`SELECT 1 FROM accounts WHERE institution = ${identity.institution} AND kind = ${identity.kind} AND currency = ${identity.currency} AND account_number IS NULL LIMIT 1`;
+        if (unnumbered.length > 0)
+          return yield* new FinanceError({
+            kind: "needsReview",
+            message: `This file is for the ${name} account ending ${ending}. A ${identity.kind} account you added has no bank number yet. Choose it if it is the same account, or add a new one.`,
+          });
         const id = yield* crypto.randomUUIDv4;
-        const label = `${institutionNames[identity.institution]} ${identity.kind} ${identity.accountNumber.slice(-4)}`;
+        const label = `${name} ${ending}`;
         const [created] =
           yield* sql`INSERT INTO accounts ${sql.insert({ id, label, kind: identity.kind, institution: identity.institution, currency: identity.currency, bank_id: identity.bankId, account_number: identity.accountNumber })} RETURNING ${fields}`.pipe(
             Effect.flatMap(decodeOne),

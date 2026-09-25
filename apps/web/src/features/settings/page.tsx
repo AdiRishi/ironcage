@@ -1,10 +1,8 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
-import { CreateAccountDialog } from "@/features/accounts/create-account";
-import { EditAccountDialog } from "@/features/accounts/edit-account";
-import { accountKindLabels } from "@/features/accounts/labels";
 import { accountsQueryOptions } from "@/features/accounts/queries";
+import { AccountsSection } from "@/features/accounts/section";
 
 import { AccountPeriodsSection } from "../accounts/periods";
 import { EnrichmentSection } from "../enrichment/settings";
@@ -42,33 +40,7 @@ export function SettingsPage() {
           </span>
         </Link>
       </nav>
-      <section aria-labelledby="accounts-heading" className="space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <h2 id="accounts-heading" className="type-heading">
-            Accounts
-          </h2>
-          <CreateAccountDialog />
-        </div>
-        {accounts.length === 0 ? (
-          <p className="text-slate">Upload an OFX file or add an account to begin.</p>
-        ) : (
-          <ul className="divide-y divide-rule border-y border-rule">
-            {accounts.map((account) => (
-              <li key={account.id} className="flex items-center justify-between gap-4 py-3">
-                <div>
-                  <p className="font-[560]">{account.label}</p>
-                  <p className="type-small text-slate">
-                    {accountKindLabels[account.kind]} · {account.currency}
-                    {account.accountNumber &&
-                      ` · ${account.bankId ? `${account.bankId} ` : ""}${account.accountNumber}`}
-                  </p>
-                </div>
-                <EditAccountDialog account={account} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <AccountsSection accounts={accounts} />
       <AccountPeriodsSection accounts={accounts} />
       <EnrichmentSection />
       <ModelUsageSection />

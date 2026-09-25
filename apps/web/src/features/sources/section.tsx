@@ -37,7 +37,9 @@ export function SourceFilesSection() {
         </p>
       </div>
       {groups.length === 0 ? (
-        <p className="text-slate">No files yet.</p>
+        <p className="text-slate">
+          No files yet. Upload your NetBank exports and statements above.
+        </p>
       ) : (
         <div className="divide-y divide-rule border-y border-rule">
           {groups.map((group) => (
