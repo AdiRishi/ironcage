@@ -1,6 +1,5 @@
 import type { LedgerRow } from "@repo/contracts/finance";
-
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 const labels = {
   you: "Set by you",

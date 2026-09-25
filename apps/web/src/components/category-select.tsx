@@ -1,6 +1,5 @@
 import type { CategoryId, CategoryTree, ReferenceData } from "@repo/contracts/finance";
-
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 type Categories = (typeof ReferenceData.Type)["categories"];
 

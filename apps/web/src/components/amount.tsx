@@ -1,7 +1,6 @@
 import type { Money } from "@repo/contracts/finance";
 import { formatCurrency } from "@repo/finance";
-
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 // Every money value renders from its minor units, never from a float.
 export function Amount({
