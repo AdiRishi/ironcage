@@ -52,6 +52,7 @@ const MonthSum = Schema.Struct({
   key: Schema.NullOr(Schema.String),
   ofScope: Schema.Boolean,
   amount: Schema.BigIntFromString,
+  modelAmount: Schema.BigIntFromString,
 });
 const Named = Schema.Struct({ id: CounterpartyId, name: Schema.String });
 
@@ -188,7 +189,8 @@ const breakdownOf = Effect.fn("spendingBreakdown")(function* (input: SpendingInp
   const month = sql`to_char(${factDate(sql, input.basis)}, 'YYYY-MM')`;
   const monthly =
     yield* sql`SELECT ${month} AS month, ${grouping.key} AS key, GROUPING(${grouping.key}) = 1 AS "ofScope",
-        sum(f.amount_minor)::text AS amount
+        sum(f.amount_minor)::text AS amount,
+        COALESCE(sum(f.amount_minor) FILTER (WHERE f.model_assigned), 0)::text AS "modelAmount"
       FROM ledger_facts f ${grouping.join}
       WHERE ${scoped} AND ${factsIn(sql, input.basis, trailing)}
       GROUP BY GROUPING SETS ((${month}, ${grouping.key}), (${month}))`.pipe(
@@ -208,11 +210,16 @@ const breakdownOf = Effect.fn("spendingBreakdown")(function* (input: SpendingInp
     ...changeFigures(sums, input.currency),
     modelAmount: money(sums.modelCurrent),
   });
-  const seriesOf = (sums: readonly (typeof MonthSum.Type)[]) => {
-    const byMonth = new Map(sums.map((row) => [row.month, row.amount]));
+  const seriesOf = (
+    sums: readonly (typeof MonthSum.Type)[],
+    pick: (row: typeof MonthSum.Type) => bigint = (row) => row.amount,
+  ) => {
+    const byMonth = new Map(sums.map((row) => [row.month, pick(row)]));
     return (at: YearMonth) => money(byMonth.get(at) ?? 0n);
   };
-  const scopeSeries = seriesOf(monthly.filter((row) => row.ofScope));
+  const ofScope = monthly.filter((row) => row.ofScope);
+  const scopeSeries = seriesOf(ofScope);
+  const scopeModelSeries = seriesOf(ofScope, (row) => row.modelAmount);
   const rowMonths = Map.groupBy(
     monthly.filter((row) => !row.ofScope),
     (row) => row.key,
@@ -230,6 +237,7 @@ const breakdownOf = Effect.fn("spendingBreakdown")(function* (input: SpendingInp
     months: months.map((at) => ({
       month: at,
       amount: scopeSeries(at),
+      modelAmount: scopeModelSeries(at),
       coverage: monthCoverage(sources, at),
     })),
     coverage,

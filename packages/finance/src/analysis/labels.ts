@@ -1,4 +1,4 @@
-import type { Period, YearMonth } from "@repo/contracts/finance";
+import type { CalendarDate, Period, YearMonth } from "@repo/contracts/finance";
 import { DateTime } from "effect";
 
 import { addDays, yearMonthOf, yearMonthStart } from "../dates.ts";
@@ -16,6 +16,10 @@ export function monthLabel(month: YearMonth) {
   return DateTime.formatIntl(DateTime.makeUnsafe(yearMonthStart(month)), monthYearFormat);
 }
 
+export function dateLabel(on: CalendarDate) {
+  return DateTime.formatIntl(DateTime.makeUnsafe(on), dateFormat);
+}
+
 export function periodLabel(period: Period) {
   const lastDay = addDays(period.endExclusive, -1);
   const first = DateTime.makeUnsafe(period.start);
@@ -29,7 +33,7 @@ export function periodLabel(period: Period) {
     const from = DateTime.formatIntl(first, sameYear ? monthFormat : monthYearFormat);
     return `${from} to ${DateTime.formatIntl(last, monthYearFormat)}`;
   }
-  if (period.start === lastDay) return DateTime.formatIntl(first, dateFormat);
+  if (period.start === lastDay) return dateLabel(period.start);
   const from = DateTime.formatIntl(
     first,
     sameMonth ? dayFormat : sameYear ? dayMonthFormat : dateFormat,

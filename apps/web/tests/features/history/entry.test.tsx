@@ -48,7 +48,7 @@ import {
   undoCorrection,
 } from "@/features/events/functions";
 import { HistoryEntry } from "@/features/history/entry";
-import { getModelUsage, getRetention, getSettings } from "@/features/settings/functions";
+import { getRetention, getSettings } from "@/features/settings/functions";
 import { AppRequestError } from "@/lib/app-error";
 import { createQueryClient } from "@/lib/query-client";
 
@@ -81,7 +81,6 @@ vi.mock("../../../src/features/events/functions", () => ({
 vi.mock("../../../src/features/settings/functions", () => ({
   getSettings: vi.fn<typeof getSettings>(),
   getRetention: vi.fn<typeof getRetention>(),
-  getModelUsage: vi.fn<typeof getModelUsage>(),
 }));
 
 const groceries = CategoryId.make("00000000-0000-4000-8000-0000000000f1");

@@ -5,8 +5,10 @@ import { expect, it } from "vitest";
 import {
   comparisonPeriod,
   missingPeriods,
+  periodsWithin,
   resolvePeriod,
   trailingYear,
+  wholeMonths,
 } from "../../src/analysis/periods.ts";
 const day = (value: string) => CalendarDate.make(value);
 it.each([
@@ -118,6 +120,29 @@ it("resolves a calendar period on its last day and combines overlapping coverage
       { start: day("2026-08-10"), endExclusive: day("2026-08-29") },
     ]),
   ).toEqual([{ start: "2026-08-29", endExclusive: "2026-09-01" }]);
+});
+
+it("keeps the days of each interval that fall inside a period", () => {
+  expect(
+    periodsWithin({ start: day("2026-08-01"), endExclusive: day("2026-09-01") }, [
+      { start: day("2026-06-01"), endExclusive: day("2026-07-01") },
+      { start: day("2026-07-28"), endExclusive: day("2026-08-15") },
+      { start: day("2026-08-20"), endExclusive: day("2026-09-10") },
+    ]),
+  ).toEqual([
+    { start: "2026-08-01", endExclusive: "2026-08-15" },
+    { start: "2026-08-20", endExclusive: "2026-09-01" },
+  ]);
+});
+
+it("names the whole months a period spans, and none for a period that ends within a month", () => {
+  expect(wholeMonths({ start: day("2026-07-01"), endExclusive: day("2026-09-01") })).toEqual({
+    kind: "months",
+    from: "2026-07",
+    to: "2026-08",
+  });
+  expect(wholeMonths({ start: day("2026-08-01"), endExclusive: day("2026-08-27") })).toBeNull();
+  expect(wholeMonths({ start: day("2026-07-15"), endExclusive: day("2026-09-01") })).toBeNull();
 });
 
 const months = (from: string, to: string) =>

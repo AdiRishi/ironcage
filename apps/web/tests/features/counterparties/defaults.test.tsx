@@ -27,7 +27,7 @@ import {
   undoCounterpartyChange,
 } from "@/features/counterparties/functions";
 import { counterpartyQuery } from "@/features/counterparties/queries";
-import { getModelUsage, getRetention, getSettings } from "@/features/settings/functions";
+import { getRetention, getSettings } from "@/features/settings/functions";
 import { AppRequestError } from "@/lib/app-error";
 import { createQueryClient } from "@/lib/query-client";
 
@@ -46,7 +46,6 @@ vi.mock("../../../src/features/counterparties/functions", () => ({
 vi.mock("../../../src/features/settings/functions", () => ({
   getSettings: vi.fn<typeof getSettings>(),
   getRetention: vi.fn<typeof getRetention>(),
-  getModelUsage: vi.fn<typeof getModelUsage>(),
 }));
 
 const category = (id: string, name: string, slug: string, position: number) => ({

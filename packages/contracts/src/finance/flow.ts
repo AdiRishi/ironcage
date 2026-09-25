@@ -77,13 +77,17 @@ export const ChangeFigures = Schema.Struct({
 });
 export type ChangeFigures = typeof ChangeFigures.Type;
 
+// `modelAmount` is the part of the current amount that rests on the model's reading of
+// transactions.
+export const SpendingFigures = Schema.Struct({ ...ChangeFigures.fields, modelAmount: Money });
+
 // One of the largest changes against the comparison period, in the facts placed on one
 // category, which `category` opens.
 export const PeriodChange = Schema.Struct({
   category: CategoryScope,
   label: Schema.String,
   parentLabel: Schema.NullOr(Schema.String),
-  ...ChangeFigures.fields,
+  ...SpendingFigures.fields,
 });
 export type PeriodChange = typeof PeriodChange.Type;
 
@@ -112,14 +116,27 @@ export const PeriodFlow = Schema.Struct({
 export type PeriodFlow = typeof PeriodFlow.Type;
 
 export const MonthlyFlowInput = Schema.Struct({ currency: Currency });
+// `modelShare` is the part of the month's spending that rests on the model's reading of
+// transactions, as `PeriodFlow`'s is.
 export const MonthTotal = Schema.Struct({
   month: YearMonth,
   inflow: Money,
   outflow: Money,
   spending: Money,
+  modelShare: Money,
   coverage: CoverageState,
 });
 export const MonthlyFlow = Schema.Array(MonthTotal);
+
+// The days each account in the currency has records and reconciled statements for, and
+// the days of the period it has none for.
+export const CoverageInput = Schema.Struct({ period: PeriodSelection, currency: Currency });
+export const PeriodCoverage = Schema.Struct({
+  period: Period,
+  calculatedAt: Instant,
+  coverage: Schema.Array(AccountCoverage),
+});
+export type PeriodCoverage = typeof PeriodCoverage.Type;
 
 // A tag or personal event narrows spending to the allocations that carry it.
 export const SpendingInput = Schema.Struct({
@@ -131,7 +148,6 @@ export type SpendingInput = typeof SpendingInput.Type;
 // A scope opens its categories one level down. A scope with no categories below it opens
 // its counterparties, and one counterparty opens the records the counted ledger lists.
 export const SpendingLevel = Schema.Literals(["categories", "counterparties", "transactions"]);
-export const SpendingFigures = Schema.Struct({ ...ChangeFigures.fields, modelAmount: Money });
 // `share` is the row's whole percent of what the rows with a positive amount add up to,
 // and null when its own amount is not positive. `slug` colours the row: its category's,
 // or the open category's for a counterparty. `months` follows the breakdown's months.
@@ -144,10 +160,12 @@ export const SpendingRow = Schema.Struct({
   months: Schema.Array(Money),
 });
 export type SpendingRow = typeof SpendingRow.Type;
-// The scope's own amount in a month, and whether that month's records are complete.
+// The scope's own amount in a month, the part of it that rests on the model, and whether
+// that month's records are complete.
 export const SpendingMonth = Schema.Struct({
   month: YearMonth,
   amount: Money,
+  modelAmount: Money,
   coverage: CoverageState,
 });
 export const SpendingBreakdown = Schema.Struct({

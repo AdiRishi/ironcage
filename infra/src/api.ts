@@ -1,13 +1,26 @@
 import { Stack } from "alchemy";
 import { AlchemyContext } from "alchemy/AlchemyContext";
 import * as Cloudflare from "alchemy/Cloudflare";
+import type { RpcCallError } from "alchemy/Cloudflare/Bridge";
 import * as Planetscale from "alchemy/Planetscale";
 import { RuntimeContext } from "alchemy/RuntimeContext";
 import { Effect } from "effect";
 
 import { api, type ApiOperations } from "../../workers/api/src/index.ts";
 
-export type { WebOperation } from "../../workers/api/src/index.ts";
+export type { AnalystOperation, WebOperation } from "../../workers/api/src/index.ts";
+
+// Operations as another Worker's binding reaches them. The API Worker provides their
+// services, so only results and failures cross, and a call also fails with `RpcCallError`
+// when the API Worker throws, runs out of CPU, restarts, or loses the connection.
+export type ApiClient<Operation extends keyof ApiOperations> = {
+  readonly [K in Operation]: (
+    ...args: Parameters<ApiOperations[K]>
+  ) => Effect.Effect<
+    Effect.Success<ReturnType<ApiOperations[K]>>,
+    Effect.Error<ReturnType<ApiOperations[K]>> | RpcCallError
+  >;
+};
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
 import { localPostgres } from "./database/local.ts";
 import { apiBindings } from "./worker-bindings.ts";

@@ -135,6 +135,7 @@ const breakdown = (
   months: lastMonth(10000n).map((amount, index) => ({
     month: shiftYearMonth(YearMonth.make("2025-08"), index),
     amount,
+    modelAmount: { currency: "AUD", minor: 0n },
     coverage: "complete" as const,
   })),
   coverage: [],

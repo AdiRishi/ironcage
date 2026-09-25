@@ -1,11 +1,13 @@
 import { PgClient } from "@effect/sql-pg";
 import {
   CategoryId,
+  CoverageInput,
   FactMeasure,
   FinanceError,
   FlowInput,
   MonthlyFlow,
   MonthlyFlowInput,
+  PeriodCoverage,
   PeriodFlow,
   YearMonth,
   type Period,
@@ -27,7 +29,7 @@ import { readTransaction } from "../database/transactions.ts";
 import { categoryNodes } from "./categories.ts";
 import { coverageSources } from "./coverage.ts";
 import { factsIn, onLoanAccount, periodSums, PeriodSums } from "./fact-sql.ts";
-import { readToday, resolvePeriods } from "./periods.ts";
+import { readToday, resolvePeriods, resolveSelection } from "./periods.ts";
 
 const Row = Schema.Struct({
   measure: FactMeasure,
@@ -75,6 +77,9 @@ export class Flows extends Context.Service<
     readonly monthly: (
       input: typeof MonthlyFlowInput.Type,
     ) => Effect.Effect<typeof MonthlyFlow.Type, FinanceError>;
+    readonly coverage: (
+      input: typeof CoverageInput.Type,
+    ) => Effect.Effect<PeriodCoverage, FinanceError>;
   }
 >()("@repo/api/analysis/Flows") {
   static readonly layer = Layer.effect(
@@ -130,10 +135,12 @@ export class Flows extends Context.Service<
                 measure: FactMeasure,
                 loanAccount: Schema.Boolean,
                 amount: Schema.BigIntFromString,
+                modelAmount: Schema.BigIntFromString,
               });
               const totals =
                 yield* sql`SELECT to_char(f.spending_on, 'YYYY-MM') AS month, f.measure, ${onLoanAccount(sql)} AS "loanAccount",
-                  sum(f.amount_minor)::text AS amount
+                  sum(f.amount_minor)::text AS amount,
+                  COALESCE(sum(f.amount_minor) FILTER (WHERE f.model_assigned), 0)::text AS "modelAmount"
                 FROM ledger_facts f
                 WHERE f.currency = ${currency} GROUP BY 1, 2, 3 ORDER BY 1`.pipe(
                   Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Month))),
@@ -157,7 +164,7 @@ export class Flows extends Context.Service<
                     loanAccount: row.loanAccount,
                     current: row.amount,
                     previous: 0n,
-                    modelCurrent: 0n,
+                    modelCurrent: row.modelAmount,
                     purchaseCurrent: 0n,
                     purchasePrevious: 0n,
                     purchases: 0,
@@ -169,6 +176,7 @@ export class Flows extends Context.Service<
                   inflow: flow.totals.inflow,
                   outflow: flow.totals.outflow,
                   spending: flow.totals.spending,
+                  modelShare: flow.modelShare,
                   coverage: monthCoverage(sources, month),
                 };
               });
@@ -178,7 +186,21 @@ export class Flows extends Context.Service<
         toFinanceError,
       );
 
-      return Flows.of({ period, monthly });
+      const coverage = Effect.fn("Flows.coverage")(
+        (input: typeof CoverageInput.Type) =>
+          readTransaction(
+            sql,
+            Effect.gen(function* () {
+              const { period, calculatedAt } = yield* resolveSelection(input.period);
+              const sources = yield* coverageSources(input.currency);
+              return { period, calculatedAt, coverage: accountCoverage(sources, period) };
+            }),
+          ),
+        provide,
+        toFinanceError,
+      );
+
+      return Flows.of({ period, monthly, coverage });
     }),
   );
 }

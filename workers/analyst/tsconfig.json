@@ -1,0 +1,4 @@
+{
+  "extends": "@repo/tsconfig/worker.json",
+  "include": ["src"]
+}

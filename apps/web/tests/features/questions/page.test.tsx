@@ -59,7 +59,7 @@ import {
 import { listQuestions, summarizeQuestions } from "@/features/questions/functions";
 import { QuestionsPage } from "@/features/questions/page";
 import { questionSummaryQuery } from "@/features/questions/queries";
-import { getModelUsage, getRetention, getSettings } from "@/features/settings/functions";
+import { getRetention, getSettings } from "@/features/settings/functions";
 import { AppRequestError } from "@/lib/app-error";
 import { createQueryClient } from "@/lib/query-client";
 
@@ -97,7 +97,6 @@ vi.mock("../../../src/features/events/functions", () => ({
 vi.mock("../../../src/features/settings/functions", () => ({
   getSettings: vi.fn<typeof getSettings>(),
   getRetention: vi.fn<typeof getRetention>(),
-  getModelUsage: vi.fn<typeof getModelUsage>(),
 }));
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;

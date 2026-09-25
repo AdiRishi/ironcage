@@ -40,6 +40,9 @@ export const webApplication = Effect.fn("ApplicationPlatform.WebApplication")(fu
       ],
       lockfile: true,
     },
-    env: websiteBindings(config.environment, workers.api, { issuer, audience: access?.aud ?? "" }),
+    env: websiteBindings(config.environment, workers.api, workers.analyst, {
+      issuer,
+      audience: access?.aud ?? "",
+    }),
   });
 });

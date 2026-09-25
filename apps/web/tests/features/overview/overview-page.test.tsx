@@ -118,6 +118,7 @@ test("What changed keeps the cents of a change under a dollar", async ({ onTestF
           purchasesPart: money(0n),
           averagePart: money(-40n),
           otherPart: money(0n),
+          modelAmount: money(0n),
         },
       ],
     },

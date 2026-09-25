@@ -1,4 +1,5 @@
 import type { SpendingBreakdown, SpendingRow } from "@repo/contracts/finance";
+import { formatPercent } from "@repo/finance";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, metaHelper, tableFeatures, useTable } from "@tanstack/react-table";
 import { cn } from "cn";
@@ -36,8 +37,6 @@ function Nothing() {
   );
 }
 
-const percent = (value: number) => `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value)}%`;
-
 function Change({ figures, unrecorded }: { figures: SpendingRow["figures"]; unrecorded: boolean }) {
   if (unrecorded) return "No records";
   if (figures.change.minor === 0n) return "No change";
@@ -45,7 +44,8 @@ function Change({ figures, unrecorded }: { figures: SpendingRow["figures"]; unre
   return (
     <>
       <Amount value={figures.change} signed cents={false} />
-      {figures.percentChange !== null && ` (${percent(figures.percentChange)})`}
+      {figures.percentChange !== null &&
+        ` (${formatPercent(figures.percentChange, { signed: true })})`}
     </>
   );
 }
@@ -90,7 +90,8 @@ function columnsFor({
                 </Link>
                 {row.share !== null && (
                   <span className="type-small text-slate tabular">
-                    {row.share}%<span className="sr-only"> of the spending</span>
+                    {formatPercent(row.share)}
+                    <span className="sr-only"> of the spending</span>
                   </span>
                 )}
               </span>

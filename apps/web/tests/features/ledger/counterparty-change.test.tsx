@@ -42,7 +42,7 @@ import {
   undoCorrection,
 } from "@/features/events/functions";
 import { CounterpartyChange } from "@/features/ledger/counterparty-change";
-import { getModelUsage, getRetention, getSettings } from "@/features/settings/functions";
+import { getRetention, getSettings } from "@/features/settings/functions";
 import { AppRequestError } from "@/lib/app-error";
 import { createQueryClient } from "@/lib/query-client";
 
@@ -75,7 +75,6 @@ vi.mock("../../../src/features/events/functions", () => ({
 vi.mock("../../../src/features/settings/functions", () => ({
   getSettings: vi.fn<typeof getSettings>(),
   getRetention: vi.fn<typeof getRetention>(),
-  getModelUsage: vi.fn<typeof getModelUsage>(),
 }));
 
 const coles = CounterpartyId.make("00000000-0000-4000-8000-000000000002");

@@ -2,8 +2,8 @@ import { Schema, Struct } from "effect";
 
 import { Period, PeriodSelection } from "./analysis.ts";
 import { Counterparty } from "./counterparties.ts";
-import { Confidence } from "./enrichment.ts";
 import { CategoryId, CounterpartyId, EventId, PersonRole, QuestionId } from "./interpretation.ts";
+import { Confidence } from "./models.ts";
 import { Rule } from "./rules.ts";
 import { CalendarDate, Currency, MinorUnits, Money, PostingId, Version } from "./values.ts";
 

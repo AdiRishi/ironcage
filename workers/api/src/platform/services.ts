@@ -116,7 +116,8 @@ export class RetentionPolicy extends Context.Service<RetentionPolicy, typeof Ret
   "@repo/api/platform/RetentionPolicy",
 ) {}
 
-export class EnrichmentConfig extends Context.Service<
-  EnrichmentConfig,
-  { readonly provider: ModelProvider }
->()("@repo/api/platform/EnrichmentConfig") {}
+// The model and its prices behind counterparty identification, and behind the analyst.
+export class ModelProviders extends Context.Service<
+  ModelProviders,
+  { readonly enrichment: ModelProvider; readonly analyst: ModelProvider }
+>()("@repo/api/platform/ModelProviders") {}

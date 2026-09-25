@@ -27,6 +27,7 @@ const monthTotal = (
   inflow: aud(0n),
   outflow: aud(outflow),
   spending: aud(outflow),
+  modelShare: aud(0n),
   coverage,
 });
 

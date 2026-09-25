@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { URL } from "node:url";
 
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
+import { Conversation } from "@repo/contracts/analyst";
 import {
   SourceFile,
   ExportRecord,
@@ -9,6 +10,7 @@ import {
   Account,
   ImportPage,
   type ImportId,
+  ModelUsage,
   PostingPage,
   UploadResult,
 } from "@repo/contracts/finance";
@@ -25,6 +27,7 @@ import { providers } from "../src/providers.ts";
 import { webApplication } from "../src/web-application.ts";
 import { workerGraph } from "../src/workers.ts";
 import { localPlatformProviders } from "./support/ai-gateway.ts";
+import AnalystDriver from "./support/analyst-driver.ts";
 import Driver from "./support/api-driver.ts";
 import { waitForWorker } from "./support/worker-readiness.ts";
 
@@ -39,10 +42,12 @@ const Stack = Alchemy.Stack(
   Effect.gen(function* () {
     const workers = yield* workerGraph;
     const driver = yield* Driver;
+    const analystDriver = yield* AnalystDriver;
     const web = live ? yield* webApplication(yield* deploymentConfig(), workers) : undefined;
     return {
       url: driver.url.as<string>(),
       apiUrl: Output.map(driver.url, (url) => `${url}/http`),
+      analystUrl: analystDriver.url.as<string>(),
       webUrl: web?.url,
     };
   }),
@@ -128,6 +133,49 @@ test(
     expect(response.status).toBe(200);
     expect(yield* response.json).toEqual([]);
   }),
+);
+
+test(
+  "a question asked while the analyst is off ends blocked in its conversation without a model call",
+  Effect.gen(function* () {
+    const { url, analystUrl } = yield* stack;
+    yield* waitForWorker(analystUrl);
+    const commandId = yield* randomUUID;
+    const asked = yield* HttpClient.post(`${analystUrl}/ask`, {
+      body: HttpBody.jsonUnsafe({
+        commandId,
+        conversationId: null,
+        question: "What did I spend on food in August?",
+        context: null,
+      }),
+    }).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(Conversation)),
+    );
+    const answered = yield* HttpClient.get(`${analystUrl}/conversations/${asked.id}`).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(Conversation)),
+      Effect.repeat({
+        schedule: Schedule.spaced("200 millis"),
+        while: (conversation) =>
+          conversation.turns.some((turn) => turn.status === "queued" || turn.status === "running"),
+      }),
+      Effect.timeout("30 seconds"),
+    );
+    expect(answered.turns).toMatchObject([
+      {
+        id: commandId,
+        status: "blocked",
+        message: "The analyst is off. Turn it on in Settings.",
+      },
+    ]);
+    const usage = yield* HttpClient.get(`${url}/model-usage`).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(ModelUsage)),
+    );
+    expect(usage.tasks.map((entry) => entry.task)).not.toContain("analyst");
+  }),
+  { timeout: 60_000 },
 );
 
 const corpusDirectory = new URL("../../fixtures/commbank/", import.meta.url);
@@ -410,7 +458,6 @@ test(
       "enrichment_evaluations",
       "enrichment_items",
       "enrichment_runs",
-      "enrichment_settings",
       "event_postings",
       "events",
       "exports",
@@ -418,6 +465,7 @@ test(
       "fee_associations",
       "imports",
       "ledger_facts",
+      "model_settings",
       "model_usage",
       "movement_links",
       "observations",

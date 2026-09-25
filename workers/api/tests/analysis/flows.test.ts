@@ -4,6 +4,7 @@ import { Crypto, DateTime, Effect } from "effect";
 import { TestClock } from "effect/testing";
 import { expect } from "vitest";
 
+import { Accounts } from "../../src/accounts/service.ts";
 import { Flows } from "../../src/analysis/flows.ts";
 import { Spending } from "../../src/analysis/spending.ts";
 import { Corrections } from "../../src/events/corrections.ts";
@@ -11,7 +12,14 @@ import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { applicationTest } from "../support/application.ts";
-import { account, createCounterparty, parsedRows, reset, source } from "../support/fixtures.ts";
+import {
+  account,
+  createCounterparty,
+  enrich,
+  parsedRows,
+  reset,
+  source,
+} from "../support/fixtures.ts";
 import { populate } from "../support/populated.ts";
 
 const { test, services } = applicationTest();
@@ -150,6 +158,57 @@ test(
     const months = yield* (yield* Flows).monthly({ currency: "AUD" });
     expect(months[0]).toMatchObject({ month: "2026-07", spending: { minor: 2000n } });
     expect(months.find((row) => row.month === "2026-08")?.spending.minor).toBe(5000n);
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "a month in the series says how much of its spending rests on the model",
+  Effect.gen(function* () {
+    yield* setup([{ description: "SPOTIFY Card xx1234", postedOn: "2026-08-20", minor: -1299n }]);
+    yield* enrich([
+      { aliasKey: "SPOTIFY", name: "Spotify", categoryKey: "entertainment.streaming" },
+    ]);
+    const august = (yield* (yield* Flows).monthly({ currency: "AUD" })).find(
+      (row) => row.month === "2026-08",
+    );
+    // Uber Eats is yours, so only Spotify's $12.99 rests on the model.
+    expect(august?.spending.minor).toBe(6299n);
+    expect(august?.modelShare).toEqual({ currency: "AUD", minor: 1299n });
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "a period's coverage names the days each account's reconciled statements leave out",
+  Effect.gen(function* () {
+    yield* reset;
+    const sql = yield* PgClient.PgClient;
+    const everyday = yield* account();
+    const mastercard = yield* (yield* Accounts).create({
+      commandId: yield* commandId,
+      label: "Mastercard",
+      kind: "card",
+      institution: "commbank",
+      currency: "AUD",
+    });
+    const statement = Effect.fn("statement")(function* (
+      accountId: typeof everyday.id,
+      from: string,
+      through: string,
+    ) {
+      const { sourceFileId } = yield* source(accountId);
+      yield* sql`INSERT INTO source_coverage ${sql.insert({ id: yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4), source_file_id: sourceFileId, account_id: accountId, observed_start: from, observed_end: through, opening_minor: 0, opening_on: from, closing_minor: 0, closing_on: through, reconciled: true })}`;
+    });
+    yield* statement(everyday.id, "2026-07-01", "2026-08-31");
+    yield* statement(mastercard.id, "2026-07-01", "2026-08-10");
+    const { period, coverage } = yield* (yield* Flows).coverage({
+      period: { kind: "months", from: YearMonth.make("2026-08"), to: YearMonth.make("2026-08") },
+      currency: "AUD",
+    });
+    expect(period).toEqual({ start: "2026-08-01", endExclusive: "2026-09-01" });
+    expect(coverage.map((item) => [item.account.label, item.missing])).toEqual([
+      ["Everyday", []],
+      ["Mastercard", [{ start: "2026-08-11", endExclusive: "2026-09-01" }]],
+    ]);
   }).pipe(Effect.provide(services)),
 );
 

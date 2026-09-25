@@ -26,6 +26,7 @@ import { Corrections } from "../../src/events/corrections.ts";
 import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
+import { Models } from "../../src/models/service.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { Relationships } from "../../src/relationships/service.ts";
 import { Rules } from "../../src/rules/service.ts";
@@ -139,10 +140,18 @@ export const counterpartyNamed = Effect.fn(function* (name: string) {
 });
 
 // A synthetic history that reaches every kind of record a migration might rewrite:
-// three account kinds, counterparties set by you, a rule, a split, a correction you
-// undid, a credit link, and a card settlement.
+// model settings you changed, three account kinds, counterparties set by you, a rule,
+// a split, a correction you undid, a credit link, and a card settlement.
 export const populate = Effect.gen(function* () {
   yield* reset;
+  const models = yield* Models;
+  yield* models.updateSettings({
+    commandId: yield* commandId,
+    enrichment: { enabled: true, autoApplyConfidence: 0.75 },
+    analyst: { enabled: true },
+    warning: { currency: "USD", minor: 1500n },
+    expectedVersion: (yield* models.settings).version,
+  });
   const everyday = yield* createAccount("deposit", "Everyday");
   const card = yield* createAccount("card", "Card");
   const loan = yield* createAccount("loan", "Home loan");

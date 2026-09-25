@@ -164,17 +164,20 @@ export function largestChanges({
     change.minor < 0n ? -change.minor : change.minor;
   return [...byCategory.entries()]
     .map(([id, selected]): PeriodChange => {
-      const figures = changeFigures(
-        {
-          current: sum(selected, (row) => row.current),
-          previous: sum(selected, (row) => row.previous),
-          purchaseCurrent: sum(selected, (row) => row.purchaseCurrent),
-          purchasePrevious: sum(selected, (row) => row.purchasePrevious),
-          purchases: selected.reduce((total, row) => total + row.purchases, 0),
-          previousPurchases: selected.reduce((total, row) => total + row.previousPurchases, 0),
-        },
-        currency,
-      );
+      const figures = {
+        ...changeFigures(
+          {
+            current: sum(selected, (row) => row.current),
+            previous: sum(selected, (row) => row.previous),
+            purchaseCurrent: sum(selected, (row) => row.purchaseCurrent),
+            purchasePrevious: sum(selected, (row) => row.purchasePrevious),
+            purchases: selected.reduce((total, row) => total + row.purchases, 0),
+            previousPurchases: selected.reduce((total, row) => total + row.previousPurchases, 0),
+          },
+          currency,
+        ),
+        modelAmount: { currency, minor: sum(selected, (row) => row.modelCurrent) },
+      };
       const node = categories.find((row) => row.id === id);
       if (!node)
         return {

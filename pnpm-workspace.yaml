@@ -16,6 +16,7 @@ catalog:
   "@effect/platform-node": 4.0.0-rc.117
   "@effect/platform-node-shared": 4.0.0-rc.117
   "@effect/sql-sqlite-do": 4.0.0-rc.117
+  "@effect/sql-sqlite-node": 4.0.0-rc.117
   "@effect/sql-pg": 4.0.0-rc.117
   "@types/pg": 8.23.1
   pg: 8.23.0

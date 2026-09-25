@@ -1,7 +1,13 @@
 import { expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 
-import { formatCurrency, formatDecimal, formatMoney, parseMoney } from "../src/money.ts";
+import {
+  formatCurrency,
+  formatDecimal,
+  formatMoney,
+  formatPercent,
+  parseMoney,
+} from "../src/money.ts";
 
 it.effect("keeps decimal amounts exact beyond JavaScript's safe integer range", () =>
   Effect.gen(function* () {
@@ -44,4 +50,11 @@ it("keeps the cents of an amount under a dollar when rounding to whole dollars",
   expect(formatCurrency({ currency: "AUD", minor: 100n }, { cents: false })).toBe("$1");
   expect(formatCurrency({ currency: "AUD", minor: 150n }, { cents: false })).toBe("$2");
   expect(formatCurrency({ currency: "AUD", minor: 0n }, { cents: false })).toBe("$0");
+});
+
+it("formats a share without a sign and a change with one", () => {
+  expect(formatPercent(76)).toBe("76%");
+  expect(formatPercent(76, { signed: true })).toBe("+76%");
+  expect(formatPercent(-12, { signed: true })).toBe("−12%");
+  expect(formatPercent(0, { signed: true })).toBe("0%");
 });

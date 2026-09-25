@@ -1,5 +1,5 @@
 {
-  "migration": "0027_fact_records.sql",
+  "migration": "0028_counterparty_history.sql",
   "tables": [
     {
       "name": "account_periods",
@@ -9,38 +9,38 @@
       "name": "accounts",
       "rows": [
         {
-          "id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "kind": "deposit",
-          "label": "Everyday",
-          "bank_id": null,
-          "version": 1,
-          "currency": "AUD",
-          "created_at": "2026-09-25T11:28:03.32948+00:00",
-          "updated_at": "2026-09-25T11:28:03.32948+00:00",
-          "institution": "commbank",
-          "account_number": null
-        },
-        {
-          "id": "5a3c5122-21be-4b05-b1e8-5892b676bc0a",
+          "id": "7202517a-11a3-4108-a4ac-6eccb84886c7",
           "kind": "loan",
           "label": "Home loan",
           "bank_id": null,
           "version": 1,
           "currency": "AUD",
-          "created_at": "2026-09-25T11:28:03.339019+00:00",
-          "updated_at": "2026-09-25T11:28:03.339019+00:00",
+          "created_at": "2026-09-25T16:36:16.838551+00:00",
+          "updated_at": "2026-09-25T16:36:16.838551+00:00",
           "institution": "commbank",
           "account_number": null
         },
         {
-          "id": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79",
+          "id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "kind": "deposit",
+          "label": "Everyday",
+          "bank_id": null,
+          "version": 1,
+          "currency": "AUD",
+          "created_at": "2026-09-25T16:36:16.829941+00:00",
+          "updated_at": "2026-09-25T16:36:16.829941+00:00",
+          "institution": "commbank",
+          "account_number": null
+        },
+        {
+          "id": "c1fce0df-091b-4097-9e79-f8fd3efe583b",
           "kind": "card",
           "label": "Card",
           "bank_id": null,
           "version": 1,
           "currency": "AUD",
-          "created_at": "2026-09-25T11:28:03.335782+00:00",
-          "updated_at": "2026-09-25T11:28:03.335782+00:00",
+          "created_at": "2026-09-25T16:36:16.834325+00:00",
+          "updated_at": "2026-09-25T16:36:16.834325+00:00",
           "institution": "commbank",
           "account_number": null
         }
@@ -58,128 +58,128 @@
       "name": "allocations",
       "rows": [
         {
-          "id": "15228d70-22ab-4daa-81ad-433ba3a9b274",
-          "role": "income",
-          "event_id": "4320c2aa-676b-4c8d-af06-3204000566c2",
-          "category_id": "00000000-0000-4000-8000-000000000163",
-          "amount_minor": 500000,
-          "non_personal": false,
-          "category_source": "bank"
-        },
-        {
-          "id": "25bf4b18-a554-41f0-a5bc-d61b2c759c87",
-          "role": "transfer",
-          "event_id": "3de08f13-e925-4f9a-95f4-5e9e6c58473f",
-          "category_id": null,
-          "amount_minor": 12000,
-          "non_personal": false,
-          "category_source": null
-        },
-        {
-          "id": "3c34ae1c-fe20-4f5c-9269-e50b38b4e3c8",
+          "id": "0d12447f-7fa5-493c-8ed8-01dd9e871a9f",
           "role": "purchase",
-          "event_id": "c80b538b-c88a-4549-88d3-c73d945d8d9f",
-          "category_id": "00000000-0000-4000-8000-000000000001",
-          "amount_minor": 8450,
-          "non_personal": false,
-          "category_source": "counterparty"
-        },
-        {
-          "id": "5628c0ab-a353-4f81-8b1a-a7bcc8f1c912",
-          "role": "purchase",
-          "event_id": "b359f77d-9e08-4319-b2e9-0b0fe8c60e87",
-          "category_id": null,
-          "amount_minor": 12000,
-          "non_personal": false,
-          "category_source": null
-        },
-        {
-          "id": "7884dcb5-3a2b-413c-9c66-b4d0f97e2942",
-          "role": "refund",
-          "event_id": "8eed26f1-1a3e-47c1-9360-57dc13df095d",
-          "category_id": null,
-          "amount_minor": 4000,
-          "non_personal": false,
-          "category_source": null
-        },
-        {
-          "id": "8ce7827e-5057-4640-a5ec-4c00e369115e",
-          "role": "transfer",
-          "event_id": "bfea2b36-590f-49ef-b95e-2a605f534798",
-          "category_id": null,
-          "amount_minor": 390000,
-          "non_personal": false,
-          "category_source": null
-        },
-        {
-          "id": "9651074d-56d7-4d60-9222-67310a83e145",
-          "role": "transfer",
-          "event_id": "3af35b99-84a5-40e6-b169-82dfe9a6159f",
-          "category_id": null,
-          "amount_minor": 12000,
-          "non_personal": false,
-          "category_source": null
-        },
-        {
-          "id": "ac85a6a6-0afa-4689-bff4-4c7bb3f517f0",
-          "role": "purchase",
-          "event_id": "e1ccd0b8-f7ae-4520-a7d0-926349037cc8",
+          "event_id": "10895318-e5c2-4505-a16a-df378d450bae",
           "category_id": "00000000-0000-4000-8000-000000000003",
           "amount_minor": 30000,
           "non_personal": false,
           "category_source": "rule"
         },
         {
-          "id": "bc29b942-cb58-4325-9b3a-fa57aab3184e",
-          "role": "financingCost",
-          "event_id": "b0834f13-3304-42f6-a4d1-8a28630dba8a",
-          "category_id": "00000000-0000-4000-8000-000000000102",
-          "amount_minor": 280000,
-          "non_personal": false,
-          "category_source": "bank"
-        },
-        {
-          "id": "bc9ebf49-c7de-4e46-b978-abe83d0072b1",
-          "role": "purchase",
-          "event_id": "98988337-f3ff-4b28-bc3d-64903e73c318",
-          "category_id": "00000000-0000-4000-8000-000000000002",
-          "amount_minor": 4000,
-          "non_personal": false,
-          "category_source": "user"
-        },
-        {
-          "id": "becdf23f-217e-4f3c-bf9e-63011af4f8a5",
-          "role": "purchase",
-          "event_id": "98988337-f3ff-4b28-bc3d-64903e73c318",
-          "category_id": "00000000-0000-4000-8000-000000000126",
-          "amount_minor": 8000,
-          "non_personal": false,
-          "category_source": "user"
-        },
-        {
-          "id": "c03344a8-9004-4e7a-9271-72139423dc98",
+          "id": "165cc1c3-9a9f-4ec6-9f51-46f9e95b2267",
           "role": "reimbursement",
-          "event_id": "41289156-956a-4545-b04b-328f7164dd44",
+          "event_id": "c19fed8d-ac97-439d-a8ce-fafb15fa9b76",
           "category_id": "00000000-0000-4000-8000-000000000003",
           "amount_minor": 20000,
           "non_personal": false,
           "category_source": "counterparty"
         },
         {
-          "id": "e9737638-bcc7-45c6-b639-d3bf531869c6",
+          "id": "1d64b78f-2ca4-40e6-9831-7d40bca8f05e",
+          "role": "transfer",
+          "event_id": "bc5f1491-4acf-4f2f-9da3-9eb24919217e",
+          "category_id": null,
+          "amount_minor": 12000,
+          "non_personal": false,
+          "category_source": null
+        },
+        {
+          "id": "1eb2cbc9-71ff-4e35-a977-b2799c6c57b6",
+          "role": "financingCost",
+          "event_id": "4f516bf1-e1bf-43ca-9b79-29619028d984",
+          "category_id": "00000000-0000-4000-8000-000000000102",
+          "amount_minor": 280000,
+          "non_personal": false,
+          "category_source": "bank"
+        },
+        {
+          "id": "2dcf5263-19e3-49a4-b64c-0a5cfaa216bd",
           "role": "purchase",
-          "event_id": "50b99a35-9f93-4c62-85c3-b953aa1b51b7",
+          "event_id": "b3f4598e-a8c2-40fd-b4f1-4bb0464925e4",
+          "category_id": "00000000-0000-4000-8000-000000000001",
+          "amount_minor": 8450,
+          "non_personal": false,
+          "category_source": "counterparty"
+        },
+        {
+          "id": "746e2245-d025-4621-af9e-b332ee32a741",
+          "role": "purchase",
+          "event_id": "41ae92d6-59ec-4c97-b7c2-acc7a8198e20",
+          "category_id": null,
+          "amount_minor": 12000,
+          "non_personal": false,
+          "category_source": null
+        },
+        {
+          "id": "7ceecdd0-86ea-4f2d-a4c1-147f9fb416ce",
+          "role": "purchase",
+          "event_id": "0729ffea-fd1d-43e2-ab93-bf0a86d910f0",
+          "category_id": "00000000-0000-4000-8000-000000000002",
+          "amount_minor": 4000,
+          "non_personal": false,
+          "category_source": "user"
+        },
+        {
+          "id": "80c02a17-5a9f-460d-ae8e-1852c4f3909c",
+          "role": "transfer",
+          "event_id": "9a0dacbf-d075-47c6-a6ef-8ab6d4b2d7e2",
+          "category_id": null,
+          "amount_minor": 390000,
+          "non_personal": false,
+          "category_source": null
+        },
+        {
+          "id": "9b9cf623-2a61-4b2a-b67b-4a084cdd12a6",
+          "role": "purchase",
+          "event_id": "2f4353af-c546-464b-9615-a223a2084b1c",
           "category_id": "00000000-0000-4000-8000-000000000101",
           "amount_minor": 184000,
           "non_personal": false,
           "category_source": "counterparty"
         },
         {
-          "id": "ee30d36b-bf5d-4093-931d-42a433b9cda6",
+          "id": "a747d7d8-9cf3-4e24-8aa7-778ca8b07d6d",
           "role": "transfer",
-          "event_id": "7823f67c-1986-4c48-adaf-b5244ff6efa2",
+          "event_id": "3da4d8b9-4c0c-4524-9966-84ef787b7bb6",
           "category_id": null,
           "amount_minor": 390000,
+          "non_personal": false,
+          "category_source": null
+        },
+        {
+          "id": "aa5dfa21-a470-47f1-a909-46cae55bf237",
+          "role": "purchase",
+          "event_id": "0729ffea-fd1d-43e2-ab93-bf0a86d910f0",
+          "category_id": "00000000-0000-4000-8000-000000000126",
+          "amount_minor": 8000,
+          "non_personal": false,
+          "category_source": "user"
+        },
+        {
+          "id": "afa5910d-899f-4e33-bfa4-ea8dab2262ef",
+          "role": "refund",
+          "event_id": "dddc30c9-7263-4db2-8dcb-8f1d4f317370",
+          "category_id": null,
+          "amount_minor": 4000,
+          "non_personal": false,
+          "category_source": null
+        },
+        {
+          "id": "b7a8c286-8011-4c94-affb-7a2341eb2367",
+          "role": "income",
+          "event_id": "f578f6e4-3ff5-476d-a92e-36886366b5e7",
+          "category_id": "00000000-0000-4000-8000-000000000163",
+          "amount_minor": 500000,
+          "non_personal": false,
+          "category_source": "bank"
+        },
+        {
+          "id": "e7b99249-ea4f-4be4-b3fd-345e04e1c1f5",
+          "role": "transfer",
+          "event_id": "b799eb62-ff30-4789-aba6-8bce15c1dfa6",
+          "category_id": null,
+          "amount_minor": 12000,
           "non_personal": false,
           "category_source": null
         }
@@ -949,245 +949,113 @@
       "rows": [
         {
           "result": true,
-          "command_id": "020369ad-c584-4935-af3e-daf6e61caf7d",
-          "created_at": "2026-09-25T11:28:03.553736+00:00",
-          "input_hash": "490491e8a4aadf3e68401c806340899518a5a07d9a56fcf6431ce5f03516a81c"
+          "command_id": "04a4e3c9-480e-48d0-bb09-14a5b09df0b4",
+          "created_at": "2026-09-25T16:36:16.825061+00:00",
+          "input_hash": "b6dff7a94c20eb2b91ebc32b5082577b9dfebe010576318a845acb98d12cf6c1"
         },
         {
           "result": true,
-          "command_id": "0c718cde-9f7a-4a95-be6b-f97fc385e6ce",
-          "created_at": "2026-09-25T11:28:03.53875+00:00",
-          "input_hash": "e074bcc8c6b5cc79d21152068c6338cb860c2489737e146108c9946ba8a9f785"
+          "command_id": "2c4d7de8-7126-460a-9637-4384cb4a65c0",
+          "created_at": "2026-09-25T16:36:17.104489+00:00",
+          "input_hash": "d9ef335cb0ea7261ff924832b58448ac8acb82a8d9202d86b43aebec07c08fe1"
         },
         {
           "result": true,
-          "command_id": "75afb47e-1922-4c6c-bbcf-4a258ecf8a7e",
-          "created_at": "2026-09-25T11:28:03.490837+00:00",
-          "input_hash": "7e89786e643a721adf728ef378d533da9ec959f49ede569cc494d7ba889c48df"
+          "command_id": "3b3ac209-32ba-4feb-ae8a-f2d474565b3f",
+          "created_at": "2026-09-25T16:36:17.008016+00:00",
+          "input_hash": "01b049304056bc7d8b47dc0e7bcd953b2982e982a3a5dd017914fd38dcc6b254"
+        },
+        {
+          "result": true,
+          "command_id": "81338283-8449-43c1-a310-7944528c35a8",
+          "created_at": "2026-09-25T16:36:17.072159+00:00",
+          "input_hash": "04300cb69370c1c4beef18bb416573de903cb100c80bba82a8f0d9f716a7a3bc"
         },
         {
           "result": {
-            "id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-            "kind": "deposit",
-            "label": "Everyday",
-            "bankId": null,
-            "version": 1,
-            "currency": "AUD",
-            "institution": "commbank",
-            "accountNumber": null
+            "changeId": "97e16941-5569-48db-8217-63bfda1893d2",
+            "counterparty": {
+              "id": "6f8ec12b-6551-4ce3-a070-460b03422634",
+              "kind": "business",
+              "name": "Woolworths",
+              "brand": null,
+              "model": null,
+              "reason": null,
+              "source": "user",
+              "status": "applied",
+              "version": 1,
+              "updatedAt": "2026-09-25T16:36:16.973672Z",
+              "confidence": null,
+              "defaultRole": null,
+              "defaultCategoryId": "00000000-0000-4000-8000-000000000001"
+            }
           },
-          "command_id": "5960b93c-ae6d-4880-87d3-e6bd730d8840",
-          "created_at": "2026-09-25T11:28:03.32948+00:00",
-          "input_hash": "16bc7d8da0cbcbb6e20378e2ee1badf713a09cf283c23a9c8c962710887f2477"
+          "command_id": "057393df-7481-4dcc-a3b0-46d690dd2a4d",
+          "created_at": "2026-09-25T16:36:16.973672+00:00",
+          "input_hash": "529484a44da1b2e11e8fac17619a9b747fcae54562e5c99705a9f0f6a5f94726"
         },
         {
           "result": {
-            "id": "215ad9d3-96d3-4fcf-b33b-ff35a6781e87",
-            "kind": "person",
-            "name": "John Citizen",
-            "brand": null,
-            "model": null,
-            "reason": null,
-            "source": "user",
-            "status": "applied",
-            "version": 1,
-            "updatedAt": "2026-09-25T11:28:03.469717Z",
-            "confidence": null,
-            "defaultRole": "reimbursement",
-            "defaultCategoryId": "00000000-0000-4000-8000-000000000003"
+            "changeId": "e5aa2899-9397-49f5-a52a-8d9f4055f311",
+            "counterparty": {
+              "id": "e2660a11-eb1a-429c-bcd1-9ec90a5ffdd0",
+              "kind": "person",
+              "name": "Jane Smith",
+              "brand": null,
+              "model": null,
+              "reason": null,
+              "source": "user",
+              "status": "applied",
+              "version": 1,
+              "updatedAt": "2026-09-25T16:36:16.961034Z",
+              "confidence": null,
+              "defaultRole": "purchase",
+              "defaultCategoryId": "00000000-0000-4000-8000-000000000101"
+            }
           },
-          "command_id": "fba3b28d-a335-4bbc-a59b-f8d5eec100c8",
-          "created_at": "2026-09-25T11:28:03.469717+00:00",
-          "input_hash": "218eec1b35669b772eafe7724101fec872631a7c32891ce98f83038222da59df"
+          "command_id": "5600a178-5be1-4c9f-b01d-9186aa164b5a",
+          "created_at": "2026-09-25T16:36:16.961034+00:00",
+          "input_hash": "2a4fb78b26527fdd53744b48ccfc1d0c0dfc0bd43af66d267f72cf2c5e03a743"
         },
         {
           "result": {
-            "id": "366faca6-207e-4ee2-82ec-40a02857b88f",
-            "kind": "person",
-            "name": "Jane Smith",
-            "brand": null,
-            "model": null,
-            "reason": null,
-            "source": "user",
-            "status": "applied",
-            "version": 1,
-            "updatedAt": "2026-09-25T11:28:03.450184Z",
-            "confidence": null,
-            "defaultRole": "purchase",
-            "defaultCategoryId": "00000000-0000-4000-8000-000000000101"
+            "changeId": "e8bc72e2-bbaf-4ca3-bad7-ec080cbc6d80",
+            "counterparty": {
+              "id": "bea54551-60eb-4f3d-9133-f50d6687bfa7",
+              "kind": "person",
+              "name": "John Citizen",
+              "brand": null,
+              "model": null,
+              "reason": null,
+              "source": "user",
+              "status": "applied",
+              "version": 1,
+              "updatedAt": "2026-09-25T16:36:16.983742Z",
+              "confidence": null,
+              "defaultRole": "reimbursement",
+              "defaultCategoryId": "00000000-0000-4000-8000-000000000003"
+            }
           },
-          "command_id": "f4e00f08-93e2-4af8-bdc0-8ebfea7e1b16",
-          "created_at": "2026-09-25T11:28:03.450184+00:00",
-          "input_hash": "4dfabaac01c24bc1f22c10560cf8756d0073de757a0ad5dd717e4c108b8169e3"
+          "command_id": "21c52478-24de-424d-89e6-1b8bbf95e07f",
+          "created_at": "2026-09-25T16:36:16.983742+00:00",
+          "input_hash": "ba327fb6983f57fb5e3cefea58b8625426cf52fc11347ac863f21ecf0bcc6d48"
         },
         {
           "result": {
-            "id": "4320c2aa-676b-4c8d-af06-3204000566c2",
-            "kind": "income",
-            "active": true,
-            "version": 3,
-            "postings": [
-              {
-                "id": "d985dc4b-df1b-43f6-83b5-4853160195f9",
-                "amount": {
-                  "minor": "500000",
-                  "currency": "AUD"
-                },
-                "valueOn": null,
-                "postedOn": "2026-07-01",
-                "accountId": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-                "description": "Salary ACME PTY LTD HR123456",
-                "accountLabel": "Everyday",
-                "originalMoney": null
-              }
-            ],
-            "magnitude": {
-              "minor": "500000",
-              "currency": "AUD"
-            },
-            "purchaseOn": null,
-            "roleSource": "bank",
-            "allocations": [
-              {
-                "id": "15228d70-22ab-4daa-81ad-433ba3a9b274",
-                "role": "income",
-                "amount": {
-                  "minor": "500000",
-                  "currency": "AUD"
-                },
-                "tagIds": [],
-                "categoryId": "00000000-0000-4000-8000-000000000163",
-                "nonPersonal": false,
-                "categorySource": "bank",
-                "personalEventIds": []
-              }
-            ],
-            "counterpartyId": null,
-            "primaryPostingId": "d985dc4b-df1b-43f6-83b5-4853160195f9",
-            "counterpartySource": null,
-            "reportingAccountId": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
-          },
-          "command_id": "182a2f90-6000-409f-9e69-0190121f51b3",
-          "created_at": "2026-09-25T11:28:03.515212+00:00",
-          "input_hash": "ec8d1ec19d48b0f7ff0a744694537866b40432cc7a9a159a7bb4251dff5e0a75"
-        },
-        {
-          "result": {
-            "id": "4320c2aa-676b-4c8d-af06-3204000566c2",
-            "kind": "income",
-            "active": true,
-            "version": 4,
-            "postings": [
-              {
-                "id": "d985dc4b-df1b-43f6-83b5-4853160195f9",
-                "amount": {
-                  "minor": "500000",
-                  "currency": "AUD"
-                },
-                "valueOn": null,
-                "postedOn": "2026-07-01",
-                "accountId": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-                "description": "Salary ACME PTY LTD HR123456",
-                "accountLabel": "Everyday",
-                "originalMoney": null
-              }
-            ],
-            "magnitude": {
-              "minor": "500000",
-              "currency": "AUD"
-            },
-            "purchaseOn": null,
-            "roleSource": "bank",
-            "allocations": [
-              {
-                "id": "15228d70-22ab-4daa-81ad-433ba3a9b274",
-                "role": "income",
-                "amount": {
-                  "minor": "500000",
-                  "currency": "AUD"
-                },
-                "tagIds": [],
-                "categoryId": "00000000-0000-4000-8000-000000000163",
-                "nonPersonal": false,
-                "categorySource": "bank",
-                "personalEventIds": []
-              }
-            ],
-            "counterpartyId": null,
-            "primaryPostingId": "d985dc4b-df1b-43f6-83b5-4853160195f9",
-            "counterpartySource": null,
-            "reportingAccountId": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
-          },
-          "command_id": "f0fffb0e-1153-45b4-bd8b-579515fe62b5",
-          "created_at": "2026-09-25T11:28:03.522092+00:00",
-          "input_hash": "d5e831102abdd20d927f8bea8d5d497c7d21b79eb01984b460a5a580a9e52001"
-        },
-        {
-          "result": {
-            "id": "44c61388-fa9f-4a34-bb7d-f3120d6a2a42",
-            "kind": "business",
-            "name": "Woolworths",
-            "brand": null,
-            "model": null,
-            "reason": null,
-            "source": "user",
-            "status": "applied",
-            "version": 1,
-            "updatedAt": "2026-09-25T11:28:03.460571Z",
-            "confidence": null,
-            "defaultRole": null,
-            "defaultCategoryId": "00000000-0000-4000-8000-000000000001"
-          },
-          "command_id": "f15d48f1-83d7-4a59-8975-22c8b3320dbf",
-          "created_at": "2026-09-25T11:28:03.460571+00:00",
-          "input_hash": "49acba5066fd1b35df26e9029d59d0778ca7357ddce2b4b8c0f8bba4eed513da"
-        },
-        {
-          "result": {
-            "id": "5a3c5122-21be-4b05-b1e8-5892b676bc0a",
-            "kind": "loan",
-            "label": "Home loan",
-            "bankId": null,
-            "version": 1,
-            "currency": "AUD",
-            "institution": "commbank",
-            "accountNumber": null
-          },
-          "command_id": "92c720b5-aff6-40fd-831f-b405c670979a",
-          "created_at": "2026-09-25T11:28:03.339019+00:00",
-          "input_hash": "f8b6633889f41a590af12e0bab7b09475f4224ad80bc6712c74901b589f1b091"
-        },
-        {
-          "result": {
-            "id": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79",
-            "kind": "card",
-            "label": "Card",
-            "bankId": null,
-            "version": 1,
-            "currency": "AUD",
-            "institution": "commbank",
-            "accountNumber": null
-          },
-          "command_id": "39340ae4-73e3-4987-8705-bcf05c913a5a",
-          "created_at": "2026-09-25T11:28:03.335782+00:00",
-          "input_hash": "f01c0ba55b5379ac0933a91822262699694b229c5212d5d35a4f4602a2c6db2f"
-        },
-        {
-          "result": {
-            "id": "98988337-f3ff-4b28-bc3d-64903e73c318",
+            "id": "0729ffea-fd1d-43e2-ab93-bf0a86d910f0",
             "kind": "purchase",
             "active": true,
             "version": 3,
             "postings": [
               {
-                "id": "601d3890-650c-4f37-b3a8-0fd3cc5b424d",
+                "id": "cbf8992e-e3d4-4e96-a659-cda0e623ae35",
                 "amount": {
                   "minor": "-12000",
                   "currency": "AUD"
                 },
                 "valueOn": null,
                 "postedOn": "2026-07-10",
-                "accountId": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79",
+                "accountId": "c1fce0df-091b-4097-9e79-f8fd3efe583b",
                 "description": "BIG SHOP SYDNEY AU",
                 "accountLabel": "Card",
                 "originalMoney": null
@@ -1201,7 +1069,7 @@
             "roleSource": "bank",
             "allocations": [
               {
-                "id": "becdf23f-217e-4f3c-bf9e-63011af4f8a5",
+                "id": "aa5dfa21-a470-47f1-a909-46cae55bf237",
                 "role": "purchase",
                 "amount": {
                   "minor": "8000",
@@ -1214,7 +1082,7 @@
                 "personalEventIds": []
               },
               {
-                "id": "bc9ebf49-c7de-4e46-b978-abe83d0072b1",
+                "id": "7ceecdd0-86ea-4f2d-a4c1-147f9fb416ce",
                 "role": "purchase",
                 "amount": {
                   "minor": "4000",
@@ -1228,13 +1096,160 @@
               }
             ],
             "counterpartyId": null,
-            "primaryPostingId": "601d3890-650c-4f37-b3a8-0fd3cc5b424d",
+            "primaryPostingId": "cbf8992e-e3d4-4e96-a659-cda0e623ae35",
             "counterpartySource": null,
-            "reportingAccountId": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79"
+            "reportingAccountId": "c1fce0df-091b-4097-9e79-f8fd3efe583b"
           },
-          "command_id": "3db46648-d30d-4b4c-93db-89f3af86c49f",
-          "created_at": "2026-09-25T11:28:03.50425+00:00",
-          "input_hash": "1ad0f7f25027f52bd44af6fe4090f1b6887a7ca89a5b4ad04896aac85c45392c"
+          "command_id": "87a89128-9925-43cc-aa48-6599a91b4334",
+          "created_at": "2026-09-25T16:36:17.022604+00:00",
+          "input_hash": "5ef3e6f521b6e4084c1441032aa997cf029c5a06280720bacf5b1d00e282b2ef"
+        },
+        {
+          "result": {
+            "id": "7202517a-11a3-4108-a4ac-6eccb84886c7",
+            "kind": "loan",
+            "label": "Home loan",
+            "bankId": null,
+            "version": 1,
+            "currency": "AUD",
+            "institution": "commbank",
+            "accountNumber": null
+          },
+          "command_id": "f705ce9e-5451-4e3a-b73f-3a4ce518c634",
+          "created_at": "2026-09-25T16:36:16.838551+00:00",
+          "input_hash": "9b63a3208786649115684b83c6999f886840bc0d9bf3fef64634ffd0703014d7"
+        },
+        {
+          "result": {
+            "id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+            "kind": "deposit",
+            "label": "Everyday",
+            "bankId": null,
+            "version": 1,
+            "currency": "AUD",
+            "institution": "commbank",
+            "accountNumber": null
+          },
+          "command_id": "59dcdc7a-2c4b-4c49-bf35-544b2c5ad276",
+          "created_at": "2026-09-25T16:36:16.829941+00:00",
+          "input_hash": "edad71ff2d8f240418ad6dcbda7bb7bbc5b3dd8c71752f75c2e28f9e3c4ecc23"
+        },
+        {
+          "result": {
+            "id": "c1fce0df-091b-4097-9e79-f8fd3efe583b",
+            "kind": "card",
+            "label": "Card",
+            "bankId": null,
+            "version": 1,
+            "currency": "AUD",
+            "institution": "commbank",
+            "accountNumber": null
+          },
+          "command_id": "c3972b1b-3935-4ac7-9c57-c41b6a4bd01b",
+          "created_at": "2026-09-25T16:36:16.834325+00:00",
+          "input_hash": "b54beb74f62e4c2cc9f5ac8d092343857a2e96771486b4ac1d15e5c399e5ace3"
+        },
+        {
+          "result": {
+            "id": "f578f6e4-3ff5-476d-a92e-36886366b5e7",
+            "kind": "income",
+            "active": true,
+            "version": 3,
+            "postings": [
+              {
+                "id": "315b5a20-03de-4b01-bd78-d21ae36db99a",
+                "amount": {
+                  "minor": "500000",
+                  "currency": "AUD"
+                },
+                "valueOn": null,
+                "postedOn": "2026-07-01",
+                "accountId": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+                "description": "Salary ACME PTY LTD HR123456",
+                "accountLabel": "Everyday",
+                "originalMoney": null
+              }
+            ],
+            "magnitude": {
+              "minor": "500000",
+              "currency": "AUD"
+            },
+            "purchaseOn": null,
+            "roleSource": "bank",
+            "allocations": [
+              {
+                "id": "b7a8c286-8011-4c94-affb-7a2341eb2367",
+                "role": "income",
+                "amount": {
+                  "minor": "500000",
+                  "currency": "AUD"
+                },
+                "tagIds": [],
+                "categoryId": "00000000-0000-4000-8000-000000000163",
+                "nonPersonal": false,
+                "categorySource": "bank",
+                "personalEventIds": []
+              }
+            ],
+            "counterpartyId": null,
+            "primaryPostingId": "315b5a20-03de-4b01-bd78-d21ae36db99a",
+            "counterpartySource": null,
+            "reportingAccountId": "b73f6606-4730-446f-9c13-cb2a0ae89757"
+          },
+          "command_id": "57b0ec06-b9e0-437e-92ec-105a82902439",
+          "created_at": "2026-09-25T16:36:17.036295+00:00",
+          "input_hash": "2cf9e27dc01786aa27b2cb0ec47ecd2eef7170fbb6c4a57a1c7c1cb7d08489cc"
+        },
+        {
+          "result": {
+            "id": "f578f6e4-3ff5-476d-a92e-36886366b5e7",
+            "kind": "income",
+            "active": true,
+            "version": 4,
+            "postings": [
+              {
+                "id": "315b5a20-03de-4b01-bd78-d21ae36db99a",
+                "amount": {
+                  "minor": "500000",
+                  "currency": "AUD"
+                },
+                "valueOn": null,
+                "postedOn": "2026-07-01",
+                "accountId": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+                "description": "Salary ACME PTY LTD HR123456",
+                "accountLabel": "Everyday",
+                "originalMoney": null
+              }
+            ],
+            "magnitude": {
+              "minor": "500000",
+              "currency": "AUD"
+            },
+            "purchaseOn": null,
+            "roleSource": "bank",
+            "allocations": [
+              {
+                "id": "b7a8c286-8011-4c94-affb-7a2341eb2367",
+                "role": "income",
+                "amount": {
+                  "minor": "500000",
+                  "currency": "AUD"
+                },
+                "tagIds": [],
+                "categoryId": "00000000-0000-4000-8000-000000000163",
+                "nonPersonal": false,
+                "categorySource": "bank",
+                "personalEventIds": []
+              }
+            ],
+            "counterpartyId": null,
+            "primaryPostingId": "315b5a20-03de-4b01-bd78-d21ae36db99a",
+            "counterpartySource": null,
+            "reportingAccountId": "b73f6606-4730-446f-9c13-cb2a0ae89757"
+          },
+          "command_id": "456332d1-e5cb-484e-8d2a-bfadf809e870",
+          "created_at": "2026-09-25T16:36:17.049749+00:00",
+          "input_hash": "bb06ace991630cd039086f7e2b4bfff27671ff66274bf5fb7d13cf94938de865"
         },
         {
           "result": {
@@ -1243,9 +1258,9 @@
             "observations": 2,
             "matchedPostings": 0
           },
-          "command_id": "4576321d-d2c4-5825-9293-753912fc0625",
-          "created_at": "2026-09-25T11:28:03.430312+00:00",
-          "input_hash": "1abf2a035e01938a88078af230995dcb7563d945f1fa6c747fbadc3a684064a3"
+          "command_id": "079c6a5c-b9c3-5049-bc4b-b1fb8004f4e5",
+          "created_at": "2026-09-25T16:36:16.941231+00:00",
+          "input_hash": "e125dd7429207c7cabb6d2431744546508da2b0d76ee2def2c9e9af31b555fd0"
         },
         {
           "result": {
@@ -1254,9 +1269,9 @@
             "observations": 2,
             "matchedPostings": 0
           },
-          "command_id": "f802c985-4825-5a51-af5f-8b9e84ac93b5",
-          "created_at": "2026-09-25T11:28:03.405316+00:00",
-          "input_hash": "825a84226db5d2a565304ecdc0d999c974910e96a0dbd3f1be547a651d6e1bcc"
+          "command_id": "a575d9da-0ad6-5476-8838-68511ba03bc5",
+          "created_at": "2026-09-25T16:36:16.913537+00:00",
+          "input_hash": "61268c47325a2a84dcc587e3708593866c4a01d8d401040b6971285f551e095d"
         },
         {
           "result": {
@@ -1265,9 +1280,9 @@
             "observations": 9,
             "matchedPostings": 0
           },
-          "command_id": "b7cf4159-50bc-5ad1-9833-b3aaf5495a57",
-          "created_at": "2026-09-25T11:28:03.347277+00:00",
-          "input_hash": "1fa2b7888037ae86858fadabae6850f667e70d540defb3a728135c1d1b51d54b"
+          "command_id": "43be32d6-0f38-5415-951f-c41e12d25d47",
+          "created_at": "2026-09-25T16:36:16.848565+00:00",
+          "input_hash": "c1b7b4fb74ad5d0e89e56e488575b8d6a91714f566fbb15e9c40fff91281c763"
         }
       ]
     },
@@ -1275,22 +1290,22 @@
       "name": "corrections",
       "rows": [
         {
-          "id": "63eaacc1-d0f8-4bcd-9a0d-666d0526725d",
+          "id": "5a36d100-5f58-432b-9f07-b5985bcc1347",
           "prior": {
-            "id": "98988337-f3ff-4b28-bc3d-64903e73c318",
+            "id": "0729ffea-fd1d-43e2-ab93-bf0a86d910f0",
             "kind": "purchase",
             "active": true,
             "version": 2,
             "postings": [
               {
-                "id": "601d3890-650c-4f37-b3a8-0fd3cc5b424d",
+                "id": "cbf8992e-e3d4-4e96-a659-cda0e623ae35",
                 "amount": {
                   "minor": "-12000",
                   "currency": "AUD"
                 },
                 "valueOn": null,
                 "postedOn": "2026-07-10",
-                "accountId": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79",
+                "accountId": "c1fce0df-091b-4097-9e79-f8fd3efe583b",
                 "description": "BIG SHOP SYDNEY AU",
                 "accountLabel": "Card",
                 "originalMoney": null
@@ -1304,7 +1319,7 @@
             "roleSource": "bank",
             "allocations": [
               {
-                "id": "becdf23f-217e-4f3c-bf9e-63011af4f8a5",
+                "id": "aa5dfa21-a470-47f1-a909-46cae55bf237",
                 "role": "purchase",
                 "amount": {
                   "minor": "12000",
@@ -1318,26 +1333,27 @@
               }
             ],
             "counterpartyId": null,
-            "primaryPostingId": "601d3890-650c-4f37-b3a8-0fd3cc5b424d",
+            "primaryPostingId": "cbf8992e-e3d4-4e96-a659-cda0e623ae35",
             "counterpartySource": null,
-            "reportingAccountId": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79"
+            "reportingAccountId": "c1fce0df-091b-4097-9e79-f8fd3efe583b"
           },
-          "scope": "event",
+          "action": "correct",
+          "change": "allocations",
           "accepted": {
-            "id": "98988337-f3ff-4b28-bc3d-64903e73c318",
+            "id": "0729ffea-fd1d-43e2-ab93-bf0a86d910f0",
             "kind": "purchase",
             "active": true,
             "version": 3,
             "postings": [
               {
-                "id": "601d3890-650c-4f37-b3a8-0fd3cc5b424d",
+                "id": "cbf8992e-e3d4-4e96-a659-cda0e623ae35",
                 "amount": {
                   "minor": "-12000",
                   "currency": "AUD"
                 },
                 "valueOn": null,
                 "postedOn": "2026-07-10",
-                "accountId": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79",
+                "accountId": "c1fce0df-091b-4097-9e79-f8fd3efe583b",
                 "description": "BIG SHOP SYDNEY AU",
                 "accountLabel": "Card",
                 "originalMoney": null
@@ -1351,7 +1367,7 @@
             "roleSource": "bank",
             "allocations": [
               {
-                "id": "becdf23f-217e-4f3c-bf9e-63011af4f8a5",
+                "id": "aa5dfa21-a470-47f1-a909-46cae55bf237",
                 "role": "purchase",
                 "amount": {
                   "minor": "8000",
@@ -1364,7 +1380,7 @@
                 "personalEventIds": []
               },
               {
-                "id": "bc9ebf49-c7de-4e46-b978-abe83d0072b1",
+                "id": "7ceecdd0-86ea-4f2d-a4c1-147f9fb416ce",
                 "role": "purchase",
                 "amount": {
                   "minor": "4000",
@@ -1378,31 +1394,31 @@
               }
             ],
             "counterpartyId": null,
-            "primaryPostingId": "601d3890-650c-4f37-b3a8-0fd3cc5b424d",
+            "primaryPostingId": "cbf8992e-e3d4-4e96-a659-cda0e623ae35",
             "counterpartySource": null,
-            "reportingAccountId": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79"
+            "reportingAccountId": "c1fce0df-091b-4097-9e79-f8fd3efe583b"
           },
-          "event_id": "98988337-f3ff-4b28-bc3d-64903e73c318",
-          "command_id": "3db46648-d30d-4b4c-93db-89f3af86c49f",
-          "created_at": "2026-09-25T11:28:03.50425+00:00"
+          "event_id": "0729ffea-fd1d-43e2-ab93-bf0a86d910f0",
+          "command_id": "87a89128-9925-43cc-aa48-6599a91b4334",
+          "created_at": "2026-09-25T16:36:17.022604+00:00"
         },
         {
-          "id": "804ad0d1-b8ed-493c-91bb-64e0e4e0b44e",
+          "id": "7836be49-355b-48bc-829a-cbc7f676e9da",
           "prior": {
-            "id": "4320c2aa-676b-4c8d-af06-3204000566c2",
+            "id": "f578f6e4-3ff5-476d-a92e-36886366b5e7",
             "kind": "income",
             "active": true,
             "version": 2,
             "postings": [
               {
-                "id": "d985dc4b-df1b-43f6-83b5-4853160195f9",
+                "id": "315b5a20-03de-4b01-bd78-d21ae36db99a",
                 "amount": {
                   "minor": "500000",
                   "currency": "AUD"
                 },
                 "valueOn": null,
                 "postedOn": "2026-07-01",
-                "accountId": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
+                "accountId": "b73f6606-4730-446f-9c13-cb2a0ae89757",
                 "description": "Salary ACME PTY LTD HR123456",
                 "accountLabel": "Everyday",
                 "originalMoney": null
@@ -1416,7 +1432,7 @@
             "roleSource": "bank",
             "allocations": [
               {
-                "id": "15228d70-22ab-4daa-81ad-433ba3a9b274",
+                "id": "b7a8c286-8011-4c94-affb-7a2341eb2367",
                 "role": "income",
                 "amount": {
                   "minor": "500000",
@@ -1430,26 +1446,27 @@
               }
             ],
             "counterpartyId": null,
-            "primaryPostingId": "d985dc4b-df1b-43f6-83b5-4853160195f9",
+            "primaryPostingId": "315b5a20-03de-4b01-bd78-d21ae36db99a",
             "counterpartySource": null,
-            "reportingAccountId": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
+            "reportingAccountId": "b73f6606-4730-446f-9c13-cb2a0ae89757"
           },
-          "scope": "event",
+          "action": "correct",
+          "change": "allocations",
           "accepted": {
-            "id": "4320c2aa-676b-4c8d-af06-3204000566c2",
+            "id": "f578f6e4-3ff5-476d-a92e-36886366b5e7",
             "kind": "income",
             "active": true,
             "version": 3,
             "postings": [
               {
-                "id": "d985dc4b-df1b-43f6-83b5-4853160195f9",
+                "id": "315b5a20-03de-4b01-bd78-d21ae36db99a",
                 "amount": {
                   "minor": "500000",
                   "currency": "AUD"
                 },
                 "valueOn": null,
                 "postedOn": "2026-07-01",
-                "accountId": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
+                "accountId": "b73f6606-4730-446f-9c13-cb2a0ae89757",
                 "description": "Salary ACME PTY LTD HR123456",
                 "accountLabel": "Everyday",
                 "originalMoney": null
@@ -1463,7 +1480,7 @@
             "roleSource": "bank",
             "allocations": [
               {
-                "id": "15228d70-22ab-4daa-81ad-433ba3a9b274",
+                "id": "b7a8c286-8011-4c94-affb-7a2341eb2367",
                 "role": "income",
                 "amount": {
                   "minor": "500000",
@@ -1477,31 +1494,31 @@
               }
             ],
             "counterpartyId": null,
-            "primaryPostingId": "d985dc4b-df1b-43f6-83b5-4853160195f9",
+            "primaryPostingId": "315b5a20-03de-4b01-bd78-d21ae36db99a",
             "counterpartySource": null,
-            "reportingAccountId": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
+            "reportingAccountId": "b73f6606-4730-446f-9c13-cb2a0ae89757"
           },
-          "event_id": "4320c2aa-676b-4c8d-af06-3204000566c2",
-          "command_id": "182a2f90-6000-409f-9e69-0190121f51b3",
-          "created_at": "2026-09-25T11:28:03.515212+00:00"
+          "event_id": "f578f6e4-3ff5-476d-a92e-36886366b5e7",
+          "command_id": "57b0ec06-b9e0-437e-92ec-105a82902439",
+          "created_at": "2026-09-25T16:36:17.036295+00:00"
         },
         {
-          "id": "9499c46e-38f7-4f0e-aa67-612c3c512b07",
+          "id": "ddc4eadf-3788-4df8-a653-1ef935c57869",
           "prior": {
-            "id": "4320c2aa-676b-4c8d-af06-3204000566c2",
+            "id": "f578f6e4-3ff5-476d-a92e-36886366b5e7",
             "kind": "income",
             "active": true,
             "version": 3,
             "postings": [
               {
-                "id": "d985dc4b-df1b-43f6-83b5-4853160195f9",
+                "id": "315b5a20-03de-4b01-bd78-d21ae36db99a",
                 "amount": {
                   "minor": "500000",
                   "currency": "AUD"
                 },
                 "valueOn": null,
                 "postedOn": "2026-07-01",
-                "accountId": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
+                "accountId": "b73f6606-4730-446f-9c13-cb2a0ae89757",
                 "description": "Salary ACME PTY LTD HR123456",
                 "accountLabel": "Everyday",
                 "originalMoney": null
@@ -1515,7 +1532,7 @@
             "roleSource": "bank",
             "allocations": [
               {
-                "id": "15228d70-22ab-4daa-81ad-433ba3a9b274",
+                "id": "b7a8c286-8011-4c94-affb-7a2341eb2367",
                 "role": "income",
                 "amount": {
                   "minor": "500000",
@@ -1529,26 +1546,27 @@
               }
             ],
             "counterpartyId": null,
-            "primaryPostingId": "d985dc4b-df1b-43f6-83b5-4853160195f9",
+            "primaryPostingId": "315b5a20-03de-4b01-bd78-d21ae36db99a",
             "counterpartySource": null,
-            "reportingAccountId": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
+            "reportingAccountId": "b73f6606-4730-446f-9c13-cb2a0ae89757"
           },
-          "scope": "undo",
+          "action": "undo",
+          "change": "allocations",
           "accepted": {
-            "id": "4320c2aa-676b-4c8d-af06-3204000566c2",
+            "id": "f578f6e4-3ff5-476d-a92e-36886366b5e7",
             "kind": "income",
             "active": true,
             "version": 4,
             "postings": [
               {
-                "id": "d985dc4b-df1b-43f6-83b5-4853160195f9",
+                "id": "315b5a20-03de-4b01-bd78-d21ae36db99a",
                 "amount": {
                   "minor": "500000",
                   "currency": "AUD"
                 },
                 "valueOn": null,
                 "postedOn": "2026-07-01",
-                "accountId": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
+                "accountId": "b73f6606-4730-446f-9c13-cb2a0ae89757",
                 "description": "Salary ACME PTY LTD HR123456",
                 "accountLabel": "Everyday",
                 "originalMoney": null
@@ -1562,7 +1580,7 @@
             "roleSource": "bank",
             "allocations": [
               {
-                "id": "15228d70-22ab-4daa-81ad-433ba3a9b274",
+                "id": "b7a8c286-8011-4c94-affb-7a2341eb2367",
                 "role": "income",
                 "amount": {
                   "minor": "500000",
@@ -1576,13 +1594,13 @@
               }
             ],
             "counterpartyId": null,
-            "primaryPostingId": "d985dc4b-df1b-43f6-83b5-4853160195f9",
+            "primaryPostingId": "315b5a20-03de-4b01-bd78-d21ae36db99a",
             "counterpartySource": null,
-            "reportingAccountId": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
+            "reportingAccountId": "b73f6606-4730-446f-9c13-cb2a0ae89757"
           },
-          "event_id": "4320c2aa-676b-4c8d-af06-3204000566c2",
-          "command_id": "f0fffb0e-1153-45b4-bd8b-579515fe62b5",
-          "created_at": "2026-09-25T11:28:03.522092+00:00"
+          "event_id": "f578f6e4-3ff5-476d-a92e-36886366b5e7",
+          "command_id": "456332d1-e5cb-484e-8d2a-bfadf809e870",
+          "created_at": "2026-09-25T16:36:17.049749+00:00"
         }
       ]
     },
@@ -1590,39 +1608,7 @@
       "name": "counterparties",
       "rows": [
         {
-          "id": "215ad9d3-96d3-4fcf-b33b-ff35a6781e87",
-          "kind": "person",
-          "name": "John Citizen",
-          "brand": null,
-          "model": null,
-          "reason": null,
-          "source": "user",
-          "status": "applied",
-          "version": 1,
-          "confidence": null,
-          "created_at": "2026-09-25T11:28:03.469717+00:00",
-          "updated_at": "2026-09-25T11:28:03.469717+00:00",
-          "default_role": "reimbursement",
-          "default_category_id": "00000000-0000-4000-8000-000000000003"
-        },
-        {
-          "id": "366faca6-207e-4ee2-82ec-40a02857b88f",
-          "kind": "person",
-          "name": "Jane Smith",
-          "brand": null,
-          "model": null,
-          "reason": null,
-          "source": "user",
-          "status": "applied",
-          "version": 1,
-          "confidence": null,
-          "created_at": "2026-09-25T11:28:03.450184+00:00",
-          "updated_at": "2026-09-25T11:28:03.450184+00:00",
-          "default_role": "purchase",
-          "default_category_id": "00000000-0000-4000-8000-000000000101"
-        },
-        {
-          "id": "44c61388-fa9f-4a34-bb7d-f3120d6a2a42",
+          "id": "6f8ec12b-6551-4ce3-a070-460b03422634",
           "kind": "business",
           "name": "Woolworths",
           "brand": null,
@@ -1632,10 +1618,42 @@
           "status": "applied",
           "version": 1,
           "confidence": null,
-          "created_at": "2026-09-25T11:28:03.460571+00:00",
-          "updated_at": "2026-09-25T11:28:03.460571+00:00",
+          "created_at": "2026-09-25T16:36:16.973672+00:00",
+          "updated_at": "2026-09-25T16:36:16.973672+00:00",
           "default_role": null,
           "default_category_id": "00000000-0000-4000-8000-000000000001"
+        },
+        {
+          "id": "bea54551-60eb-4f3d-9133-f50d6687bfa7",
+          "kind": "person",
+          "name": "John Citizen",
+          "brand": null,
+          "model": null,
+          "reason": null,
+          "source": "user",
+          "status": "applied",
+          "version": 1,
+          "confidence": null,
+          "created_at": "2026-09-25T16:36:16.983742+00:00",
+          "updated_at": "2026-09-25T16:36:16.983742+00:00",
+          "default_role": "reimbursement",
+          "default_category_id": "00000000-0000-4000-8000-000000000003"
+        },
+        {
+          "id": "e2660a11-eb1a-429c-bcd1-9ec90a5ffdd0",
+          "kind": "person",
+          "name": "Jane Smith",
+          "brand": null,
+          "model": null,
+          "reason": null,
+          "source": "user",
+          "status": "applied",
+          "version": 1,
+          "confidence": null,
+          "created_at": "2026-09-25T16:36:16.961034+00:00",
+          "updated_at": "2026-09-25T16:36:16.961034+00:00",
+          "default_role": "purchase",
+          "default_category_id": "00000000-0000-4000-8000-000000000101"
         }
       ]
     },
@@ -1646,28 +1664,211 @@
           "reason": null,
           "source": "user",
           "status": "applied",
+          "version": 1,
           "alias_key": "JANE SMITH",
           "confidence": null,
-          "created_at": "2026-09-25T11:28:03.450184+00:00",
-          "counterparty_id": "366faca6-207e-4ee2-82ec-40a02857b88f"
+          "created_at": "2026-09-25T16:36:16.961034+00:00",
+          "counterparty_id": "e2660a11-eb1a-429c-bcd1-9ec90a5ffdd0"
         },
         {
           "reason": null,
           "source": "user",
           "status": "applied",
+          "version": 1,
           "alias_key": "JOHN CITIZEN",
           "confidence": null,
-          "created_at": "2026-09-25T11:28:03.469717+00:00",
-          "counterparty_id": "215ad9d3-96d3-4fcf-b33b-ff35a6781e87"
+          "created_at": "2026-09-25T16:36:16.983742+00:00",
+          "counterparty_id": "bea54551-60eb-4f3d-9133-f50d6687bfa7"
         },
         {
           "reason": null,
           "source": "user",
           "status": "applied",
+          "version": 1,
           "alias_key": "WOOLWORTHS SYDNEY",
           "confidence": null,
-          "created_at": "2026-09-25T11:28:03.460571+00:00",
-          "counterparty_id": "44c61388-fa9f-4a34-bb7d-f3120d6a2a42"
+          "created_at": "2026-09-25T16:36:16.973672+00:00",
+          "counterparty_id": "6f8ec12b-6551-4ce3-a070-460b03422634"
+        }
+      ]
+    },
+    {
+      "name": "counterparty_change_events",
+      "rows": [
+        {
+          "event_id": "2f4353af-c546-464b-9615-a223a2084b1c",
+          "change_id": "e5aa2899-9397-49f5-a52a-8d9f4055f311"
+        },
+        {
+          "event_id": "b3f4598e-a8c2-40fd-b4f1-4bb0464925e4",
+          "change_id": "97e16941-5569-48db-8217-63bfda1893d2"
+        },
+        {
+          "event_id": "c19fed8d-ac97-439d-a8ce-fafb15fa9b76",
+          "change_id": "e8bc72e2-bbaf-4ca3-bad7-ec080cbc6d80"
+        }
+      ]
+    },
+    {
+      "name": "counterparty_change_subjects",
+      "rows": [
+        {
+          "name": "Jane Smith",
+          "change_id": "e5aa2899-9397-49f5-a52a-8d9f4055f311",
+          "counterparty_id": "e2660a11-eb1a-429c-bcd1-9ec90a5ffdd0"
+        },
+        {
+          "name": "John Citizen",
+          "change_id": "e8bc72e2-bbaf-4ca3-bad7-ec080cbc6d80",
+          "counterparty_id": "bea54551-60eb-4f3d-9133-f50d6687bfa7"
+        },
+        {
+          "name": "Woolworths",
+          "change_id": "97e16941-5569-48db-8217-63bfda1893d2",
+          "counterparty_id": "6f8ec12b-6551-4ce3-a070-460b03422634"
+        }
+      ]
+    },
+    {
+      "name": "counterparty_changes",
+      "rows": [
+        {
+          "id": "97e16941-5569-48db-8217-63bfda1893d2",
+          "kind": "create",
+          "images": {
+            "rules": [],
+            "events": [],
+            "aliases": [
+              {
+                "after": {
+                  "reason": null,
+                  "source": "user",
+                  "status": "applied",
+                  "version": 1,
+                  "aliasKey": "WOOLWORTHS SYDNEY",
+                  "confidence": null,
+                  "counterpartyId": "6f8ec12b-6551-4ce3-a070-460b03422634"
+                },
+                "before": null
+              }
+            ],
+            "movements": [],
+            "references": [],
+            "counterparties": [
+              {
+                "after": {
+                  "id": "6f8ec12b-6551-4ce3-a070-460b03422634",
+                  "kind": "business",
+                  "name": "Woolworths",
+                  "brand": null,
+                  "model": null,
+                  "reason": null,
+                  "source": "user",
+                  "status": "applied",
+                  "version": 1,
+                  "confidence": null,
+                  "defaultRole": null,
+                  "defaultCategoryId": "00000000-0000-4000-8000-000000000001"
+                },
+                "before": null
+              }
+            ]
+          },
+          "undoes": null,
+          "command_id": "057393df-7481-4dcc-a3b0-46d690dd2a4d",
+          "created_at": "2026-09-25T16:36:16.973672+00:00"
+        },
+        {
+          "id": "e5aa2899-9397-49f5-a52a-8d9f4055f311",
+          "kind": "create",
+          "images": {
+            "rules": [],
+            "events": [],
+            "aliases": [
+              {
+                "after": {
+                  "reason": null,
+                  "source": "user",
+                  "status": "applied",
+                  "version": 1,
+                  "aliasKey": "JANE SMITH",
+                  "confidence": null,
+                  "counterpartyId": "e2660a11-eb1a-429c-bcd1-9ec90a5ffdd0"
+                },
+                "before": null
+              }
+            ],
+            "movements": [],
+            "references": [],
+            "counterparties": [
+              {
+                "after": {
+                  "id": "e2660a11-eb1a-429c-bcd1-9ec90a5ffdd0",
+                  "kind": "person",
+                  "name": "Jane Smith",
+                  "brand": null,
+                  "model": null,
+                  "reason": null,
+                  "source": "user",
+                  "status": "applied",
+                  "version": 1,
+                  "confidence": null,
+                  "defaultRole": "purchase",
+                  "defaultCategoryId": "00000000-0000-4000-8000-000000000101"
+                },
+                "before": null
+              }
+            ]
+          },
+          "undoes": null,
+          "command_id": "5600a178-5be1-4c9f-b01d-9186aa164b5a",
+          "created_at": "2026-09-25T16:36:16.961034+00:00"
+        },
+        {
+          "id": "e8bc72e2-bbaf-4ca3-bad7-ec080cbc6d80",
+          "kind": "create",
+          "images": {
+            "rules": [],
+            "events": [],
+            "aliases": [
+              {
+                "after": {
+                  "reason": null,
+                  "source": "user",
+                  "status": "applied",
+                  "version": 1,
+                  "aliasKey": "JOHN CITIZEN",
+                  "confidence": null,
+                  "counterpartyId": "bea54551-60eb-4f3d-9133-f50d6687bfa7"
+                },
+                "before": null
+              }
+            ],
+            "movements": [],
+            "references": [],
+            "counterparties": [
+              {
+                "after": {
+                  "id": "bea54551-60eb-4f3d-9133-f50d6687bfa7",
+                  "kind": "person",
+                  "name": "John Citizen",
+                  "brand": null,
+                  "model": null,
+                  "reason": null,
+                  "source": "user",
+                  "status": "applied",
+                  "version": 1,
+                  "confidence": null,
+                  "defaultRole": "reimbursement",
+                  "defaultCategoryId": "00000000-0000-4000-8000-000000000003"
+                },
+                "before": null
+              }
+            ]
+          },
+          "undoes": null,
+          "command_id": "21c52478-24de-424d-89e6-1b8bbf95e07f",
+          "created_at": "2026-09-25T16:36:16.983742+00:00"
         }
       ]
     },
@@ -1679,10 +1880,10 @@
       "name": "credit_links",
       "rows": [
         {
-          "id": "c21abe2a-32cc-46c3-aaba-04fcb1443bab",
+          "id": "17463112-eb38-40a3-988d-e736eda063af",
           "amount_minor": 20000,
-          "cost_allocation_id": "ac85a6a6-0afa-4689-bff4-4c7bb3f517f0",
-          "credit_allocation_id": "c03344a8-9004-4e7a-9271-72139423dc98"
+          "cost_allocation_id": "0d12447f-7fa5-493c-8ed8-01dd9e871a9f",
+          "credit_allocation_id": "165cc1c3-9a9f-4ec6-9f51-46f9e95b2267"
         }
       ]
     },
@@ -1704,9 +1905,9 @@
         {
           "id": 1,
           "enabled": true,
-          "version": 1,
-          "warning_minor": 2000,
-          "auto_apply_confidence": 0.8
+          "version": 2,
+          "warning_minor": 1500,
+          "auto_apply_confidence": 0.75
         }
       ]
     },
@@ -1715,73 +1916,73 @@
       "rows": [
         {
           "active": false,
-          "event_id": "3de08f13-e925-4f9a-95f4-5e9e6c58473f",
-          "posting_id": "5bbd61d5-9dda-4d19-b8bf-7f400ea916de"
+          "event_id": "b799eb62-ff30-4789-aba6-8bce15c1dfa6",
+          "posting_id": "ec3c80d6-ffe1-4307-aff0-e025223b050c"
         },
         {
           "active": true,
-          "event_id": "3af35b99-84a5-40e6-b169-82dfe9a6159f",
-          "posting_id": "5bbd61d5-9dda-4d19-b8bf-7f400ea916de"
+          "event_id": "0729ffea-fd1d-43e2-ab93-bf0a86d910f0",
+          "posting_id": "cbf8992e-e3d4-4e96-a659-cda0e623ae35"
         },
         {
           "active": true,
-          "event_id": "3af35b99-84a5-40e6-b169-82dfe9a6159f",
-          "posting_id": "e62fb2f2-51e2-4ed2-a833-6c03c7c0d3a0"
+          "event_id": "10895318-e5c2-4505-a16a-df378d450bae",
+          "posting_id": "2efb1267-1827-4841-a916-e419693af179"
         },
         {
           "active": true,
-          "event_id": "41289156-956a-4545-b04b-328f7164dd44",
-          "posting_id": "94eac945-c933-4d4d-ad77-15df1c5dc48b"
+          "event_id": "2f4353af-c546-464b-9615-a223a2084b1c",
+          "posting_id": "550a8cfb-4931-42d8-99df-299d4008489e"
         },
         {
           "active": true,
-          "event_id": "4320c2aa-676b-4c8d-af06-3204000566c2",
-          "posting_id": "d985dc4b-df1b-43f6-83b5-4853160195f9"
+          "event_id": "3da4d8b9-4c0c-4524-9966-84ef787b7bb6",
+          "posting_id": "5d2496d0-bfa0-4083-a0fb-107a47911987"
         },
         {
           "active": true,
-          "event_id": "50b99a35-9f93-4c62-85c3-b953aa1b51b7",
-          "posting_id": "18004853-f04d-4cac-aa58-9648ee26a201"
+          "event_id": "41ae92d6-59ec-4c97-b7c2-acc7a8198e20",
+          "posting_id": "03566986-90ba-4285-8a90-de6fa5c41527"
         },
         {
           "active": true,
-          "event_id": "7823f67c-1986-4c48-adaf-b5244ff6efa2",
-          "posting_id": "f67c7347-b443-411f-a94f-1bb3850cd88f"
+          "event_id": "4f516bf1-e1bf-43ca-9b79-29619028d984",
+          "posting_id": "f17b0fbf-5c89-4fd7-8a0c-c8737669ce3f"
         },
         {
           "active": true,
-          "event_id": "8eed26f1-1a3e-47c1-9360-57dc13df095d",
-          "posting_id": "ec6d84cc-7c51-4e23-9c56-299fa94b3822"
+          "event_id": "9a0dacbf-d075-47c6-a6ef-8ab6d4b2d7e2",
+          "posting_id": "7f8591fc-2feb-40ee-bc3d-055765efff31"
         },
         {
           "active": true,
-          "event_id": "98988337-f3ff-4b28-bc3d-64903e73c318",
-          "posting_id": "601d3890-650c-4f37-b3a8-0fd3cc5b424d"
+          "event_id": "b3f4598e-a8c2-40fd-b4f1-4bb0464925e4",
+          "posting_id": "40f520ac-13d1-40df-862d-d28afa059bfb"
         },
         {
           "active": true,
-          "event_id": "b0834f13-3304-42f6-a4d1-8a28630dba8a",
-          "posting_id": "974ccad5-b010-4205-9e99-0a04abf71095"
+          "event_id": "bc5f1491-4acf-4f2f-9da3-9eb24919217e",
+          "posting_id": "ec3c80d6-ffe1-4307-aff0-e025223b050c"
         },
         {
           "active": true,
-          "event_id": "b359f77d-9e08-4319-b2e9-0b0fe8c60e87",
-          "posting_id": "3c26b100-d287-4cee-8517-689b9ce23f52"
+          "event_id": "bc5f1491-4acf-4f2f-9da3-9eb24919217e",
+          "posting_id": "fd23745a-7ef2-4ece-8a6b-21fbb2965bda"
         },
         {
           "active": true,
-          "event_id": "bfea2b36-590f-49ef-b95e-2a605f534798",
-          "posting_id": "5e7ae498-36fc-4eac-a27e-1b5dfe405bbf"
+          "event_id": "c19fed8d-ac97-439d-a8ce-fafb15fa9b76",
+          "posting_id": "0927d511-1084-45f9-9a0d-731dfcaeb26b"
         },
         {
           "active": true,
-          "event_id": "c80b538b-c88a-4549-88d3-c73d945d8d9f",
-          "posting_id": "422b9d34-3576-4346-b0c5-6c982fe54e31"
+          "event_id": "dddc30c9-7263-4db2-8dcb-8f1d4f317370",
+          "posting_id": "b79445ef-d8e9-4c18-9d8a-b9073c456b94"
         },
         {
           "active": true,
-          "event_id": "e1ccd0b8-f7ae-4520-a7d0-926349037cc8",
-          "posting_id": "4d9a8b69-4134-42f3-9d8e-69f46cad9a1d"
+          "event_id": "f578f6e4-3ff5-476d-a92e-36886366b5e7",
+          "posting_id": "315b5a20-03de-4b01-bd78-d21ae36db99a"
         }
       ]
     },
@@ -1789,112 +1990,7 @@
       "name": "events",
       "rows": [
         {
-          "id": "3af35b99-84a5-40e6-b169-82dfe9a6159f",
-          "kind": "cardSettlement",
-          "active": true,
-          "version": 2,
-          "currency": "AUD",
-          "purchase_on": null,
-          "role_source": "link",
-          "facts_version": 3,
-          "counterparty_id": null,
-          "magnitude_minor": 12000,
-          "primary_posting_id": "e62fb2f2-51e2-4ed2-a833-6c03c7c0d3a0",
-          "counterparty_source": null,
-          "reporting_account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
-        },
-        {
-          "id": "3de08f13-e925-4f9a-95f4-5e9e6c58473f",
-          "kind": "cardSettlement",
-          "active": false,
-          "version": 3,
-          "currency": "AUD",
-          "purchase_on": null,
-          "role_source": "bank",
-          "facts_version": 3,
-          "counterparty_id": null,
-          "magnitude_minor": 12000,
-          "primary_posting_id": "5bbd61d5-9dda-4d19-b8bf-7f400ea916de",
-          "counterparty_source": null,
-          "reporting_account_id": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79"
-        },
-        {
-          "id": "41289156-956a-4545-b04b-328f7164dd44",
-          "kind": "reimbursement",
-          "active": true,
-          "version": 3,
-          "currency": "AUD",
-          "purchase_on": null,
-          "role_source": "counterparty",
-          "facts_version": 3,
-          "counterparty_id": "215ad9d3-96d3-4fcf-b33b-ff35a6781e87",
-          "magnitude_minor": 20000,
-          "primary_posting_id": "94eac945-c933-4d4d-ad77-15df1c5dc48b",
-          "counterparty_source": "alias",
-          "reporting_account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
-        },
-        {
-          "id": "4320c2aa-676b-4c8d-af06-3204000566c2",
-          "kind": "income",
-          "active": true,
-          "version": 4,
-          "currency": "AUD",
-          "purchase_on": null,
-          "role_source": "bank",
-          "facts_version": 3,
-          "counterparty_id": null,
-          "magnitude_minor": 500000,
-          "primary_posting_id": "d985dc4b-df1b-43f6-83b5-4853160195f9",
-          "counterparty_source": null,
-          "reporting_account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
-        },
-        {
-          "id": "50b99a35-9f93-4c62-85c3-b953aa1b51b7",
-          "kind": "purchase",
-          "active": true,
-          "version": 2,
-          "currency": "AUD",
-          "purchase_on": null,
-          "role_source": "counterparty",
-          "facts_version": 3,
-          "counterparty_id": "366faca6-207e-4ee2-82ec-40a02857b88f",
-          "magnitude_minor": 184000,
-          "primary_posting_id": "18004853-f04d-4cac-aa58-9648ee26a201",
-          "counterparty_source": "alias",
-          "reporting_account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
-        },
-        {
-          "id": "7823f67c-1986-4c48-adaf-b5244ff6efa2",
-          "kind": "loanPayment",
-          "active": true,
-          "version": 2,
-          "currency": "AUD",
-          "purchase_on": null,
-          "role_source": "bank",
-          "facts_version": 3,
-          "counterparty_id": null,
-          "magnitude_minor": 390000,
-          "primary_posting_id": "f67c7347-b443-411f-a94f-1bb3850cd88f",
-          "counterparty_source": null,
-          "reporting_account_id": "5a3c5122-21be-4b05-b1e8-5892b676bc0a"
-        },
-        {
-          "id": "8eed26f1-1a3e-47c1-9360-57dc13df095d",
-          "kind": "refund",
-          "active": true,
-          "version": 2,
-          "currency": "AUD",
-          "purchase_on": null,
-          "role_source": "bank",
-          "facts_version": 3,
-          "counterparty_id": null,
-          "magnitude_minor": 4000,
-          "primary_posting_id": "ec6d84cc-7c51-4e23-9c56-299fa94b3822",
-          "counterparty_source": null,
-          "reporting_account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
-        },
-        {
-          "id": "98988337-f3ff-4b28-bc3d-64903e73c318",
+          "id": "0729ffea-fd1d-43e2-ab93-bf0a86d910f0",
           "kind": "purchase",
           "active": true,
           "version": 3,
@@ -1904,72 +2000,12 @@
           "facts_version": 3,
           "counterparty_id": null,
           "magnitude_minor": 12000,
-          "primary_posting_id": "601d3890-650c-4f37-b3a8-0fd3cc5b424d",
+          "primary_posting_id": "cbf8992e-e3d4-4e96-a659-cda0e623ae35",
           "counterparty_source": null,
-          "reporting_account_id": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79"
+          "reporting_account_id": "c1fce0df-091b-4097-9e79-f8fd3efe583b"
         },
         {
-          "id": "b0834f13-3304-42f6-a4d1-8a28630dba8a",
-          "kind": "financingCost",
-          "active": true,
-          "version": 2,
-          "currency": "AUD",
-          "purchase_on": null,
-          "role_source": "bank",
-          "facts_version": 3,
-          "counterparty_id": null,
-          "magnitude_minor": 280000,
-          "primary_posting_id": "974ccad5-b010-4205-9e99-0a04abf71095",
-          "counterparty_source": null,
-          "reporting_account_id": "5a3c5122-21be-4b05-b1e8-5892b676bc0a"
-        },
-        {
-          "id": "b359f77d-9e08-4319-b2e9-0b0fe8c60e87",
-          "kind": "purchase",
-          "active": true,
-          "version": 2,
-          "currency": "AUD",
-          "purchase_on": null,
-          "role_source": "bank",
-          "facts_version": 3,
-          "counterparty_id": null,
-          "magnitude_minor": 12000,
-          "primary_posting_id": "3c26b100-d287-4cee-8517-689b9ce23f52",
-          "counterparty_source": null,
-          "reporting_account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
-        },
-        {
-          "id": "bfea2b36-590f-49ef-b95e-2a605f534798",
-          "kind": "loanPayment",
-          "active": true,
-          "version": 2,
-          "currency": "AUD",
-          "purchase_on": null,
-          "role_source": "bank",
-          "facts_version": 3,
-          "counterparty_id": null,
-          "magnitude_minor": 390000,
-          "primary_posting_id": "5e7ae498-36fc-4eac-a27e-1b5dfe405bbf",
-          "counterparty_source": null,
-          "reporting_account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
-        },
-        {
-          "id": "c80b538b-c88a-4549-88d3-c73d945d8d9f",
-          "kind": "purchase",
-          "active": true,
-          "version": 3,
-          "currency": "AUD",
-          "purchase_on": null,
-          "role_source": "bank",
-          "facts_version": 3,
-          "counterparty_id": "44c61388-fa9f-4a34-bb7d-f3120d6a2a42",
-          "magnitude_minor": 8450,
-          "primary_posting_id": "422b9d34-3576-4346-b0c5-6c982fe54e31",
-          "counterparty_source": "alias",
-          "reporting_account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
-        },
-        {
-          "id": "e1ccd0b8-f7ae-4520-a7d0-926349037cc8",
+          "id": "10895318-e5c2-4505-a16a-df378d450bae",
           "kind": "purchase",
           "active": true,
           "version": 4,
@@ -1979,9 +2015,174 @@
           "facts_version": 3,
           "counterparty_id": null,
           "magnitude_minor": 30000,
-          "primary_posting_id": "4d9a8b69-4134-42f3-9d8e-69f46cad9a1d",
+          "primary_posting_id": "2efb1267-1827-4841-a916-e419693af179",
           "counterparty_source": null,
-          "reporting_account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
+          "reporting_account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757"
+        },
+        {
+          "id": "2f4353af-c546-464b-9615-a223a2084b1c",
+          "kind": "purchase",
+          "active": true,
+          "version": 2,
+          "currency": "AUD",
+          "purchase_on": null,
+          "role_source": "counterparty",
+          "facts_version": 3,
+          "counterparty_id": "e2660a11-eb1a-429c-bcd1-9ec90a5ffdd0",
+          "magnitude_minor": 184000,
+          "primary_posting_id": "550a8cfb-4931-42d8-99df-299d4008489e",
+          "counterparty_source": "alias",
+          "reporting_account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757"
+        },
+        {
+          "id": "3da4d8b9-4c0c-4524-9966-84ef787b7bb6",
+          "kind": "loanPayment",
+          "active": true,
+          "version": 2,
+          "currency": "AUD",
+          "purchase_on": null,
+          "role_source": "bank",
+          "facts_version": 3,
+          "counterparty_id": null,
+          "magnitude_minor": 390000,
+          "primary_posting_id": "5d2496d0-bfa0-4083-a0fb-107a47911987",
+          "counterparty_source": null,
+          "reporting_account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757"
+        },
+        {
+          "id": "41ae92d6-59ec-4c97-b7c2-acc7a8198e20",
+          "kind": "purchase",
+          "active": true,
+          "version": 2,
+          "currency": "AUD",
+          "purchase_on": null,
+          "role_source": "bank",
+          "facts_version": 3,
+          "counterparty_id": null,
+          "magnitude_minor": 12000,
+          "primary_posting_id": "03566986-90ba-4285-8a90-de6fa5c41527",
+          "counterparty_source": null,
+          "reporting_account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757"
+        },
+        {
+          "id": "4f516bf1-e1bf-43ca-9b79-29619028d984",
+          "kind": "financingCost",
+          "active": true,
+          "version": 2,
+          "currency": "AUD",
+          "purchase_on": null,
+          "role_source": "bank",
+          "facts_version": 3,
+          "counterparty_id": null,
+          "magnitude_minor": 280000,
+          "primary_posting_id": "f17b0fbf-5c89-4fd7-8a0c-c8737669ce3f",
+          "counterparty_source": null,
+          "reporting_account_id": "7202517a-11a3-4108-a4ac-6eccb84886c7"
+        },
+        {
+          "id": "9a0dacbf-d075-47c6-a6ef-8ab6d4b2d7e2",
+          "kind": "loanPayment",
+          "active": true,
+          "version": 2,
+          "currency": "AUD",
+          "purchase_on": null,
+          "role_source": "bank",
+          "facts_version": 3,
+          "counterparty_id": null,
+          "magnitude_minor": 390000,
+          "primary_posting_id": "7f8591fc-2feb-40ee-bc3d-055765efff31",
+          "counterparty_source": null,
+          "reporting_account_id": "7202517a-11a3-4108-a4ac-6eccb84886c7"
+        },
+        {
+          "id": "b3f4598e-a8c2-40fd-b4f1-4bb0464925e4",
+          "kind": "purchase",
+          "active": true,
+          "version": 3,
+          "currency": "AUD",
+          "purchase_on": null,
+          "role_source": "bank",
+          "facts_version": 3,
+          "counterparty_id": "6f8ec12b-6551-4ce3-a070-460b03422634",
+          "magnitude_minor": 8450,
+          "primary_posting_id": "40f520ac-13d1-40df-862d-d28afa059bfb",
+          "counterparty_source": "alias",
+          "reporting_account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757"
+        },
+        {
+          "id": "b799eb62-ff30-4789-aba6-8bce15c1dfa6",
+          "kind": "cardSettlement",
+          "active": false,
+          "version": 3,
+          "currency": "AUD",
+          "purchase_on": null,
+          "role_source": "bank",
+          "facts_version": 3,
+          "counterparty_id": null,
+          "magnitude_minor": 12000,
+          "primary_posting_id": "ec3c80d6-ffe1-4307-aff0-e025223b050c",
+          "counterparty_source": null,
+          "reporting_account_id": "c1fce0df-091b-4097-9e79-f8fd3efe583b"
+        },
+        {
+          "id": "bc5f1491-4acf-4f2f-9da3-9eb24919217e",
+          "kind": "cardSettlement",
+          "active": true,
+          "version": 2,
+          "currency": "AUD",
+          "purchase_on": null,
+          "role_source": "link",
+          "facts_version": 3,
+          "counterparty_id": null,
+          "magnitude_minor": 12000,
+          "primary_posting_id": "fd23745a-7ef2-4ece-8a6b-21fbb2965bda",
+          "counterparty_source": null,
+          "reporting_account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757"
+        },
+        {
+          "id": "c19fed8d-ac97-439d-a8ce-fafb15fa9b76",
+          "kind": "reimbursement",
+          "active": true,
+          "version": 3,
+          "currency": "AUD",
+          "purchase_on": null,
+          "role_source": "counterparty",
+          "facts_version": 3,
+          "counterparty_id": "bea54551-60eb-4f3d-9133-f50d6687bfa7",
+          "magnitude_minor": 20000,
+          "primary_posting_id": "0927d511-1084-45f9-9a0d-731dfcaeb26b",
+          "counterparty_source": "alias",
+          "reporting_account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757"
+        },
+        {
+          "id": "dddc30c9-7263-4db2-8dcb-8f1d4f317370",
+          "kind": "refund",
+          "active": true,
+          "version": 2,
+          "currency": "AUD",
+          "purchase_on": null,
+          "role_source": "bank",
+          "facts_version": 3,
+          "counterparty_id": null,
+          "magnitude_minor": 4000,
+          "primary_posting_id": "b79445ef-d8e9-4c18-9d8a-b9073c456b94",
+          "counterparty_source": null,
+          "reporting_account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757"
+        },
+        {
+          "id": "f578f6e4-3ff5-476d-a92e-36886366b5e7",
+          "kind": "income",
+          "active": true,
+          "version": 4,
+          "currency": "AUD",
+          "purchase_on": null,
+          "role_source": "bank",
+          "facts_version": 3,
+          "counterparty_id": null,
+          "magnitude_minor": 500000,
+          "primary_posting_id": "315b5a20-03de-4b01-bd78-d21ae36db99a",
+          "counterparty_source": null,
+          "reporting_account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757"
         }
       ]
     },
@@ -2001,7 +2202,7 @@
       "name": "imports",
       "rows": [
         {
-          "id": "367d85e5-c46b-4e92-9bc8-3cf2736117ea",
+          "id": "3bd8740b-42da-4fe6-a3c9-e54939498bb9",
           "format": "csv",
           "status": "complete",
           "failure": null,
@@ -2022,17 +2223,17 @@
             "creditTotal": null,
             "statedStart": null
           },
-          "account_id": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79",
-          "created_at": "2026-09-25T11:28:03.402964+00:00",
-          "updated_at": "2026-09-25T11:28:03.405316+00:00",
+          "account_id": "c1fce0df-091b-4097-9e79-f8fd3efe583b",
+          "created_at": "2026-09-25T16:36:16.911678+00:00",
+          "updated_at": "2026-09-25T16:36:16.913537+00:00",
           "institution": "commbank",
           "bank_account": null,
           "parser_version": "test-1",
-          "source_file_id": "515b4fcf-fc24-438c-b5b3-ab375538ffc1",
+          "source_file_id": "6384d12e-6024-41c8-a86d-571c304b702f",
           "workflow_instance_id": null
         },
         {
-          "id": "e01b4a5d-0db5-4117-8d40-4db81cb64d37",
+          "id": "63d58496-a320-4021-8f47-7342320be3af",
           "format": "csv",
           "status": "complete",
           "failure": null,
@@ -2053,17 +2254,17 @@
             "creditTotal": null,
             "statedStart": null
           },
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "created_at": "2026-09-25T11:28:03.343701+00:00",
-          "updated_at": "2026-09-25T11:28:03.347277+00:00",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "created_at": "2026-09-25T16:36:16.84514+00:00",
+          "updated_at": "2026-09-25T16:36:16.848565+00:00",
           "institution": "commbank",
           "bank_account": null,
           "parser_version": "test-1",
-          "source_file_id": "7e698a18-e308-40c6-9b91-85112c7c02e5",
+          "source_file_id": "d007c211-f4c0-4279-b696-47c39a697187",
           "workflow_instance_id": null
         },
         {
-          "id": "e1659df3-4744-4f26-8407-04ae4b74f630",
+          "id": "e5f4be75-1cfd-4ff0-bade-921188e7c9de",
           "format": "csv",
           "status": "complete",
           "failure": null,
@@ -2084,13 +2285,13 @@
             "creditTotal": null,
             "statedStart": null
           },
-          "account_id": "5a3c5122-21be-4b05-b1e8-5892b676bc0a",
-          "created_at": "2026-09-25T11:28:03.428245+00:00",
-          "updated_at": "2026-09-25T11:28:03.430312+00:00",
+          "account_id": "7202517a-11a3-4108-a4ac-6eccb84886c7",
+          "created_at": "2026-09-25T16:36:16.939239+00:00",
+          "updated_at": "2026-09-25T16:36:16.941231+00:00",
           "institution": "commbank",
           "bank_account": null,
           "parser_version": "test-1",
-          "source_file_id": "9fb52bfb-ea15-4301-9b88-834315a3de7d",
+          "source_file_id": "7e3fbc17-b052-4916-bffc-7676532678e9",
           "workflow_instance_id": null
         }
       ]
@@ -2099,35 +2300,52 @@
       "name": "ledger_facts",
       "rows": [
         {
-          "id": 12,
+          "id": 1,
           "measure": "spending",
           "currency": "AUD",
-          "event_id": "b0834f13-3304-42f6-a4d1-8a28630dba8a",
+          "event_id": "41ae92d6-59ec-4c97-b7c2-acc7a8198e20",
+          "purchase": true,
+          "posted_on": "2026-07-15",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "posting_id": "03566986-90ba-4285-8a90-de6fa5c41527",
+          "category_id": null,
+          "spending_on": "2026-07-15",
+          "amount_minor": 12000,
+          "allocation_id": "746e2245-d025-4621-af9e-b332ee32a741",
+          "model_assigned": false,
+          "counterparty_id": null,
+          "credit_event_id": null
+        },
+        {
+          "id": 12,
+          "measure": "internal",
+          "currency": "AUD",
+          "event_id": "9a0dacbf-d075-47c6-a6ef-8ab6d4b2d7e2",
           "purchase": false,
-          "posted_on": "2026-07-27",
-          "account_id": "5a3c5122-21be-4b05-b1e8-5892b676bc0a",
-          "posting_id": "974ccad5-b010-4205-9e99-0a04abf71095",
-          "category_id": "00000000-0000-4000-8000-000000000102",
-          "spending_on": "2026-07-27",
-          "amount_minor": 280000,
-          "allocation_id": "bc29b942-cb58-4325-9b3a-fa57aab3184e",
+          "posted_on": "2026-07-28",
+          "account_id": "7202517a-11a3-4108-a4ac-6eccb84886c7",
+          "posting_id": "7f8591fc-2feb-40ee-bc3d-055765efff31",
+          "category_id": null,
+          "spending_on": "2026-07-28",
+          "amount_minor": 390000,
+          "allocation_id": "80c02a17-5a9f-460d-ae8e-1852c4f3909c",
           "model_assigned": false,
           "counterparty_id": null,
           "credit_event_id": null
         },
         {
           "id": 13,
-          "measure": "internal",
+          "measure": "spending",
           "currency": "AUD",
-          "event_id": "7823f67c-1986-4c48-adaf-b5244ff6efa2",
+          "event_id": "4f516bf1-e1bf-43ca-9b79-29619028d984",
           "purchase": false,
-          "posted_on": "2026-07-28",
-          "account_id": "5a3c5122-21be-4b05-b1e8-5892b676bc0a",
-          "posting_id": "f67c7347-b443-411f-a94f-1bb3850cd88f",
-          "category_id": null,
-          "spending_on": "2026-07-28",
-          "amount_minor": 390000,
-          "allocation_id": "ee30d36b-bf5d-4093-931d-42a433b9cda6",
+          "posted_on": "2026-07-27",
+          "account_id": "7202517a-11a3-4108-a4ac-6eccb84886c7",
+          "posting_id": "f17b0fbf-5c89-4fd7-8a0c-c8737669ce3f",
+          "category_id": "00000000-0000-4000-8000-000000000102",
+          "spending_on": "2026-07-27",
+          "amount_minor": 280000,
+          "allocation_id": "1eb2cbc9-71ff-4e35-a977-b2799c6c57b6",
           "model_assigned": false,
           "counterparty_id": null,
           "credit_event_id": null
@@ -2136,66 +2354,49 @@
           "id": 14,
           "measure": "spending",
           "currency": "AUD",
-          "event_id": "50b99a35-9f93-4c62-85c3-b953aa1b51b7",
+          "event_id": "2f4353af-c546-464b-9615-a223a2084b1c",
           "purchase": true,
           "posted_on": "2026-07-02",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "posting_id": "18004853-f04d-4cac-aa58-9648ee26a201",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "posting_id": "550a8cfb-4931-42d8-99df-299d4008489e",
           "category_id": "00000000-0000-4000-8000-000000000101",
           "spending_on": "2026-07-02",
           "amount_minor": 184000,
-          "allocation_id": "e9737638-bcc7-45c6-b639-d3bf531869c6",
+          "allocation_id": "9b9cf623-2a61-4b2a-b67b-4a084cdd12a6",
           "model_assigned": false,
-          "counterparty_id": "366faca6-207e-4ee2-82ec-40a02857b88f",
+          "counterparty_id": "e2660a11-eb1a-429c-bcd1-9ec90a5ffdd0",
           "credit_event_id": null
         },
         {
           "id": 15,
           "measure": "spending",
           "currency": "AUD",
-          "event_id": "c80b538b-c88a-4549-88d3-c73d945d8d9f",
+          "event_id": "b3f4598e-a8c2-40fd-b4f1-4bb0464925e4",
           "purchase": true,
           "posted_on": "2026-07-03",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "posting_id": "422b9d34-3576-4346-b0c5-6c982fe54e31",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "posting_id": "40f520ac-13d1-40df-862d-d28afa059bfb",
           "category_id": "00000000-0000-4000-8000-000000000001",
           "spending_on": "2026-07-03",
           "amount_minor": 8450,
-          "allocation_id": "3c34ae1c-fe20-4f5c-9269-e50b38b4e3c8",
+          "allocation_id": "2dcf5263-19e3-49a4-b64c-0a5cfaa216bd",
           "model_assigned": false,
-          "counterparty_id": "44c61388-fa9f-4a34-bb7d-f3120d6a2a42",
+          "counterparty_id": "6f8ec12b-6551-4ce3-a070-460b03422634",
           "credit_event_id": null
         },
         {
           "id": 19,
           "measure": "spending",
           "currency": "AUD",
-          "event_id": "98988337-f3ff-4b28-bc3d-64903e73c318",
+          "event_id": "0729ffea-fd1d-43e2-ab93-bf0a86d910f0",
           "purchase": true,
           "posted_on": "2026-07-10",
-          "account_id": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79",
-          "posting_id": "601d3890-650c-4f37-b3a8-0fd3cc5b424d",
+          "account_id": "c1fce0df-091b-4097-9e79-f8fd3efe583b",
+          "posting_id": "cbf8992e-e3d4-4e96-a659-cda0e623ae35",
           "category_id": "00000000-0000-4000-8000-000000000002",
           "spending_on": "2026-07-09",
           "amount_minor": 4000,
-          "allocation_id": "bc9ebf49-c7de-4e46-b978-abe83d0072b1",
-          "model_assigned": false,
-          "counterparty_id": null,
-          "credit_event_id": null
-        },
-        {
-          "id": 2,
-          "measure": "spending",
-          "currency": "AUD",
-          "event_id": "b359f77d-9e08-4319-b2e9-0b0fe8c60e87",
-          "purchase": true,
-          "posted_on": "2026-07-15",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "posting_id": "3c26b100-d287-4cee-8517-689b9ce23f52",
-          "category_id": null,
-          "spending_on": "2026-07-15",
-          "amount_minor": 12000,
-          "allocation_id": "5628c0ab-a353-4f81-8b1a-a7bcc8f1c912",
+          "allocation_id": "7ceecdd0-86ea-4f2d-a4c1-147f9fb416ce",
           "model_assigned": false,
           "counterparty_id": null,
           "credit_event_id": null
@@ -2204,15 +2405,15 @@
           "id": 20,
           "measure": "spending",
           "currency": "AUD",
-          "event_id": "98988337-f3ff-4b28-bc3d-64903e73c318",
+          "event_id": "0729ffea-fd1d-43e2-ab93-bf0a86d910f0",
           "purchase": true,
           "posted_on": "2026-07-10",
-          "account_id": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79",
-          "posting_id": "601d3890-650c-4f37-b3a8-0fd3cc5b424d",
+          "account_id": "c1fce0df-091b-4097-9e79-f8fd3efe583b",
+          "posting_id": "cbf8992e-e3d4-4e96-a659-cda0e623ae35",
           "category_id": "00000000-0000-4000-8000-000000000126",
           "spending_on": "2026-07-09",
           "amount_minor": 8000,
-          "allocation_id": "becdf23f-217e-4f3c-bf9e-63011af4f8a5",
+          "allocation_id": "aa5dfa21-a470-47f1-a909-46cae55bf237",
           "model_assigned": false,
           "counterparty_id": null,
           "credit_event_id": null
@@ -2221,15 +2422,15 @@
           "id": 22,
           "measure": "income",
           "currency": "AUD",
-          "event_id": "4320c2aa-676b-4c8d-af06-3204000566c2",
+          "event_id": "f578f6e4-3ff5-476d-a92e-36886366b5e7",
           "purchase": false,
           "posted_on": "2026-07-01",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "posting_id": "d985dc4b-df1b-43f6-83b5-4853160195f9",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "posting_id": "315b5a20-03de-4b01-bd78-d21ae36db99a",
           "category_id": "00000000-0000-4000-8000-000000000163",
           "spending_on": "2026-07-01",
           "amount_minor": 500000,
-          "allocation_id": "15228d70-22ab-4daa-81ad-433ba3a9b274",
+          "allocation_id": "b7a8c286-8011-4c94-affb-7a2341eb2367",
           "model_assigned": false,
           "counterparty_id": null,
           "credit_event_id": null
@@ -2238,15 +2439,15 @@
           "id": 25,
           "measure": "spending",
           "currency": "AUD",
-          "event_id": "e1ccd0b8-f7ae-4520-a7d0-926349037cc8",
+          "event_id": "10895318-e5c2-4505-a16a-df378d450bae",
           "purchase": true,
           "posted_on": "2026-07-04",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "posting_id": "4d9a8b69-4134-42f3-9d8e-69f46cad9a1d",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "posting_id": "2efb1267-1827-4841-a916-e419693af179",
           "category_id": "00000000-0000-4000-8000-000000000003",
           "spending_on": "2026-07-04",
           "amount_minor": 30000,
-          "allocation_id": "ac85a6a6-0afa-4689-bff4-4c7bb3f517f0",
+          "allocation_id": "0d12447f-7fa5-493c-8ed8-01dd9e871a9f",
           "model_assigned": false,
           "counterparty_id": null,
           "credit_event_id": null
@@ -2255,66 +2456,66 @@
           "id": 26,
           "measure": "spending",
           "currency": "AUD",
-          "event_id": "e1ccd0b8-f7ae-4520-a7d0-926349037cc8",
+          "event_id": "10895318-e5c2-4505-a16a-df378d450bae",
           "purchase": true,
           "posted_on": "2026-07-04",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "posting_id": "4d9a8b69-4134-42f3-9d8e-69f46cad9a1d",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "posting_id": "2efb1267-1827-4841-a916-e419693af179",
           "category_id": "00000000-0000-4000-8000-000000000003",
           "spending_on": "2026-07-04",
           "amount_minor": -20000,
-          "allocation_id": "ac85a6a6-0afa-4689-bff4-4c7bb3f517f0",
+          "allocation_id": "0d12447f-7fa5-493c-8ed8-01dd9e871a9f",
           "model_assigned": false,
           "counterparty_id": null,
-          "credit_event_id": "41289156-956a-4545-b04b-328f7164dd44"
+          "credit_event_id": "c19fed8d-ac97-439d-a8ce-fafb15fa9b76"
         },
         {
           "id": 28,
           "measure": "internal",
           "currency": "AUD",
-          "event_id": "3af35b99-84a5-40e6-b169-82dfe9a6159f",
+          "event_id": "bc5f1491-4acf-4f2f-9da3-9eb24919217e",
           "purchase": false,
           "posted_on": "2026-07-20",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "posting_id": "e62fb2f2-51e2-4ed2-a833-6c03c7c0d3a0",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "posting_id": "fd23745a-7ef2-4ece-8a6b-21fbb2965bda",
           "category_id": null,
           "spending_on": "2026-07-20",
           "amount_minor": 12000,
-          "allocation_id": "9651074d-56d7-4d60-9222-67310a83e145",
+          "allocation_id": "1d64b78f-2ca4-40e6-9831-7d40bca8f05e",
           "model_assigned": false,
           "counterparty_id": null,
           "credit_event_id": null
         },
         {
-          "id": 5,
+          "id": 7,
           "measure": "loanRepayment",
           "currency": "AUD",
-          "event_id": "bfea2b36-590f-49ef-b95e-2a605f534798",
+          "event_id": "3da4d8b9-4c0c-4524-9966-84ef787b7bb6",
           "purchase": false,
           "posted_on": "2026-07-28",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "posting_id": "5e7ae498-36fc-4eac-a27e-1b5dfe405bbf",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "posting_id": "5d2496d0-bfa0-4083-a0fb-107a47911987",
           "category_id": null,
           "spending_on": "2026-07-28",
           "amount_minor": 390000,
-          "allocation_id": "8ce7827e-5057-4640-a5ec-4c00e369115e",
+          "allocation_id": "a747d7d8-9cf3-4e24-8aa7-778ca8b07d6d",
           "model_assigned": false,
           "counterparty_id": null,
           "credit_event_id": null
         },
         {
-          "id": 9,
+          "id": 8,
           "measure": "unresolvedIn",
           "currency": "AUD",
-          "event_id": "8eed26f1-1a3e-47c1-9360-57dc13df095d",
+          "event_id": "dddc30c9-7263-4db2-8dcb-8f1d4f317370",
           "purchase": false,
           "posted_on": "2026-08-02",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "posting_id": "ec6d84cc-7c51-4e23-9c56-299fa94b3822",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "posting_id": "b79445ef-d8e9-4c18-9d8a-b9073c456b94",
           "category_id": null,
           "spending_on": "2026-08-02",
           "amount_minor": 4000,
-          "allocation_id": "7884dcb5-3a2b-413c-9c66-b4d0f97e2942",
+          "allocation_id": "afa5910d-899f-4e33-bfa4-ea8dab2262ef",
           "model_assigned": false,
           "counterparty_id": null,
           "credit_event_id": null
@@ -2329,31 +2530,31 @@
       "name": "movement_links",
       "rows": [
         {
-          "event_id": "3af35b99-84a5-40e6-b169-82dfe9a6159f",
+          "event_id": "bc5f1491-4acf-4f2f-9da3-9eb24919217e",
           "evidence": [],
           "to_endpoint": {
             "kind": "account",
-            "accountId": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79"
+            "accountId": "c1fce0df-091b-4097-9e79-f8fd3efe583b"
           },
           "from_endpoint": {
             "kind": "account",
-            "accountId": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
+            "accountId": "b73f6606-4730-446f-9c13-cb2a0ae89757"
           },
           "original_event": {
-            "id": "3af35b99-84a5-40e6-b169-82dfe9a6159f",
+            "id": "bc5f1491-4acf-4f2f-9da3-9eb24919217e",
             "kind": "unresolved",
             "active": true,
             "version": 1,
             "postings": [
               {
-                "id": "e62fb2f2-51e2-4ed2-a833-6c03c7c0d3a0",
+                "id": "fd23745a-7ef2-4ece-8a6b-21fbb2965bda",
                 "amount": {
                   "minor": "-12000",
                   "currency": "AUD"
                 },
                 "valueOn": null,
                 "postedOn": "2026-07-20",
-                "accountId": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
+                "accountId": "b73f6606-4730-446f-9c13-cb2a0ae89757",
                 "description": "Transfer to xx9999 CommBank app Card",
                 "accountLabel": "Everyday",
                 "originalMoney": null
@@ -2367,7 +2568,7 @@
             "roleSource": null,
             "allocations": [
               {
-                "id": "9651074d-56d7-4d60-9222-67310a83e145",
+                "id": "1d64b78f-2ca4-40e6-9831-7d40bca8f05e",
                 "role": "unresolved",
                 "amount": {
                   "minor": "12000",
@@ -2381,11 +2582,11 @@
               }
             ],
             "counterpartyId": null,
-            "primaryPostingId": "e62fb2f2-51e2-4ed2-a833-6c03c7c0d3a0",
+            "primaryPostingId": "fd23745a-7ef2-4ece-8a6b-21fbb2965bda",
             "counterpartySource": null,
-            "reportingAccountId": "0a683550-2163-4eb2-ae2f-575d4a94cb70"
+            "reportingAccountId": "b73f6606-4730-446f-9c13-cb2a0ae89757"
           },
-          "absorbed_event_id": "3de08f13-e925-4f9a-95f4-5e9e6c58473f"
+          "absorbed_event_id": "b799eb62-ff30-4789-aba6-8bce15c1dfa6"
         }
       ]
     },
@@ -2393,60 +2594,7 @@
       "name": "observations",
       "rows": [
         {
-          "id": "0e215c6c-a73e-464e-bac1-e090a2c812f5",
-          "raw": {
-            "date": "2026-07-28",
-            "amount": "-390000",
-            "balance": "",
-            "description": "Loan Repayment LN REPAY 123456789"
-          },
-          "issue": null,
-          "locator": {
-            "kind": "csvLine",
-            "line": 7
-          },
-          "decision": null,
-          "candidate": {
-            "amount": {
-              "minor": "-390000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "balance": null,
-            "valueOn": null,
-            "postedOn": "2026-07-28",
-            "description": "Loan Repayment LN REPAY 123456789",
-            "originalMoney": null
-          },
-          "import_id": "e01b4a5d-0db5-4117-8d40-4db81cb64d37",
-          "posting_id": "5e7ae498-36fc-4eac-a27e-1b5dfe405bbf",
-          "locator_key": "csvLine:7",
-          "match_method": "new",
-          "match_evidence": {
-            "amount": {
-              "minor": "-390000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "created": true,
-            "postedOn": "2026-07-28"
-          },
-          "source_file_id": "7e698a18-e308-40c6-9b91-85112c7c02e5",
-          "parsed_candidate": {
-            "amount": {
-              "minor": "-390000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "balance": null,
-            "valueOn": null,
-            "postedOn": "2026-07-28",
-            "description": "Loan Repayment LN REPAY 123456789",
-            "originalMoney": null
-          }
-        },
-        {
-          "id": "1b8a5b0d-08f3-4626-be22-2fc9c69237ee",
+          "id": "01e66e7c-3074-4250-a0cc-df5b6baf8b6e",
           "raw": {
             "date": "2026-07-04",
             "amount": "-30000",
@@ -2471,8 +2619,8 @@
             "description": "Dinner Place SYDNEY AU Card xx1234",
             "originalMoney": null
           },
-          "import_id": "e01b4a5d-0db5-4117-8d40-4db81cb64d37",
-          "posting_id": "4d9a8b69-4134-42f3-9d8e-69f46cad9a1d",
+          "import_id": "63d58496-a320-4021-8f47-7342320be3af",
+          "posting_id": "2efb1267-1827-4841-a916-e419693af179",
           "locator_key": "csvLine:4",
           "match_method": "new",
           "match_evidence": {
@@ -2484,7 +2632,7 @@
             "created": true,
             "postedOn": "2026-07-04"
           },
-          "source_file_id": "7e698a18-e308-40c6-9b91-85112c7c02e5",
+          "source_file_id": "d007c211-f4c0-4279-b696-47c39a697187",
           "parsed_candidate": {
             "amount": {
               "minor": "-30000",
@@ -2499,325 +2647,60 @@
           }
         },
         {
-          "id": "25323e22-33bb-446f-9533-8177cc9dc97a",
+          "id": "05c3592b-6eb4-4fb2-a36b-5d74ede310b5",
           "raw": {
-            "date": "2026-08-02",
-            "amount": "4000",
+            "date": "2026-07-28",
+            "amount": "-390000",
             "balance": "",
-            "description": "Refund Purchase MYER SYDNEY"
+            "description": "Loan Repayment LN REPAY 123456789"
           },
           "issue": null,
           "locator": {
             "kind": "csvLine",
-            "line": 8
+            "line": 7
           },
           "decision": null,
           "candidate": {
             "amount": {
-              "minor": "4000",
+              "minor": "-390000",
               "currency": "AUD"
             },
             "bankId": null,
             "balance": null,
             "valueOn": null,
-            "postedOn": "2026-08-02",
-            "description": "Refund Purchase MYER SYDNEY",
+            "postedOn": "2026-07-28",
+            "description": "Loan Repayment LN REPAY 123456789",
             "originalMoney": null
           },
-          "import_id": "e01b4a5d-0db5-4117-8d40-4db81cb64d37",
-          "posting_id": "ec6d84cc-7c51-4e23-9c56-299fa94b3822",
-          "locator_key": "csvLine:8",
+          "import_id": "63d58496-a320-4021-8f47-7342320be3af",
+          "posting_id": "5d2496d0-bfa0-4083-a0fb-107a47911987",
+          "locator_key": "csvLine:7",
           "match_method": "new",
           "match_evidence": {
             "amount": {
-              "minor": "4000",
+              "minor": "-390000",
               "currency": "AUD"
             },
             "bankId": null,
             "created": true,
-            "postedOn": "2026-08-02"
+            "postedOn": "2026-07-28"
           },
-          "source_file_id": "7e698a18-e308-40c6-9b91-85112c7c02e5",
+          "source_file_id": "d007c211-f4c0-4279-b696-47c39a697187",
           "parsed_candidate": {
             "amount": {
-              "minor": "4000",
+              "minor": "-390000",
               "currency": "AUD"
             },
             "bankId": null,
             "balance": null,
             "valueOn": null,
-            "postedOn": "2026-08-02",
-            "description": "Refund Purchase MYER SYDNEY",
+            "postedOn": "2026-07-28",
+            "description": "Loan Repayment LN REPAY 123456789",
             "originalMoney": null
           }
         },
         {
-          "id": "40d93a19-9727-4c3c-84cf-30e8747c11a6",
-          "raw": {
-            "date": "2026-07-21",
-            "amount": "12000",
-            "balance": "",
-            "description": "Payment Received, Thank You"
-          },
-          "issue": null,
-          "locator": {
-            "kind": "csvLine",
-            "line": 2
-          },
-          "decision": null,
-          "candidate": {
-            "amount": {
-              "minor": "12000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "balance": null,
-            "valueOn": null,
-            "postedOn": "2026-07-21",
-            "description": "Payment Received, Thank You",
-            "originalMoney": null
-          },
-          "import_id": "367d85e5-c46b-4e92-9bc8-3cf2736117ea",
-          "posting_id": "5bbd61d5-9dda-4d19-b8bf-7f400ea916de",
-          "locator_key": "csvLine:2",
-          "match_method": "new",
-          "match_evidence": {
-            "amount": {
-              "minor": "12000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "created": true,
-            "postedOn": "2026-07-21"
-          },
-          "source_file_id": "515b4fcf-fc24-438c-b5b3-ab375538ffc1",
-          "parsed_candidate": {
-            "amount": {
-              "minor": "12000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "balance": null,
-            "valueOn": null,
-            "postedOn": "2026-07-21",
-            "description": "Payment Received, Thank You",
-            "originalMoney": null
-          }
-        },
-        {
-          "id": "5215d8ea-8561-41a7-b2e5-7419998d5aba",
-          "raw": {
-            "date": "2026-07-27",
-            "amount": "-280000",
-            "balance": "",
-            "description": "Interest charged"
-          },
-          "issue": null,
-          "locator": {
-            "kind": "csvLine",
-            "line": 1
-          },
-          "decision": null,
-          "candidate": {
-            "amount": {
-              "minor": "-280000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "balance": null,
-            "valueOn": null,
-            "postedOn": "2026-07-27",
-            "description": "Interest charged",
-            "originalMoney": null
-          },
-          "import_id": "e1659df3-4744-4f26-8407-04ae4b74f630",
-          "posting_id": "974ccad5-b010-4205-9e99-0a04abf71095",
-          "locator_key": "csvLine:1",
-          "match_method": "new",
-          "match_evidence": {
-            "amount": {
-              "minor": "-280000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "created": true,
-            "postedOn": "2026-07-27"
-          },
-          "source_file_id": "9fb52bfb-ea15-4301-9b88-834315a3de7d",
-          "parsed_candidate": {
-            "amount": {
-              "minor": "-280000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "balance": null,
-            "valueOn": null,
-            "postedOn": "2026-07-27",
-            "description": "Interest charged",
-            "originalMoney": null
-          }
-        },
-        {
-          "id": "5abcab3a-5520-463e-9e4e-d6cc1809030e",
-          "raw": {
-            "date": "2026-07-10",
-            "amount": "-12000",
-            "balance": "",
-            "description": "BIG SHOP SYDNEY AU"
-          },
-          "issue": null,
-          "locator": {
-            "kind": "csvLine",
-            "line": 1
-          },
-          "decision": null,
-          "candidate": {
-            "amount": {
-              "minor": "-12000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "balance": null,
-            "valueOn": null,
-            "postedOn": "2026-07-10",
-            "description": "BIG SHOP SYDNEY AU",
-            "originalMoney": null
-          },
-          "import_id": "367d85e5-c46b-4e92-9bc8-3cf2736117ea",
-          "posting_id": "601d3890-650c-4f37-b3a8-0fd3cc5b424d",
-          "locator_key": "csvLine:1",
-          "match_method": "new",
-          "match_evidence": {
-            "amount": {
-              "minor": "-12000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "created": true,
-            "postedOn": "2026-07-10"
-          },
-          "source_file_id": "515b4fcf-fc24-438c-b5b3-ab375538ffc1",
-          "parsed_candidate": {
-            "amount": {
-              "minor": "-12000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "balance": null,
-            "valueOn": null,
-            "postedOn": "2026-07-10",
-            "description": "BIG SHOP SYDNEY AU",
-            "originalMoney": null
-          }
-        },
-        {
-          "id": "5bf5a0d2-a487-4393-9561-3607d1faff08",
-          "raw": {
-            "date": "2026-07-06",
-            "amount": "20000",
-            "balance": "",
-            "description": "Fast Transfer From John Citizen dinner split"
-          },
-          "issue": null,
-          "locator": {
-            "kind": "csvLine",
-            "line": 5
-          },
-          "decision": null,
-          "candidate": {
-            "amount": {
-              "minor": "20000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "balance": null,
-            "valueOn": null,
-            "postedOn": "2026-07-06",
-            "description": "Fast Transfer From John Citizen dinner split",
-            "originalMoney": null
-          },
-          "import_id": "e01b4a5d-0db5-4117-8d40-4db81cb64d37",
-          "posting_id": "94eac945-c933-4d4d-ad77-15df1c5dc48b",
-          "locator_key": "csvLine:5",
-          "match_method": "new",
-          "match_evidence": {
-            "amount": {
-              "minor": "20000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "created": true,
-            "postedOn": "2026-07-06"
-          },
-          "source_file_id": "7e698a18-e308-40c6-9b91-85112c7c02e5",
-          "parsed_candidate": {
-            "amount": {
-              "minor": "20000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "balance": null,
-            "valueOn": null,
-            "postedOn": "2026-07-06",
-            "description": "Fast Transfer From John Citizen dinner split",
-            "originalMoney": null
-          }
-        },
-        {
-          "id": "68d1457f-1549-4bb0-9ec9-bd9df6136d64",
-          "raw": {
-            "date": "2026-07-15",
-            "amount": "-12000",
-            "balance": "",
-            "description": "MYER SYDNEY AU Card xx1234"
-          },
-          "issue": null,
-          "locator": {
-            "kind": "csvLine",
-            "line": 9
-          },
-          "decision": null,
-          "candidate": {
-            "amount": {
-              "minor": "-12000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "balance": null,
-            "valueOn": null,
-            "postedOn": "2026-07-15",
-            "description": "MYER SYDNEY AU Card xx1234",
-            "originalMoney": null
-          },
-          "import_id": "e01b4a5d-0db5-4117-8d40-4db81cb64d37",
-          "posting_id": "3c26b100-d287-4cee-8517-689b9ce23f52",
-          "locator_key": "csvLine:9",
-          "match_method": "new",
-          "match_evidence": {
-            "amount": {
-              "minor": "-12000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "created": true,
-            "postedOn": "2026-07-15"
-          },
-          "source_file_id": "7e698a18-e308-40c6-9b91-85112c7c02e5",
-          "parsed_candidate": {
-            "amount": {
-              "minor": "-12000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "balance": null,
-            "valueOn": null,
-            "postedOn": "2026-07-15",
-            "description": "MYER SYDNEY AU Card xx1234",
-            "originalMoney": null
-          }
-        },
-        {
-          "id": "6d0ac827-1149-461a-9348-caa90d3a124c",
+          "id": "34b63c71-25de-4629-97e9-f0b8beb0c034",
           "raw": {
             "date": "2026-07-20",
             "amount": "-12000",
@@ -2842,8 +2725,8 @@
             "description": "Transfer to xx9999 CommBank app Card",
             "originalMoney": null
           },
-          "import_id": "e01b4a5d-0db5-4117-8d40-4db81cb64d37",
-          "posting_id": "e62fb2f2-51e2-4ed2-a833-6c03c7c0d3a0",
+          "import_id": "63d58496-a320-4021-8f47-7342320be3af",
+          "posting_id": "fd23745a-7ef2-4ece-8a6b-21fbb2965bda",
           "locator_key": "csvLine:6",
           "match_method": "new",
           "match_evidence": {
@@ -2855,7 +2738,7 @@
             "created": true,
             "postedOn": "2026-07-20"
           },
-          "source_file_id": "7e698a18-e308-40c6-9b91-85112c7c02e5",
+          "source_file_id": "d007c211-f4c0-4279-b696-47c39a697187",
           "parsed_candidate": {
             "amount": {
               "minor": "-12000",
@@ -2870,166 +2753,60 @@
           }
         },
         {
-          "id": "9eb14619-c42d-4f1c-bd04-ff1c1d55853d",
+          "id": "588c8568-9def-49b8-85a3-dfa2a26ee011",
           "raw": {
-            "date": "2026-07-03",
-            "amount": "-8450",
+            "date": "2026-08-02",
+            "amount": "4000",
             "balance": "",
-            "description": "WOOLWORTHS 1234 SYDNEY AU Card xx1234"
+            "description": "Refund Purchase MYER SYDNEY"
           },
           "issue": null,
           "locator": {
             "kind": "csvLine",
-            "line": 3
+            "line": 8
           },
           "decision": null,
           "candidate": {
             "amount": {
-              "minor": "-8450",
+              "minor": "4000",
               "currency": "AUD"
             },
             "bankId": null,
             "balance": null,
             "valueOn": null,
-            "postedOn": "2026-07-03",
-            "description": "WOOLWORTHS 1234 SYDNEY AU Card xx1234",
+            "postedOn": "2026-08-02",
+            "description": "Refund Purchase MYER SYDNEY",
             "originalMoney": null
           },
-          "import_id": "e01b4a5d-0db5-4117-8d40-4db81cb64d37",
-          "posting_id": "422b9d34-3576-4346-b0c5-6c982fe54e31",
-          "locator_key": "csvLine:3",
+          "import_id": "63d58496-a320-4021-8f47-7342320be3af",
+          "posting_id": "b79445ef-d8e9-4c18-9d8a-b9073c456b94",
+          "locator_key": "csvLine:8",
           "match_method": "new",
           "match_evidence": {
             "amount": {
-              "minor": "-8450",
+              "minor": "4000",
               "currency": "AUD"
             },
             "bankId": null,
             "created": true,
-            "postedOn": "2026-07-03"
+            "postedOn": "2026-08-02"
           },
-          "source_file_id": "7e698a18-e308-40c6-9b91-85112c7c02e5",
+          "source_file_id": "d007c211-f4c0-4279-b696-47c39a697187",
           "parsed_candidate": {
             "amount": {
-              "minor": "-8450",
+              "minor": "4000",
               "currency": "AUD"
             },
             "bankId": null,
             "balance": null,
             "valueOn": null,
-            "postedOn": "2026-07-03",
-            "description": "WOOLWORTHS 1234 SYDNEY AU Card xx1234",
+            "postedOn": "2026-08-02",
+            "description": "Refund Purchase MYER SYDNEY",
             "originalMoney": null
           }
         },
         {
-          "id": "c427099d-d83b-4532-bdec-57485272c15b",
-          "raw": {
-            "date": "2026-07-28",
-            "amount": "390000",
-            "balance": "",
-            "description": "Loan Repayment"
-          },
-          "issue": null,
-          "locator": {
-            "kind": "csvLine",
-            "line": 2
-          },
-          "decision": null,
-          "candidate": {
-            "amount": {
-              "minor": "390000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "balance": null,
-            "valueOn": null,
-            "postedOn": "2026-07-28",
-            "description": "Loan Repayment",
-            "originalMoney": null
-          },
-          "import_id": "e1659df3-4744-4f26-8407-04ae4b74f630",
-          "posting_id": "f67c7347-b443-411f-a94f-1bb3850cd88f",
-          "locator_key": "csvLine:2",
-          "match_method": "new",
-          "match_evidence": {
-            "amount": {
-              "minor": "390000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "created": true,
-            "postedOn": "2026-07-28"
-          },
-          "source_file_id": "9fb52bfb-ea15-4301-9b88-834315a3de7d",
-          "parsed_candidate": {
-            "amount": {
-              "minor": "390000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "balance": null,
-            "valueOn": null,
-            "postedOn": "2026-07-28",
-            "description": "Loan Repayment",
-            "originalMoney": null
-          }
-        },
-        {
-          "id": "dae4c983-8cea-4cf6-b4bd-83cae11d3834",
-          "raw": {
-            "date": "2026-07-02",
-            "amount": "-184000",
-            "balance": "",
-            "description": "Transfer To Jane Smith NetBank Rent"
-          },
-          "issue": null,
-          "locator": {
-            "kind": "csvLine",
-            "line": 2
-          },
-          "decision": null,
-          "candidate": {
-            "amount": {
-              "minor": "-184000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "balance": null,
-            "valueOn": null,
-            "postedOn": "2026-07-02",
-            "description": "Transfer To Jane Smith NetBank Rent",
-            "originalMoney": null
-          },
-          "import_id": "e01b4a5d-0db5-4117-8d40-4db81cb64d37",
-          "posting_id": "18004853-f04d-4cac-aa58-9648ee26a201",
-          "locator_key": "csvLine:2",
-          "match_method": "new",
-          "match_evidence": {
-            "amount": {
-              "minor": "-184000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "created": true,
-            "postedOn": "2026-07-02"
-          },
-          "source_file_id": "7e698a18-e308-40c6-9b91-85112c7c02e5",
-          "parsed_candidate": {
-            "amount": {
-              "minor": "-184000",
-              "currency": "AUD"
-            },
-            "bankId": null,
-            "balance": null,
-            "valueOn": null,
-            "postedOn": "2026-07-02",
-            "description": "Transfer To Jane Smith NetBank Rent",
-            "originalMoney": null
-          }
-        },
-        {
-          "id": "eb163ae0-c394-423d-a79d-9d2ae8fe4626",
+          "id": "5e494654-7df3-4c24-abca-b438d9e48522",
           "raw": {
             "date": "2026-07-01",
             "amount": "500000",
@@ -3054,8 +2831,8 @@
             "description": "Salary ACME PTY LTD HR123456",
             "originalMoney": null
           },
-          "import_id": "e01b4a5d-0db5-4117-8d40-4db81cb64d37",
-          "posting_id": "d985dc4b-df1b-43f6-83b5-4853160195f9",
+          "import_id": "63d58496-a320-4021-8f47-7342320be3af",
+          "posting_id": "315b5a20-03de-4b01-bd78-d21ae36db99a",
           "locator_key": "csvLine:1",
           "match_method": "new",
           "match_evidence": {
@@ -3067,7 +2844,7 @@
             "created": true,
             "postedOn": "2026-07-01"
           },
-          "source_file_id": "7e698a18-e308-40c6-9b91-85112c7c02e5",
+          "source_file_id": "d007c211-f4c0-4279-b696-47c39a697187",
           "parsed_candidate": {
             "amount": {
               "minor": "500000",
@@ -3078,6 +2855,430 @@
             "valueOn": null,
             "postedOn": "2026-07-01",
             "description": "Salary ACME PTY LTD HR123456",
+            "originalMoney": null
+          }
+        },
+        {
+          "id": "915a0f75-2acb-4a00-ac31-9d0b379eb436",
+          "raw": {
+            "date": "2026-07-28",
+            "amount": "390000",
+            "balance": "",
+            "description": "Loan Repayment"
+          },
+          "issue": null,
+          "locator": {
+            "kind": "csvLine",
+            "line": 2
+          },
+          "decision": null,
+          "candidate": {
+            "amount": {
+              "minor": "390000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "balance": null,
+            "valueOn": null,
+            "postedOn": "2026-07-28",
+            "description": "Loan Repayment",
+            "originalMoney": null
+          },
+          "import_id": "e5f4be75-1cfd-4ff0-bade-921188e7c9de",
+          "posting_id": "7f8591fc-2feb-40ee-bc3d-055765efff31",
+          "locator_key": "csvLine:2",
+          "match_method": "new",
+          "match_evidence": {
+            "amount": {
+              "minor": "390000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "created": true,
+            "postedOn": "2026-07-28"
+          },
+          "source_file_id": "7e3fbc17-b052-4916-bffc-7676532678e9",
+          "parsed_candidate": {
+            "amount": {
+              "minor": "390000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "balance": null,
+            "valueOn": null,
+            "postedOn": "2026-07-28",
+            "description": "Loan Repayment",
+            "originalMoney": null
+          }
+        },
+        {
+          "id": "95486105-7d9f-4d64-823b-ea16ba129f80",
+          "raw": {
+            "date": "2026-07-21",
+            "amount": "12000",
+            "balance": "",
+            "description": "Payment Received, Thank You"
+          },
+          "issue": null,
+          "locator": {
+            "kind": "csvLine",
+            "line": 2
+          },
+          "decision": null,
+          "candidate": {
+            "amount": {
+              "minor": "12000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "balance": null,
+            "valueOn": null,
+            "postedOn": "2026-07-21",
+            "description": "Payment Received, Thank You",
+            "originalMoney": null
+          },
+          "import_id": "3bd8740b-42da-4fe6-a3c9-e54939498bb9",
+          "posting_id": "ec3c80d6-ffe1-4307-aff0-e025223b050c",
+          "locator_key": "csvLine:2",
+          "match_method": "new",
+          "match_evidence": {
+            "amount": {
+              "minor": "12000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "created": true,
+            "postedOn": "2026-07-21"
+          },
+          "source_file_id": "6384d12e-6024-41c8-a86d-571c304b702f",
+          "parsed_candidate": {
+            "amount": {
+              "minor": "12000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "balance": null,
+            "valueOn": null,
+            "postedOn": "2026-07-21",
+            "description": "Payment Received, Thank You",
+            "originalMoney": null
+          }
+        },
+        {
+          "id": "aaf8cb5c-4eab-40f3-953e-37b6719dd7fa",
+          "raw": {
+            "date": "2026-07-02",
+            "amount": "-184000",
+            "balance": "",
+            "description": "Transfer To Jane Smith NetBank Rent"
+          },
+          "issue": null,
+          "locator": {
+            "kind": "csvLine",
+            "line": 2
+          },
+          "decision": null,
+          "candidate": {
+            "amount": {
+              "minor": "-184000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "balance": null,
+            "valueOn": null,
+            "postedOn": "2026-07-02",
+            "description": "Transfer To Jane Smith NetBank Rent",
+            "originalMoney": null
+          },
+          "import_id": "63d58496-a320-4021-8f47-7342320be3af",
+          "posting_id": "550a8cfb-4931-42d8-99df-299d4008489e",
+          "locator_key": "csvLine:2",
+          "match_method": "new",
+          "match_evidence": {
+            "amount": {
+              "minor": "-184000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "created": true,
+            "postedOn": "2026-07-02"
+          },
+          "source_file_id": "d007c211-f4c0-4279-b696-47c39a697187",
+          "parsed_candidate": {
+            "amount": {
+              "minor": "-184000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "balance": null,
+            "valueOn": null,
+            "postedOn": "2026-07-02",
+            "description": "Transfer To Jane Smith NetBank Rent",
+            "originalMoney": null
+          }
+        },
+        {
+          "id": "b18ecf5d-6979-4471-8d6c-2baf4c9d5324",
+          "raw": {
+            "date": "2026-07-03",
+            "amount": "-8450",
+            "balance": "",
+            "description": "WOOLWORTHS 1234 SYDNEY AU Card xx1234"
+          },
+          "issue": null,
+          "locator": {
+            "kind": "csvLine",
+            "line": 3
+          },
+          "decision": null,
+          "candidate": {
+            "amount": {
+              "minor": "-8450",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "balance": null,
+            "valueOn": null,
+            "postedOn": "2026-07-03",
+            "description": "WOOLWORTHS 1234 SYDNEY AU Card xx1234",
+            "originalMoney": null
+          },
+          "import_id": "63d58496-a320-4021-8f47-7342320be3af",
+          "posting_id": "40f520ac-13d1-40df-862d-d28afa059bfb",
+          "locator_key": "csvLine:3",
+          "match_method": "new",
+          "match_evidence": {
+            "amount": {
+              "minor": "-8450",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "created": true,
+            "postedOn": "2026-07-03"
+          },
+          "source_file_id": "d007c211-f4c0-4279-b696-47c39a697187",
+          "parsed_candidate": {
+            "amount": {
+              "minor": "-8450",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "balance": null,
+            "valueOn": null,
+            "postedOn": "2026-07-03",
+            "description": "WOOLWORTHS 1234 SYDNEY AU Card xx1234",
+            "originalMoney": null
+          }
+        },
+        {
+          "id": "cae301ae-1e72-42cd-bce7-f02758cd13c1",
+          "raw": {
+            "date": "2026-07-06",
+            "amount": "20000",
+            "balance": "",
+            "description": "Fast Transfer From John Citizen dinner split"
+          },
+          "issue": null,
+          "locator": {
+            "kind": "csvLine",
+            "line": 5
+          },
+          "decision": null,
+          "candidate": {
+            "amount": {
+              "minor": "20000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "balance": null,
+            "valueOn": null,
+            "postedOn": "2026-07-06",
+            "description": "Fast Transfer From John Citizen dinner split",
+            "originalMoney": null
+          },
+          "import_id": "63d58496-a320-4021-8f47-7342320be3af",
+          "posting_id": "0927d511-1084-45f9-9a0d-731dfcaeb26b",
+          "locator_key": "csvLine:5",
+          "match_method": "new",
+          "match_evidence": {
+            "amount": {
+              "minor": "20000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "created": true,
+            "postedOn": "2026-07-06"
+          },
+          "source_file_id": "d007c211-f4c0-4279-b696-47c39a697187",
+          "parsed_candidate": {
+            "amount": {
+              "minor": "20000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "balance": null,
+            "valueOn": null,
+            "postedOn": "2026-07-06",
+            "description": "Fast Transfer From John Citizen dinner split",
+            "originalMoney": null
+          }
+        },
+        {
+          "id": "e67da5da-d76f-44c3-b505-d02d08e657bd",
+          "raw": {
+            "date": "2026-07-10",
+            "amount": "-12000",
+            "balance": "",
+            "description": "BIG SHOP SYDNEY AU"
+          },
+          "issue": null,
+          "locator": {
+            "kind": "csvLine",
+            "line": 1
+          },
+          "decision": null,
+          "candidate": {
+            "amount": {
+              "minor": "-12000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "balance": null,
+            "valueOn": null,
+            "postedOn": "2026-07-10",
+            "description": "BIG SHOP SYDNEY AU",
+            "originalMoney": null
+          },
+          "import_id": "3bd8740b-42da-4fe6-a3c9-e54939498bb9",
+          "posting_id": "cbf8992e-e3d4-4e96-a659-cda0e623ae35",
+          "locator_key": "csvLine:1",
+          "match_method": "new",
+          "match_evidence": {
+            "amount": {
+              "minor": "-12000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "created": true,
+            "postedOn": "2026-07-10"
+          },
+          "source_file_id": "6384d12e-6024-41c8-a86d-571c304b702f",
+          "parsed_candidate": {
+            "amount": {
+              "minor": "-12000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "balance": null,
+            "valueOn": null,
+            "postedOn": "2026-07-10",
+            "description": "BIG SHOP SYDNEY AU",
+            "originalMoney": null
+          }
+        },
+        {
+          "id": "f8b1f59d-3ff8-4a12-87e1-a56936cbd125",
+          "raw": {
+            "date": "2026-07-27",
+            "amount": "-280000",
+            "balance": "",
+            "description": "Interest charged"
+          },
+          "issue": null,
+          "locator": {
+            "kind": "csvLine",
+            "line": 1
+          },
+          "decision": null,
+          "candidate": {
+            "amount": {
+              "minor": "-280000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "balance": null,
+            "valueOn": null,
+            "postedOn": "2026-07-27",
+            "description": "Interest charged",
+            "originalMoney": null
+          },
+          "import_id": "e5f4be75-1cfd-4ff0-bade-921188e7c9de",
+          "posting_id": "f17b0fbf-5c89-4fd7-8a0c-c8737669ce3f",
+          "locator_key": "csvLine:1",
+          "match_method": "new",
+          "match_evidence": {
+            "amount": {
+              "minor": "-280000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "created": true,
+            "postedOn": "2026-07-27"
+          },
+          "source_file_id": "7e3fbc17-b052-4916-bffc-7676532678e9",
+          "parsed_candidate": {
+            "amount": {
+              "minor": "-280000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "balance": null,
+            "valueOn": null,
+            "postedOn": "2026-07-27",
+            "description": "Interest charged",
+            "originalMoney": null
+          }
+        },
+        {
+          "id": "fc501c6a-1377-48fe-b3c1-f38e493ac5f5",
+          "raw": {
+            "date": "2026-07-15",
+            "amount": "-12000",
+            "balance": "",
+            "description": "MYER SYDNEY AU Card xx1234"
+          },
+          "issue": null,
+          "locator": {
+            "kind": "csvLine",
+            "line": 9
+          },
+          "decision": null,
+          "candidate": {
+            "amount": {
+              "minor": "-12000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "balance": null,
+            "valueOn": null,
+            "postedOn": "2026-07-15",
+            "description": "MYER SYDNEY AU Card xx1234",
+            "originalMoney": null
+          },
+          "import_id": "63d58496-a320-4021-8f47-7342320be3af",
+          "posting_id": "03566986-90ba-4285-8a90-de6fa5c41527",
+          "locator_key": "csvLine:9",
+          "match_method": "new",
+          "match_evidence": {
+            "amount": {
+              "minor": "-12000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "created": true,
+            "postedOn": "2026-07-15"
+          },
+          "source_file_id": "d007c211-f4c0-4279-b696-47c39a697187",
+          "parsed_candidate": {
+            "amount": {
+              "minor": "-12000",
+              "currency": "AUD"
+            },
+            "bankId": null,
+            "balance": null,
+            "valueOn": null,
+            "postedOn": "2026-07-15",
+            "description": "MYER SYDNEY AU Card xx1234",
             "originalMoney": null
           }
         }
@@ -3100,7 +3301,7 @@
           "profile": "commbank",
           "alias_key": "BIG SHOP SYDNEY",
           "reference": null,
-          "posting_id": "601d3890-650c-4f37-b3a8-0fd3cc5b424d",
+          "posting_id": "cbf8992e-e3d4-4e96-a659-cda0e623ae35",
           "card_suffix": null,
           "reference_key": null,
           "foreign_amount": null,
@@ -3115,7 +3316,7 @@
           "profile": "commbank",
           "alias_key": "DINNER PLACE SYDNEY",
           "reference": null,
-          "posting_id": "4d9a8b69-4134-42f3-9d8e-69f46cad9a1d",
+          "posting_id": "2efb1267-1827-4841-a916-e419693af179",
           "card_suffix": "1234",
           "reference_key": null,
           "foreign_amount": null,
@@ -3130,7 +3331,7 @@
           "profile": "commbank",
           "alias_key": "MYER SYDNEY",
           "reference": null,
-          "posting_id": "3c26b100-d287-4cee-8517-689b9ce23f52",
+          "posting_id": "03566986-90ba-4285-8a90-de6fa5c41527",
           "card_suffix": "1234",
           "reference_key": null,
           "foreign_amount": null,
@@ -3145,7 +3346,7 @@
           "profile": "commbank",
           "alias_key": "MYER SYDNEY",
           "reference": null,
-          "posting_id": "ec6d84cc-7c51-4e23-9c56-299fa94b3822",
+          "posting_id": "b79445ef-d8e9-4c18-9d8a-b9073c456b94",
           "card_suffix": null,
           "reference_key": null,
           "foreign_amount": null,
@@ -3160,7 +3361,7 @@
           "profile": "commbank",
           "alias_key": "WOOLWORTHS SYDNEY",
           "reference": null,
-          "posting_id": "422b9d34-3576-4346-b0c5-6c982fe54e31",
+          "posting_id": "40f520ac-13d1-40df-862d-d28afa059bfb",
           "card_suffix": "1234",
           "reference_key": null,
           "foreign_amount": null,
@@ -3175,7 +3376,7 @@
           "profile": "commbank",
           "alias_key": null,
           "reference": null,
-          "posting_id": "5bbd61d5-9dda-4d19-b8bf-7f400ea916de",
+          "posting_id": "ec3c80d6-ffe1-4307-aff0-e025223b050c",
           "card_suffix": null,
           "reference_key": null,
           "foreign_amount": null,
@@ -3190,7 +3391,7 @@
           "profile": "commbank",
           "alias_key": null,
           "reference": null,
-          "posting_id": "974ccad5-b010-4205-9e99-0a04abf71095",
+          "posting_id": "f17b0fbf-5c89-4fd7-8a0c-c8737669ce3f",
           "card_suffix": null,
           "reference_key": null,
           "foreign_amount": null,
@@ -3205,7 +3406,7 @@
           "profile": "commbank",
           "alias_key": null,
           "reference": "Repayment LN REPAY 123456789",
-          "posting_id": "5e7ae498-36fc-4eac-a27e-1b5dfe405bbf",
+          "posting_id": "5d2496d0-bfa0-4083-a0fb-107a47911987",
           "card_suffix": null,
           "reference_key": "repayment repay",
           "foreign_amount": null,
@@ -3220,7 +3421,7 @@
           "profile": "commbank",
           "alias_key": null,
           "reference": "Repayment",
-          "posting_id": "f67c7347-b443-411f-a94f-1bb3850cd88f",
+          "posting_id": "7f8591fc-2feb-40ee-bc3d-055765efff31",
           "card_suffix": null,
           "reference_key": "repayment",
           "foreign_amount": null,
@@ -3235,7 +3436,7 @@
           "profile": "commbank",
           "alias_key": "ACME PTY LTD",
           "reference": "HR123456",
-          "posting_id": "d985dc4b-df1b-43f6-83b5-4853160195f9",
+          "posting_id": "315b5a20-03de-4b01-bd78-d21ae36db99a",
           "card_suffix": null,
           "reference_key": null,
           "foreign_amount": null,
@@ -3250,7 +3451,7 @@
           "profile": "commbank",
           "alias_key": "ACCOUNT 9999",
           "reference": "Card",
-          "posting_id": "e62fb2f2-51e2-4ed2-a833-6c03c7c0d3a0",
+          "posting_id": "fd23745a-7ef2-4ece-8a6b-21fbb2965bda",
           "card_suffix": null,
           "reference_key": "card",
           "foreign_amount": null,
@@ -3265,7 +3466,7 @@
           "profile": "commbank",
           "alias_key": "JANE SMITH",
           "reference": "Rent",
-          "posting_id": "18004853-f04d-4cac-aa58-9648ee26a201",
+          "posting_id": "550a8cfb-4931-42d8-99df-299d4008489e",
           "card_suffix": null,
           "reference_key": "rent",
           "foreign_amount": null,
@@ -3280,7 +3481,7 @@
           "profile": "commbank",
           "alias_key": "JOHN CITIZEN",
           "reference": "dinner split",
-          "posting_id": "94eac945-c933-4d4d-ad77-15df1c5dc48b",
+          "posting_id": "0927d511-1084-45f9-9a0d-731dfcaeb26b",
           "card_suffix": null,
           "reference_key": "dinner split",
           "foreign_amount": null,
@@ -3295,158 +3496,158 @@
       "name": "postings",
       "rows": [
         {
-          "id": "18004853-f04d-4cac-aa58-9648ee26a201",
-          "currency": "AUD",
-          "value_on": null,
-          "posted_on": "2026-07-02",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "created_at": "2026-09-25T11:28:03.347277+00:00",
-          "description": "Transfer To Jane Smith NetBank Rent",
-          "amount_minor": -184000,
-          "original_currency": null,
-          "original_amount_minor": null
-        },
-        {
-          "id": "3c26b100-d287-4cee-8517-689b9ce23f52",
+          "id": "03566986-90ba-4285-8a90-de6fa5c41527",
           "currency": "AUD",
           "value_on": null,
           "posted_on": "2026-07-15",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "created_at": "2026-09-25T11:28:03.347277+00:00",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "created_at": "2026-09-25T16:36:16.848565+00:00",
           "description": "MYER SYDNEY AU Card xx1234",
           "amount_minor": -12000,
           "original_currency": null,
           "original_amount_minor": null
         },
         {
-          "id": "422b9d34-3576-4346-b0c5-6c982fe54e31",
-          "currency": "AUD",
-          "value_on": null,
-          "posted_on": "2026-07-03",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "created_at": "2026-09-25T11:28:03.347277+00:00",
-          "description": "WOOLWORTHS 1234 SYDNEY AU Card xx1234",
-          "amount_minor": -8450,
-          "original_currency": null,
-          "original_amount_minor": null
-        },
-        {
-          "id": "4d9a8b69-4134-42f3-9d8e-69f46cad9a1d",
-          "currency": "AUD",
-          "value_on": null,
-          "posted_on": "2026-07-04",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "created_at": "2026-09-25T11:28:03.347277+00:00",
-          "description": "Dinner Place SYDNEY AU Card xx1234",
-          "amount_minor": -30000,
-          "original_currency": null,
-          "original_amount_minor": null
-        },
-        {
-          "id": "5bbd61d5-9dda-4d19-b8bf-7f400ea916de",
-          "currency": "AUD",
-          "value_on": null,
-          "posted_on": "2026-07-21",
-          "account_id": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79",
-          "created_at": "2026-09-25T11:28:03.405316+00:00",
-          "description": "Payment Received, Thank You",
-          "amount_minor": 12000,
-          "original_currency": null,
-          "original_amount_minor": null
-        },
-        {
-          "id": "5e7ae498-36fc-4eac-a27e-1b5dfe405bbf",
-          "currency": "AUD",
-          "value_on": null,
-          "posted_on": "2026-07-28",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "created_at": "2026-09-25T11:28:03.347277+00:00",
-          "description": "Loan Repayment LN REPAY 123456789",
-          "amount_minor": -390000,
-          "original_currency": null,
-          "original_amount_minor": null
-        },
-        {
-          "id": "601d3890-650c-4f37-b3a8-0fd3cc5b424d",
-          "currency": "AUD",
-          "value_on": null,
-          "posted_on": "2026-07-10",
-          "account_id": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79",
-          "created_at": "2026-09-25T11:28:03.405316+00:00",
-          "description": "BIG SHOP SYDNEY AU",
-          "amount_minor": -12000,
-          "original_currency": null,
-          "original_amount_minor": null
-        },
-        {
-          "id": "94eac945-c933-4d4d-ad77-15df1c5dc48b",
+          "id": "0927d511-1084-45f9-9a0d-731dfcaeb26b",
           "currency": "AUD",
           "value_on": null,
           "posted_on": "2026-07-06",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "created_at": "2026-09-25T11:28:03.347277+00:00",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "created_at": "2026-09-25T16:36:16.848565+00:00",
           "description": "Fast Transfer From John Citizen dinner split",
           "amount_minor": 20000,
           "original_currency": null,
           "original_amount_minor": null
         },
         {
-          "id": "974ccad5-b010-4205-9e99-0a04abf71095",
+          "id": "2efb1267-1827-4841-a916-e419693af179",
           "currency": "AUD",
           "value_on": null,
-          "posted_on": "2026-07-27",
-          "account_id": "5a3c5122-21be-4b05-b1e8-5892b676bc0a",
-          "created_at": "2026-09-25T11:28:03.430312+00:00",
-          "description": "Interest charged",
-          "amount_minor": -280000,
+          "posted_on": "2026-07-04",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "created_at": "2026-09-25T16:36:16.848565+00:00",
+          "description": "Dinner Place SYDNEY AU Card xx1234",
+          "amount_minor": -30000,
           "original_currency": null,
           "original_amount_minor": null
         },
         {
-          "id": "d985dc4b-df1b-43f6-83b5-4853160195f9",
+          "id": "315b5a20-03de-4b01-bd78-d21ae36db99a",
           "currency": "AUD",
           "value_on": null,
           "posted_on": "2026-07-01",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "created_at": "2026-09-25T11:28:03.347277+00:00",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "created_at": "2026-09-25T16:36:16.848565+00:00",
           "description": "Salary ACME PTY LTD HR123456",
           "amount_minor": 500000,
           "original_currency": null,
           "original_amount_minor": null
         },
         {
-          "id": "e62fb2f2-51e2-4ed2-a833-6c03c7c0d3a0",
+          "id": "40f520ac-13d1-40df-862d-d28afa059bfb",
           "currency": "AUD",
           "value_on": null,
-          "posted_on": "2026-07-20",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "created_at": "2026-09-25T11:28:03.347277+00:00",
-          "description": "Transfer to xx9999 CommBank app Card",
-          "amount_minor": -12000,
+          "posted_on": "2026-07-03",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "created_at": "2026-09-25T16:36:16.848565+00:00",
+          "description": "WOOLWORTHS 1234 SYDNEY AU Card xx1234",
+          "amount_minor": -8450,
           "original_currency": null,
           "original_amount_minor": null
         },
         {
-          "id": "ec6d84cc-7c51-4e23-9c56-299fa94b3822",
+          "id": "550a8cfb-4931-42d8-99df-299d4008489e",
+          "currency": "AUD",
+          "value_on": null,
+          "posted_on": "2026-07-02",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "created_at": "2026-09-25T16:36:16.848565+00:00",
+          "description": "Transfer To Jane Smith NetBank Rent",
+          "amount_minor": -184000,
+          "original_currency": null,
+          "original_amount_minor": null
+        },
+        {
+          "id": "5d2496d0-bfa0-4083-a0fb-107a47911987",
+          "currency": "AUD",
+          "value_on": null,
+          "posted_on": "2026-07-28",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "created_at": "2026-09-25T16:36:16.848565+00:00",
+          "description": "Loan Repayment LN REPAY 123456789",
+          "amount_minor": -390000,
+          "original_currency": null,
+          "original_amount_minor": null
+        },
+        {
+          "id": "7f8591fc-2feb-40ee-bc3d-055765efff31",
+          "currency": "AUD",
+          "value_on": null,
+          "posted_on": "2026-07-28",
+          "account_id": "7202517a-11a3-4108-a4ac-6eccb84886c7",
+          "created_at": "2026-09-25T16:36:16.941231+00:00",
+          "description": "Loan Repayment",
+          "amount_minor": 390000,
+          "original_currency": null,
+          "original_amount_minor": null
+        },
+        {
+          "id": "b79445ef-d8e9-4c18-9d8a-b9073c456b94",
           "currency": "AUD",
           "value_on": null,
           "posted_on": "2026-08-02",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "created_at": "2026-09-25T11:28:03.347277+00:00",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "created_at": "2026-09-25T16:36:16.848565+00:00",
           "description": "Refund Purchase MYER SYDNEY",
           "amount_minor": 4000,
           "original_currency": null,
           "original_amount_minor": null
         },
         {
-          "id": "f67c7347-b443-411f-a94f-1bb3850cd88f",
+          "id": "cbf8992e-e3d4-4e96-a659-cda0e623ae35",
           "currency": "AUD",
           "value_on": null,
-          "posted_on": "2026-07-28",
-          "account_id": "5a3c5122-21be-4b05-b1e8-5892b676bc0a",
-          "created_at": "2026-09-25T11:28:03.430312+00:00",
-          "description": "Loan Repayment",
-          "amount_minor": 390000,
+          "posted_on": "2026-07-10",
+          "account_id": "c1fce0df-091b-4097-9e79-f8fd3efe583b",
+          "created_at": "2026-09-25T16:36:16.913537+00:00",
+          "description": "BIG SHOP SYDNEY AU",
+          "amount_minor": -12000,
+          "original_currency": null,
+          "original_amount_minor": null
+        },
+        {
+          "id": "ec3c80d6-ffe1-4307-aff0-e025223b050c",
+          "currency": "AUD",
+          "value_on": null,
+          "posted_on": "2026-07-21",
+          "account_id": "c1fce0df-091b-4097-9e79-f8fd3efe583b",
+          "created_at": "2026-09-25T16:36:16.913537+00:00",
+          "description": "Payment Received, Thank You",
+          "amount_minor": 12000,
+          "original_currency": null,
+          "original_amount_minor": null
+        },
+        {
+          "id": "f17b0fbf-5c89-4fd7-8a0c-c8737669ce3f",
+          "currency": "AUD",
+          "value_on": null,
+          "posted_on": "2026-07-27",
+          "account_id": "7202517a-11a3-4108-a4ac-6eccb84886c7",
+          "created_at": "2026-09-25T16:36:16.941231+00:00",
+          "description": "Interest charged",
+          "amount_minor": -280000,
+          "original_currency": null,
+          "original_amount_minor": null
+        },
+        {
+          "id": "fd23745a-7ef2-4ece-8a6b-21fbb2965bda",
+          "currency": "AUD",
+          "value_on": null,
+          "posted_on": "2026-07-20",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "created_at": "2026-09-25T16:36:16.848565+00:00",
+          "description": "Transfer to xx9999 CommBank app Card",
+          "amount_minor": -12000,
           "original_currency": null,
           "original_amount_minor": null
         }
@@ -3456,26 +3657,7 @@
       "name": "review_items",
       "rows": [
         {
-          "id": "0b30b964-8daf-4e61-8d22-4a8f5569f1c2",
-          "kind": "relationship",
-          "version": 1,
-          "question": {
-            "kind": "movement",
-            "message": "Confirm whether these postings are two sides of one movement."
-          },
-          "event_ids": [
-            "7823f67c-1986-4c48-adaf-b5244ff6efa2",
-            "bfea2b36-590f-49ef-b95e-2a605f534798"
-          ],
-          "import_id": null,
-          "candidates": [],
-          "created_at": "2026-09-25T11:28:03.430312+00:00",
-          "resolution": null,
-          "resolved_at": null,
-          "observation_ids": []
-        },
-        {
-          "id": "5ec799d1-8486-4756-ac3b-45ea0dff2b98",
+          "id": "2de2b268-5b9b-468c-9b36-cdc0a2b07c9b",
           "kind": "relationship",
           "version": 2,
           "question": {
@@ -3483,20 +3665,20 @@
             "message": "Confirm whether these postings are two sides of one movement."
           },
           "event_ids": [
-            "3af35b99-84a5-40e6-b169-82dfe9a6159f",
-            "3de08f13-e925-4f9a-95f4-5e9e6c58473f"
+            "b799eb62-ff30-4789-aba6-8bce15c1dfa6",
+            "bc5f1491-4acf-4f2f-9da3-9eb24919217e"
           ],
           "import_id": null,
           "candidates": [],
-          "created_at": "2026-09-25T11:28:03.405316+00:00",
+          "created_at": "2026-09-25T16:36:16.913537+00:00",
           "resolution": {
             "kind": "linkMovement"
           },
-          "resolved_at": "2026-09-25T11:28:03.553736+00:00",
+          "resolved_at": "2026-09-25T16:36:17.104489+00:00",
           "observation_ids": []
         },
         {
-          "id": "cbadace9-9625-40dd-bf35-2082d5830ceb",
+          "id": "9a1e9f9a-aed0-4b3b-bc09-120057913ceb",
           "kind": "relationship",
           "version": 1,
           "question": {
@@ -3504,8 +3686,8 @@
             "message": "Confirm whether this credit returns this purchase."
           },
           "event_ids": [
-            "8eed26f1-1a3e-47c1-9360-57dc13df095d",
-            "b359f77d-9e08-4319-b2e9-0b0fe8c60e87"
+            "dddc30c9-7263-4db2-8dcb-8f1d4f317370",
+            "41ae92d6-59ec-4c97-b7c2-acc7a8198e20"
           ],
           "import_id": null,
           "candidates": [
@@ -3514,11 +3696,30 @@
                 "minor": "4000",
                 "currency": "AUD"
               },
-              "costAllocationId": "5628c0ab-a353-4f81-8b1a-a7bcc8f1c912",
-              "creditAllocationId": "7884dcb5-3a2b-413c-9c66-b4d0f97e2942"
+              "costAllocationId": "746e2245-d025-4621-af9e-b332ee32a741",
+              "creditAllocationId": "afa5910d-899f-4e33-bfa4-ea8dab2262ef"
             }
           ],
-          "created_at": "2026-09-25T11:28:03.347277+00:00",
+          "created_at": "2026-09-25T16:36:16.848565+00:00",
+          "resolution": null,
+          "resolved_at": null,
+          "observation_ids": []
+        },
+        {
+          "id": "ecf1bd2b-8c65-46f9-920e-7b651aac9d81",
+          "kind": "relationship",
+          "version": 1,
+          "question": {
+            "kind": "movement",
+            "message": "Confirm whether these postings are two sides of one movement."
+          },
+          "event_ids": [
+            "3da4d8b9-4c0c-4524-9966-84ef787b7bb6",
+            "9a0dacbf-d075-47c6-a6ef-8ab6d4b2d7e2"
+          ],
+          "import_id": null,
+          "candidates": [],
+          "created_at": "2026-09-25T16:36:16.941231+00:00",
           "resolution": null,
           "resolved_at": null,
           "observation_ids": []
@@ -3529,10 +3730,10 @@
       "name": "rule_applications",
       "rows": [
         {
-          "event_id": "e1ccd0b8-f7ae-4520-a7d0-926349037cc8",
+          "event_id": "10895318-e5c2-4505-a16a-df378d450bae",
           "applied_rules": [
             {
-              "id": "7c40b73e-0ed5-421f-b648-8d4de35f78be",
+              "id": "b1992300-1ef9-477a-a55e-0429f05ffce6",
               "name": "Dinner place",
               "scope": "both",
               "action": {
@@ -3560,7 +3761,7 @@
       "name": "rules",
       "rows": [
         {
-          "id": "7c40b73e-0ed5-421f-b648-8d4de35f78be",
+          "id": "b1992300-1ef9-477a-a55e-0429f05ffce6",
           "name": "Dinner place",
           "scope": "both",
           "action": {
@@ -3593,22 +3794,8 @@
       "name": "source_coverage",
       "rows": [
         {
-          "id": "297a6c37-06fe-43df-a825-515712e33002",
-          "account_id": "0a683550-2163-4eb2-ae2f-575d4a94cb70",
-          "closing_on": null,
-          "opening_on": null,
-          "reconciled": false,
-          "stated_end": null,
-          "observed_end": "2026-08-02",
-          "stated_start": null,
-          "closing_minor": null,
-          "opening_minor": null,
-          "observed_start": "2026-07-01",
-          "source_file_id": "7e698a18-e308-40c6-9b91-85112c7c02e5"
-        },
-        {
-          "id": "96b20f27-e921-4752-ab76-b05c91038003",
-          "account_id": "5a3c5122-21be-4b05-b1e8-5892b676bc0a",
+          "id": "23a8a71c-c1f4-4a2b-b6c8-3a53836fda29",
+          "account_id": "7202517a-11a3-4108-a4ac-6eccb84886c7",
           "closing_on": null,
           "opening_on": null,
           "reconciled": false,
@@ -3618,11 +3805,25 @@
           "closing_minor": null,
           "opening_minor": null,
           "observed_start": "2026-07-27",
-          "source_file_id": "9fb52bfb-ea15-4301-9b88-834315a3de7d"
+          "source_file_id": "7e3fbc17-b052-4916-bffc-7676532678e9"
         },
         {
-          "id": "9b8e829a-a162-4ea0-8165-7e624fb65eae",
-          "account_id": "6d58c696-15c3-4a72-bf6c-fca3f5e33d79",
+          "id": "3d14973d-c800-4347-99a5-3cf04f1d1879",
+          "account_id": "b73f6606-4730-446f-9c13-cb2a0ae89757",
+          "closing_on": null,
+          "opening_on": null,
+          "reconciled": false,
+          "stated_end": null,
+          "observed_end": "2026-08-02",
+          "stated_start": null,
+          "closing_minor": null,
+          "opening_minor": null,
+          "observed_start": "2026-07-01",
+          "source_file_id": "d007c211-f4c0-4279-b696-47c39a697187"
+        },
+        {
+          "id": "cb7f0596-65fc-493e-8226-b073f854a167",
+          "account_id": "c1fce0df-091b-4097-9e79-f8fd3efe583b",
           "closing_on": null,
           "opening_on": null,
           "reconciled": false,
@@ -3632,7 +3833,7 @@
           "closing_minor": null,
           "opening_minor": null,
           "observed_start": "2026-07-10",
-          "source_file_id": "515b4fcf-fc24-438c-b5b3-ab375538ffc1"
+          "source_file_id": "6384d12e-6024-41c8-a86d-571c304b702f"
         }
       ]
     },
@@ -3640,36 +3841,36 @@
       "name": "source_files",
       "rows": [
         {
-          "id": "515b4fcf-fc24-438c-b5b3-ab375538ffc1",
-          "sha256": "12045186-1b97-4250-8b02-813239bc22f9",
+          "id": "6384d12e-6024-41c8-a86d-571c304b702f",
+          "sha256": "843e4ddf-0f47-4e71-92df-accf74f443f3",
           "version": 1,
           "byte_size": 1,
           "file_name": "example.csv",
           "media_type": "text/plain",
-          "object_key": "515b4fcf-fc24-438c-b5b3-ab375538ffc1",
-          "uploaded_at": "2026-09-25T11:28:03.400877+00:00",
+          "object_key": "6384d12e-6024-41c8-a86d-571c304b702f",
+          "uploaded_at": "2026-09-25T16:36:16.90985+00:00",
           "bytes_available": true
         },
         {
-          "id": "7e698a18-e308-40c6-9b91-85112c7c02e5",
-          "sha256": "158bb4aa-6c7b-4efe-9246-7f4e18d195d6",
+          "id": "7e3fbc17-b052-4916-bffc-7676532678e9",
+          "sha256": "8e478f4c-0ba7-4de0-955e-cce8bbbf4d14",
           "version": 1,
           "byte_size": 1,
           "file_name": "example.csv",
           "media_type": "text/plain",
-          "object_key": "7e698a18-e308-40c6-9b91-85112c7c02e5",
-          "uploaded_at": "2026-09-25T11:28:03.341737+00:00",
+          "object_key": "7e3fbc17-b052-4916-bffc-7676532678e9",
+          "uploaded_at": "2026-09-25T16:36:16.934144+00:00",
           "bytes_available": true
         },
         {
-          "id": "9fb52bfb-ea15-4301-9b88-834315a3de7d",
-          "sha256": "7e985dc3-fd24-416b-81cf-ad1039fcad34",
+          "id": "d007c211-f4c0-4279-b696-47c39a697187",
+          "sha256": "74e53c40-bab6-457f-bfd5-46d0fa592fcf",
           "version": 1,
           "byte_size": 1,
           "file_name": "example.csv",
           "media_type": "text/plain",
-          "object_key": "9fb52bfb-ea15-4301-9b88-834315a3de7d",
-          "uploaded_at": "2026-09-25T11:28:03.426423+00:00",
+          "object_key": "d007c211-f4c0-4279-b696-47c39a697187",
+          "uploaded_at": "2026-09-25T16:36:16.842765+00:00",
           "bytes_available": true
         }
       ]

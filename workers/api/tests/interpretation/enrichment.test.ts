@@ -8,9 +8,9 @@ import { Publication } from "../../src/imports/publication.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
 import { CounterpartyHistory } from "../../src/interpretation/counterparty-history.ts";
 import { Enrichment } from "../../src/interpretation/enrichment.ts";
-import { EnrichmentConfig, EnrichmentJobs } from "../../src/platform/services.ts";
+import { EnrichmentJobs, ModelProviders } from "../../src/platform/services.ts";
 import { Postings } from "../../src/postings/service.ts";
-import { applicationTest } from "../support/application.ts";
+import { applicationTest, syntheticProviders } from "../support/application.ts";
 import {
   account,
   createCounterparty,
@@ -299,9 +299,7 @@ test(
               start: () => Effect.void,
               status: () => Effect.succeed({ status: "errored", failure: "Worker restarted." }),
             }),
-            Layer.succeed(EnrichmentConfig, {
-              provider: yield* enrichment.settings.pipe(Effect.map((row) => row.provider)),
-            }),
+            Layer.succeed(ModelProviders, syntheticProviders),
           ]),
         ),
       ),

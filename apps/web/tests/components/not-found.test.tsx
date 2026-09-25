@@ -39,6 +39,7 @@ vi.mocked(getMonthlyFlow).mockResolvedValue([
     inflow: { currency: "AUD", minor: 500000n },
     outflow: { currency: "AUD", minor: 300000n },
     spending: { currency: "AUD", minor: 300000n },
+    modelShare: { currency: "AUD", minor: 0n },
     coverage: "complete",
   },
 ]);

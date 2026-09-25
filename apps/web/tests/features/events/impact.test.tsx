@@ -7,14 +7,13 @@ import { page, userEvent } from "vitest/browser";
 import { ChangeDialog } from "@/components/change-dialog";
 import { Button } from "@/components/ui/button";
 import { ChangePreview } from "@/features/counterparties/change-preview";
-import { getModelUsage, getRetention, getSettings } from "@/features/settings/functions";
+import { getRetention, getSettings } from "@/features/settings/functions";
 import { createQueryClient } from "@/lib/query-client";
 
 // oxlint-disable-next-line anti-slop/no-module-mocking -- Server functions are the remote transport boundary.
 vi.mock("../../../src/features/settings/functions", () => ({
   getSettings: vi.fn<typeof getSettings>(),
   getRetention: vi.fn<typeof getRetention>(),
-  getModelUsage: vi.fn<typeof getModelUsage>(),
 }));
 
 const money = (minor: bigint) => ({ currency: "AUD", minor });

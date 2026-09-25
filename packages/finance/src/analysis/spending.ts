@@ -1,4 +1,4 @@
-import type { ChangeFigures } from "@repo/contracts/finance";
+import type { ChangeFigures, Money } from "@repo/contracts/finance";
 
 import { divideRounded } from "../money.ts";
 import { purchaseDecomposition } from "./decomposition.ts";
@@ -24,6 +24,14 @@ export function averagePurchase(purchaseSpending: bigint, purchases: number) {
 // A change from nothing has no ratio, and one from net refunds has no meaningful sign.
 export function percentChange(current: bigint, previous: bigint) {
   return previous > 0n ? Number(divideRounded((current - previous) * 100n, previous)) : null;
+}
+
+// How far `current` moved from `previous`, as money and as a whole percent.
+export function compareMoney(current: Money, previous: Money) {
+  return {
+    change: { currency: current.currency, minor: current.minor - previous.minor },
+    percentChange: percentChange(current.minor, previous.minor),
+  };
 }
 
 // Each part's whole percent of what the positive parts add up to. A part that spent
@@ -52,8 +60,7 @@ export function changeFigures(sums: ChangeSums, currency: string): ChangeFigures
   return {
     current: money(sums.current),
     previous: money(sums.previous),
-    change: money(sums.current - sums.previous),
-    percentChange: percentChange(sums.current, sums.previous),
+    ...compareMoney(money(sums.current), money(sums.previous)),
     purchases: sums.purchases,
     previousPurchases: sums.previousPurchases,
     averagePurchase: average(sums.purchaseCurrent, sums.purchases),

@@ -11,22 +11,29 @@ export const Period = Schema.Struct({ start: CalendarDate, endExclusive: Calenda
 );
 export type Period = typeof Period.Type;
 const Count = Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 3660 }));
+// Whole calendar months, the first through the last: the periods the screens read. The
+// month containing today ends after today. A period ending in December 9999 would end
+// in year 10000.
+export const MonthsSelection = Schema.Struct({
+  kind: Schema.Literal("months"),
+  from: YearMonth,
+  to: YearMonth,
+}).check(
+  Schema.makeFilter(
+    (months) => months.from <= months.to || "The first month must not come after the last.",
+  ),
+  Schema.makeFilter(
+    (months) => months.to < "9999-12" || "Choose months that end before December 9999.",
+  ),
+);
+export type MonthsSelection = typeof MonthsSelection.Type;
 export const PeriodSelection = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("fixed"), ...Period.fields }).check(
     Schema.makeFilter(
       (period) => period.start < period.endExclusive || "The period must end after it starts.",
     ),
   ),
-  // Whole calendar months, the first through the last. The month containing today
-  // ends after today. A period ending in December 9999 would end in year 10000.
-  Schema.Struct({ kind: Schema.Literal("months"), from: YearMonth, to: YearMonth }).check(
-    Schema.makeFilter(
-      (months) => months.from <= months.to || "The first month must not come after the last.",
-    ),
-    Schema.makeFilter(
-      (months) => months.to < "9999-12" || "Choose months that end before December 9999.",
-    ),
-  ),
+  MonthsSelection,
   Schema.Struct({ kind: Schema.Literal("rolling"), days: Count }),
   Schema.Struct({
     kind: Schema.Literal("calendar"),

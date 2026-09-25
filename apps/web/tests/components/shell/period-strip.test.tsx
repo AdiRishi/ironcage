@@ -19,6 +19,7 @@ const months = ["2026-06", "2026-07", "2026-08", "2026-09"].map((month) => ({
   inflow: money(500000n),
   outflow: money(400000n),
   spending: money(300000n),
+  modelShare: money(0n),
   coverage: "complete" as const,
 }));
 // The second page of July's loan principal, as the ledger writes it.

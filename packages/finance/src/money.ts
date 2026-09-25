@@ -77,3 +77,9 @@ export function formatCurrency({ minor, currency }: Money, { cents: withCents = 
     cents && exponent > 0 ? `.${(absolute % scale).toString().padStart(exponent, "0")}` : "";
   return `${minor < 0n ? "−" : ""}${symbol}${fraction}`;
 }
+
+// "76%", or "+76%" and "−12%" for a change, with a real minus sign.
+export function formatPercent(percent: number, { signed = false } = {}) {
+  const sign = percent < 0 ? "−" : signed && percent > 0 ? "+" : "";
+  return `${sign}${Math.abs(percent)}%`;
+}

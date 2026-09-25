@@ -45,6 +45,7 @@ test("months without records are outlined and read as no records, months with so
       months={months.map(([month, minor, coverage]) => ({
         month: YearMonth.make(month),
         amount: { currency: "AUD", minor },
+        modelAmount: { currency: "AUD", minor: 0n },
         coverage,
       }))}
       color="var(--category-2)"

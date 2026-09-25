@@ -14,7 +14,3 @@ export const updateSettings = createServerFn({ method: "POST" })
 export const getRetention = createServerFn({ method: "GET" }).handler(() =>
   callApiRpc((client) => client.getRetention()),
 );
-
-export const getModelUsage = createServerFn({ method: "GET" }).handler(() =>
-  callApiRpc((client) => client.getModelUsage()),
-);

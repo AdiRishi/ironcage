@@ -2,13 +2,14 @@ import {
   CalendarDate,
   type ComparisonSelection,
   FinanceError,
+  type MonthsSelection,
   Period,
   type PeriodSelection,
   type YearMonth,
 } from "@repo/contracts/finance";
 import { DateTime, Result, Schema } from "effect";
 
-import { addDays, monthCount, shiftYearMonth, yearMonthStart } from "../dates.ts";
+import { addDays, monthCount, shiftYearMonth, yearMonthOf, yearMonthStart } from "../dates.ts";
 
 const monthsPerUnit = { month: 1, quarter: 3, year: 12 };
 
@@ -62,6 +63,16 @@ function resolvedPeriod(start: DateTime.Utc, endExclusive: DateTime.Utc) {
 // The whole months `from` through `to`.
 export function monthsPeriod(from: YearMonth, to: YearMonth = from): Period {
   return { start: yearMonthStart(from), endExclusive: yearMonthStart(shiftYearMonth(to, 1)) };
+}
+// The months a period spans when it runs from the first day of a month to the last day
+// of one, and null when it starts or ends within a month.
+export function wholeMonths(period: Period): MonthsSelection | null {
+  const from = yearMonthOf(period.start);
+  const to = yearMonthOf(addDays(period.endExclusive, -1));
+  const whole = monthsPeriod(from, to);
+  return whole.start === period.start && whole.endExclusive === period.endExclusive
+    ? { kind: "months", from, to }
+    : null;
 }
 // The twelve whole months that end with the month containing the period's last day.
 export function trailingYear(period: Period): Result.Result<Period, FinanceError> {
@@ -117,6 +128,22 @@ export function missingPeriods(period: Period, intervals: readonly Period[]): Pe
   if (cursor < period.endExclusive)
     missing.push({ start: cursor, endExclusive: period.endExclusive });
   return missing;
+}
+// The parts of `intervals` that fall inside `period`.
+export function periodsWithin(period: Period, intervals: readonly Period[]): Period[] {
+  return intervals.flatMap((interval) =>
+    overlaps(interval, period)
+      ? [
+          {
+            start: interval.start > period.start ? interval.start : period.start,
+            endExclusive:
+              interval.endExclusive < period.endExclusive
+                ? interval.endExclusive
+                : period.endExclusive,
+          },
+        ]
+      : [],
+  );
 }
 export function mergePeriods(intervals: readonly Period[]): Period[] {
   const merged: Period[] = [];

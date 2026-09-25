@@ -29,7 +29,7 @@ import {
   proposeRelationships,
 } from "@/features/relationships/functions";
 import { RelationshipProposals } from "@/features/relationships/reviews";
-import { getModelUsage, getRetention, getSettings } from "@/features/settings/functions";
+import { getRetention, getSettings } from "@/features/settings/functions";
 import { createQueryClient } from "@/lib/query-client";
 
 // oxlint-disable-next-line anti-slop/no-module-mocking -- Server functions are the remote transport boundary.
@@ -50,7 +50,6 @@ vi.mock("../../../src/features/relationships/functions", () => ({
 vi.mock("../../../src/features/settings/functions", () => ({
   getSettings: vi.fn<typeof getSettings>(),
   getRetention: vi.fn<typeof getRetention>(),
-  getModelUsage: vi.fn<typeof getModelUsage>(),
 }));
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;

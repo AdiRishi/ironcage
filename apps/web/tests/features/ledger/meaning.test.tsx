@@ -55,12 +55,7 @@ import {
   listRelationshipCandidates,
   previewRelationship,
 } from "@/features/relationships/functions";
-import {
-  getModelUsage,
-  getRetention,
-  getSettings,
-  updateSettings,
-} from "@/features/settings/functions";
+import { getRetention, getSettings, updateSettings } from "@/features/settings/functions";
 import { createQueryClient } from "@/lib/query-client";
 
 // oxlint-disable-next-line anti-slop/no-module-mocking -- Server functions are the remote transport boundary.
@@ -100,7 +95,6 @@ vi.mock("../../../src/features/settings/functions", () => ({
   getSettings: vi.fn<typeof getSettings>(),
   updateSettings: vi.fn<typeof updateSettings>(),
   getRetention: vi.fn<typeof getRetention>(),
-  getModelUsage: vi.fn<typeof getModelUsage>(),
 }));
 
 const coles = CounterpartyId.make("00000000-0000-4000-8000-000000000002");

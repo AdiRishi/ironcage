@@ -7,6 +7,7 @@ import { expect } from "vitest";
 
 import { Flows } from "../../src/analysis/flows.ts";
 import { FactRebuilds } from "../../src/analysis/rebuild.ts";
+import { Models } from "../../src/models/service.ts";
 import { applicationServices, applicationTest } from "../support/application.ts";
 import {
   PopulatedFixture,
@@ -101,6 +102,15 @@ test(
       });
       expect(july.totals.spending.minor).toBe(506450n);
       expect(july.totals.income.minor).toBe(500000n);
+
+      // The fixture changed identification's settings from their defaults, and the
+      // analyst came later.
+      expect(yield* (yield* Models).settings).toMatchObject({
+        enrichment: { enabled: true, autoApplyConfidence: 0.75 },
+        analyst: { enabled: false },
+        warning: { currency: "USD", minor: 1500n },
+        version: 2,
+      });
     }).pipe(Effect.provide(services));
     yield* admin(`DROP DATABASE ${database} WITH (FORCE)`);
   }),

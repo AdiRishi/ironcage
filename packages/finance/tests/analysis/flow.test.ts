@@ -135,4 +135,18 @@ describe("largestChanges", () => {
       [{ kind: "uncategorised" }, "Not yet categorised", null],
     ]);
   });
+
+  it("states how much of each category's spending rests on the model", () => {
+    const [change] = largestChanges({
+      currency: "AUD",
+      categories,
+      limit: 1,
+      rows: [
+        row({ measure: "spending", categoryId: delivery, current: 30000n, modelCurrent: 12000n }),
+        row({ measure: "spending", categoryId: delivery, current: 5000n, modelCurrent: 3000n }),
+        row({ measure: "income", categoryId: delivery, current: 9000n, modelCurrent: 9000n }),
+      ],
+    });
+    expect(change?.modelAmount).toEqual({ currency: "AUD", minor: 15000n });
+  });
 });

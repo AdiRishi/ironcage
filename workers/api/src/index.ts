@@ -1,4 +1,5 @@
 import * as BrowserCrypto from "@effect/platform-browser/BrowserCrypto";
+import type { CommandId } from "@repo/contracts/finance";
 import type { apiBindings } from "@repo/infra/worker-bindings";
 import { Effect, Layer } from "effect";
 import { HttpRouter } from "effect/unstable/http";
@@ -24,10 +25,10 @@ import { Enrichment } from "./interpretation/enrichment.ts";
 import { Questions } from "./interpretation/questions.ts";
 import { Models } from "./models/service.ts";
 import {
-  EnrichmentConfig,
   EnrichmentJobs,
   ExportJobs,
   FactJobs,
+  ModelProviders,
   RetentionPolicy,
   TemporaryExports,
   ImportJobs,
@@ -72,6 +73,7 @@ const operations = Effect.gen(function* () {
   return {
     getPeriodFlow: flows.period,
     getMonthlyFlow: flows.monthly,
+    getCoverage: flows.coverage,
     getSpending: spending.breakdown,
     getFactsStatus: () => factRebuilds.status,
     rebuildFactsBatch: () => factRebuilds.rebuild,
@@ -110,8 +112,6 @@ const operations = Effect.gen(function* () {
     undoCounterpartyChange: counterpartyHistory.undo,
     listQuestions: questions.list,
     summarizeQuestions: questions.summary,
-    getEnrichmentSettings: () => enrichment.settings,
-    updateEnrichmentSettings: enrichment.configure,
     requestEnrichment: enrichment.request,
     requestEvaluation: enrichment.evaluate,
     listEnrichmentRuns: () => enrichment.runs,
@@ -125,7 +125,11 @@ const operations = Effect.gen(function* () {
     getReferenceData: () => events.references,
     listSourceFiles: () => sourceFiles.list,
     removeSourceBytes: sourceFiles.remove,
-    getModelUsage: () => models.get,
+    getModelSettings: () => models.settings,
+    updateModelSettings: models.updateSettings,
+    getModelAllowance: models.allowance,
+    recordModelUsage: models.record,
+    getModelUsage: () => models.usage,
     requestExport: exports.request,
     listExports: () => exports.list,
     getExport: exports.get,
@@ -164,8 +168,48 @@ export type InternalOperation =
   | "getImportSource"
   | "failImport"
   | "publishImport"
-  | "rebuildFactsBatch";
+  | "rebuildFactsBatch"
+  | "getModelAllowance"
+  | "recordModelUsage";
 export type WebOperation = Exclude<keyof ApiOperations, InternalOperation>;
+
+// An operation whose input carries a command ID writes records.
+type CommandOperation = {
+  [K in keyof ApiOperations]: Parameters<ApiOperations[K]> extends [
+    { readonly commandId: typeof CommandId.Type },
+  ]
+    ? K
+    : never;
+}[keyof ApiOperations];
+// The analyst reads what the screens read, previews changes you accept on the screens,
+// and writes only the usage of its own model calls. Naming a command here fails to
+// compile.
+type AnalystRead<K extends Exclude<WebOperation, CommandOperation>> = K;
+export type AnalystOperation =
+  | AnalystRead<
+      | "getPeriodFlow"
+      | "getMonthlyFlow"
+      | "getCoverage"
+      | "getSpending"
+      | "listCountedLedger"
+      | "listLedger"
+      | "getPosting"
+      | "getEventForPosting"
+      | "getEventHistory"
+      | "listCounterparties"
+      | "getCounterparty"
+      | "listQuestions"
+      | "summarizeQuestions"
+      | "getReferenceData"
+      | "listAccounts"
+      | "listImports"
+      | "getSettings"
+      | "getFactsStatus"
+      | "previewCorrection"
+      | "previewCounterpartyChange"
+    >
+  | "getModelAllowance"
+  | "recordModelUsage";
 
 export const api = Effect.fn("Api.initialize")(function* (
   bindings: Effect.Success<ReturnType<typeof apiBindings>>,
@@ -200,7 +244,7 @@ export const api = Effect.fn("Api.initialize")(function* (
     Layer.provide([Commands.layer, AccountResolution.layer]),
     Layer.provide([
       bindings.database,
-      Layer.succeed(EnrichmentConfig, { provider: bindings.enrichmentProvider }),
+      Layer.succeed(ModelProviders, bindings.modelProviders),
       EnrichmentJobs.layer({
         start: bindings.processor.startEnrichment,
         status: bindings.processor.getEnrichmentInstance,

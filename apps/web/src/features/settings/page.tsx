@@ -3,17 +3,21 @@ import { Link } from "@tanstack/react-router";
 
 import { accountsQueryOptions } from "@/features/accounts/queries";
 import { AccountsSection } from "@/features/accounts/section";
+import { AnalystSettings } from "@/features/analyst/settings";
+import { modelSettingsQuery, modelUsageQuery } from "@/features/models/queries";
+import { ModelUsageSection } from "@/features/models/usage";
 
 import { AccountPeriodsSection } from "../accounts/periods";
 import { EnrichmentSection } from "../enrichment/settings";
 import { DisplaySettings } from "./display-settings";
-import { ModelUsageSection } from "./model-usage";
 import { settingsQueryOptions, retentionQueryOptions } from "./queries";
 
 export function SettingsPage() {
   const { data: accounts } = useSuspenseQuery(accountsQueryOptions());
   const { data: retention } = useSuspenseQuery(retentionQueryOptions());
   const { data: settings } = useSuspenseQuery(settingsQueryOptions());
+  const { data: models } = useSuspenseQuery(modelSettingsQuery());
+  const { data: usage } = useSuspenseQuery(modelUsageQuery());
   return (
     <div className="max-w-4xl space-y-12">
       <header>
@@ -42,8 +46,9 @@ export function SettingsPage() {
       </nav>
       <AccountsSection accounts={accounts} />
       <AccountPeriodsSection accounts={accounts} />
-      <EnrichmentSection />
-      <ModelUsageSection />
+      <ModelUsageSection usage={usage} settings={models} />
+      <EnrichmentSection settings={models} />
+      <AnalystSettings settings={models} />
       <section aria-labelledby="display-heading" className="space-y-4">
         <h2 id="display-heading" className="type-heading">
           Display

@@ -21,7 +21,7 @@ import { Questions } from "../../src/interpretation/questions.ts";
 export const reset = Effect.gen(function* () {
   const sql = yield* PgClient.PgClient;
   yield* sql`TRUNCATE rules, command_receipts, review_items, source_coverage, observations, postings, imports, source_files, accounts, exports, model_usage, counterparties, counterparty_changes, enrichment_runs, category_proposals CASCADE`;
-  yield* sql`UPDATE enrichment_settings SET enabled = true, warning_minor = 2000, auto_apply_confidence = 0.8, version = 1 WHERE id = 1`;
+  yield* sql`UPDATE model_settings SET enrichment_enabled = true, analyst_enabled = false, warning_minor = 2000, auto_apply_confidence = 0.8, version = 1 WHERE id = 1`;
 });
 // The open questions in AUD, when they fit on one page.
 export const openQuestions = Effect.gen(function* () {
