@@ -1,7 +1,7 @@
 import { expect, it } from "@effect/vitest";
-import { type Account, AccountId, CalendarDate } from "@repo/contracts/finance";
+import { type Account, AccountId, CalendarDate, YearMonth } from "@repo/contracts/finance";
 
-import { accountCoverage, comparisonCoverage } from "../../src/index.ts";
+import { accountCoverage, comparisonCoverage, monthCoverage } from "../../src/index.ts";
 
 const day = (value: string) => CalendarDate.make(value);
 const account = (n: number, kind: Account["kind"], label: string): Account => ({
@@ -109,4 +109,21 @@ it("a comparison another account has records for is partial, not missing", () =>
       },
     ],
   });
+});
+
+it("a month before the first record is missing, and a month with one account's gap is partial", () => {
+  const snapshot = {
+    accounts,
+    imports: [],
+    sources: [
+      statement(everyday, "2026-01-02", "2026-03-30", "2026-01-01", "2026-03-31"),
+      statement(card, "2026-01-03", "2026-01-29", "2026-01-01", "2026-01-31"),
+      statement(card, "2026-03-02", "2026-03-28", "2026-03-01", "2026-03-31"),
+    ],
+  };
+  expect(
+    ["2025-12", "2026-01", "2026-02"].map((month) =>
+      monthCoverage(snapshot, YearMonth.make(month)),
+    ),
+  ).toEqual(["missing", "complete", "partial"]);
 });

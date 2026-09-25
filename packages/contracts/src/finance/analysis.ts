@@ -60,6 +60,7 @@ export const AccountCoverage = Schema.Struct({
 });
 export type AccountCoverage = typeof AccountCoverage.Type;
 export const CoverageState = Schema.Literals(["complete", "partial", "missing"]);
+export type CoverageState = typeof CoverageState.Type;
 // Whether the accounts recorded in a period also have records in its comparison
 // period, and the dates each one lacks there.
 export const ComparisonCoverage = Schema.Struct({
@@ -114,13 +115,15 @@ export const CounterpartyScope = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("unidentified") }),
 ]).pipe(Schema.toTaggedUnion("kind"));
 export type CounterpartyScope = typeof CounterpartyScope.Type;
-// The ledger facts behind one number: a measure narrowed to categories and a
-// counterparty. A period, a date basis, and a currency place it in time.
-export const CountedScope = Schema.Struct({
-  measure: LedgerMeasure,
-  category: CategoryScope,
-  counterparty: CounterpartyScope,
-});
+// The categories and counterparty that narrow any measure.
+export const Scope = Schema.Struct({ category: CategoryScope, counterparty: CounterpartyScope });
+export type Scope = typeof Scope.Type;
+// A step from a whole measure down to a scope, labelled like the row that opens it.
+export const ScopeCrumb = Schema.Struct({ label: Schema.String, opens: Scope });
+export type ScopeCrumb = typeof ScopeCrumb.Type;
+// The ledger facts behind one number: a measure narrowed to a scope. A period, a date
+// basis, and a currency place it in time.
+export const CountedScope = Schema.Struct({ measure: LedgerMeasure, ...Scope.fields });
 export type CountedScope = typeof CountedScope.Type;
 
 // Events whose ledger facts an older derivation built, and whether a background

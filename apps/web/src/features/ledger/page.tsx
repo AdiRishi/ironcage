@@ -12,6 +12,7 @@ import { useState } from "react";
 import { Amount } from "@/components/amount";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SpendingPath } from "@/features/spending/path";
 import type { PeriodChoice } from "@/lib/period";
 
 import { TransactionFilters } from "./filters";
@@ -109,7 +110,17 @@ export function CountedLedgerPage({
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-4">
           <div>
-            {page.label !== measure && <p className="type-small text-slate">{measure}</p>}
+            {page.path.length > 0 &&
+              (page.scope.measure === "spending" ? (
+                <SpendingPath
+                  label="Counted in"
+                  first={measure}
+                  path={page.path}
+                  narrowing={{ tag: filter.tagId, personalEvent: filter.personalEventId }}
+                />
+              ) : (
+                <p className="type-small text-slate">{measure}</p>
+              ))}
             <h1 className="type-title">
               {page.label} in {period.label}
             </h1>

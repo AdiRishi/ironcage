@@ -12,6 +12,7 @@ import { AccountResolution } from "../../src/accounts/resolution.ts";
 import { Accounts } from "../../src/accounts/service.ts";
 import { Flows } from "../../src/analysis/flows.ts";
 import { FactRebuilds } from "../../src/analysis/rebuild.ts";
+import { Spending } from "../../src/analysis/spending.ts";
 import { Commands } from "../../src/database/commands.ts";
 import { Corrections } from "../../src/events/corrections.ts";
 import { Events } from "../../src/events/service.ts";
@@ -66,6 +67,7 @@ export const applicationServices = <E>(
 ) =>
   Layer.mergeAll(
     Flows.layer,
+    Spending.layer,
     FactRebuilds.layer,
     Accounts.layer,
     AccountHistory.layer,

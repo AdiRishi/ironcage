@@ -5,6 +5,7 @@ import { TestClock } from "effect/testing";
 import { expect } from "vitest";
 
 import { Flows } from "../../src/analysis/flows.ts";
+import { Spending } from "../../src/analysis/spending.ts";
 import { Corrections } from "../../src/events/corrections.ts";
 import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
@@ -24,6 +25,7 @@ const august: FlowInput = {
   basis: "posted",
   currency: "AUD",
 };
+const allSpending = { category: { kind: "all" }, counterparty: { kind: "all" } } as const;
 
 const setup = Effect.fn("flowSetup")(function* (earlier: Parameters<typeof parsedRows>[0] = []) {
   yield* reset;
@@ -128,15 +130,28 @@ test(
         allocations: [{ ...event.allocations[0], categoryId: category("shopping.gifts") }],
       },
     });
-    const spending = yield* (yield* Flows).spending({ ...august, categoryId: null });
-    expect(spending.rows.map((row) => [row.label, row.current.minor])).toEqual([
+    const spending = yield* Spending;
+    const everything = yield* spending.breakdown({ ...august, ...allSpending });
+    expect(everything.rows.map((row) => [row.label, row.figures.current.minor])).toEqual([
       ["Food", 2500n],
       ["Shopping", 2500n],
     ]);
-    const food = yield* (yield* Flows).spending({ ...august, categoryId: category("food") });
+    const food = yield* spending.breakdown({
+      ...august,
+      ...allSpending,
+      category: { kind: "category", id: category("food") },
+    });
     expect(food.path.map((row) => row.label)).toEqual(["Food"]);
-    expect(food.rows[0]).toMatchObject({ label: "Delivery", purchases: 1, previousPurchases: 1 });
-    expect(food.counterparties[0]).toMatchObject({ label: "Uber Eats" });
+    expect(food.rows[0]).toMatchObject({
+      label: "Delivery",
+      figures: { purchases: 1, previousPurchases: 1 },
+    });
+    const delivery = yield* spending.breakdown({
+      ...august,
+      ...allSpending,
+      category: { kind: "category", id: category("food.delivery") },
+    });
+    expect(delivery.rows.map((row) => row.label)).toEqual(["Uber Eats"]);
   }).pipe(Effect.provide(services)),
 );
 
@@ -187,21 +202,24 @@ test(
     expect(
       (yield* flows.period({ ...august, comparison: chosen })).previousTotals.spending.minor,
     ).toBe(2000n);
-    const spendingYearBefore = yield* flows.spending({
-      ...august,
-      comparison: { kind: "previousYear" },
-      categoryId: null,
-    });
+    const spending = yield* Spending;
+    const previousOf = (breakdown: Effect.Success<ReturnType<typeof spending.breakdown>>) =>
+      breakdown.rows.map((row) => [
+        row.label,
+        row.figures.previous.minor,
+        row.figures.previousPurchases,
+      ]);
     expect(
-      spendingYearBefore.rows.map((row) => [row.label, row.previous.minor, row.previousPurchases]),
+      previousOf(
+        yield* spending.breakdown({
+          ...august,
+          ...allSpending,
+          comparison: { kind: "previousYear" },
+        }),
+      ),
     ).toEqual([["Food", 4500n, 2]]);
-    const spendingChosen = yield* flows.spending({
-      ...august,
-      comparison: chosen,
-      categoryId: null,
-    });
     expect(
-      spendingChosen.rows.map((row) => [row.label, row.previous.minor, row.previousPurchases]),
+      previousOf(yield* spending.breakdown({ ...august, ...allSpending, comparison: chosen })),
     ).toEqual([["Food", 2000n, 1]]);
   }).pipe(Effect.provide(services)),
 );
@@ -230,7 +248,7 @@ test(
     };
     expect((yield* flows.period(beforeRecords)).comparisonCoverage).toMatchObject(missing);
     expect(
-      (yield* flows.spending({ ...beforeRecords, categoryId: null })).comparisonCoverage,
+      (yield* (yield* Spending).breakdown({ ...beforeRecords, ...allSpending })).comparisonCoverage,
     ).toMatchObject(missing);
   }).pipe(Effect.provide(services)),
 );

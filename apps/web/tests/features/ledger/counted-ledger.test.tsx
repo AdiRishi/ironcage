@@ -165,6 +165,7 @@ test("a number made of two parts lists each part under its own heading", async (
 const principal: typeof CountedResult.Type = {
   scope: { measure: "loanPrincipal", category: { kind: "all" }, counterparty: { kind: "all" } },
   label: "Loan principal",
+  path: [],
   period: { start: day("2026-07-01"), endExclusive: day("2026-08-01") },
   basis: "spending",
   currency: "AUD",

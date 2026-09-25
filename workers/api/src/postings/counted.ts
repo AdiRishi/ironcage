@@ -1,15 +1,13 @@
 import { PgClient } from "@effect/sql-pg";
 import {
-  type CategoryId,
-  CategoryScope,
   CountedLedgerRow,
   type CountedLedgerPage,
-  FinanceError,
   type ListCountedLedger,
 } from "@repo/contracts/finance";
-import { measures, measureTotal, uncategorisedLabel, unspecifiedLabel } from "@repo/finance";
+import { measures, measureTotal } from "@repo/finance";
 import { Effect, Schema } from "effect";
 
+import { categoryNodes } from "../analysis/categories.ts";
 import {
   categoryFacts,
   counterpartyFacts,
@@ -19,6 +17,7 @@ import {
   partFacts,
 } from "../analysis/fact-sql.ts";
 import { resolveSelection } from "../analysis/periods.ts";
+import { scopePath } from "../analysis/scopes.ts";
 import {
   allocationPredicates,
   ledgerMeaning,
@@ -26,17 +25,6 @@ import {
   pageSize,
   postingPredicates,
 } from "./ledger-rows.ts";
-
-const categoryName = Effect.fn("categoryName")(function* (id: typeof CategoryId.Type) {
-  const sql = yield* PgClient.PgClient;
-  const [row] = yield* sql`SELECT name FROM categories WHERE id = ${id}`.pipe(
-    Effect.flatMap(
-      Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ name: Schema.String }))),
-    ),
-  );
-  if (!row) return yield* new FinanceError({ kind: "notFound", message: "Category not found." });
-  return row.name;
-});
 
 const PartTotal = Schema.Struct({
   part: Schema.Int,
@@ -56,12 +44,7 @@ export const countedLedger = Effect.fn("countedLedger")(function* ({
 }: typeof ListCountedLedger.Type) {
   const sql = yield* PgClient.PgClient;
   const resolved = yield* resolveSelection(period);
-  const label = yield* CategoryScope.match(scope.category, {
-    all: () => Effect.succeed(measures[scope.measure].label),
-    uncategorised: () => Effect.succeed(uncategorisedLabel),
-    category: ({ id }) => categoryName(id),
-    unspecified: ({ id }) => categoryName(id).pipe(Effect.map(unspecifiedLabel)),
-  });
+  const path = yield* scopePath(yield* categoryNodes, scope);
   const parts = measures[scope.measure].parts;
   const partOf = parts.map((part, index) => sql`WHEN ${partFacts(sql, part)} THEN ${index}::int`);
   // One row per record, part, and date. `amount` is what the facts add to the part, and
@@ -110,7 +93,8 @@ export const countedLedger = Effect.fn("countedLedger")(function* ({
   const last = shown.at(-1);
   return {
     scope,
-    label,
+    label: path.at(-1)?.label ?? measures[scope.measure].label,
+    path,
     period: resolved.period,
     basis,
     currency,

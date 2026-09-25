@@ -32,7 +32,6 @@ const category = (
 ): FlowStream => ({
   kind: "category",
   key: `category:${id}`,
-  categoryId: id,
   slug,
   label,
   ...figures({ measure: "spending", category: { kind: "category", id }, counterparty: all }, minor),

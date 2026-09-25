@@ -1,38 +1,48 @@
 import type { MonthlyFlow } from "@repo/contracts/finance";
-import { formatCurrency, monthLabel } from "@repo/finance";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { monthLabel } from "@repo/finance";
+import { Link, ScriptOnce, useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
 import { Struct } from "effect";
 import { useEffect, useRef } from "react";
 
+import { barScale, MonthBar, monthAmountText } from "@/components/month-bar";
 import { monthInitial, type PeriodChoice } from "@/lib/period";
 
 import { MonthRangePicker } from "./month-range-picker";
 
-// One short bar per month of outflow. It is the period control and a picture of the
-// whole history at once. A month with no records is an outline, never a zero bar.
-// Choosing a period drops the ledger's page cursor, which belongs to the period it was
-// read in.
+const verbs = { spending: "spent", outflow: "went out" } as const;
+
+// Centres the last selected month in the strip. The server's HTML also runs it inline
+// right after the strip's row, once Choose months has taken its place beside the list and
+// the list has its final width, so a long history opens on the selected period before the
+// page hydrates. It must stay self-contained to run from its source text.
+function centreSelected(list: Element | null) {
+  const item = list?.querySelector("[data-selected]");
+  if (!list || !item) return;
+  const box = list.getBoundingClientRect();
+  const at = item.getBoundingClientRect();
+  list.scrollLeft += at.left - box.left - (box.width - at.width) / 2;
+}
+
+// One short bar per month, of spending on the Spending screen and of outflow elsewhere.
+// It is the period control and a picture of the whole history at once. Months draw their
+// coverage like every other monthly chart. Choosing a period drops the ledger's page
+// cursor, which belongs to the period it was read in.
 export function PeriodStrip({
   months,
   period,
+  measure,
 }: {
   months: typeof MonthlyFlow.Type;
   period: PeriodChoice;
+  measure: keyof typeof verbs;
 }) {
   const navigate = useNavigate();
   const list = useRef<HTMLOListElement>(null);
-  const selected = useRef<HTMLAnchorElement>(null);
   useEffect(() => {
-    const container = list.current?.getBoundingClientRect();
-    const item = selected.current?.getBoundingClientRect();
-    if (!list.current || !container || !item) return;
-    list.current.scrollLeft += item.left - container.left - (container.width - item.width) / 2;
+    centreSelected(list.current);
   }, [period.from, period.to]);
-  const largest = months.reduce(
-    (max, month) => (month.outflow.minor > max ? month.outflow.minor : max),
-    1n,
-  );
+  const height = barScale(months.map((month) => month[measure]));
   const years = [...new Set(months.map((month) => month.month.slice(0, 4)))];
   const isSelected = (month: string) => period.from <= month && month <= period.to;
   const lastSelected = months.findLast((month) => isSelected(month.month))?.month;
@@ -51,7 +61,7 @@ export function PeriodStrip({
                   .filter((month) => month.month.startsWith(year))
                   .map((month) => {
                     const active = isSelected(month.month);
-                    const height = Number((month.outflow.minor * 100n) / largest);
+                    const amount = month[measure];
                     return (
                       <li key={month.month}>
                         <Link
@@ -60,36 +70,22 @@ export function PeriodStrip({
                             ...Struct.omit(previous, ["cursor"]),
                             period: month.month,
                           })}
-                          ref={month.month === lastSelected ? selected : undefined}
+                          data-selected={month.month === lastSelected || undefined}
                           aria-current={
                             period.from === month.month && period.to === month.month
                               ? "true"
                               : undefined
                           }
-                          aria-label={`${monthLabel(month.month)}, ${formatCurrency(month.outflow, { cents: false })} went out${month.coverage === "missing" ? ", no records" : month.coverage === "partial" ? ", some records missing" : ""}`}
+                          aria-label={`${monthLabel(month.month)}, ${monthAmountText(amount, month.coverage, verbs[measure])}`}
                           className="group flex w-6 flex-col items-center gap-1 rounded-sm"
                         >
                           <span className="flex h-9 w-full items-end">
-                            {month.coverage === "missing" ? (
-                              <span
-                                className={cn(
-                                  "h-2 w-full rounded-t-[3px] border border-b-0 border-dashed",
-                                  active ? "border-intaglio" : "border-slate/60",
-                                )}
-                              />
-                            ) : (
-                              <span
-                                className={cn(
-                                  "w-full rounded-t-[3px] transition-colors",
-                                  active
-                                    ? "bg-intaglio"
-                                    : month.coverage === "partial"
-                                      ? "bg-outflow/35 group-hover:bg-outflow/60"
-                                      : "bg-outflow/60 group-hover:bg-outflow/85",
-                                )}
-                                style={{ height: `${Math.max(height, 4)}%` }}
-                              />
-                            )}
+                            <MonthBar
+                              coverage={month.coverage}
+                              height={height(amount)}
+                              color={active ? "var(--intaglio)" : "var(--wattle)"}
+                              selected={active}
+                            />
                           </span>
                           <span
                             className={cn(
@@ -132,6 +128,7 @@ export function PeriodStrip({
             }).catch(reportError);
           }}
         />
+        <ScriptOnce>{`(${centreSelected.toString()})(document.currentScript.parentElement.querySelector("ol"))`}</ScriptOnce>
       </div>
     </nav>
   );

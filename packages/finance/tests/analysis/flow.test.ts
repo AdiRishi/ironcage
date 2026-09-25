@@ -45,6 +45,8 @@ const row = (fields: Partial<FlowRow> & Pick<FlowRow, "measure">): FlowRow => ({
   current: 0n,
   previous: 0n,
   modelCurrent: 0n,
+  purchaseCurrent: 0n,
+  purchasePrevious: 0n,
   purchases: 0,
   previousPurchases: 0,
   ...fields,
@@ -114,27 +116,23 @@ describe("summarizeFlow", () => {
 });
 
 describe("largestChanges", () => {
-  it("explains a change by more purchases and a higher average", () => {
-    const [change] = largestChanges({
+  it("opens what each change counts: a subcategory whole, only what sits on a parent, or what has no category", () => {
+    const changes = largestChanges({
       currency: "AUD",
       categories,
       limit: 3,
       rows: [
-        row({
-          measure: "spending",
-          categoryId: delivery,
-          current: 30000n,
-          previous: 20000n,
-          purchases: 12,
-          previousPurchases: 10,
-        }),
+        row({ measure: "spending", categoryId: delivery, current: 30000n, previous: 20000n }),
+        row({ measure: "spending", categoryId: food, current: 1000n, previous: 6000n }),
+        row({ measure: "spending", current: 2000n }),
       ],
     });
-    expect(change).toMatchObject({
-      label: "Delivery",
-      parentLabel: "Food",
-      purchasesPart: { minor: 4500n },
-      averagePart: { minor: 5500n },
-    });
+    expect(
+      changes.map(({ category, label, parentLabel }) => [category, label, parentLabel]),
+    ).toEqual([
+      [{ kind: "category", id: delivery }, "Delivery", "Food"],
+      [{ kind: "unspecified", id: food }, "Food, unspecified", null],
+      [{ kind: "uncategorised" }, "Not yet categorised", null],
+    ]);
   });
 });

@@ -66,6 +66,8 @@ export const measures = {
 export const uncategorisedLabel = "Not yet categorised";
 // What sits on a category itself, without its subcategories.
 export const unspecifiedLabel = (categoryName: string) => `${categoryName}, unspecified`;
+// Facts whose event has no counterparty.
+export const unidentifiedLabel = "Unidentified";
 
 // A measure's amount from the sum of each of its parts. Repayments include the interest
 // already counted as spending on the loan, so a period where interest posts before the

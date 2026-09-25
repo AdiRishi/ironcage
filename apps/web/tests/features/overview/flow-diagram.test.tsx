@@ -166,7 +166,9 @@ test("a long label on either side stays inside the diagram", async ({ onTestFini
   const fees = {
     ...august,
     outflows: august.outflows.map((stream) =>
-      stream.kind === "category" && stream.categoryId === travel
+      stream.kind === "category" &&
+      stream.scope.category.kind === "category" &&
+      stream.scope.category.id === travel
         ? { ...stream, label: "Fees and interest", amount: { currency: "AUD", minor: -2500n } }
         : stream,
     ),

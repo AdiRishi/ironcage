@@ -1,40 +1,26 @@
 import {
-  CategoryChoice,
-  type CategoryScope,
   CountedCursor,
   CountedFilter,
   type CountedScope,
-  type CounterpartyScope,
-  CounterpartyId,
   LedgerMeasure,
   type ListCountedLedger,
   type ListPostings,
   PostingCursor,
   PostingFilter,
 } from "@repo/contracts/finance";
-import { Schema, Struct, type Types } from "effect";
+import { Schema, Struct } from "effect";
 
 import { analysisBasis, periodDates, periodSelection, type PeriodChoice } from "@/lib/period";
+import { ScopeSearch, scopeSearch, searchScope, unspecifiedNeedsCategory } from "@/lib/scope";
 
-// The records behind one number: `?measure=` narrowed by `?category=` (an ID or
-// `uncategorised`), `?unspecified=true` for only what sits on the category itself, and
-// `?counterparty=` (an ID or `unidentified`). The scope sets the dates and currency, so
-// the posting filters that would set them are left out.
+// The records behind one number: `?measure=` narrowed by a scope. The scope sets the
+// dates and currency, so the posting filters that would set them are left out.
 export const CountedSearch = Schema.Struct({
   measure: LedgerMeasure,
-  category: Schema.optionalKey(CategoryChoice),
-  unspecified: Schema.optionalKey(Schema.Literal(true)),
-  counterparty: Schema.optionalKey(Schema.Union([CounterpartyId, Schema.Literal("unidentified")])),
+  ...ScopeSearch.fields,
   ...CountedFilter.fields,
   cursor: Schema.optionalKey(CountedCursor),
-}).check(
-  Schema.makeFilter(
-    ({ category, unspecified }) =>
-      !unspecified ||
-      (category !== undefined && category !== "uncategorised") ||
-      "Only a category can be narrowed to what sits on it.",
-  ),
-);
+}).check(unspecifiedNeedsCategory);
 export type CountedSearch = typeof CountedSearch.Type;
 export const PostingSearch = Schema.Struct({
   measure: Schema.optionalKey(Schema.Never),
@@ -60,24 +46,8 @@ export function ledgerInput(search: PostingSearch, period: PeriodChoice): typeof
   return search.cursor ? { filter: withPeriod, cursor: search.cursor } : { filter: withPeriod };
 }
 
-function categoryScope({ category, unspecified }: CountedSearch): CategoryScope {
-  if (category === undefined) return { kind: "all" };
-  if (category === "uncategorised") return { kind: "uncategorised" };
-  return unspecified ? { kind: "unspecified", id: category } : { kind: "category", id: category };
-}
-
-function counterpartyScope({ counterparty }: CountedSearch): CounterpartyScope {
-  if (counterparty === undefined) return { kind: "all" };
-  if (counterparty === "unidentified") return { kind: "unidentified" };
-  return { kind: "counterparty", id: counterparty };
-}
-
 export function countedScope(search: CountedSearch): CountedScope {
-  return {
-    measure: search.measure,
-    category: categoryScope(search),
-    counterparty: counterpartyScope(search),
-  };
+  return { measure: search.measure, ...searchScope(search) };
 }
 
 // The counted ledger reads the months the screens read, on the same date basis, so its
@@ -98,13 +68,6 @@ export function countedLedgerInput(
 }
 
 // The address of the records behind a scope.
-export function countedSearch({ measure, category, counterparty }: CountedScope) {
-  const search: Types.Mutable<CountedSearch> = { measure };
-  if (category.kind === "uncategorised") search.category = "uncategorised";
-  if (category.kind === "category" || category.kind === "unspecified")
-    search.category = category.id;
-  if (category.kind === "unspecified") search.unspecified = true;
-  if (counterparty.kind === "unidentified") search.counterparty = "unidentified";
-  if (counterparty.kind === "counterparty") search.counterparty = counterparty.id;
-  return search;
+export function countedSearch({ measure, ...scope }: CountedScope): CountedSearch {
+  return { measure, ...scopeSearch(scope) };
 }

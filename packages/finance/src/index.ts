@@ -16,6 +16,8 @@ export * from "./analysis/labels.ts";
 export * from "./analysis/facts.ts";
 export * from "./analysis/measures.ts";
 export * from "./analysis/decomposition.ts";
+export * from "./analysis/categories.ts";
+export * from "./analysis/spending.ts";
 export * from "./analysis/flow.ts";
 export * from "./proposals.ts";
 export * from "./evaluation.ts";

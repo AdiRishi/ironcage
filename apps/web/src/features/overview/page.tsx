@@ -12,8 +12,9 @@ import { Link } from "@tanstack/react-router";
 
 import { Amount } from "@/components/amount";
 import { ComparisonControl } from "@/components/comparison-control";
-import { ComparisonCoverageNote, RecordsNote } from "@/components/comparison-coverage";
+import { ComparisonCoverageNote, IncompleteRecordsNote } from "@/components/comparison-coverage";
 import type { ComparisonKey, PeriodChoice } from "@/lib/period";
+import { scopeSearch } from "@/lib/scope";
 
 import { FlowDiagram } from "./flow-diagram";
 
@@ -41,7 +42,6 @@ export function OverviewPage({
   // The dates compared, which for a period in progress are only the same days.
   const previousLabel = periodLabel(flow.comparison);
   const unrecorded = flow.comparisonCoverage.state === "missing";
-  const recordsEnd = lastRecordedDay(flow);
   const surplus = leftOver(flow.totals);
   return (
     <div className="space-y-12">
@@ -62,12 +62,11 @@ export function OverviewPage({
               coverage={flow.comparisonCoverage}
               comparison={flow.comparison}
             />
-            {recordsEnd && (
-              <RecordsNote>
-                Your records stop on {recordsEnd}, so {period.label} is incomplete. Upload later
-                statements to finish it.
-              </RecordsNote>
-            )}
+            <IncompleteRecordsNote
+              coverage={flow.coverage}
+              period={flow.period}
+              label={period.label}
+            />
           </div>
         </div>
         <dl className="grid gap-x-12 gap-y-6 sm:grid-cols-[auto_auto_1fr]">
@@ -136,7 +135,7 @@ export function OverviewPage({
             <ul className="divide-y divide-rule">
               {flow.changes.map((change) => (
                 <ChangeRow
-                  key={change.categoryId ?? "none"}
+                  key={"id" in change.category ? change.category.id : change.category.kind}
                   change={change}
                   previousLabel={previousLabel}
                 />
@@ -151,21 +150,6 @@ export function OverviewPage({
       </div>
     </div>
   );
-}
-
-// The last day any account has records for, when that is before the period ends.
-function lastRecordedDay(flow: PeriodFlow) {
-  const end = flow.coverage
-    .flatMap((item) => item.observed.map((interval) => interval.endExclusive))
-    .filter((date) => date > flow.period.start)
-    .toSorted()
-    .at(-1);
-  if (!end || end >= flow.period.endExclusive) return null;
-  return new Intl.DateTimeFormat("en-AU", {
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-  }).format(Date.parse(end) - 86_400_000);
 }
 
 function Figure({
@@ -222,17 +206,13 @@ function Change({
 }
 
 function ChangeRow({ change, previousLabel }: { change: PeriodChange; previousLabel: string }) {
-  const delta = change.current.minor - change.previous.minor;
+  const delta = change.change.minor;
   const size = money(change.current.currency, delta < 0n ? -delta : delta);
-  const average = (total: Money, count: number) =>
-    formatCurrency(money(total.currency, count === 0 ? 0n : total.minor / BigInt(count)), {
-      cents: false,
-    });
   return (
     <li className="py-3">
       <Link
         to="/spending"
-        search={{ category: change.categoryId ?? undefined }}
+        search={scopeSearch({ category: change.category, counterparty: { kind: "all" } })}
         className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-0.5 rounded-sm"
       >
         <span>
@@ -255,12 +235,12 @@ function ChangeRow({ change, previousLabel }: { change: PeriodChange; previousLa
           {delta > 0n ? "+" : "−"}
           {formatCurrency(size, { cents: false })}
         </span>
-        {change.previousPurchases > 0 && change.purchases > 0 && change.purchasesPart && (
+        {change.previousAveragePurchase && change.averagePurchase && (
           <span className="col-span-2 type-small text-slate">
             {change.purchases} {change.purchases === 1 ? "purchase" : "purchases"} instead of{" "}
             {change.previousPurchases}, and the average went from{" "}
-            {average(change.previous, change.previousPurchases)} to{" "}
-            {average(change.current, change.purchases)}.
+            <Amount value={change.previousAveragePurchase} cents={false} /> to{" "}
+            <Amount value={change.averagePurchase} cents={false} />.
           </span>
         )}
       </Link>

@@ -1,7 +1,6 @@
 import type {
   CategoryId,
   CategoryScope,
-  CategoryTree,
   CountedScope,
   FactMeasure,
   FlowStream,
@@ -10,28 +9,23 @@ import type {
   PeriodTotals,
 } from "@repo/contracts/finance";
 
-import { purchaseDecomposition } from "./decomposition.ts";
-import { inCategoryScope, measures, measureTotal, uncategorisedLabel } from "./measures.ts";
+import { hasChildren, type CategoryNode } from "./categories.ts";
+import {
+  inCategoryScope,
+  measures,
+  measureTotal,
+  uncategorisedLabel,
+  unspecifiedLabel,
+} from "./measures.ts";
+import { changeFigures, type ChangeSums } from "./spending.ts";
 
 // Ledger facts summed for the current and comparison periods, per measure, category, and
 // whether they sit on a loan account.
-export type FlowRow = {
+export type FlowRow = ChangeSums & {
   measure: FactMeasure;
   categoryId: typeof CategoryId.Type | null;
   loanAccount: boolean;
-  current: bigint;
-  previous: bigint;
   modelCurrent: bigint;
-  purchases: number;
-  previousPurchases: number;
-};
-export type CategoryNode = {
-  id: typeof CategoryId.Type;
-  parentId: typeof CategoryId.Type | null;
-  name: string;
-  slug: string | null;
-  tree: CategoryTree;
-  position: number;
 };
 
 const sum = (rows: readonly FlowRow[], pick: (row: FlowRow) => bigint) =>
@@ -87,7 +81,6 @@ export function summarizeFlow({
     ...tops.map((node): FlowStream => ({
       kind: "category",
       key: `category:${node.id}`,
-      categoryId: node.id,
       slug: node.slug,
       label: node.name,
       ...figures("spending", { kind: "category", id: node.id }),
@@ -151,7 +144,8 @@ export function leftOver({
   return { currency: inflow.currency, minor: inflow.minor - outflow.minor };
 }
 
-// The subcategories whose spending changed most, largest absolute change first.
+// The categories whose own spending changed most, largest change first. A category with
+// subcategories opens only what sits on it.
 export function largestChanges({
   rows,
   categories,
@@ -163,43 +157,44 @@ export function largestChanges({
   currency: string;
   limit: number;
 }): PeriodChange[] {
-  const money = (minor: bigint) => ({ currency, minor });
-  const byCategory = new Map<string | null, FlowRow[]>();
+  const byCategory = new Map<typeof CategoryId.Type | null, FlowRow[]>();
   for (const row of rows.filter((item) => item.measure === "spending"))
     byCategory.set(row.categoryId, [...(byCategory.get(row.categoryId) ?? []), row]);
+  const magnitude = ({ change }: PeriodChange) =>
+    change.minor < 0n ? -change.minor : change.minor;
   return [...byCategory.entries()]
-    .map(([id, selected]) => {
+    .map(([id, selected]): PeriodChange => {
+      const figures = changeFigures(
+        {
+          current: sum(selected, (row) => row.current),
+          previous: sum(selected, (row) => row.previous),
+          purchaseCurrent: sum(selected, (row) => row.purchaseCurrent),
+          purchasePrevious: sum(selected, (row) => row.purchasePrevious),
+          purchases: selected.reduce((total, row) => total + row.purchases, 0),
+          previousPurchases: selected.reduce((total, row) => total + row.previousPurchases, 0),
+        },
+        currency,
+      );
       const node = categories.find((row) => row.id === id);
-      const parent = node?.parentId ? categories.find((row) => row.id === node.parentId) : null;
-      const current = sum(selected, (row) => row.current);
-      const previous = sum(selected, (row) => row.previous);
-      const purchases = selected.reduce((total, row) => total + row.purchases, 0);
-      const previousPurchases = selected.reduce((total, row) => total + row.previousPurchases, 0);
-      const parts = purchaseDecomposition({
-        n0: BigInt(previousPurchases),
-        n1: BigInt(purchases),
-        t0: previous,
-        t1: current,
-      });
+      if (!node)
+        return {
+          category: { kind: "uncategorised" },
+          label: uncategorisedLabel,
+          parentLabel: null,
+          ...figures,
+        };
+      const parent = node.parentId ? categories.find((row) => row.id === node.parentId) : null;
+      const unspecified = hasChildren(categories, node.id);
       return {
-        categoryId: node?.id ?? null,
-        label: node?.name ?? uncategorisedLabel,
+        category: { kind: unspecified ? "unspecified" : "category", id: node.id },
+        label: unspecified ? unspecifiedLabel(node.name) : node.name,
         parentLabel: parent?.name ?? null,
-        current: money(current),
-        previous: money(previous),
-        purchases,
-        previousPurchases,
-        purchasesPart: parts ? money(parts.purchases) : null,
-        averagePart: parts ? money(parts.average) : null,
-      } satisfies PeriodChange;
-    })
-    .filter((change) => change.current.minor !== change.previous.minor)
-    .toSorted((a, b) => {
-      const delta = (change: PeriodChange) => {
-        const value = change.current.minor - change.previous.minor;
-        return value < 0n ? -value : value;
+        ...figures,
       };
-      const difference = delta(b) - delta(a);
+    })
+    .filter((change) => change.change.minor !== 0n)
+    .toSorted((a, b) => {
+      const difference = magnitude(b) - magnitude(a);
       return difference > 0n ? 1 : difference < 0n ? -1 : a.label.localeCompare(b.label);
     })
     .slice(0, limit);

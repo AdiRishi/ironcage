@@ -4,6 +4,7 @@ import { Crypto, Effect, Schema } from "effect";
 import { expect } from "vitest";
 
 import { Flows } from "../../src/analysis/flows.ts";
+import { Spending } from "../../src/analysis/spending.ts";
 import { Corrections } from "../../src/events/corrections.ts";
 import { Events } from "../../src/events/service.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
@@ -80,14 +81,17 @@ test(
       Woolworths: [8450n, 0n],
       "John Citizen": [0n, 0n],
     });
-    const spending = yield* (yield* Flows).spending({
-      period: { kind: "fixed", ...period },
-      comparison: { kind: "previous" },
-      basis: "spending",
-      currency: "AUD",
-      categoryId: null,
-    });
-    for (const row of spending.counterparties.filter((item) => item.counterpartyId))
-      expect(amounts[row.label]?.[0]).toBe(row.current.minor);
+    const spending = yield* Spending;
+    for (const row of counterparties) {
+      const own = yield* spending.breakdown({
+        period: { kind: "fixed", ...period },
+        comparison: { kind: "previous" },
+        basis: "spending",
+        currency: "AUD",
+        category: { kind: "all" },
+        counterparty: { kind: "counterparty", id: row.id },
+      });
+      expect(own.figures.current).toEqual(row.outflow);
+    }
   }).pipe(Effect.provide(services)),
 );

@@ -8,6 +8,7 @@ import { AccountResolution } from "./accounts/resolution.ts";
 import { Accounts } from "./accounts/service.ts";
 import { Flows } from "./analysis/flows.ts";
 import { FactRebuilds } from "./analysis/rebuild.ts";
+import { Spending } from "./analysis/spending.ts";
 import { Commands } from "./database/commands.ts";
 import { Corrections } from "./events/corrections.ts";
 import { Events } from "./events/service.ts";
@@ -44,6 +45,7 @@ import { SourceFiles } from "./sources/service.ts";
 // come from this object, so a changed service signature reaches every caller.
 const operations = Effect.gen(function* () {
   const flows = yield* Flows;
+  const spending = yield* Spending;
   const factRebuilds = yield* FactRebuilds;
   const relationships = yield* Relationships;
   const interpretationReviews = yield* InterpretationReviews;
@@ -68,7 +70,7 @@ const operations = Effect.gen(function* () {
   return {
     getPeriodFlow: flows.period,
     getMonthlyFlow: flows.monthly,
-    getSpending: flows.spending,
+    getSpending: spending.breakdown,
     getFactsStatus: () => factRebuilds.status,
     rebuildFactsBatch: () => factRebuilds.rebuild,
     getEventRelationships: relationships.get,
@@ -164,6 +166,7 @@ export const api = Effect.fn("Api.initialize")(function* (
 ) {
   const services = Layer.mergeAll(
     Flows.layer,
+    Spending.layer,
     FactRebuilds.layer,
     Accounts.layer,
     AccountHistory.layer,

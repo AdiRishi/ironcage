@@ -1,82 +1,39 @@
 import { PgClient } from "@effect/sql-pg";
 import {
-  Account,
-  AccountId,
-  CalendarDate,
   CategoryId,
-  type CategoryScope,
-  CategoryTree,
-  CounterpartyId,
   FactMeasure,
   FinanceError,
   FlowInput,
-  Instant,
   MonthlyFlow,
   MonthlyFlowInput,
   PeriodFlow,
-  SpendingBreakdown,
-  SpendingInput,
   YearMonth,
   type Period,
 } from "@repo/contracts/finance";
 import {
   accountCoverage,
-  addDays,
   comparisonCoverage,
-  inCategoryScope,
   largestChanges,
-  mergePeriods,
-  monthsPeriod,
-  overlaps,
+  monthCoverage,
   shiftYearMonth,
   summarizeFlow,
-  trailingYear,
-  uncategorisedLabel,
-  unspecifiedLabel,
   yearMonthOf,
-  type CategoryNode,
   type FlowRow,
 } from "@repo/finance";
 import { Context, Effect, Layer, Schema } from "effect";
 
-import { accountFields, instant } from "../database/columns.ts";
 import { toFinanceError } from "../database/failures.ts";
 import { readTransaction } from "../database/transactions.ts";
-import { categoryFacts, factDate, factsIn, onLoanAccount } from "./fact-sql.ts";
+import { categoryNodes } from "./categories.ts";
+import { coverageSources } from "./coverage.ts";
+import { factsIn, onLoanAccount, periodSums, PeriodSums } from "./fact-sql.ts";
 import { readToday, resolvePeriods } from "./periods.ts";
 
 const Row = Schema.Struct({
   measure: FactMeasure,
   categoryId: Schema.NullOr(CategoryId),
   loanAccount: Schema.Boolean,
-  current: Schema.BigIntFromString,
-  previous: Schema.BigIntFromString,
-  modelCurrent: Schema.BigIntFromString,
-  purchases: Schema.Int,
-  previousPurchases: Schema.Int,
-});
-const Category = Schema.Struct({
-  id: CategoryId,
-  parentId: Schema.NullOr(CategoryId),
-  name: Schema.String,
-  slug: Schema.NullOr(Schema.String),
-  tree: CategoryTree,
-  position: Schema.Int,
-});
-const Coverage = Schema.Struct({
-  accountId: AccountId,
-  observedStart: Schema.NullOr(CalendarDate),
-  observedEnd: Schema.NullOr(CalendarDate),
-  openingOn: Schema.NullOr(CalendarDate),
-  closingOn: Schema.NullOr(CalendarDate),
-  reconciled: Schema.Boolean,
-});
-
-const categoryNodes = Effect.gen(function* () {
-  const sql = yield* PgClient.PgClient;
-  return yield* sql`SELECT id, parent_id AS "parentId", name, slug, tree, position FROM categories ORDER BY tree DESC, position, name`.pipe(
-    Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Category))),
-  );
+  ...PeriodSums.fields,
 });
 
 type PeriodQuery = {
@@ -98,11 +55,7 @@ const factRows = Effect.fn("factRows")(function* ({
   const current = factsIn(sql, basis, period);
   const previous = factsIn(sql, basis, comparison);
   return yield* sql`SELECT f.measure, f.category_id AS "categoryId", ${onLoanAccount(sql)} AS "loanAccount",
-      COALESCE(sum(f.amount_minor) FILTER (WHERE ${current}), 0)::text AS current,
-      COALESCE(sum(f.amount_minor) FILTER (WHERE ${previous}), 0)::text AS previous,
-      COALESCE(sum(f.amount_minor) FILTER (WHERE ${current} AND f.model_assigned), 0)::text AS "modelCurrent",
-      count(DISTINCT f.event_id) FILTER (WHERE ${current} AND f.purchase AND f.amount_minor > 0)::int AS purchases,
-      count(DISTINCT f.event_id) FILTER (WHERE ${previous} AND f.purchase AND f.amount_minor > 0)::int AS "previousPurchases"
+      ${periodSums(sql, current, previous)}
     FROM ledger_facts f
     WHERE f.currency = ${currency} AND ((${current}) OR (${previous}))
     GROUP BY 1, 2, 3`.pipe(Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Row))));
@@ -122,7 +75,6 @@ export class Flows extends Context.Service<
     readonly monthly: (
       input: typeof MonthlyFlowInput.Type,
     ) => Effect.Effect<typeof MonthlyFlow.Type, FinanceError>;
-    readonly spending: (input: SpendingInput) => Effect.Effect<SpendingBreakdown, FinanceError>;
   }
 >()("@repo/api/analysis/Flows") {
   static readonly layer = Layer.effect(
@@ -130,30 +82,6 @@ export class Flows extends Context.Service<
     Effect.gen(function* () {
       const sql = yield* PgClient.PgClient;
       const provide = Effect.provideService(PgClient.PgClient, sql);
-      const coverageSources = Effect.fn("Flows.coverageSources")(function* (currency: string) {
-        const accounts =
-          yield* sql`SELECT ${accountFields(sql)} FROM accounts WHERE currency = ${currency} ORDER BY label, id`.pipe(
-            Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Account))),
-          );
-        const sources =
-          yield* sql`SELECT account_id AS "accountId", observed_start::text AS "observedStart", observed_end::text AS "observedEnd",
-              opening_on::text AS "openingOn", closing_on::text AS "closingOn",
-              (reconciled AND opening_minor IS NOT NULL AND closing_minor IS NOT NULL) AS reconciled
-            FROM source_coverage c JOIN accounts a ON a.id = c.account_id WHERE a.currency = ${currency}`.pipe(
-            Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Coverage))),
-          );
-        const imports =
-          yield* sql`SELECT account_id AS "accountId", ${instant(sql, sql`max(created_at)`)} AS at FROM imports
-            WHERE status IN ('complete', 'needs_review') AND account_id IS NOT NULL GROUP BY account_id`.pipe(
-            Effect.flatMap(
-              Schema.decodeUnknownEffect(
-                Schema.Array(Schema.Struct({ accountId: AccountId, at: Instant })),
-              ),
-            ),
-          );
-        return { accounts, sources, imports };
-      });
-
       const period = Effect.fn("Flows.period")(
         (input: FlowInput) =>
           readTransaction(
@@ -214,31 +142,11 @@ export class Flows extends Context.Service<
               if (!first) return [];
               const sources = yield* coverageSources(currency);
               const tree = yield* categoryNodes;
-              const spans = new Map<string, Period>();
-              for (const account of sources.accounts) {
-                const observed = mergePeriods(
-                  sources.sources.flatMap((source) =>
-                    source.accountId === account.id && source.observedStart && source.observedEnd
-                      ? [
-                          {
-                            start: source.observedStart,
-                            endExclusive: addDays(source.observedEnd, 1),
-                          },
-                        ]
-                      : [],
-                  ),
-                );
-                const [first] = observed;
-                const last = observed.at(-1);
-                if (first && last)
-                  spans.set(account.id, { start: first.start, endExclusive: last.endExclusive });
-              }
               const months: YearMonth[] = [];
               const current = yearMonthOf(today);
               for (let month = first; month <= current; month = shiftYearMonth(month, 1))
                 months.push(month);
               return months.map((month) => {
-                const period = monthsPeriod(month);
                 const selected = totals.filter((row) => row.month === month);
                 const flow = summarizeFlow({
                   currency,
@@ -250,27 +158,19 @@ export class Flows extends Context.Service<
                     current: row.amount,
                     previous: 0n,
                     modelCurrent: 0n,
+                    purchaseCurrent: 0n,
+                    purchasePrevious: 0n,
                     purchases: 0,
                     previousPurchases: 0,
                   })),
                 });
-                // An account counts for a month when its records span it at all.
-                const coverage = accountCoverage(sources, period).filter((item) => {
-                  const span = spans.get(item.account.id);
-                  return span && overlaps(span, period);
-                });
-                const complete =
-                  coverage.length > 0 && coverage.every((item) => item.missing.length === 0);
-                const observed = coverage.some((item) =>
-                  item.observed.some((interval) => overlaps(interval, period)),
-                );
                 return {
                   month,
                   inflow: flow.totals.inflow,
                   outflow: flow.totals.outflow,
                   spending: flow.totals.spending,
-                  coverage: complete ? "complete" : observed ? "partial" : "missing",
-                } as const;
+                  coverage: monthCoverage(sources, month),
+                };
               });
             }),
           ),
@@ -278,156 +178,7 @@ export class Flows extends Context.Service<
         toFinanceError,
       );
 
-      const spending = Effect.fn("Flows.spending")(
-        (input: SpendingInput) =>
-          readTransaction(
-            sql,
-            Effect.gen(function* () {
-              const resolved = yield* resolvePeriods(input);
-              const tree = yield* categoryNodes;
-              const node = (id: string | null) => tree.find((row) => row.id === id);
-              const path: CategoryNode[] = [];
-              for (let at = node(input.categoryId); at; at = node(at.parentId)) path.unshift(at);
-              if (input.categoryId && path.length === 0)
-                return yield* new FinanceError({
-                  kind: "notFound",
-                  message: "Category not found.",
-                });
-              // Which row a category rolls up to at this level of the tree.
-              const parentId = input.categoryId;
-              const rowKey = (categoryId: string | null) => {
-                let at = node(categoryId);
-                while (at && at.parentId !== parentId) at = node(at.parentId);
-                return at?.id ?? (parentId && categoryId === parentId ? parentId : null);
-              };
-              const scope: CategoryScope = parentId
-                ? { kind: "category", id: parentId }
-                : { kind: "all" };
-              const parents = new Map(tree.map((row) => [row.id, row.parentId]));
-              const facts = (yield* factRows({ ...input, ...resolved })).filter(
-                (row) =>
-                  row.measure === "spending" && inCategoryScope(scope, row.categoryId, parents),
-              );
-              const series = yield* Effect.fromResult(trailingYear(resolved.period));
-              const months = Array.from({ length: 12 }, (_, index) =>
-                shiftYearMonth(yearMonthOf(series.start), index),
-              );
-              const on = factDate(sql, input.basis);
-              const MonthRow = Schema.Struct({
-                categoryId: Schema.NullOr(CategoryId),
-                month: YearMonth,
-                amount: Schema.BigIntFromString,
-              });
-              const monthly =
-                yield* sql`SELECT f.category_id AS "categoryId", to_char(${on}, 'YYYY-MM') AS month, sum(f.amount_minor)::text AS amount
-                FROM ledger_facts f WHERE f.currency = ${input.currency} AND f.measure = 'spending'
-                  AND ${factsIn(sql, input.basis, series)}
-                GROUP BY 1, 2`.pipe(
-                  Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(MonthRow))),
-                );
-              const money = (minor: bigint) => ({ currency: input.currency, minor });
-              const groups = new Map<string | null, typeof facts>();
-              for (const row of facts) {
-                const key = rowKey(row.categoryId);
-                groups.set(key, [...(groups.get(key) ?? []), row]);
-              }
-              const total = (selected: typeof facts, pick: (row: FlowRow) => bigint) =>
-                selected.reduce((sum, row) => sum + pick(row), 0n);
-              const breakdownRows = [...groups.entries()]
-                .map(([key, selected]) => {
-                  const category = node(key);
-                  return {
-                    categoryId: category?.id ?? null,
-                    slug: category?.slug ?? null,
-                    label: !category
-                      ? uncategorisedLabel
-                      : category.id === parentId
-                        ? unspecifiedLabel(category.name)
-                        : category.name,
-                    current: money(total(selected, (row) => row.current)),
-                    previous: money(total(selected, (row) => row.previous)),
-                    purchases: selected.reduce((sum, row) => sum + row.purchases, 0),
-                    previousPurchases: selected.reduce(
-                      (sum, row) => sum + row.previousPurchases,
-                      0,
-                    ),
-                    modelAmount: money(total(selected, (row) => row.modelCurrent)),
-                    months: months.map((month) =>
-                      money(
-                        monthly
-                          .filter(
-                            (row) =>
-                              row.month === month &&
-                              inCategoryScope(scope, row.categoryId, parents) &&
-                              rowKey(row.categoryId) === key,
-                          )
-                          .reduce((sum, row) => sum + row.amount, 0n),
-                      ),
-                    ),
-                  };
-                })
-                .filter((row) => row.current.minor !== 0n || row.previous.minor !== 0n)
-                .toSorted((a, b) =>
-                  b.current.minor > a.current.minor
-                    ? 1
-                    : b.current.minor < a.current.minor
-                      ? -1
-                      : 0,
-                );
-              const current = factsIn(sql, input.basis, resolved.period);
-              const previous = factsIn(sql, input.basis, resolved.comparison);
-              const Counterparty = Schema.Struct({
-                counterpartyId: Schema.NullOr(CounterpartyId),
-                label: Schema.NullOr(Schema.String),
-                current: Schema.BigIntFromString,
-                previous: Schema.BigIntFromString,
-                purchases: Schema.Int,
-                previousPurchases: Schema.Int,
-              });
-              const counterparties =
-                yield* sql`SELECT f.counterparty_id AS "counterpartyId", c.name AS label,
-                  COALESCE(sum(f.amount_minor) FILTER (WHERE ${current}), 0)::text AS current,
-                  COALESCE(sum(f.amount_minor) FILTER (WHERE ${previous}), 0)::text AS previous,
-                  count(DISTINCT f.event_id) FILTER (WHERE ${current} AND f.purchase AND f.amount_minor > 0)::int AS purchases,
-                  count(DISTINCT f.event_id) FILTER (WHERE ${previous} AND f.purchase AND f.amount_minor > 0)::int AS "previousPurchases"
-                FROM ledger_facts f LEFT JOIN counterparties c ON c.id = f.counterparty_id
-                WHERE f.currency = ${input.currency} AND f.measure = 'spending' AND ${categoryFacts(sql, scope)} AND ((${current}) OR (${previous}))
-                GROUP BY f.counterparty_id, c.name
-                ORDER BY COALESCE(sum(f.amount_minor) FILTER (WHERE ${current}), 0) DESC LIMIT 25`.pipe(
-                  Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Counterparty))),
-                );
-              const sources = yield* coverageSources(input.currency);
-              return {
-                ...resolved,
-                basis: input.basis,
-                currency: input.currency,
-                path: path.map((row) => ({ id: row.id, label: row.name, slug: row.slug })),
-                total: money(total(facts, (row) => row.current)),
-                previousTotal: money(total(facts, (row) => row.previous)),
-                modelAmount: money(total(facts, (row) => row.modelCurrent)),
-                months,
-                rows: breakdownRows,
-                counterparties: counterparties.map((row) => ({
-                  counterpartyId: row.counterpartyId,
-                  label: row.label ?? "Unidentified",
-                  current: money(row.current),
-                  previous: money(row.previous),
-                  purchases: row.purchases,
-                  previousPurchases: row.previousPurchases,
-                })),
-                comparisonCoverage: comparisonCoverage(
-                  accountCoverage(sources, resolved.period),
-                  resolved.period,
-                  resolved.comparison,
-                ),
-              } satisfies SpendingBreakdown;
-            }),
-          ),
-        provide,
-        toFinanceError,
-      );
-
-      return Flows.of({ period, monthly, spending });
+      return Flows.of({ period, monthly });
     }),
   );
 }

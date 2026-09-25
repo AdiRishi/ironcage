@@ -4,12 +4,13 @@ import { linkOptions } from "@tanstack/react-router";
 
 import { countedSearch } from "@/features/ledger/search";
 import { categoryColor, categoryRank } from "@/lib/category-colors";
+import { scopeSearch } from "@/lib/scope";
 
-// A spending category opens Spending at that category. Every other stream opens the
-// records it counts.
+// A spending category opens Spending at its scope. Every other stream opens the records
+// it counts.
 export function streamLink(stream: FlowStream) {
   return stream.kind === "category"
-    ? linkOptions({ to: "/spending", search: { category: stream.categoryId } })
+    ? linkOptions({ to: "/spending", search: scopeSearch(stream.scope) })
     : linkOptions({ to: "/ledger", search: countedSearch(stream.scope) });
 }
 

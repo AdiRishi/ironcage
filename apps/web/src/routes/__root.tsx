@@ -82,7 +82,13 @@ function Layout() {
       </a>
       <TopBar questionCount={questions.length} />
       <Recalculating />
-      {showStrip && months.length > 0 && <PeriodStrip months={months} period={period} />}
+      {showStrip && months.length > 0 && (
+        <PeriodStrip
+          months={months}
+          period={period}
+          measure={pathname.startsWith("/spending") ? "spending" : "outflow"}
+        />
+      )}
       <main id="main" className="mx-auto max-w-[1280px] px-5 py-8 md:px-8 md:py-10">
         <Outlet />
       </main>

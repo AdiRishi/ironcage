@@ -6,7 +6,8 @@ import type {
   Period,
 } from "@repo/contracts/finance";
 import { factDirection, type MeasurePart } from "@repo/finance";
-import type { SqlClient } from "effect/unstable/sql";
+import { Schema } from "effect";
+import type { SqlClient, Statement } from "effect/unstable/sql";
 
 // Predicates over `ledger_facts f`. Reads that sum or list facts build their selections
 // from these, so a number and the records behind it select the same facts.
@@ -18,6 +19,30 @@ export const factsIn = (sql: SqlClient.SqlClient, basis: typeof DateBasis.Type, 
   const on = factDate(sql, basis);
   return sql`${on} >= ${period.start}::date AND ${on} < ${period.endExclusive}::date`;
 };
+
+// The sums `changeFigures` reads, over the facts in `current` and in `previous`, and the
+// part of the current amount the model placed. A purchase counts once in a group, however
+// its allocations divide it.
+export const periodSums = (
+  sql: SqlClient.SqlClient,
+  current: Statement.Fragment,
+  previous: Statement.Fragment,
+) => sql`COALESCE(sum(f.amount_minor) FILTER (WHERE ${current}), 0)::text AS current,
+  COALESCE(sum(f.amount_minor) FILTER (WHERE ${previous}), 0)::text AS previous,
+  COALESCE(sum(f.amount_minor) FILTER (WHERE ${current} AND f.model_assigned), 0)::text AS "modelCurrent",
+  COALESCE(sum(f.amount_minor) FILTER (WHERE ${current} AND f.purchase), 0)::text AS "purchaseCurrent",
+  COALESCE(sum(f.amount_minor) FILTER (WHERE ${previous} AND f.purchase), 0)::text AS "purchasePrevious",
+  count(DISTINCT f.event_id) FILTER (WHERE ${current} AND f.purchase AND f.amount_minor > 0)::int AS purchases,
+  count(DISTINCT f.event_id) FILTER (WHERE ${previous} AND f.purchase AND f.amount_minor > 0)::int AS "previousPurchases"`;
+export const PeriodSums = Schema.Struct({
+  current: Schema.BigIntFromString,
+  previous: Schema.BigIntFromString,
+  modelCurrent: Schema.BigIntFromString,
+  purchaseCurrent: Schema.BigIntFromString,
+  purchasePrevious: Schema.BigIntFromString,
+  purchases: Schema.Int,
+  previousPurchases: Schema.Int,
+});
 
 // Loan principal takes off the interest and fees charged on loan accounts.
 export const onLoanAccount = (sql: SqlClient.SqlClient) =>

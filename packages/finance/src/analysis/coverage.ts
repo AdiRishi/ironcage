@@ -3,27 +3,30 @@ import type {
   AccountCoverage,
   CalendarDate,
   ComparisonCoverage,
+  CoverageState,
   Period,
+  YearMonth,
 } from "@repo/contracts/finance";
 
 import { addDays } from "../dates.ts";
-import { missingPeriods, mergePeriods, overlaps } from "./periods.ts";
+import { missingPeriods, mergePeriods, monthsPeriod, overlaps } from "./periods.ts";
 
-export function accountCoverage(
-  snapshot: {
-    accounts: readonly Account[];
-    sources: readonly {
-      accountId: Account["id"];
-      observedStart: CalendarDate | null;
-      observedEnd: CalendarDate | null;
-      openingOn: CalendarDate | null;
-      closingOn: CalendarDate | null;
-      reconciled: boolean;
-    }[];
-    imports: readonly { accountId: Account["id"]; at: string }[];
-  },
-  period: Period,
-): AccountCoverage[] {
+// The accounts in one currency, what each of their source files covers, and when each
+// was last imported.
+export type CoverageSnapshot = {
+  accounts: readonly Account[];
+  sources: readonly {
+    accountId: Account["id"];
+    observedStart: CalendarDate | null;
+    observedEnd: CalendarDate | null;
+    openingOn: CalendarDate | null;
+    closingOn: CalendarDate | null;
+    reconciled: boolean;
+  }[];
+  imports: readonly { accountId: Account["id"]; at: string }[];
+};
+
+export function accountCoverage(snapshot: CoverageSnapshot, period: Period): AccountCoverage[] {
   return snapshot.accounts.map((account) => {
     const sources = snapshot.sources.filter((source) => source.accountId === account.id);
     const observed = sources.flatMap((source) =>
@@ -79,4 +82,23 @@ export function comparisonCoverage(
         : "complete",
     gaps,
   };
+}
+
+// An account counts for a month when its records span it at all. The month is complete
+// when every such account has reconciled statements across all of it, partial when one
+// of them has records in it, and missing otherwise, as every month before the first
+// record is.
+export function monthCoverage(snapshot: CoverageSnapshot, month: YearMonth): CoverageState {
+  const period = monthsPeriod(month);
+  const counted = accountCoverage(snapshot, period).filter(({ observed }) => {
+    const [first] = observed;
+    const last = observed.at(-1);
+    return (
+      first && last && overlaps({ start: first.start, endExclusive: last.endExclusive }, period)
+    );
+  });
+  if (counted.length > 0 && counted.every((item) => item.missing.length === 0)) return "complete";
+  return counted.some((item) => item.observed.some((interval) => overlaps(interval, period)))
+    ? "partial"
+    : "missing";
 }

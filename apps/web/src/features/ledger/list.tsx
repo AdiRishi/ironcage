@@ -115,7 +115,7 @@ function LedgerLine({
     <Link
       to="/ledger/$id"
       params={{ id: row.id }}
-      className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-0.5 rounded-sm px-1 py-2.5 hover:bg-sheet sm:grid-cols-[minmax(0,1fr)_14rem_9rem_auto]"
+      className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-0.5 rounded-sm px-1 py-2.5 hover:bg-sheet sm:grid-cols-[minmax(0,1fr)_14rem_9rem_8rem]"
     >
       <span className="min-w-0">
         <span className="block truncate">{row.counterpartyName ?? row.description}</span>

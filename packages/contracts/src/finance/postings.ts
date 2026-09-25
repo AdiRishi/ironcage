@@ -1,6 +1,13 @@
 import { Schema, Struct } from "effect";
 
-import { CountedScope, DateBasis, PartSign, Period, PeriodSelection } from "./analysis.ts";
+import {
+  CountedScope,
+  DateBasis,
+  PartSign,
+  Period,
+  PeriodSelection,
+  ScopeCrumb,
+} from "./analysis.ts";
 import { Candidate, Locator } from "./imports.ts";
 import {
   CategoryId,
@@ -123,10 +130,12 @@ export const CountedPart = Schema.Struct({
   amount: Money,
   postings: Schema.Int,
 });
-// `total` equals the number the scope was opened from.
+// `total` equals the number the scope was opened from. `path` holds the crumbs that
+// narrow the measure to the scope, and `label` names the last of them, or the measure.
 export const CountedLedgerPage = Schema.Struct({
   scope: CountedScope,
   label: Schema.String,
+  path: Schema.Array(ScopeCrumb),
   period: Period,
   basis: DateBasis,
   currency: Currency,

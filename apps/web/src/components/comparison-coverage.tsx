@@ -1,7 +1,12 @@
-import type { ComparisonCoverage, Period } from "@repo/contracts/finance";
-import { periodLabel } from "@repo/finance";
+import type { AccountCoverage, ComparisonCoverage, Period } from "@repo/contracts/finance";
+import { addDays, periodLabel } from "@repo/finance";
 
 const list = new Intl.ListFormat("en-AU", { type: "conjunction" });
+const dayMonth = new Intl.DateTimeFormat("en-AU", {
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+});
 
 // A line about records that are missing, marked with the outflow ring.
 export function RecordsNote({ children }: { children: React.ReactNode }) {
@@ -39,5 +44,30 @@ export function ComparisonCoverageNote({
         </RecordsNote>
       ))}
     </>
+  );
+}
+
+// Says when the last records in the period end before it does, so its totals are not
+// read as whole.
+export function IncompleteRecordsNote({
+  coverage,
+  period,
+  label,
+}: {
+  coverage: readonly AccountCoverage[];
+  period: Period;
+  label: string;
+}) {
+  const end = coverage
+    .flatMap((item) => item.observed.map((interval) => interval.endExclusive))
+    .filter((date) => date > period.start)
+    .toSorted()
+    .at(-1);
+  if (!end || end >= period.endExclusive) return null;
+  return (
+    <RecordsNote>
+      Your records stop on {dayMonth.format(Date.parse(addDays(end, -1)))}, so {label} is
+      incomplete. Upload later statements to finish it.
+    </RecordsNote>
   );
 }
