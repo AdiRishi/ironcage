@@ -25,7 +25,7 @@ test(
       migration,
       tables: yield* dumpTables,
     });
-    writeFileSync(populatedFixture, `${JSON.stringify(fixture, null, 1)}\n`);
+    writeFileSync(populatedFixture, `${JSON.stringify(fixture, null, 2)}\n`);
   }).pipe(Effect.provide(services)),
   120_000,
 );
