@@ -112,10 +112,13 @@ export function TakeDescriptor({ counterparty }: { counterparty: Counterparty })
           isItemEqualToValue={(item, other) => item.aliasKey === other.aliasKey}
           disabled={change.pending || change.uncertain}
         >
+          {/* The registry's chevron is a nameless button in the tab order. Typing, the arrow
+              keys, and a click on the input open the list without it. */}
           <ComboboxInput
             id={`${id}-search`}
             placeholder="Such as WOOLWORTHS or 5678"
             className="w-full"
+            showTrigger={false}
           />
           <ComboboxContent>
             <ComboboxEmpty>

@@ -43,10 +43,18 @@ export function NoRecords({
         )}
       </EmptyHeader>
       <EmptyContent>
-        <Link to="/sources" className={buttonVariants()}>
-          Upload files
-        </Link>
+        <UploadFilesLink />
       </EmptyContent>
     </Empty>
+  );
+}
+
+// The way to Sources wherever records are missing. It is a link, so assistive technology
+// announces where it goes, styled as the action it leads to.
+export function UploadFilesLink() {
+  return (
+    <Link to="/sources" className={buttonVariants()}>
+      Upload files
+    </Link>
   );
 }

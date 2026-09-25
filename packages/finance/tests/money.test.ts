@@ -37,3 +37,11 @@ it("formats currency for reading, with cents or rounded to whole units", () => {
     "$90,071,992,547,410",
   );
 });
+
+it("keeps the cents of an amount under a dollar when rounding to whole dollars", () => {
+  expect(formatCurrency({ currency: "AUD", minor: 40n }, { cents: false })).toBe("$0.40");
+  expect(formatCurrency({ currency: "AUD", minor: -99n }, { cents: false })).toBe("−$0.99");
+  expect(formatCurrency({ currency: "AUD", minor: 100n }, { cents: false })).toBe("$1");
+  expect(formatCurrency({ currency: "AUD", minor: 150n }, { cents: false })).toBe("$2");
+  expect(formatCurrency({ currency: "AUD", minor: 0n }, { cents: false })).toBe("$0");
+});

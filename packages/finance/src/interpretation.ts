@@ -20,6 +20,12 @@ export type OwnedAccount = {
   suffix: string | null;
 };
 
+// The own-account suffix that names an account: the last four digits of its number.
+export function accountSuffix(accountNumber: string) {
+  const digits = accountNumber.replaceAll(/\D/g, "");
+  return digits.length >= 4 ? digits.slice(-4) : null;
+}
+
 export type BankReading = {
   role: FinancialRole | null;
   categorySlug: string | null;

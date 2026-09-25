@@ -1,5 +1,5 @@
 import { ImportId, QuestionFilter } from "@repo/contracts/finance";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Schema } from "effect";
 
@@ -7,14 +7,16 @@ import { accountsQueryOptions } from "@/features/accounts/queries";
 import { CategoryProposalsSection } from "@/features/enrichment/proposals";
 import { categoryProposalsQuery } from "@/features/enrichment/queries";
 import { referenceDataQuery } from "@/features/events/queries";
+import { monthlyFlowQuery } from "@/features/flow/queries";
 import { QuestionsPage } from "@/features/questions/page";
 import { questionSummaryQuery, questionsQuery } from "@/features/questions/queries";
 import { interpretationReviewsQuery } from "@/features/relationships/queries";
 import { RelationshipProposals } from "@/features/relationships/reviews";
 import { SourceReviews } from "@/features/review/page";
-import { reviewQueryOptions } from "@/features/review/queries";
+import { openReviewsQuery } from "@/features/review/queries";
 import { settingsQueryOptions } from "@/features/settings/queries";
-import { periodSelection, resolvePeriodKey } from "@/lib/period";
+import { addressNotFound } from "@/lib/address";
+import { hasImported, periodSelection, resolvePeriodKey } from "@/lib/period";
 
 const Search = Schema.Struct({
   kind: Schema.optional(QuestionFilter),
@@ -26,6 +28,7 @@ const Search = Schema.Struct({
 
 export const Route = createFileRoute("/questions")({
   validateSearch: Schema.toStandardSchemaV1(Search),
+  onError: addressNotFound,
   loaderDeps: ({ search }) => ({
     kind: search.kind,
     importId: search.importId,
@@ -37,6 +40,7 @@ export const Route = createFileRoute("/questions")({
     const period = deps.scope ? resolvePeriodKey(deps.period, settings.timezone) : null;
     const selection = period && periodSelection(period);
     await Promise.all([
+      context.queryClient.ensureQueryData(monthlyFlowQuery(settings.reportingCurrency)),
       context.queryClient.ensureQueryData(
         questionSummaryQuery({ currency: settings.reportingCurrency, period: selection }),
       ),
@@ -50,11 +54,7 @@ export const Route = createFileRoute("/questions")({
       context.queryClient.ensureQueryData(referenceDataQuery()),
       context.queryClient.ensureQueryData(categoryProposalsQuery()),
       context.queryClient.ensureQueryData(accountsQueryOptions()),
-      context.queryClient.ensureInfiniteQueryData(
-        reviewQueryOptions(
-          deps.importId ? { importId: deps.importId, open: true } : { open: true },
-        ),
-      ),
+      context.queryClient.ensureInfiniteQueryData(openReviewsQuery(deps.importId)),
       context.queryClient.ensureInfiniteQueryData(interpretationReviewsQuery()),
     ]);
   },
@@ -65,6 +65,7 @@ function Questions() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const { data: settings } = useSuspenseQuery(settingsQueryOptions());
+  const { data: months } = useSuspenseQuery(monthlyFlowQuery(settings.reportingCurrency));
   const period = search.scope ? resolvePeriodKey(search.period, settings.timezone) : null;
   const selection = period && periodSelection(period);
   const { data: summary } = useSuspenseQuery(
@@ -72,6 +73,8 @@ function Questions() {
   );
   const { data: references } = useSuspenseQuery(referenceDataQuery());
   const { data: proposals } = useSuspenseQuery(categoryProposalsQuery());
+  const { data: reviews } = useSuspenseInfiniteQuery(openReviewsQuery(search.importId));
+  const { data: movements } = useSuspenseInfiniteQuery(interpretationReviewsQuery());
   return (
     <QuestionsPage
       input={{
@@ -80,6 +83,12 @@ function Questions() {
         period: selection,
       }}
       summary={summary}
+      imported={hasImported(months)}
+      waiting={
+        proposals.length > 0 ||
+        reviews.pages.some((page) => page.rows.length > 0) ||
+        movements.pages.some((page) => page.rows.length > 0)
+      }
       periodLabel={period?.label ?? null}
       references={references}
       onFilter={(kind) => {

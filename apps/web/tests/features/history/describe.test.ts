@@ -1,18 +1,29 @@
 import {
+  AccountId,
   type AliasRecord,
+  AllocationId,
   CategoryId,
+  CommandId,
+  type Correction,
+  CorrectionId,
   type CounterpartyChangeEntry,
   CounterpartyChangeId,
   CounterpartyId,
   type CounterpartyImages,
   type CounterpartyRecord,
   EventId,
+  type FinancialEvent,
   Instant,
+  PostingId,
   type ReferenceData,
 } from "@repo/contracts/finance";
 import { expect, test } from "vitest";
 
-import { describeCounterpartyChange, scopeLabel } from "@/features/history/describe";
+import {
+  describeCorrection,
+  describeCounterpartyChange,
+  scopeLabel,
+} from "@/features/history/describe";
 
 const rent = CategoryId.make("00000000-0000-4000-8000-0000000000f1");
 const categories: (typeof ReferenceData.Type)["categories"] = [
@@ -70,10 +81,11 @@ const none = {
 } satisfies CounterpartyImages;
 const change = (
   fields: Pick<typeof CounterpartyChangeEntry.Type, "kind" | "images" | "subjects"> &
-    Partial<Pick<typeof CounterpartyChangeEntry.Type, "undoes">>,
+    Partial<Pick<typeof CounterpartyChangeEntry.Type, "undoes" | "descriptors">>,
 ): typeof CounterpartyChangeEntry.Type => ({
   id: CounterpartyChangeId.make("00000000-0000-4000-8000-0000000000c1"),
   undoes: null,
+  descriptors: [],
   eventCount: 2,
   createdAt: Instant.make("2026-09-25T06:30:00.000Z"),
   undoable: true,
@@ -122,23 +134,57 @@ test("a merge names the counterparty it removed and the one it kept, and its und
   ).toEqual({ lines: ["Undid a merge"], scope: "Every J Smith transaction" });
 });
 
-test("a descriptor move names the counterparty it left, unless that one only proposed it", () => {
+test("a descriptor move names the descriptor as the bank printed it, and the counterparty it left unless that one only proposed it", () => {
   const moved = (from: typeof AliasRecord.Type) =>
     described(
       change({
         kind: "moveAlias",
         images: { ...none, aliases: [{ before: from, after: metro(woolworths, "applied") }] },
         subjects: named(coles, woolworths),
+        descriptors: [
+          {
+            aliasKey: "WOOLWORTHS METRO SURRY HILLS",
+            text: "WOOLWORTHS METRO 77 SURRY HILLS",
+            otherTexts: 0,
+          },
+        ],
       }),
     );
   expect(moved(metro(coles, "applied"))).toEqual({
-    lines: ["Moved WOOLWORTHS METRO SURRY HILLS from Coles to Woolworths"],
-    scope: "Every transaction the bank writes as WOOLWORTHS METRO SURRY HILLS",
+    lines: ["Moved WOOLWORTHS METRO 77 SURRY HILLS from Coles to Woolworths"],
+    scope: "Every transaction the bank writes as WOOLWORTHS METRO 77 SURRY HILLS",
   });
   expect(moved(metro(coles, "proposed"))).toEqual({
-    lines: ["WOOLWORTHS METRO SURRY HILLS now resolves to Woolworths"],
-    scope: "Every transaction the bank writes as WOOLWORTHS METRO SURRY HILLS",
+    lines: ["WOOLWORTHS METRO 77 SURRY HILLS now resolves to Woolworths"],
+    scope: "Every transaction the bank writes as WOOLWORTHS METRO 77 SURRY HILLS",
   });
+});
+
+test("a descriptor the bank prints several ways reaches every one of them", () => {
+  const printedAs = (otherTexts: number) =>
+    described(
+      change({
+        kind: "moveAlias",
+        images: {
+          ...none,
+          aliases: [{ before: metro(coles, "applied"), after: metro(woolworths, "applied") }],
+        },
+        subjects: named(coles, woolworths),
+        descriptors: [
+          {
+            aliasKey: "WOOLWORTHS METRO SURRY HILLS",
+            text: "WOOLWORTHS METRO 77 SURRY HILLS",
+            otherTexts,
+          },
+        ],
+      }),
+    ).scope;
+  expect(printedAs(1)).toBe(
+    "Every transaction the bank writes as WOOLWORTHS METRO 77 SURRY HILLS or 1 similar text",
+  );
+  expect(printedAs(2)).toBe(
+    "Every transaction the bank writes as WOOLWORTHS METRO 77 SURRY HILLS or 2 similar texts",
+  );
 });
 
 test("a descriptor move that only returns a transaction you moved by hand says so and reaches one transaction", () => {
@@ -194,4 +240,75 @@ test("a reference default names the reference, its role, and its category", () =
     lines: ["Payments marked rent set to Purchase, Rent"],
     scope: "Every Jane Smith transaction marked rent",
   });
+});
+
+// A $12.50 purchase you moved from Coles to Surry Hills Newsagency by hand.
+const purchase = (
+  counterparty: typeof CounterpartyRecord.Type | null,
+  counterpartySource: "user" | "alias" | null,
+): FinancialEvent => ({
+  id: EventId.make("00000000-0000-4000-8000-0000000000e1"),
+  kind: "purchase",
+  roleSource: "counterparty",
+  counterpartyId: counterparty?.id ?? null,
+  counterpartySource,
+  magnitude: { currency: "AUD", minor: 1250n },
+  primaryPostingId: PostingId.make("00000000-0000-4000-8000-0000000000a1"),
+  reportingAccountId: AccountId.make("00000000-0000-4000-8000-0000000000b1"),
+  purchaseOn: null,
+  active: true,
+  version: 2,
+  allocations: [
+    {
+      id: AllocationId.make("00000000-0000-4000-8000-0000000000d1"),
+      role: "purchase",
+      amount: { currency: "AUD", minor: 1250n },
+      categoryId: null,
+      categorySource: null,
+      nonPersonal: false,
+      tagIds: [],
+      personalEventIds: [],
+    },
+  ],
+  postings: [],
+});
+const counterpartyCorrection = (
+  prior: FinancialEvent,
+  accepted: FinancialEvent,
+  action: "correct" | "undo",
+): typeof Correction.Type => ({
+  id: CorrectionId.make("00000000-0000-4000-8000-0000000000c9"),
+  eventId: prior.id,
+  commandId: CommandId.make("00000000-0000-4000-8000-0000000000ca"),
+  prior,
+  accepted,
+  action,
+  change: "counterparty",
+  createdAt: Instant.make("2026-09-25T06:30:00.000Z"),
+});
+
+test("a transaction returned to the bank's description says so, naming the counterparty it names if any", () => {
+  const moved = purchase(newsagency, "user");
+  const names = named(coles, newsagency);
+  expect(
+    describeCorrection(
+      counterpartyCorrection(moved, purchase(coles, "alias"), "undo"),
+      names,
+      categories,
+    ),
+  ).toEqual(["Undid an earlier change", "Now follows the bank's description, which names Coles"]);
+  expect(
+    describeCorrection(
+      counterpartyCorrection(moved, purchase(null, null), "correct"),
+      names,
+      categories,
+    ),
+  ).toEqual(["Now follows the bank's description"]);
+  expect(
+    describeCorrection(
+      counterpartyCorrection(purchase(null, null), moved, "correct"),
+      names,
+      categories,
+    ),
+  ).toEqual(["Counterparty set to Surry Hills Newsagency"]);
 });

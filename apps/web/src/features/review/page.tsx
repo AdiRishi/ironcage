@@ -4,14 +4,12 @@ import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
 
-import { reviewQueryOptions } from "./queries";
+import { openReviewsQuery } from "./queries";
 import { ReviewCard } from "./review-card";
 
 // Rows from imported files that could not be recorded without a decision.
 export function SourceReviews({ importId }: { importId: typeof ImportId.Type | undefined }) {
-  const history = useSuspenseInfiniteQuery(
-    reviewQueryOptions(importId ? { importId, open: true } : { open: true }),
-  );
+  const history = useSuspenseInfiniteQuery(openReviewsQuery(importId));
   const reviews = history.data.pages.flatMap((page) => page.rows);
   if (reviews.length === 0 && !importId) return null;
   return (

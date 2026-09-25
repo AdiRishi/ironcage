@@ -103,10 +103,8 @@ test(
     const credit = find(rows, "Payment received");
     const reviews = yield* InterpretationReviews;
     expect(
-      (yield* reviews.list({})).rows.some(
-        (row) => row.eventIds.includes(debit.id) && row.eventIds.includes(credit.id),
-      ),
-    ).toBe(true);
+      (yield* reviews.list({})).rows.map((row) => row.events.map((event) => event.id).sort()),
+    ).toContainEqual([debit.id, credit.id].sort());
     const preview = yield* apply({
       kind: "linkMovement",
       eventId: debit.id,

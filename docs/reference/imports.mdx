@@ -134,7 +134,7 @@ A file with every required value decoded but anchors that do not reconcile publi
 ## Publication transaction
 
 1. Open the write transaction. Derive the publication command ID from the import ID, the parser version, and a SHA-256 hash of the whole encoded `PublishImport` input, and look up its receipt. A repeat returns the stored summary whatever the import's status is now. Otherwise load the import. A new parser version may dispute an accepted source row; it must go through matching and review.
-2. Resolve the account: from the OFX envelope, from the upload's `accountId`, or by creating an `account` review item when neither exists, or when the envelope matches no account and an account without an account number could be the file's. A candidate amount in a currency other than the account's fails publication with `invalid`, which rolls the transaction back and marks the import `failed`.
+2. Resolve the account: from the OFX envelope, from the upload's `accountId`, or by creating an `account` review item when neither exists, or when the envelope matches no account and an account without an account number could be the file's. Giving an account its number here, new or chosen, also reinterprets the transfers that name its last four digits, so they become [transfers between your accounts](/reference/interpretation#roles). A candidate amount in a currency other than the account's fails publication with `invalid`, which rolls the transaction back and marks the import `failed`.
 3. Upsert observations by `(source_file_id, locator_key)`.
 4. Run matching. Collect new postings, links, and review items.
 5. Reconcile and compute the coverage row.

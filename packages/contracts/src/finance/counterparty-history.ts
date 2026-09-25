@@ -68,14 +68,20 @@ export const CounterpartyImages = Schema.Struct({
 export type CounterpartyImages = typeof CounterpartyImages.Type;
 
 // `subjects` are the counterparties the change wrote, named as they were then, and
-// `eventCount` the transactions whose meaning it changed. A change can be undone while
-// every record it wrote is still as it left it.
+// `eventCount` the transactions whose meaning it changed. `descriptors` gives the text
+// the bank printed most often for each descriptor the change wrote, as the descriptor
+// list shows it, and how many other texts it printed for the same descriptor, for those
+// it has printed. A change can be undone while every record it wrote is still as it left
+// it.
 export const CounterpartyChangeEntry = Schema.Struct({
   id: CounterpartyChangeId,
   kind: CounterpartyChangeKind,
   undoes: Schema.NullOr(Schema.Struct({ id: CounterpartyChangeId, kind: CounterpartyChangeKind })),
   images: CounterpartyImages,
   subjects: Schema.Array(Schema.Struct({ id: CounterpartyId, name: Schema.String })),
+  descriptors: Schema.Array(
+    Schema.Struct({ aliasKey: Schema.String, text: Schema.String, otherTexts: Schema.Int }),
+  ),
   eventCount: Schema.Int,
   createdAt: Instant,
   undoable: Schema.Boolean,

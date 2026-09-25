@@ -59,11 +59,12 @@ export function divideRounded(numerator: bigint, denominator: bigint) {
 }
 
 // "$6,380" or "$6,380.45", with a real minus sign. Whole amounts round half away from
-// zero.
-export function formatCurrency({ minor, currency }: Money, { cents = true } = {}) {
+// zero. An amount under one unit keeps its cents, so 40 cents never reads as "$0".
+export function formatCurrency({ minor, currency }: Money, { cents: withCents = true } = {}) {
   const exponent = currencyExponent(currency);
   const scale = 10n ** BigInt(exponent);
   const absolute = minor < 0n ? -minor : minor;
+  const cents = withCents || (absolute > 0n && absolute < scale);
   const whole = cents ? absolute / scale : divideRounded(absolute, scale);
   const symbol = new Intl.NumberFormat("en-AU", {
     style: "currency",

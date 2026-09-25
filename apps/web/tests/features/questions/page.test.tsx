@@ -14,6 +14,7 @@ import {
   Instant,
   PostingId,
   type Question,
+  type QuestionFilter,
   QuestionId,
   type ReferenceData,
   RuleId,
@@ -58,6 +59,7 @@ import {
 import { listQuestions, summarizeQuestions } from "@/features/questions/functions";
 import { QuestionsPage } from "@/features/questions/page";
 import { questionSummaryQuery } from "@/features/questions/queries";
+import { getModelUsage, getRetention, getSettings } from "@/features/settings/functions";
 import { AppRequestError } from "@/lib/app-error";
 import { createQueryClient } from "@/lib/query-client";
 
@@ -90,6 +92,12 @@ vi.mock("../../../src/features/events/functions", () => ({
   previewUndoCorrection: vi.fn<typeof previewUndoCorrection>(),
   undoCorrection: vi.fn<typeof undoCorrection>(),
   getEventHistory: vi.fn<typeof getEventHistory>(),
+}));
+// oxlint-disable-next-line anti-slop/no-module-mocking -- Server functions are the remote transport boundary.
+vi.mock("../../../src/features/settings/functions", () => ({
+  getSettings: vi.fn<typeof getSettings>(),
+  getRetention: vi.fn<typeof getRetention>(),
+  getModelUsage: vi.fn<typeof getModelUsage>(),
 }));
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -402,14 +410,18 @@ function fakeApi(open: Question[], pageSize = open.length) {
   };
 }
 
-function Screen() {
+type Situation = { imported: boolean; waiting: boolean; filter: QuestionFilter | null };
+
+function Screen({ imported, waiting, filter }: Situation) {
   const { data: summary } = useSuspenseQuery(
     questionSummaryQuery({ currency: "AUD", period: null }),
   );
   return (
     <QuestionsPage
-      input={{ currency: "AUD", filter: null, period: null }}
+      input={{ currency: "AUD", filter, period: null }}
       summary={summary}
+      imported={imported}
+      waiting={waiting}
       periodLabel={null}
       references={references}
       onFilter={() => {}}
@@ -419,11 +431,14 @@ function Screen() {
   );
 }
 
-async function renderQuestions(onTestFinished: (cleanup: () => Promise<void>) => void) {
+async function renderQuestions(
+  onTestFinished: (cleanup: () => Promise<void>) => void,
+  { imported = true, waiting = false, filter = null }: Partial<Situation> = {},
+) {
   const root = createRootRoute({
     component: () => (
       <Suspense fallback={<p>Loading</p>}>
-        <Screen />
+        <Screen imported={imported} waiting={waiting} filter={filter} />
       </Suspense>
     ),
   });
@@ -453,6 +468,72 @@ const headings = () =>
     .getByRole("heading", { level: 2 })
     .elements()
     .map((heading) => heading.textContent);
+
+test("before the first file imports, Questions says when questions will appear and offers Upload files", async ({
+  onTestFinished,
+}) => {
+  fakeApi([]);
+  await renderQuestions(onTestFinished, { imported: false });
+
+  await expect.element(page.getByText("No questions yet.")).toBeVisible();
+  await expect
+    .element(page.getByText("Questions appear once your first file imports."))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("link", { name: "Upload files" }))
+    .toHaveAttribute("href", "/sources");
+  await expect.element(page.getByText("Every transaction has a meaning.")).not.toBeInTheDocument();
+});
+
+test("with records and nothing open, Questions says nothing is waiting", async ({
+  onTestFinished,
+}) => {
+  fakeApi([]);
+  await renderQuestions(onTestFinished);
+
+  await expect.element(page.getByText("Nothing is waiting on you.")).toBeVisible();
+  await expect.element(page.getByText("Every transaction has a meaning.")).toBeVisible();
+  await expect.element(page.getByRole("link", { name: "Upload files" })).not.toBeInTheDocument();
+});
+
+test("a first file waiting on records to check points to them instead of offering Upload files", async ({
+  onTestFinished,
+}) => {
+  fakeApi([]);
+  await renderQuestions(onTestFinished, { imported: false, waiting: true });
+
+  await expect
+    .element(
+      page.getByText(
+        "Questions appear once your first file imports, which waits on the records to check below.",
+      ),
+    )
+    .toBeVisible();
+  await expect.element(page.getByRole("link", { name: "Upload files" })).not.toBeInTheDocument();
+});
+
+test("with no question but records still to check, Questions does not say nothing is waiting", async ({
+  onTestFinished,
+}) => {
+  fakeApi([]);
+  await renderQuestions(onTestFinished, { waiting: true });
+
+  await expect.element(page.getByText("Every transaction has a meaning.")).toBeVisible();
+  await expect.element(page.getByText("What is left to check is below.")).toBeVisible();
+  await expect.element(page.getByText("Nothing is waiting on you.")).not.toBeInTheDocument();
+});
+
+test("a kind chosen when no question is open leaves one message saying so", async ({
+  onTestFinished,
+}) => {
+  fakeApi([]);
+  await renderQuestions(onTestFinished, { filter: "people" });
+
+  await expect.element(page.getByText("Nothing is waiting on you.")).toBeVisible();
+  await expect
+    .element(page.getByText("No question of this kind is waiting."))
+    .not.toBeInTheDocument();
+});
 
 test("Skip moves a question to the end, focuses the next one, and sends nothing", async ({
   onTestFinished,

@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Schema, Struct } from "effect";
 
 import { ExpectedEventVersion, MeasureImpact } from "./corrections.ts";
 import { FinancialEvent } from "./events.ts";
@@ -125,12 +125,19 @@ export const RelationshipProposal = Schema.Union([
     }),
   }),
 ]);
+// One event of a proposal as the list shows it: its primary posting's description and
+// its amount.
+export const InterpretationReviewEvent = Schema.Struct({
+  ...Struct.pick(FinancialEvent.fields, ["id", "primaryPostingId", "magnitude"]),
+  description: Schema.String,
+});
+export type InterpretationReviewEvent = typeof InterpretationReviewEvent.Type;
+// `postingId` and `postedOn` are the first event's primary posting, which orders the list.
 export const InterpretationReview = Schema.Struct({
   id: ReviewItemId,
-  eventIds: Schema.Array(EventId),
+  events: Schema.Array(InterpretationReviewEvent),
   proposal: RelationshipProposal,
   postingId: Posting.fields.id,
-  description: Schema.String,
   postedOn: CalendarDate,
   version: Version,
 });

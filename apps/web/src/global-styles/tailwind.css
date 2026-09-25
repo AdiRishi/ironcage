@@ -83,6 +83,13 @@
   --radius-xl: calc(var(--radius) + 6px);
 }
 
+/* shadcn components set their text with text-sm, so text-sm is the Body role's size and
+   tables and controls read as Body. */
+@theme {
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.5rem;
+}
+
 /* Type roles from docs/design. Width carries the hierarchy. */
 @utility type-figure {
   font-stretch: 125%;
@@ -116,8 +123,8 @@
 @utility type-body {
   font-stretch: 100%;
   font-weight: 420;
-  font-size: 0.9375rem;
-  line-height: 1.5rem;
+  font-size: --theme(--text-sm);
+  line-height: --theme(--text-sm--line-height);
 }
 @utility type-small {
   font-stretch: 100%;

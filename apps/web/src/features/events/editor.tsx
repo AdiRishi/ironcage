@@ -28,7 +28,7 @@ import { useCommand } from "@/lib/use-command";
 
 import { ReferenceChoice } from "./choice";
 import { applyCorrection, previewCorrection } from "./functions";
-import { ImpactTables } from "./impact";
+import { ImpactSummary } from "./impact";
 
 export function EventEditor({
   event,
@@ -301,7 +301,7 @@ export function EventEditor({
       </fieldset>
       {inputError && <p role="alert">{inputError}</p>}
       {preview.error && <p role="alert">{preview.error.message}</p>}
-      {preview.data && <ImpactTables impacts={preview.data.impacts} />}
+      {preview.data && <ImpactSummary impacts={preview.data.impacts} />}
       {mutation.error && <p role="alert">{mutation.error.message}</p>}
       <div className="flex gap-3">
         <Button

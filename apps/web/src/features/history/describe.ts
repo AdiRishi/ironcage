@@ -47,11 +47,22 @@ const mergedAway = (images: CounterpartyImages) =>
     return row ? [row] : [];
   });
 
-const aliasKeys = (images: CounterpartyImages) =>
-  images.aliases.flatMap(({ before, after }) => {
+// A descriptor as the descriptor list shows it: the text the bank printed most for it,
+// and how many other texts it printed for the same descriptor.
+const printed = (change: Change, aliasKey: string) =>
+  change.descriptors.find((row) => row.aliasKey === aliasKey) ?? { text: aliasKey, otherTexts: 0 };
+
+const descriptorsIn = (change: Change) =>
+  change.images.aliases.flatMap(({ before, after }) => {
     const row = after ?? before;
-    return row ? [row.aliasKey] : [];
+    return row ? [printed(change, row.aliasKey)] : [];
   });
+
+// Every text a descriptor covers, because a change to it reaches all of them.
+const everyText = ({ text, otherTexts }: ReturnType<typeof printed>) =>
+  otherTexts === 0
+    ? text
+    : `${text} or ${otherTexts} similar ${otherTexts === 1 ? "text" : "texts"}`;
 
 const referenceKeys = (images: CounterpartyImages) =>
   images.references.flatMap(({ before, after }) => {
@@ -94,9 +105,11 @@ export function describeCounterpartyChange(change: Change, categories: Categorie
   const { images, subjects } = change;
   switch (change.kind) {
     case "create": {
-      const keys = aliasKeys(images);
+      const descriptors = descriptorsIn(change).map((row) => row.text);
       const names = list(counterpartiesIn(images).map((row) => row.name));
-      return [keys.length > 0 ? `Created ${names} for ${list(keys)}` : `Created ${names}`];
+      return [
+        descriptors.length > 0 ? `Created ${names} for ${list(descriptors)}` : `Created ${names}`,
+      ];
     }
     case "update":
       return images.counterparties.flatMap(({ before, after }) =>
@@ -115,10 +128,11 @@ export function describeCounterpartyChange(change: Change, categories: Categorie
           if (!after) return [];
           const from = before?.status === "applied" ? named(subjects, before.counterpartyId) : null;
           const to = named(subjects, after.counterpartyId);
+          const descriptor = printed(change, after.aliasKey).text;
           return [
             from
-              ? `Moved ${after.aliasKey} from ${from} to ${to}`
-              : `${after.aliasKey} now resolves to ${to}`,
+              ? `Moved ${descriptor} from ${from} to ${to}`
+              : `${descriptor} now resolves to ${to}`,
           ];
         }),
         // The transaction the move was chosen from, which you had moved by hand.
@@ -152,9 +166,13 @@ export function describeCounterpartyChange(change: Change, categories: Categorie
 
 function counterpartyLine(prior: FinancialEvent, accepted: FinancialEvent, names: Names) {
   const to = named(names, accepted.counterpartyId);
-  return accepted.counterpartySource === "user"
-    ? `Counterparty changed from ${named(names, prior.counterpartyId)} to ${to}`
-    : `Counterparty follows the bank's description again: ${to}`;
+  if (accepted.counterpartySource === "user")
+    return prior.counterpartyId === null
+      ? `Counterparty set to ${to}`
+      : `Counterparty changed from ${named(names, prior.counterpartyId)} to ${to}`;
+  return accepted.counterpartyId === null
+    ? "Now follows the bank's description"
+    : `Now follows the bank's description, which names ${to}`;
 }
 
 function allocationLines(prior: FinancialEvent, accepted: FinancialEvent, categories: Categories) {
@@ -211,9 +229,9 @@ export function scopeLabel(entry: typeof EventHistoryEntry.Type) {
   if (entry.kind === "correction") return "Only this transaction";
   const { images, subjects } = entry.change;
   const kind = entry.change.kind === "undo" ? entry.change.undoes?.kind : entry.change.kind;
-  const keys = aliasKeys(images);
-  if ((kind === "moveAlias" || kind === "create") && keys.length > 0)
-    return `Every transaction the bank writes as ${list(keys)}`;
+  const descriptors = descriptorsIn(entry.change);
+  if ((kind === "moveAlias" || kind === "create") && descriptors.length > 0)
+    return `Every transaction the bank writes as ${list(descriptors.map(everyText))}`;
   if (kind === "moveAlias") return "One transaction";
   const names = list((kind === "merge" ? mergedAway(images) : subjects).map((row) => row.name));
   const references = referenceKeys(images);

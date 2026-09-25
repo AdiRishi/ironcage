@@ -7,6 +7,7 @@ import { counterpartyHistoryQuery, counterpartyQuery } from "@/features/counterp
 import { referenceDataQuery } from "@/features/events/queries";
 import { ledgerQuery } from "@/features/ledger/queries";
 import { settingsQueryOptions } from "@/features/settings/queries";
+import { addressNotFound, pathParam } from "@/lib/address";
 
 const recentInput = (counterpartyId: typeof CounterpartyId.Type) => ({
   filter: { counterpartyId },
@@ -14,8 +15,9 @@ const recentInput = (counterpartyId: typeof CounterpartyId.Type) => ({
 
 export const Route = createFileRoute("/counterparties/$counterpartyId")({
   params: {
-    parse: ({ counterpartyId }) => ({ counterpartyId: CounterpartyId.make(counterpartyId) }),
+    parse: ({ counterpartyId }) => ({ counterpartyId: pathParam(CounterpartyId, counterpartyId) }),
   },
+  onError: addressNotFound,
   loader: ({ context, params }) =>
     Promise.all([
       context.queryClient.ensureQueryData(counterpartyQuery(params.counterpartyId)),

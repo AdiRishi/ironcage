@@ -16,10 +16,12 @@ import {
   spendingInput,
   transactionsInput,
 } from "@/features/spending/search";
+import { addressNotFound } from "@/lib/address";
 import { type PeriodChoice, periodRecords, resolvePeriodKey, today } from "@/lib/period";
 
 export const Route = createFileRoute("/spending")({
   validateSearch: Schema.toStandardSchemaV1(SpendingSearch),
+  onError: addressNotFound,
   // The period, the comparison, and every part of the scope.
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps: { period: key, compare, ...search } }) => {

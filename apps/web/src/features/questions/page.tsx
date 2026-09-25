@@ -10,7 +10,15 @@ import { Link } from "@tanstack/react-router";
 import { Schema } from "effect";
 
 import { Amount } from "@/components/amount";
+import { UploadFilesLink } from "@/components/no-records";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 import { QuestionCard } from "./card";
@@ -30,6 +38,8 @@ const pressed = "aria-pressed:bg-primary aria-pressed:text-primary-foreground";
 export function QuestionsPage({
   input,
   summary,
+  imported,
+  waiting,
   periodLabel,
   references,
   onFilter,
@@ -37,6 +47,10 @@ export function QuestionsPage({
 }: {
   input: Omit<typeof ListQuestions.Type, "cursor">;
   summary: typeof QuestionSummary.Type;
+  // Whether a file has published a transaction yet.
+  imported: boolean;
+  // Whether a section in `children` has something for you to check.
+  waiting: boolean;
   // The period the questions are narrowed to, or null for the whole history.
   periodLabel: string | null;
   references: typeof ReferenceData.Type;
@@ -54,8 +68,11 @@ export function QuestionsPage({
         <h1 ref={fallback} tabIndex={-1} className="type-title">
           Questions
         </h1>
-        <Overview summary={summary} periodLabel={periodLabel} />
+        {summary.count > 0 && <Overview summary={summary} periodLabel={periodLabel} />}
       </header>
+      {summary.count === 0 && (
+        <NoQuestions imported={imported} waiting={waiting} periodLabel={periodLabel} />
+      )}
 
       {summary.count > 0 && (
         <ToggleGroup
@@ -83,7 +100,7 @@ export function QuestionsPage({
         </ToggleGroup>
       )}
 
-      {filter && ordered.length === 0 && (
+      {filter && summary.count > 0 && ordered.length === 0 && (
         <p className="text-slate">No question of this kind is waiting.</p>
       )}
       <ol className="space-y-4">
@@ -137,7 +154,73 @@ function Overview({
   summary: typeof QuestionSummary.Type;
   periodLabel: string | null;
 }) {
-  const everything = periodLabel && (
+  return (
+    <p className="text-slate">
+      {summary.count} {summary.count === 1 ? "question affects" : "questions affect"}{" "}
+      <Amount value={affectedMoney(summary)} cents={false} className="text-intaglio" />
+      {periodLabel ? ` in ${periodLabel}` : " across your history"}. Each answer applies to every
+      transaction it covers, past and future. {periodLabel && <EveryQuestion />}
+    </p>
+  );
+}
+
+// Why there is no question to answer: nothing imported yet, a file waiting on its records
+// to check, nothing open in the period, or nothing open but the sections below.
+function NoQuestions({
+  imported,
+  waiting,
+  periodLabel,
+}: {
+  imported: boolean;
+  waiting: boolean;
+  periodLabel: string | null;
+}) {
+  if (!imported)
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle>No questions yet.</EmptyTitle>
+          <EmptyDescription>
+            {waiting
+              ? "Questions appear once your first file imports, which waits on the records to check below."
+              : "Questions appear once your first file imports."}
+          </EmptyDescription>
+        </EmptyHeader>
+        {!waiting && (
+          <EmptyContent>
+            <UploadFilesLink />
+          </EmptyContent>
+        )}
+      </Empty>
+    );
+  return (
+    <Empty>
+      <EmptyHeader>
+        {periodLabel ? (
+          <>
+            <EmptyTitle>No question covers a transaction in {periodLabel}.</EmptyTitle>
+            <EmptyDescription>
+              <EveryQuestion />
+            </EmptyDescription>
+          </>
+        ) : waiting ? (
+          <>
+            <EmptyTitle>Every transaction has a meaning.</EmptyTitle>
+            <EmptyDescription>What is left to check is below.</EmptyDescription>
+          </>
+        ) : (
+          <>
+            <EmptyTitle>Nothing is waiting on you.</EmptyTitle>
+            <EmptyDescription>Every transaction has a meaning.</EmptyDescription>
+          </>
+        )}
+      </EmptyHeader>
+    </Empty>
+  );
+}
+
+function EveryQuestion() {
+  return (
     <Link
       from="/questions"
       search={(previous) => ({ ...previous, scope: undefined })}
@@ -145,21 +228,5 @@ function Overview({
     >
       Show every question
     </Link>
-  );
-  if (summary.count === 0)
-    return periodLabel ? (
-      <p className="text-slate">
-        No question covers a transaction in {periodLabel}. {everything}
-      </p>
-    ) : (
-      <p className="text-slate">Nothing is waiting on you. Every transaction has a meaning.</p>
-    );
-  return (
-    <p className="text-slate">
-      {summary.count} {summary.count === 1 ? "question affects" : "questions affect"}{" "}
-      <Amount value={affectedMoney(summary)} cents={false} className="text-intaglio" />
-      {periodLabel ? ` in ${periodLabel}` : " across your history"}. Each answer applies to every
-      transaction it covers, past and future. {everything}
-    </p>
   );
 }

@@ -30,7 +30,16 @@ test(
     const refund = yield* eventId("Refund Purchase MYER SYDNEY");
     const purchase = yield* eventId("MYER SYDNEY AU Card xx1234");
     const credits = (yield* reviews.list({})).rows.filter((row) => row.proposal.kind === "credit");
-    expect(credits.map((row) => row.eventIds)).toEqual([[refund, purchase]]);
+    expect(
+      credits.map((row) =>
+        row.events.map((event) => [event.id, event.description, event.magnitude.minor]),
+      ),
+    ).toEqual([
+      [
+        [refund, "Refund Purchase MYER SYDNEY", 4000n],
+        [purchase, "MYER SYDNEY AU Card xx1234", 12000n],
+      ],
+    ]);
     const [proposal] = credits;
     if (proposal?.proposal.kind !== "credit")
       return yield* Effect.die("Expected a credit proposal");

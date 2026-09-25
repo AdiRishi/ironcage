@@ -27,6 +27,7 @@ import {
   readCurrent,
   recordChange,
 } from "./counterparty-changes.ts";
+import { descriptorSamples } from "./descriptors.ts";
 
 const pageSize = 20;
 
@@ -42,6 +43,12 @@ export const readChangeEntries = Effect.fn("readChangeEntries")(function* (
       CASE WHEN u.id IS NULL THEN NULL ELSE jsonb_build_object('id', u.id, 'kind', u.kind) END AS undoes,
       COALESCE((SELECT jsonb_agg(jsonb_build_object('id', s.counterparty_id, 'name', s.name) ORDER BY s.name, s.counterparty_id)
         FROM counterparty_change_subjects s WHERE s.change_id = c.id), '[]'::jsonb) AS subjects,
+      COALESCE((SELECT jsonb_agg(jsonb_build_object('aliasKey', d.alias_key, 'text', d.text, 'otherTexts', d.texts - 1) ORDER BY d.alias_key)
+        FROM (SELECT k.alias_key, (${descriptorSamples(sql, sql("k.alias_key"))})[1] AS text,
+            (SELECT count(DISTINCT pd.counterparty_text) FROM posting_descriptors pd WHERE pd.alias_key = k.alias_key)::int AS texts
+          FROM (SELECT DISTINCT COALESCE(a->'after'->>'aliasKey', a->'before'->>'aliasKey') AS alias_key
+            FROM jsonb_array_elements(c.images->'aliases') a) k) d
+        WHERE d.text IS NOT NULL), '[]'::jsonb) AS descriptors,
       (SELECT count(*) FROM counterparty_change_events ce WHERE ce.change_id = c.id)::int AS "eventCount",
       ${instant(sql, sql("c.created_at"))} AS "createdAt",
       EXISTS (SELECT 1 FROM counterparty_changes x WHERE x.undoes = c.id) AS undone

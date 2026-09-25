@@ -19,7 +19,7 @@ import {
   previewRelationship,
   proposeRelationships,
 } from "./functions";
-import { RelatedEvent } from "./panel";
+import { EventLink } from "./panel";
 import { interpretationReviewsQuery } from "./queries";
 
 type CreditProposalLink = Extract<typeof RelationshipProposal.Type, { kind: "credit" }>["link"];
@@ -74,9 +74,9 @@ export function RelationshipProposals() {
             {credits.map((row) => (
               <li className="grid gap-2 py-3 sm:grid-cols-[1fr_auto] sm:items-center" key={row.id}>
                 <div className="min-w-0 space-y-1 type-small">
-                  {row.eventIds.map((eventId) => (
-                    <p key={eventId} className="truncate">
-                      <RelatedEvent eventId={eventId} />
+                  {row.events.map((event) => (
+                    <p key={event.id} className="truncate">
+                      <EventLink event={event} />
                     </p>
                   ))}
                 </div>
@@ -114,9 +114,9 @@ export function RelationshipProposals() {
           {movements.map((row) => (
             <li className="grid gap-2 py-3 sm:grid-cols-[1fr_auto] sm:items-center" key={row.id}>
               <div className="min-w-0 space-y-1 type-small">
-                {row.eventIds.map((eventId) => (
-                  <p key={eventId} className="truncate">
-                    <RelatedEvent eventId={eventId} />
+                {row.events.map((event) => (
+                  <p key={event.id} className="truncate">
+                    <EventLink event={event} />
                   </p>
                 ))}
               </div>

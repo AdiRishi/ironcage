@@ -22,6 +22,7 @@ import {
   Version,
 } from "@repo/contracts/finance";
 import {
+  accountSuffix,
   allocationRole,
   bankReading,
   type CounterpartyDefaults,
@@ -135,15 +136,15 @@ export const loadReference = Effect.gen(function* () {
         ),
       ),
     );
-  const ownedAccounts =
-    yield* sql`SELECT id, kind, CASE WHEN length(account_number) >= 4 THEN right(regexp_replace(account_number, '\\D', '', 'g'), 4) END AS suffix FROM accounts`.pipe(
+  const accounts =
+    yield* sql`SELECT id, kind, account_number AS "accountNumber" FROM accounts`.pipe(
       Effect.flatMap(
         Schema.decodeUnknownEffect(
           Schema.Array(
             Schema.Struct({
               id: AccountId,
               kind: AccountKind,
-              suffix: Schema.NullOr(Schema.String),
+              accountNumber: Schema.NullOr(Schema.String),
             }),
           ),
         ),
@@ -175,7 +176,11 @@ export const loadReference = Effect.gen(function* () {
     counterparties: new Map<string, CounterpartyDefaults>(
       counterparties.map((counterparty) => [counterparty.id, counterparty]),
     ),
-    ownedAccounts,
+    ownedAccounts: accounts.map(({ id, kind, accountNumber }) => ({
+      id,
+      kind,
+      suffix: accountNumber ? accountSuffix(accountNumber) : null,
+    })),
   };
 });
 
@@ -284,6 +289,23 @@ export const writeDerivation = Effect.fn("writeDerivation")(function* (
 export const reinterpret = Effect.fn("reinterpret")(function* (scope: EventScope) {
   const subjects = yield* loadSubjects(scope);
   return yield* writeDerivation(planDerivation(subjects, yield* loadReference));
+});
+
+// Bank structure reads a transfer from an own-account suffix only while one of your
+// accounts ends in it, so the events naming an account's suffix change when the account
+// gains that number.
+export const reinterpretOwnAccount = Effect.fn("reinterpretOwnAccount")(function* (
+  accountNumber: string,
+) {
+  const sql = yield* PgClient.PgClient;
+  const suffix = accountSuffix(accountNumber);
+  if (!suffix) return [];
+  const named =
+    yield* sql`SELECT e.id FROM events e JOIN posting_descriptors d ON d.posting_id = e.primary_posting_id
+      WHERE e.active AND d.own_account_suffix = ${suffix}`.pipe(
+      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: EventId })))),
+    );
+  return yield* reinterpret(named.map((row) => row.id));
 });
 
 // Rules claim events with a snapshot of themselves, so a later edit with future

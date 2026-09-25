@@ -122,7 +122,7 @@ function CounterpartyTable({
   const columns = useMemo(() => columnsFor(direction, categories), [direction, categories]);
   const table = useTable({ features, columns, data: rows, getRowId: (row) => row.id });
   return (
-    <Table className="type-body!">
+    <Table>
       <TableHeader>
         {table.getHeaderGroups().map((group) => (
           <TableRow key={group.id} className="border-rule hover:bg-transparent">

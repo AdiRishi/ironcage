@@ -17,6 +17,7 @@ import {
   type PostingSearch,
 } from "@/features/ledger/search";
 import { settingsQueryOptions } from "@/features/settings/queries";
+import { addressNotFound } from "@/lib/address";
 import {
   type PeriodChoice,
   type PeriodRecords,
@@ -26,6 +27,7 @@ import {
 
 export const Route = createFileRoute("/ledger/")({
   validateSearch: Schema.toStandardSchemaV1(LedgerSearch),
+  onError: addressNotFound,
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps: search }) => {
     const settings = await context.queryClient.ensureQueryData(settingsQueryOptions());

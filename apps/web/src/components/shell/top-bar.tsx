@@ -56,7 +56,13 @@ export function TopBar({ questionCount }: { questionCount: number }) {
           >
             <Settings className="size-4.5" aria-hidden />
           </Link>
-          <Button variant="outline" size="sm" nativeButton={false} render={<Link to="/sources" />}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden md:inline-flex"
+            nativeButton={false}
+            render={<Link to="/sources" />}
+          >
             Upload
           </Button>
           <Button

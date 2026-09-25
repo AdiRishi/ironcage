@@ -48,6 +48,7 @@ import {
   undoCorrection,
 } from "@/features/events/functions";
 import { HistoryEntry } from "@/features/history/entry";
+import { getModelUsage, getRetention, getSettings } from "@/features/settings/functions";
 import { AppRequestError } from "@/lib/app-error";
 import { createQueryClient } from "@/lib/query-client";
 
@@ -75,6 +76,12 @@ vi.mock("../../../src/features/events/functions", () => ({
   previewUndoCorrection: vi.fn<typeof previewUndoCorrection>(),
   undoCorrection: vi.fn<typeof undoCorrection>(),
   getEventHistory: vi.fn<typeof getEventHistory>(),
+}));
+// oxlint-disable-next-line anti-slop/no-module-mocking -- Server functions are the remote transport boundary.
+vi.mock("../../../src/features/settings/functions", () => ({
+  getSettings: vi.fn<typeof getSettings>(),
+  getRetention: vi.fn<typeof getRetention>(),
+  getModelUsage: vi.fn<typeof getModelUsage>(),
 }));
 
 const groceries = CategoryId.make("00000000-0000-4000-8000-0000000000f1");
@@ -142,6 +149,7 @@ const recategorised = (
     movements: [],
   },
   subjects: [{ id: woolworths.id, name: woolworths.name }],
+  descriptors: [],
   eventCount: 2,
   createdAt: Instant.make("2026-09-25T06:30:00.000Z"),
   ...state,

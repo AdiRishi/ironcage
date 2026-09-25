@@ -9,6 +9,7 @@ import {
 } from "@repo/contracts/finance";
 import { Context, Effect, Layer, Schema } from "effect";
 
+import { money } from "../database/columns.ts";
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
 import { proposeCredits, proposeMovements } from "./proposals.ts";
@@ -38,7 +39,11 @@ export class InterpretationReviews extends Context.Service<
           ? sql`AND (p.posted_on,r.id)<(${input.cursor.postedOn}::date,${input.cursor.id}::uuid)`
           : sql``;
         const rows =
-          yield* sql`SELECT r.id,r.event_ids AS "eventIds",p.id AS "postingId",p.description,p.posted_on::text AS "postedOn",r.version,
+          yield* sql`SELECT r.id,p.id AS "postingId",p.posted_on::text AS "postedOn",r.version,
+              (SELECT jsonb_agg(jsonb_build_object('id', x.id, 'primaryPostingId', xp.id, 'description', xp.description,
+                  'magnitude', ${money(sql, "x.currency", "x.magnitude_minor")}) ORDER BY k.ordinal)
+                FROM unnest(r.event_ids) WITH ORDINALITY AS k(id, ordinal)
+                JOIN events x ON x.id = k.id JOIN postings xp ON xp.id = x.primary_posting_id) AS events,
               CASE WHEN r.question->>'kind' = 'credit' THEN jsonb_build_object('kind', 'credit', 'link', r.candidates->0) ELSE '{"kind":"movement"}'::jsonb END AS proposal
             FROM review_items r JOIN events e ON e.id=r.event_ids[1] JOIN postings p ON p.id=e.primary_posting_id WHERE r.kind = 'relationship' AND r.resolved_at IS NULL AND e.active ${cursor} ORDER BY p.posted_on DESC,r.id DESC LIMIT 51`.pipe(
             Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(InterpretationReview))),

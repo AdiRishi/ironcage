@@ -232,8 +232,8 @@ test(
       },
     ]);
     // The refund reduces August's spending, as it does on the overview, and July is
-    // there with nothing in it. The file has no balances to reconcile, so every month
-    // may have records missing.
+    // there with nothing in it. The file's records run from 3 June to 10 August, so July
+    // is whole and June and August have days without records.
     expect((yield* (yield* Counterparties).get({ counterpartyId: woolworths.id })).months).toEqual([
       {
         month: "2026-06",
@@ -245,7 +245,7 @@ test(
         month: "2026-07",
         outflow: { currency: "AUD", minor: 0n },
         inflow: { currency: "AUD", minor: 0n },
-        coverage: "partial",
+        coverage: "complete",
       },
       {
         month: "2026-08",

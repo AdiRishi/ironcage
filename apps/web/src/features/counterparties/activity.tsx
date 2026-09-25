@@ -94,7 +94,7 @@ export function Activity({
         )}
       </p>
       {asTable ? (
-        <Table className="type-body!">
+        <Table>
           <TableCaption className="sr-only">{caption}</TableCaption>
           <TableHeader>
             <TableRow className="hover:bg-transparent">

@@ -6,9 +6,11 @@ import { ImportRecord } from "@/features/imports/import-record";
 import { importQueryOptions } from "@/features/imports/queries";
 import { useImportCompletion } from "@/features/imports/use-import-completion";
 import { settingsQueryOptions } from "@/features/settings/queries";
+import { addressNotFound, pathParam } from "@/lib/address";
 
 export const Route = createFileRoute("/sources/imports/$importId")({
-  params: { parse: ({ importId }) => ({ importId: ImportId.make(importId) }) },
+  params: { parse: ({ importId }) => ({ importId: pathParam(ImportId, importId) }) },
+  onError: addressNotFound,
   loader: async ({ context, params }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(importQueryOptions(params.importId)),

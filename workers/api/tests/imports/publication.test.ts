@@ -2,18 +2,26 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { URL } from "node:url";
 
 import { PgClient } from "@effect/sql-pg";
-import { CommandId, FinanceError, ImportSummary, ResolveReview } from "@repo/contracts/finance";
+import {
+  CommandId,
+  FinanceError,
+  ImportSummary,
+  type ParsedFile,
+  ResolveReview,
+  YearMonth,
+} from "@repo/contracts/finance";
 import { parseCsv, parseOfx } from "@repo/processor/imports";
 import { Crypto, Console, Duration, Effect, Schema } from "effect";
 import { expect } from "vitest";
 
 import { Accounts } from "../../src/accounts/service.ts";
+import { Flows } from "../../src/analysis/flows.ts";
 import { Commands } from "../../src/database/commands.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { Reviews } from "../../src/review/service.ts";
 import { applicationTest } from "../support/application.ts";
-import { account, parsed, reset, source } from "../support/fixtures.ts";
+import { account, openQuestions, parsed, parsedRows, reset, source } from "../support/fixtures.ts";
 
 const { test, services } = applicationTest();
 
@@ -509,5 +517,76 @@ test(
     const postings = yield* Postings;
     expect((yield* postings.list({ filter: { accountId: known.id } })).rows).toHaveLength(3);
     expect((yield* postings.list({ filter: { accountId: added.id } })).rows).toHaveLength(0);
+  }).pipe(Effect.provide(services)),
+);
+
+// A deposit account's file that names its account, as an OFX envelope does.
+const identified = (accountNumber: string, rows: Parameters<typeof parsedRows>[0]) =>
+  ({
+    ...parsedRows(rows),
+    account: {
+      institution: "commbank",
+      bankId: "062000",
+      accountNumber,
+      kind: "deposit",
+      currency: "AUD",
+    },
+  }) satisfies ParsedFile;
+const toSavings = identified("12345678", [
+  { description: "Transfer to xx9239 CommBank app", postedOn: "2026-08-05", minor: -10000n },
+]);
+const savings = identified("10009239", [
+  { description: "Credit Interest", postedOn: "2026-08-31", minor: 150n },
+]);
+const publishIdentified = Effect.fn(function* (file: ParsedFile) {
+  const upload = yield* source(null, "ofx");
+  return yield* (yield* Publication).publish({ ...file, importId: upload.importId });
+});
+const augustTotals = Effect.gen(function* () {
+  const flow = yield* (yield* Flows).period({
+    period: { kind: "months", from: YearMonth.make("2026-08"), to: YearMonth.make("2026-08") },
+    comparison: { kind: "previous" },
+    basis: "posted",
+    currency: "AUD",
+  });
+  return { outflow: flow.totals.outflow.minor, internal: flow.totals.internal.minor };
+});
+const openQuestionKinds = openQuestions.pipe(
+  Effect.map((questions) => questions.map((question) => question.kind)),
+);
+
+test(
+  "a transfer to an account that has no number yet is internal once the account's first file adds it",
+  Effect.gen(function* () {
+    yield* reset;
+    yield* publishIdentified(toSavings);
+    expect(yield* openQuestionKinds).toEqual(["ownAccount"]);
+    expect(yield* augustTotals).toEqual({ outflow: 10000n, internal: 0n });
+    yield* publishIdentified(savings);
+    expect(yield* openQuestionKinds).toEqual([]);
+    expect(yield* augustTotals).toEqual({ outflow: 0n, internal: 10000n });
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "a transfer to an account you added is internal once you choose it for a file with its number",
+  Effect.gen(function* () {
+    yield* reset;
+    yield* publishIdentified(toSavings);
+    const added = yield* account();
+    yield* publishIdentified(savings);
+    const reviews = yield* Reviews;
+    const [review] = (yield* reviews.list()).rows;
+    if (review?.kind !== "account") return yield* Effect.die("Expected the account review.");
+    expect(yield* openQuestionKinds).toEqual(["ownAccount"]);
+    expect(yield* augustTotals).toEqual({ outflow: 10000n, internal: 0n });
+    yield* reviews.resolve({
+      commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
+      reviewItemId: review.id,
+      expectedVersion: review.version,
+      resolution: { kind: "account", accountId: added.id },
+    });
+    expect(yield* openQuestionKinds).toEqual([]);
+    expect(yield* augustTotals).toEqual({ outflow: 0n, internal: 10000n });
   }).pipe(Effect.provide(services)),
 );

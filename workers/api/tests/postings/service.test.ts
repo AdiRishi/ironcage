@@ -1,4 +1,4 @@
-import { CalendarDate, CommandId } from "@repo/contracts/finance";
+import { CalendarDate, CommandId, PostingId } from "@repo/contracts/finance";
 import { Array as Arr, Crypto, Effect } from "effect";
 import { expect } from "vitest";
 
@@ -148,6 +148,17 @@ test(
     expect(yield* descriptor("WOOLWORTHS 5678 SYDNEY AU Card xx1234")).toMatchObject({
       eventCount: 2,
     });
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "a transaction the ledger does not have, such as one from before a reimport, is not found",
+  Effect.gen(function* () {
+    yield* reset;
+    const error = yield* (yield* Postings)
+      .get({ postingId: PostingId.make("00000000-0000-4000-8000-000000000001") })
+      .pipe(Effect.flip);
+    expect(error.kind).toBe("notFound");
   }).pipe(Effect.provide(services)),
 );
 

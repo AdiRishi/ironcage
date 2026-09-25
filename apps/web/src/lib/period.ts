@@ -111,12 +111,14 @@ export function periodMonths(months: typeof MonthlyFlow.Type, period: PeriodChoi
 }
 
 // The monthly flow is empty until the first file publishes a transaction.
+export const hasImported = (months: typeof MonthlyFlow.Type) => months.length > 0;
+
 export type PeriodRecords = "none" | "missing" | "recorded";
 export function periodRecords(
   months: typeof MonthlyFlow.Type,
   period: PeriodChoice,
 ): PeriodRecords {
-  if (months.length === 0) return "none";
+  if (!hasImported(months)) return "none";
   return periodMonths(months, period).some(hasRecords) ? "recorded" : "missing";
 }
 

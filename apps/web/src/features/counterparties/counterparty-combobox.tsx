@@ -69,10 +69,13 @@ export function CounterpartyCombobox({
       disabled={disabled ?? false}
       limit={50}
     >
+      {/* The registry's chevron is a nameless button in the tab order. Typing, the arrow
+          keys, and a click on the input open the list without it. */}
       <ComboboxInput
         id={id}
         placeholder={create ? "Search, or type a new name" : "Search by name"}
         className="w-full"
+        showTrigger={false}
       />
       <ComboboxContent>
         <ComboboxEmpty>No counterparty has that name.</ComboboxEmpty>

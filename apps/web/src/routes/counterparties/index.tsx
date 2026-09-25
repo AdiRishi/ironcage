@@ -10,6 +10,7 @@ import { counterpartiesQuery } from "@/features/counterparties/queries";
 import { referenceDataQuery } from "@/features/events/queries";
 import { monthlyFlowQuery } from "@/features/flow/queries";
 import { settingsQueryOptions } from "@/features/settings/queries";
+import { addressNotFound } from "@/lib/address";
 import { type PeriodChoice, periodMonths, periodRecords, resolvePeriodKey } from "@/lib/period";
 
 const Search = Schema.Struct({
@@ -19,6 +20,7 @@ const Search = Schema.Struct({
 
 export const Route = createFileRoute("/counterparties/")({
   validateSearch: Schema.toStandardSchemaV1(Search),
+  onError: addressNotFound,
   loaderDeps: ({ search }) => ({
     period: search.period,
     search: search.search ?? "",

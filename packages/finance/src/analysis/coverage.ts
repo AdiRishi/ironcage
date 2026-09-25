@@ -8,7 +8,7 @@ import type {
   YearMonth,
 } from "@repo/contracts/finance";
 
-import { addDays } from "../dates.ts";
+import { addDays, yearMonthOf } from "../dates.ts";
 import { missingPeriods, mergePeriods, monthsPeriod, overlaps } from "./periods.ts";
 
 // The accounts in one currency, what each of their source files covers, and when each
@@ -54,20 +54,50 @@ export function accountCoverage(snapshot: CoverageSnapshot, period: Period): Acc
   });
 }
 
-// An account covers the days its files run across and the days its reconciled
-// statements span, because a reconciled statement proves that its days without
-// transactions had none. Only accounts that cover part of the period can make its
-// comparison read as zero, so only they have gaps. A comparison is missing when no
-// account covers any of it.
+// The days an account has records for: between the first and last record of one of its
+// files, or inside a reconciled statement, because a reconciled statement proves that its
+// days without transactions had none.
+const coveredDays = (item: AccountCoverage) => mergePeriods([...item.observed, ...item.reconciled]);
+
+// The days of a period each account has no records for. An account is expected to have
+// records for every day of the months from its first record through the month of the
+// latest record of any account, so a card whose latest statement is not in yet is named
+// beside a month the everyday account covers. Nothing marks an account closed, so an
+// account whose records stopped is named for every month after them too.
+export function periodGaps(
+  coverage: readonly AccountCoverage[],
+  period: Period,
+): ComparisonCoverage["gaps"] {
+  const accounts = coverage.map((item) => ({ account: item.account, covered: coveredDays(item) }));
+  const latest = accounts
+    .flatMap(({ covered }) => covered.map((interval) => interval.endExclusive))
+    .toSorted()
+    .at(-1);
+  return accounts.flatMap(({ account, covered }) => {
+    const [first] = covered;
+    if (!first || !latest) return [];
+    const expected = monthsPeriod(yearMonthOf(first.start), yearMonthOf(addDays(latest, -1)));
+    if (!overlaps(expected, period)) return [];
+    const missing = missingPeriods(
+      {
+        start: expected.start > period.start ? expected.start : period.start,
+        endExclusive:
+          expected.endExclusive < period.endExclusive ? expected.endExclusive : period.endExclusive,
+      },
+      covered,
+    );
+    return missing.length > 0 ? [{ account, missing }] : [];
+  });
+}
+
+// Only accounts that cover part of the period can make its comparison read as zero, so
+// only they have gaps. A comparison is missing when no account covers any of it.
 export function comparisonCoverage(
   coverage: readonly AccountCoverage[],
   period: Period,
   comparison: Period,
 ): ComparisonCoverage {
-  const accounts = coverage.map((item) => ({
-    account: item.account,
-    covered: mergePeriods([...item.observed, ...item.reconciled]),
-  }));
+  const accounts = coverage.map((item) => ({ account: item.account, covered: coveredDays(item) }));
   const gaps = accounts
     .filter((item) => item.covered.some((interval) => overlaps(interval, period)))
     .flatMap((item) => {
@@ -84,21 +114,13 @@ export function comparisonCoverage(
   };
 }
 
-// An account counts for a month when its records span it at all. The month is complete
-// when every such account has reconciled statements across all of it, partial when one
-// of them has records in it, and missing otherwise, as every month before the first
-// record is.
+// A month is missing when no account has records in it, as every month before the first
+// record is, partial when `periodGaps` names days of it, and complete otherwise, so the
+// strip and the note beside a month's figures agree.
 export function monthCoverage(snapshot: CoverageSnapshot, month: YearMonth): CoverageState {
   const period = monthsPeriod(month);
-  const counted = accountCoverage(snapshot, period).filter(({ observed }) => {
-    const [first] = observed;
-    const last = observed.at(-1);
-    return (
-      first && last && overlaps({ start: first.start, endExclusive: last.endExclusive }, period)
-    );
-  });
-  if (counted.length > 0 && counted.every((item) => item.missing.length === 0)) return "complete";
-  return counted.some((item) => item.observed.some((interval) => overlaps(interval, period)))
-    ? "partial"
-    : "missing";
+  const coverage = accountCoverage(snapshot, period);
+  if (!coverage.some((item) => coveredDays(item).some((interval) => overlaps(interval, period))))
+    return "missing";
+  return periodGaps(coverage, period).length > 0 ? "partial" : "complete";
 }

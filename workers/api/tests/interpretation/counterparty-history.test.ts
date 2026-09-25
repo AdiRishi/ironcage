@@ -127,6 +127,13 @@ test(
         { id: coles.id, name: "Coles" },
         { id: woolworths.id, name: "Woolworths" },
       ],
+      descriptors: [
+        {
+          aliasKey: "WOOLWORTHS METRO SURRY HILLS",
+          text: "WOOLWORTHS METRO 77 SURRY HILLS",
+          otherTexts: 0,
+        },
+      ],
       eventCount: 1,
       undoable: true,
       undone: false,
@@ -302,6 +309,24 @@ test(
       [newsagency.id, "user"],
       [coles.id, "alias"],
       [newsagency.id, "user"],
+    ]);
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "history names a descriptor the bank prints several ways by one text and counts the others",
+  Effect.gen(function* () {
+    const { woolworths } = yield* metroPurchases("Coles");
+    const { change } = yield* moveFrom(yield* activeEvent(metroAt(78)), woolworths.id);
+    yield* (yield* Counterparties).apply({ commandId: yield* commandId, change });
+    const [moved] = (yield* (yield* CounterpartyHistory).list({ counterpartyId: woolworths.id }))
+      .rows;
+    expect(moved?.descriptors).toEqual([
+      {
+        aliasKey: "WOOLWORTHS METRO SURRY HILLS",
+        text: "WOOLWORTHS METRO 77 SURRY HILLS",
+        otherTexts: 2,
+      },
     ]);
   }).pipe(Effect.provide(services)),
 );

@@ -18,6 +18,7 @@ import { TopBar } from "@/components/shell/top-bar";
 import { monthlyFlowQuery } from "@/features/flow/queries";
 import { questionSummaryQuery } from "@/features/questions/queries";
 import { settingsQueryOptions } from "@/features/settings/queries";
+import { addressNotFound, namesNothing } from "@/lib/address";
 import { PeriodSearch, currentMonth, hasRecords, resolvePeriodKey } from "@/lib/period";
 
 import appCss from "@/global-styles/tailwind.css?url";
@@ -29,6 +30,7 @@ const readsPeriod = (pathname: string) =>
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   validateSearch: Schema.toStandardSchemaV1(PeriodSearch),
+  onError: addressNotFound,
   search: { middlewares: [retainSearchParams(["period", "compare"])] },
   // Without a chosen period, screens read the current month in the settings timezone.
   // Before this month has any records, they read the latest month that does.
@@ -67,7 +69,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: RouteError,
 });
 
+// The bar and the strip keep the address's period in every link they make, so an address
+// whose period or comparison cannot be read shows only the page that says so.
 function Layout() {
+  const readable = Route.useMatch({ select: (match) => match.searchError === undefined });
+  return (
+    <>
+      {readable && <Navigation />}
+      <main id="main" className="mx-auto max-w-[1280px] px-5 py-8 md:px-8 md:py-10">
+        <Outlet />
+      </main>
+    </>
+  );
+}
+
+function Navigation() {
   const { data: settings } = useSuspenseQuery(settingsQueryOptions());
   const months = useQuery(monthlyFlowQuery(settings.reportingCurrency)).data ?? [];
   const questions = useQuery(
@@ -75,7 +91,11 @@ function Layout() {
   ).data;
   const period = resolvePeriodKey(Route.useSearch().period, settings.timezone);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const showStrip = readsPeriod(pathname);
+  // The strip's links keep the rest of the address, so on an address that names nothing
+  // they would lead back to it. The bar's links carry only the period and comparison.
+  const showStrip = useRouterState({
+    select: (state) => readsPeriod(state.location.pathname) && !state.matches.some(namesNothing),
+  });
   return (
     <>
       <a
@@ -93,9 +113,6 @@ function Layout() {
           measure={pathname.startsWith("/spending") ? "spending" : "outflow"}
         />
       )}
-      <main id="main" className="mx-auto max-w-[1280px] px-5 py-8 md:px-8 md:py-10">
-        <Outlet />
-      </main>
     </>
   );
 }

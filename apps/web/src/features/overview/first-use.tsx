@@ -1,7 +1,6 @@
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 
-import { buttonVariants } from "@/components/ui/button";
+import { UploadFilesLink } from "@/components/no-records";
 import { NetBankGuide } from "@/features/imports/netbank-guide";
 import { PendingImports } from "@/features/imports/pending-imports";
 import { importsQueryOptions } from "@/features/imports/queries";
@@ -39,9 +38,7 @@ export function FirstUse({ timezone }: { timezone: string }) {
           for you. Then upload each CSV and choose its account, because a CSV does not say which
           account it came from.
         </p>
-        <Link to="/sources" className={buttonVariants()}>
-          Upload files
-        </Link>
+        <UploadFilesLink />
       </section>
     </div>
   );
