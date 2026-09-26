@@ -17,7 +17,7 @@ import type { Api } from "@repo/infra/api";
 import { Array as Arr, Effect, Schema, Struct } from "effect";
 import { Tool } from "effect/unstable/ai";
 
-import { checkWritten } from "../answers/check.ts";
+import { checkAgainst } from "../answers/check.ts";
 import { TurnEvidence } from "../evidence/service.ts";
 import { counterpartyLink } from "./counterparties.ts";
 import { type Names, namesIn, readPosting, transactionLink } from "./transactions.ts";
@@ -276,7 +276,7 @@ const propose = Effect.fnUntraced(function* (
   previewed: Effect.Effect<Previewed, FinanceError>,
 ) {
   const evidence = yield* TurnEvidence;
-  const problems = checkWritten([reason], yield* evidence.snapshot);
+  const problems = checkAgainst(yield* evidence.snapshot)(reason);
   if (problems.length > 0)
     return yield* new FinanceError({
       kind: "invalid",

@@ -10,7 +10,7 @@ description: Four Workers, one database writer, and the ownership rules that kee
 | Web       | `apps/web`          | Cloudflare Access validation, TanStack Start routes and server functions, query state, UI.                                      |
 | API       | `workers/api`       | Postgres records, R2 sources, matching and publication, interpretation, ledger facts, commands, exports.                        |
 | Processor | `workers/processor` | Workflows: parse one file and publish it through the API, run enrichment with a model, build exports, and rebuild ledger facts. |
-| Analyst   | `workers/analyst`   | Conversations kept in a Durable Object's SQLite, with each question answered in the background from reads of the API.           |
+| Analyst   | `workers/analyst`   | Conversations and monthly briefings kept in a Durable Object's SQLite, written in the background from reads of the API.         |
 
 ```mermaid
 flowchart LR
@@ -27,7 +27,7 @@ flowchart LR
     Processor --> Sources
 ```
 
-The API is the only Worker that writes financial records and the only one with a database binding. The processor reads R2 and calls the API. The analyst keeps conversations in its Durable Object's SQLite and reads financial data only through the API. The web app's analyst screens call the Analyst Worker through its binding.
+The API is the only Worker that writes financial records and the only one with a database binding. The processor reads R2 and calls the API. The analyst keeps conversations and briefings in its Durable Object's SQLite and reads financial data only through the API. The web app's analyst screens call the Analyst Worker through its binding. Briefings have no screen yet (see the [roadmap](/roadmap)).
 
 ## Shared packages
 
@@ -82,11 +82,11 @@ Cloudflare Workflows runs imports with a few steps and the platform's bounded re
 
 A failed step is visible on its owning screen with a retry action that starts new work. A retry may reparse a file or repeat a model call; publication and commands are what make repeats safe.
 
-The analyst answers questions in the background too, through the object's alarm instead of a Workflow. See [Analyst conversations](#analyst-conversations).
+The analyst answers questions and writes briefings in the background too, through the object's alarm instead of a Workflow, and an hourly cron queues last month's briefing. See [Analyst conversations](#analyst-conversations) and [Analyst briefings](#analyst-briefings).
 
 ## Analyst conversations
 
-One `Conversations` Durable Object holds every conversation, because they all describe the one ledger. It is an Effect layer like the API, and calls the model through Effect AI (see [the decision](/reference/decisions#the-analyst-is-effect-ai-in-a-durable-object)). It stores conversations in its SQLite through `@effect/sql-sqlite-do`. `workers/analyst/src/storage/migrations.ts` holds the schema as `effect/unstable/sql/Migrator` migrations, one statement per `sql` call, and JSON columns hold the contract's JSON encoding as text.
+One `Conversations` Durable Object holds every conversation and briefing, because they all describe the one ledger. It is an Effect layer like the API, and calls the model through Effect AI (see [the decision](/reference/decisions#the-analyst-is-effect-ai-in-a-durable-object)). It stores both in its SQLite through `@effect/sql-sqlite-do`. `workers/analyst/src/storage/migrations.ts` holds the schema as `effect/unstable/sql/Migrator` migrations, one statement per `sql` call, and JSON columns hold the contract's JSON encoding as text.
 
 | Table           | Holds                                                                                                                                                            |
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -94,18 +94,31 @@ One `Conversations` Durable Object holds every conversation, because they all de
 | `turns`         | Each question with its context, its status, its answer, why it was blocked or failed, how many attempts the analyst started, and when it was asked and finished. |
 | `turn_steps`    | What the analyst read on the way to an answer, in order, with the screen that shows each read.                                                                   |
 | `proposals`     | The changes an answer proposed, in order, each with its intent, preview, title, reason, and status: pending, accepted, ignored, or stale.                        |
+| `briefings`     | Each month's briefing with its status, and once written, its sections, the figures and limits they show, and the fingerprint of its facts, or why it failed.     |
 
 A turn is `queued`, `running`, `answered`, `blocked`, or `failed`. `blocked` means the analyst is off or model usage reached the warning, and `failed` that it could not finish. Both keep a message that says why.
 
 `ask` carries a command ID. The turn takes that ID, and so does the conversation it starts, so repeating an ask returns the same conversation without queuing another turn. Reusing the ID for a different question fails with `conflict`. A conversation answers one question at a time. Asking while a turn is queued or running fails with `conflict`, and a unique index on unfinished turns holds the rule in storage.
 
-`ask` stores the queued turn and sets the object's alarm. The alarm runs `WorkScheduler.runNext`, which works on one turn and sets the alarm again while turns wait, so the answer does not depend on the browser staying open. A turn that finds the analyst off, or usage at the warning, ends `blocked` with the allowance's message. Otherwise the analyst works with the model until it has an answer it can keep, and the turn ends `answered` or `failed` (see [the analyst's turns](/reference/ai#turns)). Each step is stored as the analyst takes it, so the conversation shows the steps of a running turn.
+`ask` stores the queued turn and sets the object's alarm. The alarm runs `WorkScheduler.runNext`, which works on one item and sets the alarm again while turns or briefings wait, so the answer does not depend on the browser staying open. A waiting turn comes before any briefing, because someone is waiting for its answer. A turn that finds the analyst off, or usage at the warning, ends `blocked` with the allowance's message. Otherwise the analyst works with the model until it has an answer it can keep, and the turn ends `answered` or `failed` (see [the analyst's turns](/reference/ai#turns)). Each step is stored as the analyst takes it, so the conversation shows the steps of a running turn.
 
-A failed alarm runs again, up to six times with backoff. A turn an earlier attempt left `running` starts again, and each start counts an attempt on the turn and clears the steps of the attempt before. A turn found `running` after five attempts ends `failed`, so it never stays running or holds up other conversations. The count is the turn's, not the platform's retry count, because every ask sets the object's one alarm again and starts that count over.
+A failed alarm runs again, up to six times with backoff. A turn an earlier attempt left `running` starts again, and each start counts an attempt on the turn and clears the steps of the attempt before. A turn found `running` after five attempts ends `failed`, so it never stays running or holds up other conversations. A briefing's write is counted and ended the same way, with "The analyst could not finish this briefing. Write it again." A write whose call to the API fails `unavailable` fails the run too, so the platform writes it again once the API answers, and the attempt counts. The count is the turn's or the briefing's, not the platform's retry count, because every ask sets the object's one alarm again and starts that count over.
+
+## Analyst briefings
+
+The `briefings` table holds each month's briefing as `queued`, `writing`, `ready`, `blocked`, or `failed`. `getBriefing` shows `queued` and `writing` as `writing`. A write that finds the analyst off, or usage at the warning, ends `blocked` without a message, and `getBriefing` gives the allowance's reason when it is read. Queuing a write clears what an earlier write left, and `attempts` counts the starts of the write since. The alarm first writes a briefing an earlier run left `writing`, then the latest queued month (see [the analyst's briefings](/reference/ai#briefings)). Whatever queues a write sets the alarm next, with no other I/O between them, so the object commits both together.
+
+The Analyst Worker registers a cron trigger with `Cloudflare.Workers.cron("0 * * * *", …)` and provides `Cloudflare.Workers.CronEventSourceLive`, so each deploy attaches the expression to the Worker. Alchemy runs the handler only for a scheduled event whose `cron` is exactly `0 * * * *`, and drops a failure without a trace, so the handler logs its own failure. At the top of every hour, the handler calls the object's `queueLastMonthsBriefing`. It takes the calendar month before the one containing today in the settings timezone, and queues its first write when the month has no briefing yet, of any status, and `requestBriefing` could queue it:
+
+- `hasRecords` in `packages/finance` finds records in the month from `getCoverage`,
+- `getModelAllowance` allows the task `briefing`, and
+- `getFactsStatus` counts no outdated events.
+
+A run that finds any of these false queues nothing, and the next hour's run checks again, so last month's briefing is queued in the first hour they all hold. The cron never queues a month with a briefing again. `getBriefing` writes it again when its facts change, or once the analyst may call its model after a blocked write, and `requestBriefing` when you ask. The local runtime fires the cron on the same schedule, and `GET <Analyst Worker URL>/cdn-cgi/handler/scheduled?cron=0+*+*+*+*` fires it at once. Without the exact expression in `cron`, the handler ignores the event.
 
 ## Infrastructure ownership
 
-Each service module under `infra/src/` declares the resources that service owns. The API in `infra/src/api.ts` declares Postgres, Hyperdrive, the sources bucket, and the `TemporaryExports` bucket with its seven-day expiry. The processor in `infra/src/processor.ts` declares four Workflows: `ImportWorkflow`, `ExportWorkflow`, `EnrichmentWorkflow`, and `FactsWorkflow`. The web module declares the site, domain, and Access application. The analyst in `infra/src/analyst.ts` declares the `Conversations` Durable Object class, the Analyst Worker that hosts it, and its own AI Gateway, `AnalystGateway`. Deployment values and secrets stay in the stack and never enter a runtime bundle. Runtime entry points may import their inferred binding types from `@repo/infra/worker-bindings` as type-only imports.
+Each service module under `infra/src/` declares the resources that service owns. The API in `infra/src/api.ts` declares Postgres, Hyperdrive, the sources bucket, and the `TemporaryExports` bucket with its seven-day expiry. The processor in `infra/src/processor.ts` declares four Workflows: `ImportWorkflow`, `ExportWorkflow`, `EnrichmentWorkflow`, and `FactsWorkflow`. The web module declares the site, domain, and Access application. The analyst in `infra/src/analyst.ts` declares the `Conversations` Durable Object class, the Analyst Worker that hosts it and its hourly cron trigger, and its own AI Gateway, `AnalystGateway`. Deployment values and secrets stay in the stack and never enter a runtime bundle. Runtime entry points may import their inferred binding types from `@repo/infra/worker-bindings` as type-only imports.
 
 The processor's enrichment service owns an AI Gateway in `infra/src/enrichment.ts`,
 and `infra/src/worker-bindings.ts` composes its binding into the enrichment

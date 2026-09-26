@@ -15,6 +15,7 @@ import {
   type PeriodFlow,
   PostingDetail,
   PostingId,
+  QuestionSummary,
   ReferenceData,
   ObservationId,
   type Scope,
@@ -307,6 +308,15 @@ export const flowInAugust = {
   coverage: augustCoverage,
   comparisonCoverage: { state: "complete", gaps: [] },
 } satisfies PeriodFlow;
+
+// Two questions about who was paid are open in August 2026, over $64.50 of money out.
+export const questionsInAugust = {
+  period: august,
+  count: 2,
+  byFilter: { who: 2, people: 0, accounts: 0, rules: 0 },
+  outflow: aud(6450n),
+  inflow: aud(0n),
+} satisfies typeof QuestionSummary.Type;
 
 export const referenceData = {
   categories: [

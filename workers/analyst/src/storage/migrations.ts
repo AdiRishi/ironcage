@@ -54,6 +54,22 @@ const migrations = {
       resolved_at TEXT CHECK ((resolved_at IS NOT NULL) = (status IN ('accepted', 'ignored'))),
       UNIQUE (turn_id, position)
     ) STRICT`;
+    // A briefing holds what it shows only while it is ready. A blocked one keeps no message,
+    // because whether the analyst may call its model is read again each time it is shown.
+    // `attempts` counts the starts of the write that is waiting or running.
+    yield* sql`CREATE TABLE briefings (
+      month TEXT PRIMARY KEY,
+      status TEXT NOT NULL CHECK (status IN ('queued', 'writing', 'ready', 'blocked', 'failed')),
+      fingerprint TEXT CHECK ((fingerprint IS NOT NULL) = (status = 'ready')),
+      sections TEXT CHECK (json_valid(sections)) CHECK ((sections IS NOT NULL) = (status = 'ready')),
+      figures TEXT CHECK (json_valid(figures)) CHECK ((figures IS NOT NULL) = (status = 'ready')),
+      records TEXT CHECK (json_valid(records)) CHECK ((records IS NOT NULL) = (status = 'ready')),
+      basis TEXT CHECK (json_valid(basis)) CHECK (basis IS NULL OR status = 'ready'),
+      limits TEXT CHECK (json_valid(limits)) CHECK ((limits IS NOT NULL) = (status = 'ready')),
+      written_at TEXT CHECK ((written_at IS NOT NULL) = (status = 'ready')),
+      failure TEXT CHECK ((failure IS NOT NULL) = (status = 'failed')),
+      attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0)
+    ) STRICT`;
   }),
 };
 

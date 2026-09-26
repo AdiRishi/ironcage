@@ -5,6 +5,7 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import { RuntimeContext } from "alchemy/RuntimeContext";
 import { Clock, Context, Effect, Layer } from "effect";
 
+import { Briefings } from "../briefings/service.ts";
 import { Alarm, AnalystModel } from "../platform/services.ts";
 import { Proposals } from "../proposals/service.ts";
 import { analystServices } from "../services.ts";
@@ -15,12 +16,17 @@ import { Conversations } from "./service.ts";
 const operations = Effect.gen(function* () {
   const conversations = yield* Conversations;
   const proposals = yield* Proposals;
+  const briefings = yield* Briefings;
   return {
     listConversations: conversations.list,
     getConversation: conversations.get,
     ask: conversations.ask,
     resolveProposal: proposals.resolve,
     refreshProposal: proposals.refresh,
+    getBriefing: briefings.get,
+    requestBriefing: briefings.request,
+    listBriefings: () => briefings.list,
+    queueLastMonthsBriefing: () => briefings.queueLastMonth,
   };
 });
 export type ConversationOperations = Effect.Success<typeof operations>;
@@ -42,13 +48,13 @@ export const conversations = Effect.fn("Conversations.activate")(function* (
         }),
         Layer.succeed(AnalystModel, {
           // Workers AI sends requests with the same session to the same model instance,
-          // which reuses the prompt it cached for the conversation's earlier calls.
-          conversation: (id) =>
+          // which reuses the prompt it cached for the session's earlier calls.
+          session: (key) =>
             bindings.gateway
               .model({
                 model: analystModel,
                 parameters: { maxTokens: 4096, reasoningEffort: "low" },
-                headers: { "x-session-affinity": id },
+                headers: { "x-session-affinity": key },
               })
               .pipe(Layer.provide(Layer.succeed(RuntimeContext, runtime))),
         }),

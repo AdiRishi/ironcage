@@ -1,11 +1,11 @@
 import { describe, expect, it } from "@effect/vitest";
 import { ConversationId } from "@repo/contracts/analyst";
 import { CommandId } from "@repo/contracts/finance";
-import { Effect, Exit, Ref } from "effect";
+import { Effect, Ref } from "effect";
 import { TestClock } from "effect/testing";
 
 import { Conversations } from "../../src/conversations/service.ts";
-import { alarmPending, analystOff, analystTest, fireAlarm } from "../support/analyst.ts";
+import { alarmPending, analystOff, analystTest, failedRun, fireAlarm } from "../support/analyst.ts";
 
 const first = CommandId.make("00000000-0000-4000-8000-000000000001");
 const second = CommandId.make("00000000-0000-4000-8000-000000000002");
@@ -20,7 +20,6 @@ const ask = Effect.fn("ask")(function* (commandId: typeof CommandId.Type, questi
   const conversations = yield* Conversations;
   return yield* conversations.ask({ commandId, conversationId: null, question, context: null });
 });
-const failedRun = fireAlarm.pipe(Effect.exit, Effect.map(Exit.isFailure));
 
 describe("WorkScheduler", () => {
   it.effect("an alarm answers one turn and stays set while turns wait", () =>

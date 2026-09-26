@@ -598,6 +598,9 @@ importers:
 
   workers/analyst:
     dependencies:
+      '@effect/platform-browser':
+        specifier: 4.0.0-rc.117
+        version: 4.0.0-rc.117(effect@4.0.0-rc.117)
       '@effect/sql-sqlite-do':
         specifier: 4.0.0-rc.117
         version: 4.0.0-rc.117(effect@4.0.0-rc.117)

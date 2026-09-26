@@ -7,7 +7,7 @@ import {
   type RecordModelUsage,
 } from "@repo/contracts/finance";
 import type { AnalystOperation, ApiClient } from "@repo/infra/api";
-import { Context, Effect, Layer, Ref } from "effect";
+import { Context, Effect, Exit, Layer, Ref } from "effect";
 
 import { Conversations } from "../../src/conversations/service.ts";
 import { Alarm } from "../../src/platform/services.ts";
@@ -40,6 +40,9 @@ export const fireAlarm = Effect.gen(function* () {
   yield* Ref.set(yield* PendingAlarm, false);
   yield* (yield* WorkScheduler).runNext;
 });
+
+// Whether the alarm's run failed, which the platform runs again.
+export const failedRun = fireAlarm.pipe(Effect.exit, Effect.map(Exit.isFailure));
 
 // The model usage the API stored, by command ID. Like the API, it stores a repeated
 // command ID once.

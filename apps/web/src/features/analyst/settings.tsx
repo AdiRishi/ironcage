@@ -24,11 +24,12 @@ export function AnalystSettings({ settings }: { settings: ModelSettings }) {
         Analyst
       </h2>
       <p className="type-small text-slate">
-        The analyst answers questions about your money in plain language.{" "}
-        {settings.analyst.provider.name} runs {settings.analyst.provider.model}. For each question,
-        the analyst sends the model the figures, dates, bank descriptions, and counterparty,
-        category, tag, personal event, and account labels that answer it, and the names of your
-        files and any problems importing them. The analyst never sends account numbers or balances.
+        The analyst answers questions about your money in plain language, and writes a briefing of
+        each month once it ends. {settings.analyst.provider.name} runs{" "}
+        {settings.analyst.provider.model}. For each question and each month's briefing, the analyst
+        sends the model the figures, dates, bank descriptions, and counterparty, category, tag,
+        personal event, and account labels it works from, and the names of your files and any
+        problems importing them. The analyst never sends account numbers or balances.
       </p>
       <form
         className="space-y-3"
@@ -45,7 +46,7 @@ export function AnalystSettings({ settings }: { settings: ModelSettings }) {
                   checked={field.state.value}
                   onCheckedChange={(checked) => field.handleChange(checked)}
                 />
-                Answer questions with the model
+                Answer questions and write monthly briefings with the model
               </Label>
             )}
           </form.Field>

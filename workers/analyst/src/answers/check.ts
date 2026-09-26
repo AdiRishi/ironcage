@@ -1,7 +1,6 @@
 import { answerSegments, type Figure, type RecordRef } from "@repo/contracts/analyst";
 import type { Period } from "@repo/contracts/finance";
 import { addDays } from "@repo/finance";
-import { Array as Arr } from "effect";
 
 import type { Evidence } from "../evidence/service.ts";
 
@@ -193,12 +192,11 @@ export function checkAnswer(
   return [...new Set(problems)];
 }
 
-// The problems in what the model wrote for a turn, against everything the turn's tools
-// registered. A year may stand alone when a period a figure rests on, or a check of a
-// period's records, covers it.
-export function checkWritten(texts: ReadonlyArray<string>, evidence: Evidence) {
+// Checks what the model writes against everything the tools registered. A year may stand
+// alone when a period a figure rests on, or a check of a period's records, covers it.
+export function checkAgainst(evidence: Evidence) {
   const periods = [...evidence.placed.values(), ...evidence.checks].flatMap((read) =>
     read.comparison ? [read.period, read.comparison] : [read.period],
   );
-  return Arr.dedupe(texts.flatMap((text) => checkAnswer(text, { ...evidence, periods })));
+  return (text: string) => checkAnswer(text, { ...evidence, periods });
 }

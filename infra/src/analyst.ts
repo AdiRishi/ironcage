@@ -44,6 +44,6 @@ export default Analyst.make(
     observability: workerObservability,
   },
   Effect.gen(function* () {
-    return analyst(yield* Conversations);
-  }).pipe(Effect.provide(ConversationsLive)),
+    return yield* analyst(yield* Conversations);
+  }).pipe(Effect.provide([ConversationsLive, Cloudflare.Workers.CronEventSourceLive])),
 );

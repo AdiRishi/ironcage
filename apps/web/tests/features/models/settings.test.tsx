@@ -222,12 +222,16 @@ test("the analyst is off and says what it sends the model before you turn it on"
   const { screen } = await renderParts(onTestFinished);
 
   await expect
-    .element(screen.getByRole("checkbox", { name: "Answer questions with the model" }))
+    .element(
+      screen.getByRole("checkbox", {
+        name: "Answer questions and write monthly briefings with the model",
+      }),
+    )
     .not.toBeChecked();
   await expect
     .element(screen.getByText("The analyst answers questions", { exact: false }))
     .toHaveTextContent(
-      "The analyst answers questions about your money in plain language. Cloudflare Workers AI runs @cf/openai/gpt-oss-120b. For each question, the analyst sends the model the figures, dates, bank descriptions, and counterparty, category, tag, personal event, and account labels that answer it, and the names of your files and any problems importing them. The analyst never sends account numbers or balances.",
+      "The analyst answers questions about your money in plain language, and writes a briefing of each month once it ends. Cloudflare Workers AI runs @cf/openai/gpt-oss-120b. For each question and each month's briefing, the analyst sends the model the figures, dates, bank descriptions, and counterparty, category, tag, personal event, and account labels it works from, and the names of your files and any problems importing them. The analyst never sends account numbers or balances.",
     );
 });
 
@@ -237,7 +241,9 @@ test("turning on the analyst after the settings changed elsewhere asks you to re
   storeSettings();
   const { screen, client } = await renderParts(onTestFinished);
 
-  const analyst = screen.getByRole("checkbox", { name: "Answer questions with the model" });
+  const analyst = screen.getByRole("checkbox", {
+    name: "Answer questions and write monthly briefings with the model",
+  });
   await analyst.click();
   stored = { ...stored, warning: usd(3000n), version: 2 };
   await client.invalidateQueries({ queryKey: modelSettingsQuery().queryKey });
@@ -299,7 +305,9 @@ test("saving the warning and then the analyst keeps both without asking you to r
   await screen.getByLabelText("Usage warning (USD)").fill("35.00");
   await screen.getByRole("button", { name: "Save warning" }).click();
   await expect.element(screen.getByText("Warning saved.")).toBeVisible();
-  await screen.getByRole("checkbox", { name: "Answer questions with the model" }).click();
+  await screen
+    .getByRole("checkbox", { name: "Answer questions and write monthly briefings with the model" })
+    .click();
   await screen.getByRole("button", { name: "Save analyst setting" }).click();
   await expect.element(screen.getByText("Analyst setting saved.")).toBeVisible();
   expect(stored).toMatchObject({
@@ -318,7 +326,9 @@ test("a saved setting stays shown when the settings cannot be loaded again", asy
     throw new AppRequestError("internal", "The service could not complete the request.");
   });
 
-  const analyst = screen.getByRole("checkbox", { name: "Answer questions with the model" });
+  const analyst = screen.getByRole("checkbox", {
+    name: "Answer questions and write monthly briefings with the model",
+  });
   await analyst.click();
   await screen.getByRole("button", { name: "Save analyst setting" }).click();
   await expect.element(screen.getByText("Analyst setting saved.")).toBeVisible();

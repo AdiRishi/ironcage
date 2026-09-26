@@ -8,6 +8,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@effect/platform-browser": "catalog:",
     "@effect/sql-sqlite-do": "catalog:",
     "@repo/contracts": "workspace:*",
     "@repo/finance": "workspace:*",

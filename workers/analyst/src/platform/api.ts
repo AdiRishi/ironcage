@@ -10,7 +10,7 @@ const reached = <A>(effect: Effect.Effect<A, FinanceError | RpcCallError>) =>
         Effect.andThen(
           new FinanceError({
             kind: "unavailable",
-            message: "The analyst could not reach your records. Ask again in a few minutes.",
+            message: "The analyst could not reach your records. Try again in a few minutes.",
           }),
         ),
       ),

@@ -114,13 +114,17 @@ export function comparisonCoverage(
   };
 }
 
+// Whether any account has records for a day of the period.
+export function hasRecords(coverage: readonly AccountCoverage[], period: Period) {
+  return coverage.some((item) => coveredDays(item).some((interval) => overlaps(interval, period)));
+}
+
 // A month is missing when no account has records in it, as every month before the first
 // record is, partial when `periodGaps` names days of it, and complete otherwise, so the
 // strip and the note beside a month's figures agree.
 export function monthCoverage(snapshot: CoverageSnapshot, month: YearMonth): CoverageState {
   const period = monthsPeriod(month);
   const coverage = accountCoverage(snapshot, period);
-  if (!coverage.some((item) => coveredDays(item).some((interval) => overlaps(interval, period))))
-    return "missing";
+  if (!hasRecords(coverage, period)) return "missing";
   return periodGaps(coverage, period).length > 0 ? "partial" : "complete";
 }

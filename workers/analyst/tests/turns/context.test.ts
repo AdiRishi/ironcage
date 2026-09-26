@@ -10,6 +10,7 @@ import {
   foodInAugust,
   japanTrip,
   postingDetail,
+  questionsInAugust,
   referenceData,
   unidentified,
   unidentifiedEvent,
@@ -38,6 +39,9 @@ const reads = {
   getEventForPosting: () => Effect.succeed(unidentifiedEvent),
   getReferenceData: () => Effect.succeed(referenceData),
   listCountedLedger: () => Effect.succeed(unresolvedPage),
+  summarizeQuestions: () => Effect.succeed(questionsInAugust),
+  listQuestions: () => Effect.succeed({ rows: [], nextCursor: null }),
+  listImports: () => Effect.succeed({ rows: [], nextCursor: null }),
 };
 
 // A question asked about `context`, and the step it starts from before the model is called.
@@ -103,7 +107,7 @@ describe("readContext", () => {
       },
     ),
     asked(
-      "a briefing, which reads its month against the month before",
+      "a briefing, which first reads its month against the month before",
       { kind: "briefing", month: YearMonth.make("2026-08") },
       {
         label: "Reading money in and out for August 2026",

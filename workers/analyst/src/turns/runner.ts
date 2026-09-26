@@ -1,13 +1,15 @@
 import type { TurnId } from "@repo/contracts/analyst";
-import type { ModelProvider } from "@repo/contracts/finance";
+import { CommandId, type ModelProvider } from "@repo/contracts/finance";
 import { calendarDateIn } from "@repo/finance";
 import type { AnalystOperation, Api } from "@repo/infra/api";
-import { Context, DateTime, Duration, Effect, Layer, Schedule } from "effect";
-import { type AiError, Chat, type Prompt } from "effect/unstable/ai";
+import { Context, DateTime, Effect, Layer } from "effect";
+import { Chat, type Prompt } from "effect/unstable/ai";
 import { SqlClient } from "effect/unstable/sql";
+import { v5 } from "uuid";
 
 import { citedAnswer } from "../answers/cited.ts";
 import { TurnEvidence } from "../evidence/service.ts";
+import { callModel, failureOf, modelUsage } from "../platform/model.ts";
 import { AnalystModel } from "../platform/services.ts";
 import {
   finishTurn,
@@ -17,34 +19,17 @@ import {
   type TurnOutcome,
 } from "../storage/conversations.ts";
 import { AnalystToolkit, analystTools, unavailableIn } from "../tools/toolkit.ts";
-import { readContext } from "./context.ts";
+import { readContext, readShown } from "./context.ts";
 import { earlierTurn, systemPrompt } from "./prompt.ts";
-import { modelUsage } from "./usage.ts";
 
 // The most model calls an attempt at a turn makes to reach an accepted answer.
 const modelCalls = 12;
 
-// Where a failed model call stopped. A request that never reached the model may get
-// through later (`unreachable`), unlike one the gateway or model turned down (`refused`).
-// Any other failure comes after the reply arrived, while the reply was decoded or its tools
-// ran, and a reply that arrived was billed, so it is never asked for again.
-const failureOf = (error: AiError.AiError) => {
-  switch (error.reason._tag) {
-    // Alchemy's model reports a Workers AI binding call that threw as UnknownError.
-    case "UnknownError":
-      return "unreachable";
-    case "RateLimitError":
-    case "InternalProviderError":
-    case "NetworkError":
-    case "QuotaExhaustedError":
-    case "AuthenticationError":
-    case "ContentPolicyError":
-    case "InvalidRequestError":
-      return error.isRetryable ? "unreachable" : "refused";
-    default:
-      return "unreadable";
-  }
-};
+// A call's usage takes its command ID from the attempt and the call, so recording the same
+// call again stores nothing new, and a turn that starts again records its new calls beside
+// the old ones.
+const usageId = (turn: StartedTurn, call: number) =>
+  CommandId.make(v5(`${turn.id}/${turn.attempt}/${call}`, v5.URL));
 
 const messages = {
   exhausted:
@@ -70,8 +55,8 @@ export class TurnRunner extends Context.Service<
         const models = yield* AnalystModel;
         const toolkit = yield* AnalystToolkit;
 
-        // The ledger the model reads about, the conversation so far, the question, and the
-        // read of what it was asked about.
+        // The ledger the model reads about, the conversation so far, what the person read of
+        // what they asked about, the question, and the reads of it.
         const promptFor = Effect.fnUntraced(function* (turn: StartedTurn) {
           const evidence = yield* TurnEvidence;
           const system = systemPrompt({
@@ -83,6 +68,7 @@ export class TurnRunner extends Context.Service<
           return [
             { role: "system", content: system },
             ...(yield* readAnswers(turn.conversationId)).flatMap(earlierTurn),
+            ...(turn.context === null ? [] : yield* readShown(turn.context)),
             { role: "user", content: turn.question },
             ...(turn.context === null ? [] : yield* readContext(toolkit, turn.context)),
           ] satisfies ReadonlyArray<Prompt.MessageEncoded>;
@@ -92,28 +78,11 @@ export class TurnRunner extends Context.Service<
           const evidence = yield* TurnEvidence;
           const chat = yield* Chat.fromPrompt(yield* promptFor(turn));
           for (let call = 1; call <= modelCalls; call++) {
-            const [elapsed, response] = yield* chat
-              .generateText({ prompt: [], toolkit, toolChoice: "required", concurrency: 1 })
-              .pipe(
-                Effect.retry({
-                  schedule: Schedule.exponential("1 second"),
-                  times: 2,
-                  while: (error) => failureOf(error) === "unreachable",
-                }),
-                Effect.tapError(() => api.recordModelUsage(modelUsage(turn, call, provider, null))),
-                Effect.timed,
-              );
-            const { usage } = response;
-            yield* api.recordModelUsage(modelUsage(turn, call, provider, usage));
-            yield* Effect.logInfo("The analyst's model replied", {
-              attempt: turn.attempt,
-              call,
-              millis: Duration.toMillis(elapsed),
-              tools: response.toolCalls.map((part) => part.name),
-              inputTokens: usage.inputTokens.total,
-              cachedInputTokens: usage.inputTokens.cacheRead,
-              outputTokens: usage.outputTokens.total,
-            });
+            const response = yield* callModel(
+              chat.generateText({ prompt: [], toolkit, toolChoice: "required", concurrency: 1 }),
+              (usage) =>
+                api.recordModelUsage(modelUsage("analyst", usageId(turn, call), provider, usage)),
+            ).pipe(Effect.annotateLogs({ attempt: turn.attempt, call }));
             const snapshot = yield* evidence.snapshot;
             if (snapshot.accepted)
               return {
@@ -136,7 +105,7 @@ export class TurnRunner extends Context.Service<
               Effect.provide(
                 Layer.mergeAll(
                   TurnEvidence.layer(api, turn.id),
-                  models.conversation(turn.conversationId),
+                  models.session(turn.conversationId),
                 ),
               ),
             );

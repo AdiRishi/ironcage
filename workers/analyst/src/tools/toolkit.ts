@@ -1,7 +1,7 @@
 import { FinanceError } from "@repo/contracts/finance";
 import type { AnalystOperation, Api } from "@repo/infra/api";
-import { Schema } from "effect";
-import { Toolkit } from "effect/unstable/ai";
+import { Effect, Schema, Stream } from "effect";
+import { type Prompt, type Tool, Toolkit } from "effect/unstable/ai";
 
 import { Answer, answer } from "./answer.ts";
 import {
@@ -51,6 +51,8 @@ export const AnalystToolkit = Toolkit.make(
   Answer,
 );
 
+export type AnalystTools = typeof AnalystToolkit.tools;
+
 // The handlers read through the API the object binds. Each turn provides its own
 // TurnEvidence, which the handlers register figures with.
 export const analystTools = (api: Pick<Api, AnalystOperation>) =>
@@ -84,3 +86,36 @@ export const unavailableIn = (
       isFailure && Schema.is(FinanceError)(result) && result.kind === "unavailable" ? [result] : [],
     )
     .at(0);
+
+// Runs a read the model did not ask for as if it had: the result, and the call and the
+// result as they go in the model's prompt.
+export const readAs = <Name extends keyof AnalystTools>(
+  toolkit: Effect.Success<typeof AnalystToolkit>,
+  name: Name,
+  params: Tool.ParametersEncoded<AnalystTools[Name]>,
+  callId: string,
+) =>
+  toolkit.handle(name, params, callId).pipe(
+    Effect.flatMap(Stream.runLast),
+    Effect.flatMap(Effect.fromOption),
+    // The toolkit has every tool named here, and each handler ends with one result.
+    Effect.orDie,
+    Effect.map((result) => ({
+      result,
+      messages: [
+        { role: "assistant", content: [{ type: "tool-call", id: callId, name, params }] },
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              id: callId,
+              name,
+              isFailure: result.isFailure,
+              result: result.encodedResult,
+            },
+          ],
+        },
+      ] satisfies ReadonlyArray<Prompt.MessageEncoded>,
+    })),
+  );

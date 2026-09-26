@@ -1,4 +1,3 @@
-import type { ConversationId } from "@repo/contracts/analyst";
 import { Context, type Effect, type Layer } from "effect";
 import type { LanguageModel } from "effect/unstable/ai";
 
@@ -7,10 +6,9 @@ export class Alarm extends Context.Service<Alarm, { readonly set: Effect.Effect<
   "@repo/analyst/platform/Alarm",
 ) {}
 
-// The analyst's model, for the turns of one conversation.
+// The analyst's model, for the calls of one session: a conversation's turns, or a month's
+// briefing.
 export class AnalystModel extends Context.Service<
   AnalystModel,
-  {
-    readonly conversation: (id: ConversationId) => Layer.Layer<LanguageModel.LanguageModel>;
-  }
+  { readonly session: (key: string) => Layer.Layer<LanguageModel.LanguageModel> }
 >()("@repo/analyst/platform/AnalystModel") {}

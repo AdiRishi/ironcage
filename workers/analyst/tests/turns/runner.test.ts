@@ -429,7 +429,7 @@ describe("TurnRunner", () => {
         const turn = yield* askAndRun(1);
         expect(turn).toMatchObject({
           status: "failed",
-          message: "The analyst could not reach your records. Ask again in a few minutes.",
+          message: "The analyst could not reach your records. Try again in a few minutes.",
           answer: null,
         });
         expect(yield* modelRequests).toHaveLength(1);

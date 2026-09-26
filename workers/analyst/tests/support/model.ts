@@ -127,14 +127,14 @@ export const scriptedModel = (replies: ReadonlyArray<Reply>) =>
     Layer.provideMerge(Layer.effect(ModelRequests, Ref.make<ReadonlyArray<Prompt.Prompt>>([]))),
   );
 
-// Every conversation's turns call the one scripted model.
+// Every session, a conversation's turns or a month's briefing, calls the one scripted model.
 export const scriptedAnalystModel = (replies: ReadonlyArray<Reply>) =>
   Layer.effect(
     AnalystModel,
     Effect.gen(function* () {
       const model = yield* LanguageModel.LanguageModel;
       return AnalystModel.of({
-        conversation: () => Layer.succeed(LanguageModel.LanguageModel, model),
+        session: () => Layer.succeed(LanguageModel.LanguageModel, model),
       });
     }),
   ).pipe(Layer.provideMerge(scriptedModel(replies)));

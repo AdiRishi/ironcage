@@ -3,7 +3,7 @@ title: AI
 description: Where models are used, what they receive, how their output is applied, and what they can never do.
 ---
 
-Two features call a model. Enrichment resolves counterparties and their defaults, or scores the model against your answers. The analyst answers questions about your records, and its screen comes next (see the [roadmap](/roadmap)). Document extraction is not built: the statement parser reads every page, and a page it cannot read becomes a `value` source review.
+Two features call a model. Enrichment resolves counterparties and their defaults, or scores the model against your answers. The analyst answers questions about your records and writes a briefing of each month. Briefings have no screen yet (see the [roadmap](/roadmap)). Document extraction is not built: the statement parser reads every page, and a page it cannot read becomes a `value` source review.
 
 A model never computes a total and never changes a booked field.
 
@@ -64,19 +64,19 @@ Check the model against your answers in Settings. `requestEvaluation` starts an 
 
 ## Analyst
 
-The analyst is off until you turn it on. For each question, it sends the model the figures, dates, bank descriptions, and counterparty, category, tag, personal event, and account labels that answer it, and the names of your files and any problems importing them. It never sends account numbers, bank IDs, or balances. Settings shows this beside the analyst's switch.
+The analyst is off until you turn it on. For each question and each month's briefing, it sends the model the figures, dates, bank descriptions, and counterparty, category, tag, personal event, and account labels it works from, and the names of your files and any problems importing them. It never sends account numbers, bank IDs, or balances. Settings shows this beside the analyst's switch.
 
-A question becomes a turn in a conversation, which the analyst works on in the background (see [Analyst conversations](/reference/architecture#analyst-conversations)).
+A question becomes a turn in a conversation, which the analyst works on in the background (see [Analyst conversations](/reference/architecture#analyst-conversations)). A month's briefing is written in the background too (see [Analyst briefings](/reference/architecture#analyst-briefings)).
 
-The analyst reads financial data only through the API. `AnalystOperation` in `workers/api/src/index.ts` names the operations it may call: the reads the screens use, `previewCorrection` and `previewCounterpartyChange`, `getModelAllowance`, and `recordModelUsage`. The list is checked at compile time, so naming any other command, an operation whose input carries a command ID, fails the build. Its only write is its own usage. The binding is typed `ApiClient<AnalystOperation>`, whose calls can also fail with `RpcCallError` when the API Worker throws, runs out of CPU, restarts, or loses the connection. `analystApi` in `workers/analyst/src/platform/api.ts` turns that failure into `unavailable` with "The analyst could not reach your records. Ask again in a few minutes.", so a tool returns it like any other failure of the API.
+The analyst reads financial data only through the API. `AnalystOperation` in `workers/api/src/index.ts` names the operations it may call: the reads the screens use, `previewCorrection` and `previewCounterpartyChange`, `getModelAllowance`, and `recordModelUsage`. The list is checked at compile time, so naming any other command, an operation whose input carries a command ID, fails the build. Its only write is its own usage. The binding is typed `ApiClient<AnalystOperation>`, whose calls can also fail with `RpcCallError` when the API Worker throws, runs out of CPU, restarts, or loses the connection. `analystApi` in `workers/analyst/src/platform/api.ts` turns that failure into `unavailable` with "The analyst could not reach your records. Try again in a few minutes.", so a tool returns it like any other failure of the API.
 
 ### Model
 
-The analyst calls `analystModel` through `AnalystGateway` with Effect AI. The Durable Object in `workers/analyst/src/conversations/index.ts` provides `AnalystModel`, declared in `workers/analyst/src/platform/services.ts`, which gives each conversation Alchemy's Workers AI `LanguageModel` with reasoning effort `low`, at most 4,096 output tokens, and the conversation's ID in the `x-session-affinity` header. Workers AI sends requests with the same session to the same model instance, which reuses the prompt it cached for the conversation's earlier calls and bills those tokens at the cached rate.
+The analyst calls `analystModel` through `AnalystGateway` with Effect AI. The Durable Object in `workers/analyst/src/conversations/index.ts` provides `AnalystModel`, declared in `workers/analyst/src/platform/services.ts`, which gives each session Alchemy's Workers AI `LanguageModel` with reasoning effort `low`, at most 4,096 output tokens, and the session's key in the `x-session-affinity` header. A conversation's key is its ID, and a briefing's is `briefing/` and its month. Workers AI sends requests with the same session to the same model instance, which reuses the prompt it cached for the session's earlier calls and bills those tokens at the cached rate.
 
 ### What the model receives
 
-`workers/analyst/src/turns/prompt.ts` writes the prompt. The system message gives today's date and the timezone from the settings, the reporting currency, and each account's label and kind, with the currency of an account outside the reporting currency. It sets the rules:
+`workers/analyst/src/turns/prompt.ts` writes the prompt. The system message gives today's date and the timezone from the settings, the reporting currency, and each account's label and kind, with the currency of an account outside the reporting currency. It sets the rules, whose rules on periods, numbers, data, and style a briefing's prompt shares:
 
 - Read with the tools before answering.
 - Cite every amount, count, change, percentage, and average by the figure token a tool returned, and every transaction, counterparty, or list by its record token.
@@ -90,31 +90,31 @@ The analyst calls `analystModel` through `AnalystGateway` with Effect AI. The Du
 
 Earlier questions in the conversation follow, each with its answer. Each figure token in an earlier answer is written out as its value, such as "$980.00", and each record token as its label. A figure's label can quote what the bank printed, so it stays out of the model's own earlier words, and a record's label never does (see [Tools](#tools)). The model reads what you read and cannot cite an earlier turn's figures, so it reads them again to cite them.
 
-The question comes last. `readContext` in `workers/analyst/src/turns/context.ts` reads what a question was asked about before the model is called, with the tool the model would use:
+The question comes last. `readContext` in `workers/analyst/src/turns/context.ts` reads what a question was asked about before the model is called, with the tools the model would use:
 
-| Asked about       | Read                                                                       |
-| ----------------- | -------------------------------------------------------------------------- |
-| A category        | `ReadSpending` for its months and comparison, narrowed like the screen was |
-| A counterparty    | `ReadCounterparty`                                                         |
-| A transaction     | `ReadTransaction`                                                          |
-| A spending stream | `ReadSpending` for its scope, months, and comparison, as the stream opens  |
-| Any other stream  | `ListTransactions`, the counted ledger for its scope                       |
-| A briefing        | `ReadFlow` for its month against the month before                          |
+| Asked about       | Read                                                                                                                 |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------- |
+| A category        | `ReadSpending` for its months and comparison, narrowed like the screen was                                           |
+| A counterparty    | `ReadCounterparty`                                                                                                   |
+| A transaction     | `ReadTransaction`                                                                                                    |
+| A spending stream | `ReadSpending` for its scope, months, and comparison, as the stream opens                                            |
+| Any other stream  | `ListTransactions`, the counted ledger for its scope                                                                 |
+| A briefing        | `ReadFlow` for its month against the month before, `ListQuestions`, and `ReadCoverage`, the reads it is written from |
 
-The read is the turn's first step. Its call and result follow the question as if the model had made the call, so the answer can cite its figures.
+The reads are the turn's first steps. Their calls and results follow the question as if the model had made the calls, so the answer can cite their figures. A question asked about a written briefing also comes after the briefing, which `readShown` places before it like an earlier answer: the request "Write the briefing of August 2026." and the four sections under what each tells, with each figure written out as its value. The model knows what you read and cites what the reads return.
 
 ### Turns
 
 `TurnRunner` in `workers/analyst/src/turns/runner.ts` answers a turn. It asks `getModelAllowance` for the task `analyst`, and a refusal ends the turn `blocked` with the refusal's message before any model call. Otherwise it builds the turn's `TurnEvidence`, reads the context, and starts a `Chat` from the prompt. Each model call is `chat.generateText` with the toolkit, `toolChoice: "required"`, and `concurrency: 1`, so the tools in a reply run in order and `Answer` checks against the figures of the reads before it. The turn ends `answered` once `Answer` accepts an answer. After 12 model calls without one, it ends `failed` with "The analyst could not finish an answer with linked figures. Ask again or narrow the question."
 
-A request that never reached the model is sent again up to twice, after 1 and then 2 seconds, when a later request may get through: a rate limit, or a provider or network failure that `AiError` marks retryable, or an `UnknownError`, which is how Alchemy's adapter reports a Workers AI binding call that threw. A request the gateway or model turned down, with an authentication, quota, content policy, or invalid request error, is not sent again. A reply that arrived is never asked for again, because it was billed, even when it does not decode, such as a call to a tool that does not exist, or when its tools fail. The turn ends `failed` with a message that says what to do:
+`callModel` in `workers/analyst/src/platform/model.ts` sends each request for turns and briefings alike. A request that never reached the model is sent again up to twice, after 1 and then 2 seconds, when a later request may get through: a rate limit, or a provider or network failure that `AiError` marks retryable, or an `UnknownError`, which is how Alchemy's adapter reports a Workers AI binding call that threw. A request the gateway or model turned down, with an authentication, quota, content policy, or invalid request error, is not sent again. A reply that arrived is never asked for again, because it was billed, even when it does not decode, such as a call to a tool that does not exist, or when its tools fail. The turn ends `failed` with a message that says what to do:
 
 - The requests did not reach the model: "The analyst could not reach the model. Ask again in a few minutes."
 - The request was turned down: "The model turned down the analyst's request. Ask the question another way, or in a new conversation."
 - The reply did not decode, or its tools failed: "The analyst could not read the model's reply. Ask again."
 - The API failed, or a tool's read came back `unavailable`: the API's message.
 
-After every model call, the analyst records one `recordModelUsage` command. It holds the task `analyst`, the model, the reported input and output tokens, the cost `estimateModelCost` gives from the allowance's prices, and the status: `success` for a reply, and `failed` for a call with no reply the analyst could read. Tokens a reply did not report stay unknown. The command ID is a UUID v5 of the turn, the attempt, and the call, so the same call recorded twice stores one row, and a turn the alarm starts again stores its new calls beside the earlier attempt's.
+After every model call, `callModel` records one `recordModelUsage` command. It holds the task `analyst`, the model, the reported input and output tokens, the cost `estimateModelCost` gives from the allowance's prices, and the status: `success` for a reply, and `failed` for a call with no reply the analyst could read. Tokens a reply did not report stay unknown. The command ID is a UUID v5 of the turn, the attempt, and the call, so the same call recorded twice stores one row, and a turn the alarm starts again stores its new calls beside the earlier attempt's.
 
 Steps are stored as the tools take them, so the conversation shows them while the turn runs. A turn that starts again clears the steps of its earlier attempt. An answered turn stores its answer and its proposals, and moves the conversation's `next_reference` past the figures and records it registered, in one transaction.
 
@@ -215,6 +215,33 @@ The Durable Object stores proposals in `proposals`, and `Proposals` in `workers/
 
 The analyst never applies a proposal, because its API binding holds no command but `recordModelUsage`. Applying one is the ordinary command, `applyCorrection` or `applyCounterpartyChange`, with the previewed change and versions, which the web's proposal card sends before it resolves the proposal (see [Frontend](/reference/frontend#analyst)).
 
+### Briefings
+
+A briefing tells a month in four sections: what came in, what went out, what changed from the month before, and what needs an answer. Each section follows the answer grammar and cites figures by token. The contracts are in `packages/contracts/src/analyst/briefings.ts`, and the code is in `workers/analyst/src/briefings/`.
+
+`readBriefingMonth` in `facts.ts` reads what a month's briefing is written from, with the model's own tools, as if the model had called them: `ReadFlow` for the month against the month before, `ListQuestions` for the month, and `ReadCoverage` for the month, which names the files whose import failed or waits for review. The reads run one after another, so their figures take the same numbers every time. `readBriefingFacts` registers them with a `TurnEvidence` from `TurnEvidence.briefing`, whose figures and records number from 1 and which stores no steps. A facts rebuild in progress becomes a `recalculating` limit, as it does for a turn. A read that fails ends the read of the facts with its `FinanceError`.
+
+The facts' fingerprint is the SHA-256, in hex, of the JSON encoding of every figure and record the reads registered, the basis of every read, and the limits. The encoding leaves out when the API calculated them, and the contract schemas order its keys, so the same facts always give the same fingerprint. A cited figure that changes, a figure the model left out that changes, or a change in the days an account has records for all change it. The rest of what the reads return stays out, because it reaches beyond the month: a question's first and last dates and its latest descriptions, and every file that failed to import. September's records never write August's briefing again unless they change August's figures.
+
+`BriefingWriter` in `writer.ts` writes one queued briefing:
+
+1. It asks `getModelAllowance` for the task `briefing`. A refusal ends the write `blocked`, before any model call. The briefing keeps no message, because the refusal's reason can change before anyone reads it.
+2. It reads the facts and starts a `Chat` with a system message from `briefingPrompt` in `prompt.ts`, the request "Write the briefing of August 2026.", and each read's call and result, as if the model had made the calls. The system message gives the same ledger and the same rules on periods, numbers, data, and style as a turn's. It names the four sections and tells the model to describe spending without judging it.
+3. Each model call has one tool, `WriteBriefing { cameIn, wentOut, changed, needsAnswer }`, with `toolChoice: "required"`. `WriteBriefing` runs `checkAnswer` on each section against the facts' figures, records, and names, and the periods of their reads. It fails with every problem, prefixed with its section, such as `wentOut: "$3,100.00" writes an amount.`, and the model reads them and writes again. When the sections pass, it returns them.
+4. After three model calls without sections that pass, the briefing fails with "The analyst could not write this briefing with linked figures. Write it again." A call to the API that fails `unavailable`, such as one that cannot reach it, fails the alarm's run instead, so the platform runs the write again (see [Analyst conversations](/reference/architecture#analyst-conversations)). Any other failure of the API fails the briefing with the API's message. A failed model call fails it with the message for its reason, as it fails a turn:
+   - The requests did not reach the model: "The analyst could not reach the model. Write the briefing again in a few minutes."
+   - The request was turned down: "The model turned down the analyst's request. Write the briefing again later."
+   - The reply did not decode: "The analyst could not read the model's reply. Write the briefing again."
+5. A written briefing keeps its sections, the facts' fingerprint, and what `citedAnswer` keeps of the facts for the text of the four sections: the figures and records they cite, the basis, and the limits.
+
+Each call records its usage with the task `briefing`. Its command ID is a random UUID, because a month's briefing is written again whenever its facts change, and the attempt and call numbers would repeat. Logs carry the month, the attempt, and the same details of each call as a turn's.
+
+The Analyst Worker forwards three operations:
+
+- `getBriefing({ month })` returns `none` for a month with no briefing, `writing` while a write waits or runs, and `failed` with the message of the last write. For a written briefing, it reads the facts again and compares their fingerprint. It returns the briefing as `ready` only when the fingerprints match, so stale sections are never returned. Otherwise it returns no sections, figures, or limits, and asks `getModelAllowance` whether the briefing can be written again. A refusal returns `blocked` with the refusal's message and queues nothing. While facts wait to be rebuilt, the figures move until the rebuild finishes, so it returns `writing` and queues the rewrite on the first read after the rebuild instead of following them. Otherwise it queues the rewrite and returns `writing`. A briefing whose write was `blocked` is read the same way: `blocked` with the allowance's message now, or queued again on the first read once the analyst may call its model.
+- `requestBriefing({ month })` queues a write of a month that has ended in the settings timezone. It fails with `invalid` for the month in progress or a later one, and for a month without records, with "No records for December 2025 yet. Upload the December 2025 statements." It fails with `unavailable` and the allowance's message while the analyst may not call its model, and with "Ironcage is recalculating totals after an update. Write the briefing once it finishes." while facts wait to be rebuilt. A failure changes nothing, so a written briefing stays. Otherwise it replaces a written, blocked, or failed briefing, and leaves a write that waits or runs alone.
+- `listBriefings()` returns the 12 latest months with a briefing, newest first, with their stored status and when each was written. It does not read the facts again, so a `ready` briefing in the list is checked against the current figures when `getBriefing` opens it.
+
 ## Model settings
 
 `model_settings` holds one row. Migration `0016_enrichment.sql` created it as `enrichment_settings`, and `0029_model_settings.sql` renamed it and added the analyst's switch.
@@ -238,7 +265,7 @@ Each model call has a task, `ModelTask`: `enrichment` and `evaluation` use ident
 - "The analyst is off. Turn it on in Settings."
 - "Model usage reached the warning in Settings. Raise it to continue."
 
-An allowed task gets its provider, with the model ID and prices. `getModelAllowance` returns the same answer to the analyst, which checks it when it starts on a question. `requestEnrichment`, `requestEvaluation`, and every `nextEnrichmentBatch` check it inside their own transaction and fail with `unavailable` and the message. A run whose task is refused between batches stops and asks you to check the model settings and usage. Delayed reports and calls made at once can overshoot the warning.
+An allowed task gets its provider, with the model ID and prices. `getModelAllowance` returns the same answer to the analyst, which checks it when it starts on a question or a briefing, before it queues a briefing, and before a read queues a rewrite. `requestEnrichment`, `requestEvaluation`, and every `nextEnrichmentBatch` check it inside their own transaction and fail with `unavailable` and the message. A run whose task is refused between batches stops and asks you to check the model settings and usage. Delayed reports and calls made at once can overshoot the warning.
 
 `getModelAllowance` and `recordModelUsage` are internal operations. The web app cannot call them.
 
@@ -256,4 +283,4 @@ Logs carry operation IDs and timings, never prompts, completions, or description
 
 Descriptors and model output are untrusted data. Model output is decoded against a schema and checked against current records before anything is written. Text in a description has no authority. A model can propose a correction, but only your action applies one.
 
-The analyst's model can only read, propose, and answer. Its toolkit is fixed code, and its API binding, typed `ApiClient<AnalystOperation>`, holds no command but `recordModelUsage`, so a proposal changes nothing until you accept it. Bank text reaches it only in named fields of tool results, never in an earlier answer's words, and the prompt tells it that tool results are data. An answer is stored only after `checkAnswer` passes, so every number in it is a figure code computed, and it holds no links.
+The analyst's model can only read, propose, and answer. Writing a briefing, it has one tool, `WriteBriefing`, and reads only the facts code read for it. Its toolkits are fixed code, and its API binding, typed `ApiClient<AnalystOperation>`, holds no command but `recordModelUsage`, so a proposal changes nothing until you accept it. Bank text reaches it only in named fields of tool results, never in an earlier answer's words, and the prompt tells it that tool results are data. An answer, a proposal's reason, or a briefing is stored only after `checkAnswer` passes, so every number in it is a figure code computed, and it holds no links.
