@@ -4,7 +4,7 @@ import { Cause, Effect, Schema } from "effect";
 
 import { AppRequestError } from "@/lib/app-error";
 
-export const runApiRequest = <A, E>(effect: Effect.Effect<A, E>, signal: AbortSignal): Promise<A> =>
+export const runRpcRequest = <A, E>(effect: Effect.Effect<A, E>, signal: AbortSignal): Promise<A> =>
   Effect.runPromise(
     effect.pipe(
       Effect.catchCause((cause) => {
@@ -19,7 +19,7 @@ export const runApiRequest = <A, E>(effect: Effect.Effect<A, E>, signal: AbortSi
                 "The service is temporarily unavailable. Please try again.",
               )
             : new AppRequestError("internal", "The request could not be completed.");
-        return Effect.logError("API request failed").pipe(Effect.andThen(Effect.fail(error)));
+        return Effect.logError("RPC request failed").pipe(Effect.andThen(Effect.fail(error)));
       }),
     ),
     { signal },

@@ -4,6 +4,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
 import { Amount } from "@/components/amount";
+import { AskAbout } from "@/features/analyst/ask-about";
 import { locatorLabel, sourceHref } from "@/lib/sources";
 
 import { Meaning } from "./meaning";
@@ -46,6 +47,7 @@ export function LedgerDetail({ id }: { id: typeof PostingId.Type }) {
             {posting.accountLabel}, {longDate(posting.postedOn)}
           </p>
         </div>
+        <AskAbout about={{ kind: "transaction", postingId: id }} />
       </header>
 
       <Meaning postingId={id} descriptor={descriptor} />

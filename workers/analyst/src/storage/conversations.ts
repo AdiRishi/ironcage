@@ -4,6 +4,7 @@ import {
   type ConversationCursor,
   ConversationId,
   ConversationSummary,
+  Proposal,
   RecordLink,
   Turn,
   TurnId,
@@ -11,12 +12,17 @@ import {
   TurnStep,
 } from "@repo/contracts/analyst";
 import { FinanceError } from "@repo/contracts/finance";
-import { DateTime, Effect, Schema } from "effect";
+import { DateTime, Effect, Schema, Struct } from "effect";
 import { SqlClient } from "effect/unstable/sql";
 
-// JSON columns hold the contract's JSON encoding.
+import { insertProposals, proposalJson } from "./proposals.ts";
+
+// JSON columns hold the contract's JSON encoding. An answer's proposals change after it,
+// so they have a table of their own.
 export const ContextText = Schema.NullOr(Schema.fromJsonString(Schema.toCodecJson(AskContext)));
-const AnswerText = Schema.fromJsonString(Schema.toCodecJson(Answer));
+const AnswerText = Schema.fromJsonString(
+  Schema.toCodecJson(Answer.mapFields(Struct.omit(["proposals"]))),
+);
 const RecordsText = Schema.NullOr(Schema.fromJsonString(Schema.toCodecJson(RecordLink)));
 
 const TurnRow = Schema.Struct({
@@ -24,6 +30,7 @@ const TurnRow = Schema.Struct({
   context: ContextText,
   steps: Schema.fromJsonString(Schema.toCodecJson(Schema.Array(TurnStep))),
   answer: Schema.NullOr(AnswerText),
+  proposals: Schema.fromJsonString(Schema.toCodecJson(Schema.Array(Proposal))),
 });
 const SummaryRow = Schema.Struct({
   ...ConversationSummary.fields,
@@ -90,11 +97,19 @@ export const readConversation = Effect.fn("readConversation")(function* (id: Con
   const turns = yield* sql`SELECT t.id, t.question, t.context, t.status, t.answer, t.message,
       t.asked_at AS "askedAt", t.finished_at AS "finishedAt",
       (SELECT json_group_array(json_object('label', s.label, 'records', json(s.records))
-        ORDER BY s.position) FROM turn_steps s WHERE s.turn_id = t.id) AS steps
+        ORDER BY s.position) FROM turn_steps s WHERE s.turn_id = t.id) AS steps,
+      (SELECT json_group_array(${proposalJson(sql)} ORDER BY p.position)
+        FROM proposals p WHERE p.turn_id = t.id) AS proposals
     FROM turns t WHERE t.conversation_id = ${id} ORDER BY t.asked_at, t.id`.pipe(
     Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(TurnRow))),
   );
-  return { ...conversation, turns };
+  return {
+    ...conversation,
+    turns: turns.map(({ answer, proposals, ...turn }) => ({
+      ...turn,
+      answer: answer === null ? null : { ...answer, proposals },
+    })),
+  };
 });
 
 // What an earlier ask with this turn's command ID sent, to tell a repeat from a reuse.
@@ -222,6 +237,7 @@ export const finishTurn = Effect.fn("finishTurn")(function* (id: TurnId, outcome
       Effect.gen(function* () {
         yield* sql`UPDATE turns SET status = 'answered', answer = ${answer}, finished_at = ${at}
           WHERE id = ${id}`;
+        yield* insertProposals(id, outcome.answer.proposals);
         yield* sql`UPDATE conversations SET next_reference = ${outcome.nextReference}
           WHERE id = (SELECT conversation_id FROM turns WHERE id = ${id})`;
       }),

@@ -6,6 +6,7 @@ import { RuntimeContext } from "alchemy/RuntimeContext";
 import { Clock, Context, Effect, Layer } from "effect";
 
 import { Alarm, AnalystModel } from "../platform/services.ts";
+import { Proposals } from "../proposals/service.ts";
 import { analystServices } from "../services.ts";
 import { migrate } from "../storage/migrations.ts";
 import { WorkScheduler } from "../work/scheduler.ts";
@@ -13,10 +14,13 @@ import { Conversations } from "./service.ts";
 
 const operations = Effect.gen(function* () {
   const conversations = yield* Conversations;
+  const proposals = yield* Proposals;
   return {
     listConversations: conversations.list,
     getConversation: conversations.get,
     ask: conversations.ask,
+    resolveProposal: proposals.resolve,
+    refreshProposal: proposals.refresh,
   };
 });
 export type ConversationOperations = Effect.Success<typeof operations>;

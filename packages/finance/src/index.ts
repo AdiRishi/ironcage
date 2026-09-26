@@ -22,3 +22,4 @@ export * from "./analysis/flow.ts";
 export * from "./proposals.ts";
 export * from "./questions.ts";
 export * from "./evaluation.ts";
+export * from "./figures.ts";

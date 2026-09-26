@@ -44,7 +44,13 @@ export const RecordLink = Schema.Union([
     period: MonthsSelection,
     filter: CountedFilter,
   }),
-  Schema.Struct({ kind: Schema.Literal("postingLedger"), filter: PostingFilter }),
+  // Postings over whole months, which set the first and last days, narrowed by the
+  // ledger's other filters.
+  Schema.Struct({
+    kind: Schema.Literal("postingLedger"),
+    period: MonthsSelection,
+    filter: Schema.Struct(Struct.omit(PostingFilter.fields, ["from", "to"])),
+  }),
   Schema.Struct({ kind: Schema.Literal("transaction"), postingId: PostingId }),
   // The counterparties money went to or came from, as the list shows them.
   Schema.Struct({

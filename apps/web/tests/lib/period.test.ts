@@ -1,12 +1,17 @@
-import { type CoverageState, type MonthTotal, YearMonth } from "@repo/contracts/finance";
+import {
+  CalendarDate,
+  type CoverageState,
+  type MonthTotal,
+  YearMonth,
+} from "@repo/contracts/finance";
 import { monthsPeriod, periodLabel } from "@repo/finance";
 import { Schema } from "effect";
 import { expect, test, vi } from "vitest";
 
 import {
   type ComparisonKey,
+  comparisonKey,
   comparisonSelection,
-  periodDates,
   type PeriodKey,
   periodKey,
   periodRecords,
@@ -64,7 +69,6 @@ test("a range of months covers every day from the first month to the end of the 
     start: "2025-11-01",
     endExclusive: "2026-03-01",
   });
-  expect(periodDates(period)).toEqual({ from: "2025-11-01", to: "2026-02-28" });
   expect(period.label).toBe("November 2025 to February 2026");
 });
 
@@ -88,7 +92,10 @@ test("chosen months are written as a month, a calendar year, or a range", () => 
   const year = periodKey(month("2024-01"), month("2024-12"));
   expect(year).toBe(2024);
   const period = resolvePeriodKey(year, "Australia/Sydney");
-  expect(periodDates(period)).toEqual({ from: "2024-01-01", to: "2024-12-31" });
+  expect(monthsPeriod(period.from, period.to)).toEqual({
+    start: "2024-01-01",
+    endExclusive: "2025-01-01",
+  });
   expect(period.label).toBe("2024");
 });
 
@@ -98,6 +105,18 @@ test("chosen comparison dates include their last day", () => {
     start: "2026-03-01",
     endExclusive: "2026-04-15",
   });
+});
+
+test("a comparison is written back as the address that chooses it", () => {
+  expect(comparisonKey({ kind: "previous" })).toBeUndefined();
+  expect(comparisonKey({ kind: "previousYear" })).toBe("lastYear");
+  expect(
+    comparisonKey({
+      kind: "fixed",
+      start: CalendarDate.make("2026-03-01"),
+      endExclusive: CalendarDate.make("2026-04-15"),
+    }),
+  ).toBe("2026-03-01..2026-04-14");
 });
 
 test("the comparison is named after the whole months it covers", () => {

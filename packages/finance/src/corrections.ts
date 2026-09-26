@@ -4,8 +4,9 @@ import {
   type FinancialEvent,
   FinanceError,
   type RuleAction,
+  type TransactionPatch,
 } from "@repo/contracts/finance";
-import { Array as Arr, Effect } from "effect";
+import { Array as Arr, Effect, Result } from "effect";
 
 import { allocationRole } from "./events.ts";
 
@@ -109,6 +110,46 @@ export const correctEvent = Effect.fn("correctEvent")(function* (
     version: event.version + 1,
   };
 });
+
+const relabel = <Id extends string>(
+  ids: ReadonlyArray<Id>,
+  add: ReadonlyArray<Id> = [],
+  remove: ReadonlyArray<Id> = [],
+) => Arr.dedupe([...Arr.difference(ids, remove), ...add]);
+
+// The change that sets what a patch names on a transaction that is not split and keeps
+// everything else, the amount included. Its one allocation takes the role the event's
+// role gives it. A split's parts change together, in the editor.
+export function patchEvent(
+  event: FinancialEvent,
+  patch: TransactionPatch,
+): Result.Result<EventChange, FinanceError> {
+  const [allocation, ...others] = event.allocations;
+  if (others.length > 0)
+    return Result.fail(
+      new FinanceError({ kind: "conflict", message: "Open the transaction to change a split." }),
+    );
+  const kind = patch.role ?? event.kind;
+  return Result.succeed({
+    eventId: event.id,
+    kind,
+    purchaseOn: patch.purchaseOn === undefined ? event.purchaseOn : patch.purchaseOn,
+    allocations: [
+      {
+        ...allocation,
+        role: allocationRole(kind),
+        categoryId: patch.categoryId === undefined ? allocation.categoryId : patch.categoryId,
+        nonPersonal: patch.nonPersonal ?? allocation.nonPersonal,
+        tagIds: relabel(allocation.tagIds, patch.addTagIds, patch.removeTagIds),
+        personalEventIds: relabel(
+          allocation.personalEventIds,
+          patch.addPersonalEventIds,
+          patch.removePersonalEventIds,
+        ),
+      },
+    ],
+  });
+}
 
 // Returns an event's role, purchase date, and allocations to what they were before a
 // correction, with the sources they had then, so only values you set stay yours. A

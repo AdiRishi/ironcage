@@ -1,13 +1,17 @@
 import { describe, expect, it } from "@effect/vitest";
-import { YearMonth } from "@repo/contracts/finance";
-import { Effect } from "effect";
+import { type LedgerPage, type ListPostings, YearMonth } from "@repo/contracts/finance";
+import { Effect, Ref } from "effect";
 
 import { ListTransactions, ReadTransaction } from "../../src/tools/transactions.ts";
 import { analystOn, analystTest, askAndRun } from "../support/analyst.ts";
 import {
+  dinner,
+  dinnerEvent,
+  diningOut,
   mastercard,
   postingDetail,
   referenceData,
+  rockpool,
   unidentified,
   unidentifiedEvent,
   unresolvedOut,
@@ -74,6 +78,68 @@ describe("ListTransactions", () => {
                   ),
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+  );
+});
+
+describe("ListTransactions of the ledger", () => {
+  // The dinner at Rockpool, then more payments to Rockpool on the next page.
+  const toRockpool = {
+    rows: [
+      {
+        ...dinner,
+        eventId: dinnerEvent.id,
+        role: "purchase",
+        counterpartyId: rockpool,
+        counterpartyName: "Rockpool",
+        categoryId: diningOut,
+        categoryName: "Dining out",
+        categorySlug: "food.dining-out",
+        split: false,
+        assignedBy: "bank",
+        question: false,
+      },
+    ],
+    nextCursor: { postedOn: dinner.postedOn, id: dinner.id },
+  } satisfies typeof LedgerPage.Type;
+  const read = Ref.makeUnsafe<ReadonlyArray<typeof ListPostings.Type>>([]);
+
+  it.effect(
+    "a posting list reads every day of the months it names, and its links open those days",
+    () =>
+      Effect.gen(function* () {
+        const turn = yield* askAndRun(1);
+        const listed = {
+          kind: "postingLedger",
+          period: august,
+          filter: { counterpartyId: rockpool },
+        } as const;
+        expect(yield* Ref.get(read)).toEqual([
+          { filter: { counterpartyId: rockpool, from: "2026-08-01", to: "2026-08-31" } },
+        ]);
+        expect(turn.steps).toEqual([
+          { label: "Listing transactions in the ledger in August 2026", records: listed },
+        ]);
+        expect(turn.answer?.limits).toEqual([{ kind: "partialList", shown: 1, records: listed }]);
+      }).pipe(
+        Effect.provide(
+          analystTest(
+            {
+              getModelAllowance: () => analystOn,
+              listLedger: (input) =>
+                Ref.update(read, (inputs) => [...inputs, input]).pipe(Effect.as(toRockpool)),
+            },
+            [
+              callTools({
+                name: "ListTransactions",
+                params: {
+                  list: { kind: "ledger", period: august, filter: { counterpartyId: rockpool } },
+                },
+              }),
+              callTools(...answer("I listed the payments to Rockpool.")),
             ],
           ),
         ),

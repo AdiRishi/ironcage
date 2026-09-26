@@ -40,13 +40,21 @@ const movedTotals = (impact: Impact) =>
 // what many transactions mean and leave every total as it was.
 export const movesTotals = (impact: Impact) => movedTotals(impact).length > 0;
 
+export type ImpactHeading = "h3" | "h5";
+
 // What a change does to each month's totals: one table of the months it moves with only
 // the totals that move, and every total of every month under a disclosure, so a change
 // across a year stays one short table that fits a phone.
-export function ImpactSummary({ impacts }: { impacts: readonly Impact[] }) {
+export function ImpactSummary({
+  impacts,
+  heading = "h3",
+}: {
+  impacts: readonly Impact[];
+  heading?: ImpactHeading | undefined;
+}) {
   const moved = impacts.filter(movesTotals);
   return Arr.isReadonlyArrayNonEmpty(moved) ? (
-    <MovedTotals impacts={impacts} moved={moved} />
+    <MovedTotals impacts={impacts} moved={moved} heading={heading} />
   ) : (
     <p className="type-small text-slate">This change does not move any totals.</p>
   );
@@ -55,9 +63,11 @@ export function ImpactSummary({ impacts }: { impacts: readonly Impact[] }) {
 function MovedTotals({
   impacts,
   moved,
+  heading: Heading,
 }: {
   impacts: readonly Impact[];
   moved: Arr.NonEmptyReadonlyArray<Impact>;
+  heading: ImpactHeading;
 }) {
   const id = useId();
   const first = Arr.headNonEmpty(moved);
@@ -69,9 +79,9 @@ function MovedTotals({
   return (
     <section aria-labelledby={id} className="min-w-0 space-y-3">
       <div>
-        <h3 id={id} className="font-[600]">
+        <Heading id={id} className="font-[600]">
           Effect on {periodLabel({ start: first.start, endExclusive: last.endExclusive })}
-        </h3>
+        </Heading>
         <p className="type-small text-slate">
           By spending date · {currencies.join(", ")} · Calculated{" "}
           <time dateTime={first.calculatedAt}>

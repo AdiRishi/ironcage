@@ -11,6 +11,14 @@ import {
   readCounterparty,
 } from "./counterparties.ts";
 import { ReadFlow, readFlow, ReadMonths, readMonths } from "./flow.ts";
+import {
+  ProposeCounterpartyDefault,
+  proposeCounterpartyDefault,
+  ProposeReferenceDefault,
+  proposeReferenceDefault,
+  ProposeTransactionChange,
+  proposeTransactionChange,
+} from "./proposals.ts";
 import { ListQuestions, listQuestions } from "./questions.ts";
 import { ReadCategories, readCategories, ReadCoverage, readCoverage } from "./records.ts";
 import { ReadSpending, readSpending } from "./spending.ts";
@@ -23,7 +31,8 @@ import {
   readTransaction,
 } from "./transactions.ts";
 
-// Everything the model may do: read what the screens show, and answer.
+// Everything the model may do: read what the screens show, propose changes that wait for
+// you to accept them, and answer.
 export const AnalystToolkit = Toolkit.make(
   ReadFlow,
   ReadMonths,
@@ -36,6 +45,9 @@ export const AnalystToolkit = Toolkit.make(
   ReadCategories,
   ReadCoverage,
   ListQuestions,
+  ProposeTransactionChange,
+  ProposeCounterpartyDefault,
+  ProposeReferenceDefault,
   Answer,
 );
 
@@ -55,6 +67,9 @@ export const analystTools = (api: Pick<Api, AnalystOperation>) =>
       ReadCategories: readCategories(api),
       ReadCoverage: readCoverage(api),
       ListQuestions: listQuestions(api),
+      ProposeTransactionChange: proposeTransactionChange(api),
+      ProposeCounterpartyDefault: proposeCounterpartyDefault(api),
+      ProposeReferenceDefault: proposeReferenceDefault(api),
       Answer: answer,
     }),
   );

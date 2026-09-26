@@ -5,7 +5,7 @@ import { makeRpcStub } from "alchemy/Cloudflare/Bridge";
 import { env } from "cloudflare:workers";
 import { Effect } from "effect";
 
-import { runApiRequest } from "./api-request";
+import { runRpcRequest } from "./rpc-request";
 
 const apiOrigin = "https://api.internal";
 
@@ -15,7 +15,7 @@ export const fetchApi = (path: string, init?: RequestInit) =>
 export const callApiRpc = <A, E>(
   use: (client: ApiClient<WebOperation>) => Effect.Effect<A, E>,
 ): Promise<A> =>
-  runApiRequest(
+  runRpcRequest(
     Effect.suspend(() =>
       use(makeRpcStub<ApiClient<WebOperation>>(env.API, { errors: [FinanceError] })),
     ).pipe(Effect.timeout("10 seconds")),

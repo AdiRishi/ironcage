@@ -12,12 +12,13 @@ import { Link } from "@tanstack/react-router";
 import { Amount } from "@/components/amount";
 import { ComparisonControl } from "@/components/comparison-control";
 import { ComparisonCoverageNote, IncompleteRecordsNote } from "@/components/comparison-coverage";
+import { AskAbout } from "@/features/analyst/ask-about";
 import { referenceDataQuery } from "@/features/events/queries";
 import type { ComparisonKey, PeriodChoice } from "@/lib/period";
 import { scopeSearch } from "@/lib/scope";
 
 import { SpendingPath } from "./path";
-import { ledgerSearch, type Narrowing } from "./search";
+import { ledgerSearch, type Narrowing, spendingContext } from "./search";
 
 const list = new Intl.ListFormat("en-AU", { type: "conjunction" });
 const whole = (amount: Money) => formatCurrency(amount, { cents: false });
@@ -42,8 +43,8 @@ export function scopeName({ scope, path }: Pick<SpendingBreakdown, "scope" | "pa
   }
 }
 
-// The path down to the open scope, its four facts against the comparison, and the way to
-// its records and to its counterparty's page.
+// The path down to the open scope, its four facts against the comparison, the way to its
+// records and to its counterparty's page, and a question about it for the analyst.
 export function SpendingHeader({
   breakdown,
   period,
@@ -134,6 +135,9 @@ export function SpendingHeader({
               </Link>
             )}
           </p>
+        </div>
+        <div className="mt-4">
+          <AskAbout about={spendingContext(scope, period, compare, narrowing)} />
         </div>
       </div>
     </div>

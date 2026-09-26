@@ -1,4 +1,4 @@
-import type { RecordLink } from "@repo/contracts/analyst";
+import { RecordLink } from "@repo/contracts/analyst";
 import {
   AllocationRole,
   type CalendarDate,
@@ -24,7 +24,14 @@ import {
   type ReferenceData,
   RoleSource,
 } from "@repo/contracts/finance";
-import { calendarDateIn, dateLabel, financialRoleLabels, periodLabel } from "@repo/finance";
+import {
+  calendarDateIn,
+  dateLabel,
+  financialRoleLabels,
+  monthsDates,
+  monthsPeriod,
+  periodLabel,
+} from "@repo/finance";
 import type { Api } from "@repo/infra/api";
 import { Array as Arr, DateTime, Effect, Schema, Struct } from "effect";
 import { Tool } from "effect/unstable/ai";
@@ -41,7 +48,7 @@ import {
 import { TurnEvidence } from "../evidence/service.ts";
 import { coverageOf } from "./coverage.ts";
 
-const transactionLink = (postingId: typeof PostingId.Type) =>
+export const transactionLink = (postingId: typeof PostingId.Type) =>
   ({ kind: "transaction", postingId }) satisfies RecordLink;
 
 // A transaction as the answer names it: who it was with and the day the bank posted it.
@@ -79,7 +86,7 @@ const lookup = <Id extends string>(
   return (id: Id) => names.get(id) ?? null;
 };
 // `counterparties` can add names the reference data no longer holds.
-const namesIn = (
+export const namesIn = (
   data: typeof ReferenceData.Type,
   counterparties: ReadonlyArray<{
     readonly id: typeof CounterpartyId.Type;
@@ -91,7 +98,7 @@ const namesIn = (
   tag: lookup(data.tags),
   personalEvent: lookup(data.personalEvents),
 });
-type Names = ReturnType<typeof namesIn>;
+export type Names = ReturnType<typeof namesIn>;
 
 const presentMeaning = Effect.fnUntraced(function* (
   event: FinancialEvent,
@@ -191,8 +198,8 @@ export const ListTransactions = Tool.make("ListTransactions", {
   description:
     "One page of transactions. `counted` lists the records behind a measure's scope over " +
     "whole months, such as a flow stream or a spending row, each with what it adds to the " +
-    "measure and dated as spending dates it. `ledger` lists postings newest first, dated as " +
-    "the bank posted them and narrowed by the ledger's filters. Each amount is one " +
+    "measure and dated as spending dates it. `ledger` lists the postings the bank posted in " +
+    "whole months, newest first, narrowed by the ledger's filters. Each amount is one " +
     "transaction's; read totals with ReadFlow or ReadSpending. Pass a page's `nextCursor` " +
     "back as `cursor` for the next page.",
   parameters: Schema.Struct({
@@ -202,7 +209,11 @@ export const ListTransactions = Tool.make("ListTransactions", {
         ...Struct.omit(ListCountedLedger.fields, ["period", "basis", "currency"]),
         period: MonthsSelection,
       }),
-      Schema.Struct({ kind: Schema.Literal("ledger"), ...ListPostings.fields }),
+      Schema.Struct({
+        kind: Schema.Literal("ledger"),
+        ...Struct.pick(RecordLink.cases.postingLedger.fields, ["period", "filter"]),
+        cursor: ListPostings.fields.cursor,
+      }),
     ]),
   }),
   success: Schema.Struct({
@@ -282,11 +293,16 @@ export const listTransactions = (
         nextCursor: page.nextCursor,
       };
     }
-    const page = yield* api.listLedger(Struct.omit(list, ["kind"]));
-    const title = "transactions in the ledger";
+    // The screen's link sets the same days from the months, so it lists what was read here.
+    const { period, ...input } = Struct.omit(list, ["kind"]);
+    const page = yield* api.listLedger({
+      ...input,
+      filter: { ...input.filter, ...monthsDates(period.from, period.to) },
+    });
+    const title = `transactions in the ledger in ${periodLabel(monthsPeriod(period.from, period.to))}`;
     yield* listed(
       title,
-      { kind: "postingLedger", filter: list.filter },
+      { kind: "postingLedger", period, filter: input.filter },
       page.rows.length,
       page.nextCursor !== null,
     );
@@ -298,7 +314,7 @@ export const listTransactions = (
   });
 
 // A posting, the event it belongs to, and the names that event's meaning refers to.
-const readPosting = Effect.fnUntraced(function* (
+export const readPosting = Effect.fnUntraced(function* (
   api: Pick<Api, "getPosting" | "getEventForPosting" | "getReferenceData">,
   postingId: typeof PostingId.Type,
 ) {

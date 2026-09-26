@@ -124,6 +124,7 @@ describe("TurnRunner", () => {
             calculatedAt: "2026-09-02T01:00:00.000Z",
           },
           limits: [mastercardGap],
+          proposals: [],
         });
       }).pipe(
         Effect.provide(

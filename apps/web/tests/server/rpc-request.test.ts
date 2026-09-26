@@ -6,7 +6,7 @@ import { expect, test } from "vitest";
 
 import { AppRequestError } from "@/lib/app-error";
 import { createQueryClient } from "@/lib/query-client";
-import { runApiRequest } from "@/server/api-request";
+import { runRpcRequest } from "@/server/rpc-request";
 
 const signal = () => new AbortController().signal;
 
@@ -16,13 +16,13 @@ test("native RPC transport failures do not disclose internal diagnostics", async
       throw new Error("private.service.internal: sensitive credentials");
     },
   });
-  await expect(runApiRequest(client.read(), signal())).rejects.toEqual(
+  await expect(runRpcRequest(client.read(), signal())).rejects.toEqual(
     new AppRequestError("unavailable", "The service is temporarily unavailable. Please try again."),
   );
 });
 
 test("unexpected defects become safe internal errors", async () => {
-  await expect(runApiRequest(Effect.die(new Error("private query")), signal())).rejects.toEqual(
+  await expect(runRpcRequest(Effect.die(new Error("private query")), signal())).rejects.toEqual(
     new AppRequestError("internal", "The request could not be completed."),
   );
 });
@@ -36,7 +36,7 @@ test("cancelling a query interrupts its request scope without producing an appli
       .fetchQuery({
         queryKey: ["cancel"],
         queryFn: ({ signal }) =>
-          runApiRequest(
+          runRpcRequest(
             Effect.sync(() => started.resolve()).pipe(
               Effect.andThen(Effect.never),
               Effect.ensuring(Effect.sync(() => stopped.resolve())),
@@ -56,7 +56,7 @@ test("cancelling a query interrupts its request scope without producing an appli
 
 test("an expired RPC deadline becomes a retryable unavailable error", async () => {
   await expect(
-    runApiRequest(Effect.never.pipe(Effect.timeout("20 millis")), signal()),
+    runRpcRequest(Effect.never.pipe(Effect.timeout("20 millis")), signal()),
   ).rejects.toEqual(
     new AppRequestError("unavailable", "The service is temporarily unavailable. Please try again."),
   );
@@ -77,7 +77,7 @@ test("financial conflicts retain their message across the native RPC error envel
     },
     { errors: [FinanceError] },
   );
-  await expect(runApiRequest(client.write(), signal())).rejects.toEqual(
+  await expect(runRpcRequest(client.write(), signal())).rejects.toEqual(
     new AppRequestError("conflict", "Allocations must sum to the booked magnitude."),
   );
 });

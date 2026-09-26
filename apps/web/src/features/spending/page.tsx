@@ -80,6 +80,7 @@ export function SpendingPage({
             <BreakdownTable
               breakdown={breakdown}
               period={period}
+              compare={compare}
               previousLabel={periodLabel(breakdown.comparison)}
               narrowing={narrowing}
             />

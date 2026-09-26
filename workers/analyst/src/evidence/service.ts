@@ -3,6 +3,8 @@ import {
   type Figure,
   FigureId,
   type Limit,
+  type Proposal,
+  ProposalId,
   RecordId,
   type RecordRef,
   type TurnId,
@@ -11,6 +13,7 @@ import {
 import type { Api } from "@repo/infra/api";
 import { Array as Arr, Context, Effect, Layer, Ref, Struct } from "effect";
 import { SqlClient } from "effect/unstable/sql";
+import { v5 } from "uuid";
 
 import { insertStep, readNextReference } from "../storage/conversations.ts";
 import { toFinanceError } from "../storage/failures.ts";
@@ -27,6 +30,8 @@ export type Evidence = {
   // Checks of a period's records, which no figure rests on.
   readonly checks: ReadonlyArray<CoverageRead>;
   readonly limits: ReadonlyArray<Limit>;
+  // The changes the turn proposed, which its answer keeps.
+  readonly proposals: ReadonlyArray<Proposal>;
   // What the tools named, such as accounts, categories, and counterparties, which an
   // answer may write as the tools wrote them.
   readonly names: ReadonlyArray<string>;
@@ -51,6 +56,10 @@ export class TurnEvidence extends Context.Service<
       placed: CoverageRead | null,
     ) => Effect.Effect<FigureId>;
     readonly record: (record: Omit<RecordRef, "id">) => Effect.Effect<RecordId>;
+    // A pending proposal. Its ID comes from the turn and the proposal's place in it.
+    readonly propose: (
+      proposal: Pick<Proposal, "intent" | "preview" | "title" | "reason">,
+    ) => Effect.Effect<ProposalId>;
     // Stored as soon as it is taken, so the conversation shows it while the turn runs.
     readonly step: (step: TurnStep) => Effect.Effect<void>;
     readonly check: (read: CoverageRead) => Effect.Effect<void>;
@@ -85,6 +94,7 @@ export class TurnEvidence extends Context.Service<
           placed: new Map(),
           checks: [],
           limits: [],
+          proposals: [],
           names: labels.map((account) => account.label),
           accepted: null,
         });
@@ -122,6 +132,19 @@ export class TurnEvidence extends Context.Service<
                   records: [...current.records, { id, ...record }],
                 },
               ];
+            }),
+          propose: (proposed) =>
+            Ref.modify(state, (current) => {
+              const place = current.proposals.length + 1;
+              const id = ProposalId.make(v5(`${turnId}/proposals/${place}`, v5.URL));
+              const proposal = {
+                id,
+                ...proposed,
+                status: "pending",
+                commandId: null,
+                resolvedAt: null,
+              } satisfies Proposal;
+              return [id, { ...current, proposals: [...current.proposals, proposal] }];
             }),
           step: (step) =>
             insertStep(turnId, step).pipe(

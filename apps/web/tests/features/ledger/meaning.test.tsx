@@ -1,6 +1,7 @@
 import {
   AccountId,
   AllocationId,
+  ApplyCorrection,
   CategoryId,
   CounterpartyChange,
   CounterpartyChangeId,
@@ -221,6 +222,7 @@ function serve() {
     return records.event;
   });
   return {
+    records,
     woolworthsRequested: woolworthsRequested.promise,
     loadWoolworths: () => woolworthsLoaded.resolve(),
   };
@@ -297,4 +299,42 @@ test("applying a category to every transaction from a counterparty moves focus t
 
   await expect.element(apply).not.toBeInTheDocument();
   await expect.element(category).toHaveFocus();
+});
+
+test("filing only this transaction in a category corrects its category and keeps its amount and role", async ({
+  onTestFinished,
+}) => {
+  const api = serve();
+  vi.mocked(applyCorrection).mockImplementation(async ({ data }) => {
+    const { change, expectedVersions } = await Effect.runPromise(
+      Schema.decodeEffect(ApplyCorrection)(data),
+    );
+    if (expectedVersions[0].version !== api.records.event.version)
+      throw new Error("The correction expected another version.");
+    api.records.event = {
+      ...api.records.event,
+      kind: change.kind,
+      purchaseOn: change.purchaseOn,
+      allocations: change.allocations,
+      version: api.records.event.version + 1,
+    };
+    return api.records.event;
+  });
+  await renderMeaning(onTestFinished);
+
+  await page.getByRole("combobox", { name: "Category" }).selectOptions("Groceries");
+  await page.getByRole("button", { name: "Only this one" }).click();
+
+  await expect.poll(() => api.records.event.version).toBe(6);
+  expect(api.records.event).toMatchObject({
+    kind: "purchase",
+    allocations: [
+      {
+        id: purchase.allocations[0].id,
+        role: "purchase",
+        amount: { currency: "AUD", minor: 2500n },
+        categoryId: references.categories[0]?.id,
+      },
+    ],
+  });
 });

@@ -7,6 +7,7 @@ import {
 import { Link } from "@tanstack/react-router";
 
 import { ProvenanceMark } from "@/components/provenance";
+import { AskAbout } from "@/features/analyst/ask-about";
 import { LedgerList } from "@/features/ledger/list";
 import { categoryColor } from "@/lib/category-colors";
 
@@ -56,6 +57,7 @@ export function CounterpartyPage({
               ` ${Math.round(counterparty.confidence * 100)}% sure.`}
           </p>
         )}
+        <AskAbout about={{ kind: "counterparty", counterpartyId: counterparty.id }} />
       </header>
 
       <Activity detail={detail} color={categoryColor(category?.slug ?? null)} />

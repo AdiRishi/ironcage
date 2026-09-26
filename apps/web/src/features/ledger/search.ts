@@ -8,9 +8,10 @@ import {
   PostingCursor,
   PostingFilter,
 } from "@repo/contracts/finance";
+import { monthsDates } from "@repo/finance";
 import { Schema, Struct } from "effect";
 
-import { analysisBasis, periodDates, periodSelection, type PeriodChoice } from "@/lib/period";
+import { analysisBasis, periodSelection, type PeriodChoice } from "@/lib/period";
 import { ScopeSearch, scopeSearch, searchScope, unspecifiedNeedsCategory } from "@/lib/scope";
 
 // The records behind one number: `?measure=` narrowed by a scope. The scope sets the
@@ -45,7 +46,7 @@ export function ledgerInput(search: PostingSearch, period: PeriodChoice): typeof
   const withPeriod =
     filter.from || filter.to || filter.importId || filter.questionId
       ? filter
-      : { ...filter, ...periodDates(period) };
+      : { ...filter, ...monthsDates(period.from, period.to) };
   return search.cursor ? { filter: withPeriod, cursor: search.cursor } : { filter: withPeriod };
 }
 

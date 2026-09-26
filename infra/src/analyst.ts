@@ -9,6 +9,7 @@ import {
 import { analyst, type AnalystOperations } from "../../workers/analyst/src/index.ts";
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
 import { conversationBindings } from "./worker-bindings.ts";
+import type { WorkerClient } from "./worker-client.ts";
 
 export const AnalystGateway = Cloudflare.AI.Gateway("AnalystGateway", {
   authentication: true,
@@ -32,6 +33,8 @@ const ConversationsLive = Conversations.make(
 );
 
 export class Analyst extends Cloudflare.Worker<Analyst, AnalystOperations>()("AnalystWorker") {}
+// The Analyst Worker's operations as another Worker's binding reaches them.
+export type AnalystClient = WorkerClient<AnalystOperations>;
 
 export default Analyst.make(
   {

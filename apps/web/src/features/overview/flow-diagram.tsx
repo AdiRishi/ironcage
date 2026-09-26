@@ -6,17 +6,36 @@ import { Rectangle, ResponsiveContainer, Sankey, Tooltip } from "recharts";
 
 import { Amount } from "@/components/amount";
 import { Button } from "@/components/ui/button";
+import { AskAbout } from "@/features/analyst/ask-about";
+import type { ComparisonKey, PeriodChoice } from "@/lib/period";
 
-import { type FlowEntry, flowStreams } from "./flow-streams";
+import { type FlowEntry, flowStreams, streamContext } from "./flow-streams";
+
+type CountedEntry = Exclude<FlowEntry, { kind: "balance" }>;
+// The question about a stream, which Kept and From savings have none of.
+type Ask = (entry: CountedEntry) => React.ReactNode;
 
 // Labels sit this far outside their nodes, in margins as wide as the widest label.
 const labelGap = 12;
 const list = new Intl.ListFormat("en-AU", { type: "conjunction" });
 const whole = (amount: Money) => formatCurrency(amount, { cents: false });
 
-export function FlowDiagram({ flow }: { flow: PeriodFlow }) {
+// The period's streams, each opening its records. The table view and the phone bars ask
+// the analyst about each stream against the comparison.
+export function FlowDiagram({
+  flow,
+  period,
+  compare,
+}: {
+  flow: PeriodFlow;
+  period: PeriodChoice;
+  compare: ComparisonKey | undefined;
+}) {
   const [asTable, setAsTable] = useState(false);
   const { inflows, outflows } = flowStreams(flow);
+  const ask = (entry: CountedEntry) => (
+    <AskAbout about={streamContext(entry.scope, period, compare)} subject={spoken(entry)} />
+  );
   if (inflows.length === 0 && outflows.length === 0)
     return <p className="text-slate">No money moved in this period.</p>;
   const sources = inflows.filter((entry) => entry.kind === "stream").length;
@@ -40,11 +59,11 @@ export function FlowDiagram({ flow }: { flow: PeriodFlow }) {
         </Button>
       </figcaption>
       {asTable ? (
-        <FlowTable inflows={inflows} outflows={outflows} />
+        <FlowTable inflows={inflows} outflows={outflows} ask={ask} />
       ) : (
         <>
           <FlowSankey inflows={inflows} outflows={outflows} />
-          <FlowBars inflows={inflows} outflows={outflows} />
+          <FlowBars inflows={inflows} outflows={outflows} ask={ask} />
         </>
       )}
     </figure>
@@ -269,9 +288,11 @@ function FlowTooltip({ entry }: { entry: FlowEntry }) {
 function FlowBars({
   inflows,
   outflows,
+  ask,
 }: {
   inflows: readonly FlowEntry[];
   outflows: readonly FlowEntry[];
+  ask: Ask;
 }) {
   return (
     <div className="md:hidden">
@@ -317,13 +338,16 @@ function FlowBars({
                         <span className="block type-small text-slate">{entry.explanation}</span>
                       </>
                     ) : (
-                      <Link
-                        {...entry.link}
-                        aria-label={spoken(entry)}
-                        className="flex items-center justify-between gap-3 rounded-sm py-1 hover:text-intaglio"
-                      >
-                        {row}
-                      </Link>
+                      <span className="flex items-center gap-3">
+                        <Link
+                          {...entry.link}
+                          aria-label={spoken(entry)}
+                          className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-sm py-1 hover:text-intaglio"
+                        >
+                          {row}
+                        </Link>
+                        {ask(entry)}
+                      </span>
                     )}
                   </li>
                 );
@@ -339,12 +363,14 @@ function FlowBars({
 function FlowTable({
   inflows,
   outflows,
+  ask,
 }: {
   inflows: readonly FlowEntry[];
   outflows: readonly FlowEntry[];
+  ask: Ask;
 }) {
   return (
-    <table className="w-full max-w-xl">
+    <table className="w-full max-w-2xl">
       <caption className="sr-only">Money in and out</caption>
       <thead>
         <tr className="border-b border-rule text-left type-small text-slate">
@@ -353,6 +379,9 @@ function FlowTable({
           </th>
           <th scope="col" className="py-2 text-right font-normal">
             Amount
+          </th>
+          <th scope="col" className="py-2 font-normal">
+            <span className="sr-only">Ask the analyst</span>
           </th>
         </tr>
       </thead>
@@ -364,7 +393,7 @@ function FlowTable({
           <tr>
             <th
               scope="rowgroup"
-              colSpan={2}
+              colSpan={3}
               className="pt-5 pb-1 text-left type-small font-normal text-slate"
             >
               {title}
@@ -391,6 +420,7 @@ function FlowTable({
               <td className="py-2 text-right">
                 <Amount value={entry.amount} cents={false} />
               </td>
+              <td className="py-2 pl-6 text-right">{entry.kind !== "balance" && ask(entry)}</td>
             </tr>
           ))}
         </tbody>

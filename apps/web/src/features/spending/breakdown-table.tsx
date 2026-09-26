@@ -15,10 +15,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { AskAbout } from "@/features/analyst/ask-about";
 import { categoryColor } from "@/lib/category-colors";
-import type { PeriodChoice } from "@/lib/period";
+import type { ComparisonKey, PeriodChoice } from "@/lib/period";
 
-import { type Narrowing, spendingSearch } from "./search";
+import { type Narrowing, spendingContext, spendingSearch } from "./search";
 
 // `rowHeader` renders the column's cells as the row's header, which names the row.
 const features = tableFeatures({
@@ -54,6 +55,7 @@ function columnsFor({
   level,
   months,
   period,
+  compare,
   previousLabel,
   unrecorded,
   narrowing,
@@ -61,6 +63,7 @@ function columnsFor({
   level: SpendingBreakdown["level"];
   months: SpendingBreakdown["months"];
   period: PeriodChoice;
+  compare: ComparisonKey | undefined;
   previousLabel: string;
   unrecorded: boolean;
   narrowing: Narrowing;
@@ -170,18 +173,32 @@ function columnsFor({
         />
       ),
     }),
+    helper.display({
+      id: "ask",
+      header: () => <span className="sr-only">Ask the analyst</span>,
+      meta: { className: "pl-6 text-right" },
+      cell: ({ row }) => (
+        <AskAbout
+          about={spendingContext(row.original.opens, period, compare, narrowing)}
+          subject={row.original.label}
+        />
+      ),
+    }),
   ]);
 }
 
-// Every part of the open scope, largest first. Each name opens the next level down.
+// Every part of the open scope, largest first. Each name opens the next level down, and
+// each row can be asked about.
 export function BreakdownTable({
   breakdown,
   period,
+  compare,
   previousLabel,
   narrowing,
 }: {
   breakdown: SpendingBreakdown;
   period: PeriodChoice;
+  compare: ComparisonKey | undefined;
   previousLabel: string;
   narrowing: Narrowing;
 }) {
@@ -195,15 +212,16 @@ export function BreakdownTable({
         level,
         months,
         period: { from, to, label },
+        compare,
         previousLabel,
         unrecorded,
         narrowing: { tag, personalEvent },
       }),
-    [level, months, from, to, label, previousLabel, unrecorded, tag, personalEvent],
+    [level, months, from, to, label, compare, previousLabel, unrecorded, tag, personalEvent],
   );
   const table = useTable({ features, columns, data: rows, getRowId: rowId });
   return (
-    <Table className="min-w-[760px]">
+    <Table className="min-w-[900px]">
       <TableHeader>
         {table.getHeaderGroups().map((group) => (
           <TableRow key={group.id} className="border-rule hover:bg-transparent">

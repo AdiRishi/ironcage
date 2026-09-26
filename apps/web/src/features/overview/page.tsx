@@ -113,7 +113,7 @@ export function OverviewPage({
         <h2 id="flow-heading" className="type-heading">
           Where it came from and where it went
         </h2>
-        <FlowDiagram flow={flow} />
+        <FlowDiagram flow={flow} period={period} compare={compare} />
         {flow.totals.internal.minor > 0n && (
           <p className="type-small text-slate">
             <Amount value={flow.totals.internal} cents={false} /> moved between your own accounts

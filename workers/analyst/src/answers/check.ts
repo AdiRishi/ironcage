@@ -1,6 +1,9 @@
 import { answerSegments, type Figure, type RecordRef } from "@repo/contracts/analyst";
 import type { Period } from "@repo/contracts/finance";
 import { addDays } from "@repo/finance";
+import { Array as Arr } from "effect";
+
+import type { Evidence } from "../evidence/service.ts";
 
 const monthNames = [
   "January",
@@ -188,4 +191,14 @@ export function checkAnswer(
     .replace(years, (found) => (covered.has(Number(found)) ? " " : found));
   find(numbers);
   return [...new Set(problems)];
+}
+
+// The problems in what the model wrote for a turn, against everything the turn's tools
+// registered. A year may stand alone when a period a figure rests on, or a check of a
+// period's records, covers it.
+export function checkWritten(texts: ReadonlyArray<string>, evidence: Evidence) {
+  const periods = [...evidence.placed.values(), ...evidence.checks].flatMap((read) =>
+    read.comparison ? [read.period, read.comparison] : [read.period],
+  );
+  return Arr.dedupe(texts.flatMap((text) => checkAnswer(text, { ...evidence, periods })));
 }

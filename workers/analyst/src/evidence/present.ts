@@ -1,6 +1,6 @@
 import type { CountUnit, FigureId, FigureValue, RecordLink } from "@repo/contracts/analyst";
 import { Instant, type Money } from "@repo/contracts/finance";
-import { formatCurrency, formatPercent } from "@repo/finance";
+import { figureText } from "@repo/finance";
 import { DateTime, Effect, Schema } from "effect";
 
 import type { CoverageRead } from "./basis.ts";
@@ -24,25 +24,6 @@ export const placedBy = (read: CoverageRead): ReadBasis => ({
 export const arrived = DateTime.now.pipe(
   Effect.map((now) => Instant.make(DateTime.formatIso(now))),
 );
-
-const units = {
-  purchase: ["purchase", "purchases"],
-  transaction: ["transaction", "transactions"],
-  question: ["question", "questions"],
-} satisfies Record<typeof CountUnit.Type, readonly [string, string]>;
-
-export function figureText(value: FigureValue) {
-  switch (value.kind) {
-    case "money":
-      return value.signed && value.amount.minor > 0n
-        ? `+${formatCurrency(value.amount)}`
-        : formatCurrency(value.amount);
-    case "count":
-      return `${value.count} ${units[value.unit][value.count === 1 ? 0 : 1]}`;
-    case "percent":
-      return formatPercent(value.percent, { signed: value.signed });
-  }
-}
 
 export const money = (amount: Money): FigureValue => ({ kind: "money", amount, signed: false });
 // A change, shown with its sign.

@@ -64,6 +64,12 @@ function resolvedPeriod(start: DateTime.Utc, endExclusive: DateTime.Utc) {
 export function monthsPeriod(from: YearMonth, to: YearMonth = from): Period {
   return { start: yearMonthStart(from), endExclusive: yearMonthStart(shiftYearMonth(to, 1)) };
 }
+// The first and last days of the whole months `from` through `to`, for filters that take
+// inclusive dates.
+export function monthsDates(from: YearMonth, to: YearMonth = from) {
+  const { start, endExclusive } = monthsPeriod(from, to);
+  return { from: start, to: addDays(endExclusive, -1) };
+}
 // The months a period spans when it runs from the first day of a month to the last day
 // of one, and null when it starts or ends within a month.
 export function wholeMonths(period: Period): MonthsSelection | null {

@@ -1,9 +1,16 @@
-import type { FlowStream, Money, PeriodFlow } from "@repo/contracts/finance";
+import type { AskContext } from "@repo/contracts/analyst";
+import type { CountedScope, FlowStream, Money, PeriodFlow } from "@repo/contracts/finance";
 import { leftOver } from "@repo/finance";
 import { linkOptions } from "@tanstack/react-router";
 
 import { countedSearch } from "@/features/ledger/search";
 import { categoryColor, categoryRank } from "@/lib/category-colors";
+import {
+  type ComparisonKey,
+  comparisonSelection,
+  type PeriodChoice,
+  periodSelection,
+} from "@/lib/period";
 import { scopeSearch } from "@/lib/scope";
 
 // A spending category opens Spending at its scope. Every other stream opens the records
@@ -14,6 +21,20 @@ export function streamLink(stream: FlowStream) {
     : linkOptions({ to: "/ledger", search: countedSearch(stream.scope) });
 }
 
+// What "Ask about this" asks about: the facts a stream sums in the period, against the
+// comparison.
+export const streamContext = (
+  scope: CountedScope,
+  period: PeriodChoice,
+  compare: ComparisonKey | undefined,
+) =>
+  ({
+    kind: "stream",
+    period: periodSelection(period),
+    comparison: comparisonSelection(compare),
+    scope,
+  }) satisfies AskContext;
+
 type Drawn = {
   key: string;
   label: string;
@@ -21,12 +42,14 @@ type Drawn = {
   side: "in" | "out";
   color: string;
 };
+// The facts a stream sums, and the screen that lists them.
+type Counted = { scope: CountedScope; link: ReturnType<typeof streamLink> };
 // A stream as drawn. `moneyBack` is a spending category where more came back than went
 // out, drawn coming in. Kept and From savings balance the two sides: they say what they
 // are and have no records to open.
 export type FlowEntry =
-  | (Drawn & { kind: "stream"; link: ReturnType<typeof streamLink> })
-  | (Drawn & { kind: "moneyBack"; category: string; link: ReturnType<typeof streamLink> })
+  | (Drawn & Counted & { kind: "stream" })
+  | (Drawn & Counted & { kind: "moneyBack"; category: string })
   | (Drawn & { kind: "balance"; explanation: string });
 
 const outOrder = ["uncategorised", "loanPrincipal", "externalOut", "unresolvedOut"];
@@ -73,6 +96,7 @@ export function flowStreams(flow: PeriodFlow) {
         amount: stream.amount,
         side: "in",
         color: "var(--eucalypt)",
+        scope: stream.scope,
         link: streamLink(stream),
       })),
     ...flow.outflows
@@ -85,6 +109,7 @@ export function flowStreams(flow: PeriodFlow) {
         amount: money(-stream.amount.minor),
         side: "in",
         color: streamColor(stream),
+        scope: stream.scope,
         link: streamLink(stream),
       })),
   ];
@@ -98,6 +123,7 @@ export function flowStreams(flow: PeriodFlow) {
       amount: stream.amount,
       side: "out",
       color: streamColor(stream),
+      scope: stream.scope,
       link: streamLink(stream),
     }));
   const surplus = leftOver(flow.totals).minor;

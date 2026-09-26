@@ -10,6 +10,7 @@ import {
   type CountedScope,
   EventId,
   type FinancialEvent,
+  type MeasureImpact,
   PersonalEventId,
   type PeriodFlow,
   PostingDetail,
@@ -41,6 +42,7 @@ export const groceries = CategoryId.make(id("9c0c", 1));
 export const housing = CategoryId.make(id("a0e5", 1));
 export const salary = CategoryId.make(id("5a1a", 1));
 export const japanTrip = PersonalEventId.make(id("7219", 1));
+export const rockpool = CounterpartyId.make(id("0c01", 1));
 
 const settings = {
   timezone: "Australia/Sydney",
@@ -310,6 +312,7 @@ export const referenceData = {
   categories: [
     { id: food, parentId: null, name: "Food", slug: "food" },
     { id: diningOut, parentId: food, name: "Dining out", slug: "food.dining-out" },
+    { id: housing, parentId: null, name: "Housing", slug: "housing" },
   ].map((category) => ({
     ...category,
     tree: "spending" as const,
@@ -317,7 +320,7 @@ export const referenceData = {
     archived: false,
     version: 1,
   })),
-  counterparties: [],
+  counterparties: [{ id: rockpool, name: "Rockpool", kind: "business", version: 1 }],
   tags: [],
   personalEvents: [
     {
@@ -389,6 +392,73 @@ export const unidentifiedEvent = {
   ],
   postings: [unidentified],
 } satisfies FinancialEvent;
+
+// A $186.00 dinner at Rockpool on 12 August 2026, on the Mastercard, in Dining out by
+// Rockpool's default.
+export const dinner = {
+  id: PostingId.make(id("d1ee", 1)),
+  accountId: mastercard.id,
+  accountLabel: mastercard.label,
+  postedOn: day("2026-08-12"),
+  valueOn: null,
+  amount: aud(-18600n),
+  description: "ROCKPOOL DINING SYDNEY",
+  originalMoney: null,
+};
+
+export const dinnerDetail = {
+  posting: dinner,
+  evidence: [],
+  descriptor: null,
+} satisfies typeof PostingDetail.Type;
+
+export const dinnerEvent = {
+  id: EventId.make(id("e7e7", 2)),
+  kind: "purchase",
+  roleSource: "bank",
+  counterpartyId: rockpool,
+  counterpartySource: "alias",
+  magnitude: aud(18600n),
+  primaryPostingId: dinner.id,
+  reportingAccountId: mastercard.id,
+  purchaseOn: null,
+  active: true,
+  version: 1,
+  allocations: [
+    {
+      id: AllocationId.make(id("a110", 2)),
+      role: "purchase",
+      amount: aud(18600n),
+      categoryId: diningOut,
+      categorySource: "counterparty",
+      nonPersonal: false,
+      tagIds: [],
+      personalEventIds: [],
+    },
+  ],
+  postings: [dinner],
+} satisfies FinancialEvent;
+
+const spendingMeasures = (spending: bigint) => ({
+  inflow: aud(850000n),
+  outflow: aud(310000n),
+  spending: aud(spending),
+  income: aud(850000n),
+  internal: aud(50000n),
+  loanPrincipal: aud(0n),
+  unresolvedOut: aud(70000n),
+  unresolvedIn: aud(0n),
+  modelShare: aud(12000n),
+});
+// August 2026's spending falls by the dinner's $186.00 once it is non-personal.
+export const nonPersonalDinnerImpact = {
+  ...august,
+  basis: "spending",
+  currency: "AUD",
+  calculatedAt,
+  before: spendingMeasures(240000n),
+  after: spendingMeasures(221400n),
+} satisfies typeof MeasureImpact.Type;
 
 // The records behind the money not understood yet in August 2026: the unidentified card
 // purchase, then more on the next page.

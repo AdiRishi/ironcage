@@ -2,7 +2,7 @@ import { UnbuiltCapability } from "@repo/contracts/analyst";
 import { Array as Arr, Effect, Schema } from "effect";
 import { Tool } from "effect/unstable/ai";
 
-import { checkAnswer } from "../answers/check.ts";
+import { checkWritten } from "../answers/check.ts";
 import { TurnEvidence } from "../evidence/service.ts";
 
 export const Answer = Tool.make("Answer", {
@@ -37,15 +37,9 @@ export const answer = Effect.fn("Answer")(function* ({
   missing,
 }: Tool.Parameters<typeof Answer>) {
   const evidence = yield* TurnEvidence;
-  const snapshot = yield* evidence.snapshot;
-  const reads = [...snapshot.placed.values(), ...snapshot.checks];
-  const periods = reads.flatMap((read) =>
-    read.comparison ? [read.period, read.comparison] : [read.period],
-  );
-  const problems = Arr.dedupe(
-    [text, ...missing.map((item) => item.text)].flatMap((part) =>
-      checkAnswer(part, { ...snapshot, periods }),
-    ),
+  const problems = checkWritten(
+    [text, ...missing.map((item) => item.text)],
+    yield* evidence.snapshot,
   );
   if (problems.length > 0) return yield* Effect.fail({ problems });
   for (const capability of Arr.dedupe(missing.flatMap((item) => item.capability ?? [])))

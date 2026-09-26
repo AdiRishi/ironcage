@@ -3,6 +3,10 @@ import { useMutation, useQueryClient, type UseMutationOptions } from "@tanstack/
 
 import { AppRequestError } from "./app-error";
 
+// Whether a command failed without a reply, so it may have applied.
+export const outcomeUnknown = (error: Error | null) =>
+  error instanceof AppRequestError && error.code === "unavailable";
+
 // A lost response leaves the outcome unknown, so the retry resends the same
 // command ID and input rather than whatever the form holds now.
 export function useCommand<Input extends { commandId: typeof CommandId.Type }, Data>(
@@ -17,8 +21,7 @@ export function useCommand<Input extends { commandId: typeof CommandId.Type }, D
       await options.onError?.(error, variables, result, context);
     },
   });
-  const uncertain =
-    mutation.error instanceof AppRequestError && mutation.error.code === "unavailable";
+  const uncertain = outcomeUnknown(mutation.error);
   const retry = () => {
     if (mutation.variables) mutation.mutate(mutation.variables);
   };

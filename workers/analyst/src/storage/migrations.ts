@@ -39,6 +39,21 @@ const migrations = {
       records TEXT CHECK (json_valid(records)),
       PRIMARY KEY (turn_id, position)
     ) STRICT`;
+    // Stored with the answer that proposed them. Only an accepted proposal has a command,
+    // and only an accepted or ignored one a time it was resolved.
+    yield* sql`CREATE TABLE proposals (
+      id TEXT PRIMARY KEY,
+      turn_id TEXT NOT NULL REFERENCES turns (id),
+      position INTEGER NOT NULL,
+      intent TEXT NOT NULL CHECK (json_valid(intent)),
+      preview TEXT NOT NULL CHECK (json_valid(preview)),
+      title TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'ignored', 'stale')),
+      command_id TEXT CHECK ((command_id IS NOT NULL) = (status = 'accepted')),
+      resolved_at TEXT CHECK ((resolved_at IS NOT NULL) = (status IN ('accepted', 'ignored'))),
+      UNIQUE (turn_id, position)
+    ) STRICT`;
   }),
 };
 

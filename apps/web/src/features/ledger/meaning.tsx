@@ -7,10 +7,10 @@ import {
   type PostingId,
   type ReferenceData,
 } from "@repo/contracts/finance";
-import { financialRoleLabels } from "@repo/finance";
+import { financialRoleLabels, patchEvent } from "@repo/finance";
 import { useQuery, useQueryClient, useSuspenseQueries } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Array as Arr, Effect, Schema } from "effect";
+import { Array as Arr, Effect, Result, Schema } from "effect";
 import { useDeferredValue, useId, useState } from "react";
 
 import { CategorySelect } from "@/components/category-select";
@@ -240,12 +240,8 @@ function CategoryChange({
     correction.submit({
       commandId: CommandId.make(crypto.randomUUID()),
       expectedVersions: [{ eventId: event.id, version: event.version }],
-      change: {
-        eventId: event.id,
-        kind: event.kind,
-        purchaseOn: event.purchaseOn,
-        allocations: Arr.map(event.allocations, (row) => ({ ...row, categoryId: value })),
-      },
+      // The category is chosen here only for a transaction that is not split.
+      change: Result.getOrThrow(patchEvent(event, { categoryId: value })),
     });
     settle();
   };

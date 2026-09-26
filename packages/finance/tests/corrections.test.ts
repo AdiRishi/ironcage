@@ -6,15 +6,18 @@ import {
   CategoryId,
   CounterpartyId,
   EventId,
+  PersonalEventId,
   PostingId,
+  TagId,
   type FinancialEvent,
 } from "@repo/contracts/finance";
-import { Effect } from "effect";
+import { Effect, Result } from "effect";
 
 import {
   assignCounterparty,
   correctEvent,
   deriveInterpretation,
+  patchEvent,
   restoreEvent,
   ruleActions,
   type CounterpartyDefaults,
@@ -30,6 +33,9 @@ const coles = CounterpartyId.make(id("50000000", 2));
 const everyday = AccountId.make(id("00000000", 1));
 const postingId = PostingId.make(id("20000000", 1));
 const allocationId = AllocationId.make(id("40000000", 1));
+const work = TagId.make(id("60000000", 1));
+const travel = TagId.make(id("60000000", 2));
+const japanTrip = PersonalEventId.make(id("70000000", 1));
 const aud = (minor: bigint) => ({ currency: "AUD", minor });
 
 // A $42.00 card purchase at Woolworths, filed in Groceries by Woolworths's default.
@@ -117,6 +123,79 @@ describe("correctEvent", () => {
 
       const role = yield* correctEvent(purchase(), unchanged(purchase()), ["role"]);
       expect(role.roleSource).toBe("user");
+    }),
+  );
+});
+
+describe("patchEvent", () => {
+  it.effect("marks a purchase non-personal and keeps its amount, role, and category", () =>
+    Effect.gen(function* () {
+      const change = Result.getOrThrow(patchEvent(purchase(), { nonPersonal: true }));
+      expect(change).toEqual({
+        eventId: purchase().id,
+        kind: "purchase",
+        purchaseOn: null,
+        allocations: [
+          {
+            id: allocationId,
+            role: "purchase",
+            amount: aud(4200n),
+            categoryId: groceries,
+            categorySource: "counterparty",
+            nonPersonal: true,
+            tagIds: [],
+            personalEventIds: [],
+          },
+        ],
+      });
+      const corrected = yield* correctEvent(purchase(), change, []);
+      expect(corrected.allocations[0]).toMatchObject({ amount: aud(4200n), nonPersonal: true });
+    }),
+  );
+
+  it("adds and removes only the labels it names, and sets what it names to null", () => {
+    const labelled = purchase({
+      purchaseOn: CalendarDate.make("2026-08-01"),
+      allocations: [
+        { ...purchase().allocations[0], tagIds: [work], personalEventIds: [japanTrip] },
+      ],
+    });
+    const change = Result.getOrThrow(
+      patchEvent(labelled, {
+        categoryId: null,
+        purchaseOn: null,
+        addTagIds: [travel, travel],
+        removeTagIds: [work],
+        addPersonalEventIds: [japanTrip],
+      }),
+    );
+    expect(change.purchaseOn).toBeNull();
+    expect(change.allocations).toEqual([
+      expect.objectContaining({
+        categoryId: null,
+        tagIds: [travel],
+        personalEventIds: [japanTrip],
+      }),
+    ]);
+  });
+
+  it("gives the allocation the role the new financial role gives it", () => {
+    const change = Result.getOrThrow(patchEvent(purchase(), { role: "loanPayment" }));
+    expect(change.kind).toBe("loanPayment");
+    expect(change.allocations[0].role).toBe("transfer");
+  });
+
+  it.effect("refuses a split, whose parts change together in the editor", () =>
+    Effect.gen(function* () {
+      const [allocation] = purchase().allocations;
+      const split = purchase({
+        allocations: [
+          { ...allocation, amount: aud(2100n) },
+          { ...allocation, id: AllocationId.make(id("40000000", 2)), amount: aud(2100n) },
+        ],
+      });
+      const error = yield* Effect.flip(Effect.fromResult(patchEvent(split, { nonPersonal: true })));
+      expect(error.message).toBe("Open the transaction to change a split.");
     }),
   );
 });

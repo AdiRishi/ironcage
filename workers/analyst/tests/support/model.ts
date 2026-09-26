@@ -51,21 +51,38 @@ export const requestFails =
   () =>
     Effect.fail(AiError.make({ module: "ScriptedModel", method: "generateText", reason }));
 
-// What `tool` returned the last time the prompt shows it called it.
-export const lastResult = <Success extends Schema.Constraint>(
-  tool: { readonly name: string; readonly successSchema: Success },
+// The result of `tool` the last time the prompt shows it called it, decoded with `schema`
+// when it succeeded as `failed` says.
+const lastOutcome = <S extends Schema.Constraint>(
+  name: string,
+  failed: boolean,
+  schema: S,
   prompt: Prompt.Prompt,
 ) =>
   Effect.gen(function* () {
     const result = prompt.content
       .flatMap((message) => (message.role === "tool" ? message.content : []))
-      .findLast((part) => part.type === "tool-result" && part.name === tool.name);
+      .findLast((part) => part.type === "tool-result" && part.name === name);
     if (!result || result.type !== "tool-result")
-      return yield* Effect.die(`The prompt has no result of ${tool.name}.`);
-    return yield* Schema.decodeUnknownEffect(Schema.toCodecJson(tool.successSchema))(
-      result.result,
-    ).pipe(Effect.orDie);
+      return yield* Effect.die(`The prompt has no result of ${name}.`);
+    if (result.isFailure !== failed)
+      return yield* Effect.die(`${name} ${failed ? "succeeded" : "failed"} unexpectedly.`);
+    return yield* Schema.decodeUnknownEffect(Schema.toCodecJson(schema))(result.result).pipe(
+      Effect.orDie,
+    );
   });
+
+// What `tool` returned the last time the prompt shows it called it.
+export const lastResult = <Success extends Schema.Constraint>(
+  tool: { readonly name: string; readonly successSchema: Success },
+  prompt: Prompt.Prompt,
+) => lastOutcome(tool.name, false, tool.successSchema, prompt);
+
+// What `tool` failed with the last time the prompt shows it called it.
+export const lastFailure = <Failure extends Schema.Constraint>(
+  tool: { readonly name: string; readonly failureSchema: Failure },
+  prompt: Prompt.Prompt,
+) => lastOutcome(tool.name, true, tool.failureSchema, prompt);
 
 // The prompt of every request the model received, in order.
 class ModelRequests extends Context.Service<ModelRequests, Ref.Ref<ReadonlyArray<Prompt.Prompt>>>()(

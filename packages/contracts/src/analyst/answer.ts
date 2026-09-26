@@ -1,12 +1,13 @@
 import { Schema } from "effect";
 
 import { Basis, Limit } from "./basis.ts";
+import { Proposal } from "./proposals.ts";
 import { Figure, FigureId, RecordId, RecordRef } from "./references.ts";
 
-// An answer that passed its checks. `text`, and each entry of `missing` that says what the
-// records could not answer, follow the answer grammar and cite only `figures` and
-// `records`. `basis` covers the periods of the figures the answer shows and of every check
-// of a period's records, and is null when there are none.
+// An answer that passed its checks. `text`, each entry of `missing` that says what the
+// records could not answer, and each proposal's reason follow the answer grammar and cite
+// only `figures` and `records`. `basis` covers the periods of the figures the answer shows
+// and of every check of a period's records, and is null when there are none.
 export const Answer = Schema.Struct({
   text: Schema.String,
   missing: Schema.Array(Schema.String),
@@ -14,6 +15,7 @@ export const Answer = Schema.Struct({
   records: Schema.Array(RecordRef),
   basis: Schema.NullOr(Basis),
   limits: Schema.Array(Limit),
+  proposals: Schema.Array(Proposal),
 });
 export type Answer = typeof Answer.Type;
 

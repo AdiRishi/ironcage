@@ -8,17 +8,22 @@ import type { Evidence } from "../evidence/service.ts";
 const figureOf = (limit: Limit) =>
   limit.kind === "notUnderstood" || limit.kind === "modelShare" ? [limit.figureId] : [];
 
-// An accepted answer as its turn keeps it: the figures and records it cites, and the
-// basis and limits of what it shows. A model's share qualifies only the figure it is part
-// of, so it stays only beside a cited figure. Every other limit stays, with the figure it
-// names. The basis covers the periods that place the figures shown and every check of a
-// period's records, and states the days those periods lack.
+// An accepted answer as its turn keeps it: the figures and records it and its proposals'
+// reasons cite, the basis and limits of what it shows, and the turn's proposals. A model's
+// share qualifies only the figure it is part of, so it stays only beside a cited figure.
+// Every other limit stays, with the figure it names. The basis covers the periods that
+// place the figures shown and every check of a period's records, and states the days
+// those periods lack.
 export function citedAnswer(
   accepted: Pick<Answer, "text" | "missing">,
   evidence: Evidence,
 ): Answer {
   const cited = new Set(
-    [accepted.text, ...accepted.missing].flatMap((text) =>
+    [
+      accepted.text,
+      ...accepted.missing,
+      ...evidence.proposals.map((proposal) => proposal.reason),
+    ].flatMap((text) =>
       answerSegments(text).flatMap((segment) => (segment.kind === "text" ? [] : [segment.id])),
     ),
   );
@@ -39,5 +44,6 @@ export function citedAnswer(
     records: evidence.records.filter((record) => cited.has(record.id)),
     basis,
     limits: Arr.dedupe([...(basis ? missingRecords(basis) : []), ...limits]),
+    proposals: evidence.proposals,
   };
 }

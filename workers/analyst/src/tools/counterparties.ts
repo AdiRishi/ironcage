@@ -32,7 +32,7 @@ import { coverageOf, monthReads } from "./coverage.ts";
 // The most counterparties one list shows the model. The screen shows the rest.
 const listed = 30;
 
-const counterpartyLink = (counterpartyId: typeof CounterpartyId.Type) =>
+export const counterpartyLink = (counterpartyId: typeof CounterpartyId.Type) =>
   ({ kind: "counterparty", counterpartyId }) satisfies RecordLink;
 
 export const FindCounterparties = Tool.make("FindCounterparties", {

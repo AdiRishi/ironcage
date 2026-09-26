@@ -1,13 +1,16 @@
 import type { CounterpartyChangePreview } from "@repo/contracts/finance";
 
-import { ImpactSummary, movesTotals } from "@/features/events/impact";
+import { type ImpactHeading, ImpactSummary, movesTotals } from "@/features/events/impact";
 
 // How many transactions a change gives a new meaning, and the months whose totals it
 // moves.
 export function ChangePreview({
   eventCount,
   impacts,
-}: Pick<typeof CounterpartyChangePreview.Type, "eventCount" | "impacts">) {
+  heading,
+}: Pick<typeof CounterpartyChangePreview.Type, "eventCount" | "impacts"> & {
+  heading?: ImpactHeading;
+}) {
   const changes =
     eventCount === 0
       ? "Changes no transactions"
@@ -16,7 +19,7 @@ export function ChangePreview({
   return (
     <div className="space-y-3">
       <p>{changes}.</p>
-      <ImpactSummary impacts={impacts} />
+      <ImpactSummary impacts={impacts} heading={heading} />
     </div>
   );
 }

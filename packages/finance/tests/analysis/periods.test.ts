@@ -5,6 +5,7 @@ import { expect, it } from "vitest";
 import {
   comparisonPeriod,
   missingPeriods,
+  monthsDates,
   periodsWithin,
   resolvePeriod,
   trailingYear,
@@ -143,6 +144,14 @@ it("names the whole months a period spans, and none for a period that ends withi
   });
   expect(wholeMonths({ start: day("2026-08-01"), endExclusive: day("2026-08-27") })).toBeNull();
   expect(wholeMonths({ start: day("2026-07-15"), endExclusive: day("2026-09-01") })).toBeNull();
+});
+
+it("dates a span of months from the first day of the first to the last day of the last", () => {
+  expect(monthsDates(YearMonth.make("2025-11"), YearMonth.make("2026-02"))).toEqual({
+    from: "2025-11-01",
+    to: "2026-02-28",
+  });
+  expect(monthsDates(YearMonth.make("2024-02"))).toEqual({ from: "2024-02-01", to: "2024-02-29" });
 });
 
 const months = (from: string, to: string) =>

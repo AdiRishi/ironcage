@@ -1,7 +1,14 @@
 import { Schema } from "effect";
 
 import { Allocation, FinancialEvent } from "./events.ts";
-import { CounterpartyId, EventId, FinancialRole } from "./interpretation.ts";
+import {
+  CategoryId,
+  CounterpartyId,
+  EventId,
+  FinancialRole,
+  PersonalEventId,
+  TagId,
+} from "./interpretation.ts";
 import { CalendarDate, CommandId, Instant, Money, Version } from "./values.ts";
 
 export const CorrectionId = Schema.String.check(Schema.isUUID()).pipe(Schema.brand("CorrectionId"));
@@ -12,6 +19,20 @@ export const EventChange = Schema.Struct({
   allocations: Schema.NonEmptyArray(Allocation),
 });
 export type EventChange = typeof EventChange.Type;
+// What to change on a transaction that is not split. It names only what changes, and
+// adds or removes tags and personal events by ID. A null category or purchase date
+// removes it.
+export const TransactionPatch = Schema.Struct({
+  role: Schema.optionalKey(FinancialRole),
+  categoryId: Schema.optionalKey(Schema.NullOr(CategoryId)),
+  nonPersonal: Schema.optionalKey(Schema.Boolean),
+  addTagIds: Schema.optionalKey(Schema.Array(TagId)),
+  removeTagIds: Schema.optionalKey(Schema.Array(TagId)),
+  addPersonalEventIds: Schema.optionalKey(Schema.Array(PersonalEventId)),
+  removePersonalEventIds: Schema.optionalKey(Schema.Array(PersonalEventId)),
+  purchaseOn: Schema.optionalKey(Schema.NullOr(CalendarDate)),
+});
+export type TransactionPatch = typeof TransactionPatch.Type;
 export const ExpectedEventVersion = Schema.Struct({ eventId: EventId, version: Version });
 export const PreviewCorrection = Schema.Struct({ change: EventChange });
 export const ApplyCorrection = Schema.Struct({

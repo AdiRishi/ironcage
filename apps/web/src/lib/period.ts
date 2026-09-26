@@ -122,12 +122,6 @@ export function periodRecords(
   return periodMonths(months, period).some(hasRecords) ? "recorded" : "missing";
 }
 
-// Inclusive calendar dates, for filters that take a first and last date.
-export function periodDates(period: PeriodChoice) {
-  const { start, endExclusive } = monthsPeriod(period.from, period.to);
-  return { from: start, to: addDays(endExclusive, -1) };
-}
-
 export function comparisonSelection(
   compare: ComparisonKey | undefined,
 ): typeof ComparisonSelection.Type {
@@ -139,6 +133,20 @@ export function comparisonSelection(
     start: CalendarDate.make(start),
     endExclusive: addDays(CalendarDate.make(last), 1),
   };
+}
+
+// The address of a comparison, the inverse of `comparisonSelection`.
+export function comparisonKey(
+  selection: typeof ComparisonSelection.Type,
+): ComparisonKey | undefined {
+  switch (selection.kind) {
+    case "previous":
+      return undefined;
+    case "previousYear":
+      return "lastYear";
+    case "fixed":
+      return `${selection.start}..${addDays(selection.endExclusive, -1)}`;
+  }
 }
 
 // Screens place facts on spending dates, so a number and the records it opens read the

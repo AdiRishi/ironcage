@@ -10,10 +10,12 @@ import { summarizeQuestions } from "@/features/questions/functions";
 import { getSettings } from "@/features/settings/functions";
 import { AppRequestError } from "@/lib/app-error";
 import { getRouter } from "@/router";
+import type { callAnalystRpc } from "@/server/analyst-client.server";
 import type { callApiRpc, fetchApi } from "@/server/api-client.server";
 
 // The route tree imports every feature's server functions, so `createServerFn` makes each
-// one a mock. File routes that forward requests import the API client, which no test calls.
+// one a mock. Server functions and the file routes that forward requests import the API and
+// analyst clients, which no test calls.
 // oxlint-disable-next-line anti-slop/no-module-mocking -- Server functions are the remote transport boundary.
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => ({
@@ -25,6 +27,10 @@ vi.mock("@tanstack/react-start", () => ({
 vi.mock("../../src/server/api-client.server", () => ({
   callApiRpc: vi.fn<typeof callApiRpc>(),
   fetchApi: vi.fn<typeof fetchApi>(),
+}));
+// oxlint-disable-next-line anti-slop/no-module-mocking -- The analyst client is the remote transport boundary.
+vi.mock("../../src/server/analyst-client.server", () => ({
+  callAnalystRpc: vi.fn<typeof callAnalystRpc>(),
 }));
 
 vi.mocked(getSettings).mockResolvedValue({

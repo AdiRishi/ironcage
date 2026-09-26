@@ -1,4 +1,4 @@
-import type { PeriodFlow } from "@repo/contracts/finance";
+import { type PeriodFlow, YearMonth } from "@repo/contracts/finance";
 import {
   RouterProvider,
   createMemoryHistory,
@@ -11,6 +11,7 @@ import { render } from "vitest-browser-react";
 import { page, userEvent } from "vitest/browser";
 
 import { FlowDiagram } from "@/features/overview/flow-diagram";
+import { resolvePeriodKey } from "@/lib/period";
 
 import { august, food, salary, travel } from "./period-flow";
 
@@ -23,7 +24,13 @@ async function renderFlow(flow: PeriodFlow, width: number) {
   const overview = createRoute({
     getParentRoute: () => root,
     path: "/",
-    component: () => <FlowDiagram flow={flow} />,
+    component: () => (
+      <FlowDiagram
+        flow={flow}
+        period={resolvePeriodKey(YearMonth.make("2026-08"), "Australia/Sydney")}
+        compare="lastYear"
+      />
+    ),
   });
   const router = createRouter({
     routeTree: root.addChildren([overview]),
@@ -91,11 +98,14 @@ test("on a phone the stacked bars open the same records", async ({ onTestFinishe
   await expect
     .element(link("Loan principal, $1,100 went out"))
     .toHaveAttribute("href", "/ledger?measure=loanPrincipal");
+  await expect.element(link("Ask about this: Food, $620 went out")).toBeVisible();
   await expect.element(page.getByText("What came in less what went out")).toBeVisible();
   await expect.element(page.getByRole("link", { name: /Kept/ })).not.toBeInTheDocument();
 });
 
-test("the table view lists every stream as a link and Kept as text", async ({ onTestFinished }) => {
+test("the table view lists every stream as a link with a question about it, and Kept as text", async ({
+  onTestFinished,
+}) => {
   const screen = await renderFlow(august, 1280);
   onTestFinished(() => screen.unmount());
 
@@ -105,6 +115,18 @@ test("the table view lists every stream as a link and Kept as text", async ({ on
   await expect
     .element(table.getByRole("link", { name: "Food, $620 went out", exact: true }))
     .toHaveAttribute("href", `/spending?category=${food}`);
+  const ask = table.getByRole("link", { name: "Ask about this: Food, $620 went out" });
+  const about = new URL(ask.element().getAttribute("href") ?? "", "http://ironcage.test");
+  expect(JSON.parse(about.searchParams.get("about") ?? "null")).toEqual({
+    kind: "stream",
+    period: { kind: "months", from: "2026-08", to: "2026-08" },
+    comparison: { kind: "previousYear" },
+    scope: {
+      measure: "spending",
+      category: { kind: "category", id: food },
+      counterparty: { kind: "all" },
+    },
+  });
   await expect
     .element(table.getByRole("link", { name: "Loan principal, $1,100 went out" }))
     .toHaveAttribute("href", "/ledger?measure=loanPrincipal");

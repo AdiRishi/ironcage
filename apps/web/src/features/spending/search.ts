@@ -1,8 +1,15 @@
+import type { AskContext } from "@repo/contracts/analyst";
 import { PersonalEventId, type Scope, type SpendingInput, TagId } from "@repo/contracts/finance";
 import { Schema, type Types } from "effect";
 
 import { countedLedgerInput, countedSearch, type CountedSearch } from "@/features/ledger/search";
-import { type ComparisonKey, flowInput, type PeriodChoice } from "@/lib/period";
+import {
+  type ComparisonKey,
+  comparisonSelection,
+  flowInput,
+  type PeriodChoice,
+  periodSelection,
+} from "@/lib/period";
 import { ScopeSearch, scopeSearch, searchScope, unspecifiedNeedsCategory } from "@/lib/scope";
 
 // The scope the drill has opened, and `?tag=` or `?personalEvent=` to count only the
@@ -52,6 +59,25 @@ export function ledgerSearch(scope: Scope, { tag, personalEvent }: Narrowing) {
   if (tag) search.tagId = tag;
   if (personalEvent) search.personalEventId = personalEvent;
   return search;
+}
+
+// What "Ask about this" asks about: a scope's spending in the period against the
+// comparison, narrowed the same way.
+export function spendingContext(
+  scope: Scope,
+  period: PeriodChoice,
+  compare: ComparisonKey | undefined,
+  { tag, personalEvent }: Narrowing,
+) {
+  const context: Types.Mutable<typeof AskContext.cases.category.Type> = {
+    kind: "category",
+    period: periodSelection(period),
+    comparison: comparisonSelection(compare),
+    ...scope,
+  };
+  if (tag) context.tagId = tag;
+  if (personalEvent) context.personalEventId = personalEvent;
+  return context;
 }
 
 // The records the drill's last level lists: the same input the ledger reads for them.
