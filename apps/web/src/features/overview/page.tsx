@@ -30,6 +30,7 @@ export function OverviewPage({
   firstMonth,
   today,
   questions,
+  briefing,
 }: {
   flow: PeriodFlow;
   period: PeriodChoice;
@@ -38,6 +39,8 @@ export function OverviewPage({
   firstMonth: YearMonth;
   today: CalendarDate;
   questions: typeof QuestionSummary.Type;
+  // The analyst's briefing of the month, which sits between the headline and the flow.
+  briefing?: React.ReactNode;
 }) {
   // The dates compared, which for a period in progress are only the same days.
   const previousLabel = periodLabel(flow.comparison);
@@ -108,6 +111,8 @@ export function OverviewPage({
           </div>
         </dl>
       </header>
+
+      {briefing}
 
       <section aria-labelledby="flow-heading" className="space-y-4">
         <h2 id="flow-heading" className="type-heading">

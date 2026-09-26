@@ -40,9 +40,12 @@ import { page } from "vitest/browser";
 import { ConversationView } from "@/features/analyst/conversation";
 import {
   ask,
+  getBriefing,
   getConversation,
+  listBriefings,
   listConversations,
   refreshProposal,
+  requestBriefing,
   resolveProposal,
 } from "@/features/analyst/functions";
 import { conversationQuery } from "@/features/analyst/queries";
@@ -61,9 +64,12 @@ import { createQueryClient } from "@/lib/query-client";
 // oxlint-disable-next-line anti-slop/no-module-mocking -- Server functions are the remote transport boundary.
 vi.mock("../../../src/features/analyst/functions", () => ({
   ask: vi.fn<typeof ask>(),
+  getBriefing: vi.fn<typeof getBriefing>(),
   getConversation: vi.fn<typeof getConversation>(),
+  listBriefings: vi.fn<typeof listBriefings>(),
   listConversations: vi.fn<typeof listConversations>(),
   refreshProposal: vi.fn<typeof refreshProposal>(),
+  requestBriefing: vi.fn<typeof requestBriefing>(),
   resolveProposal: vi.fn<typeof resolveProposal>(),
 }));
 // oxlint-disable-next-line anti-slop/no-module-mocking -- Server functions are the remote transport boundary.
@@ -333,7 +339,6 @@ function serve(proposed: Proposal = previewed(dinner)) {
           limits: [],
           proposals: [proposal],
         },
-        message: null,
         askedAt,
         finishedAt: askedAt,
       },

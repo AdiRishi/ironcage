@@ -1,8 +1,9 @@
 import type { Conversation, TurnId, TurnStatus } from "@repo/contracts/analyst";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
+import { useAnnouncement } from "@/lib/use-announcement";
 import { focusLost } from "@/lib/use-focus-request";
 
 import { Composer } from "./composer";
@@ -26,8 +27,7 @@ export function ConversationView({
   const answering = conversation.turns.some((turn) => waiting(turn.status));
   const outcomes = useRef(new Map<TurnId, HTMLElement>());
   const seen = useRef(new Map<TurnId, TurnStatus>());
-  // `count` tells one announcement from the next when their words are the same.
-  const [announcement, setAnnouncement] = useState({ text: "", count: 0 });
+  const [announcer, announce] = useAnnouncement();
   const composer = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,14 +52,11 @@ export function ConversationView({
       const before = seen.current.get(turn.id);
       seen.current.set(turn.id, turn.status);
       if (!before || !waiting(before) || waiting(turn.status)) continue;
-      setAnnouncement((previous) => ({
-        text: turn.status === "answered" ? "Answer ready" : "No answer",
-        count: previous.count + 1,
-      }));
+      announce(turn.status === "answered" ? "Answer ready" : "No answer");
       // Asking disables the question box, so focus is lost unless you moved it.
       if (focusLost()) outcomes.current.get(turn.id)?.focus();
     }
-  }, [conversation]);
+  }, [conversation, announce]);
 
   return (
     <div className="space-y-8">
@@ -86,10 +83,7 @@ export function ConversationView({
           />
         ))}
       </div>
-      <p aria-live="polite" className="sr-only">
-        {/* A new node for each announcement, so words said before are said again. */}
-        <span key={announcement.count}>{announcement.text}</span>
-      </p>
+      {announcer}
       <div ref={composer} className="sticky bottom-0 border-t border-rule bg-background pt-4 pb-5">
         {enabled ? (
           <Composer

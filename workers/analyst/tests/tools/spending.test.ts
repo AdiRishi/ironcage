@@ -3,7 +3,7 @@ import { FinanceError, YearMonth } from "@repo/contracts/finance";
 import { Effect } from "effect";
 
 import { ReadSpending } from "../../src/tools/spending.ts";
-import { analystOn, analystTest, askAndRun } from "../support/analyst.ts";
+import { analystOn, analystTest, answerOf, askAndRun } from "../support/analyst.ts";
 import {
   diningOut,
   diningOutRow,
@@ -55,7 +55,7 @@ describe("ReadSpending", () => {
           ...foodSpending,
           category: { kind: "category", id: diningOut },
         };
-        expect(turn.answer?.figures).toEqual([
+        expect(answerOf(turn).figures).toEqual([
           expect.objectContaining({
             label: "Dining out, August 2026",
             value: { kind: "money", amount: { currency: "AUD", minor: 72000n }, signed: false },
@@ -157,7 +157,7 @@ describe("ReadSpending", () => {
       expect(turn.steps).toEqual([
         { label: "Reading spending for Japan trip for August 2026", records: trip },
       ]);
-      expect(turn.answer?.figures).toEqual([
+      expect(answerOf(turn).figures).toEqual([
         expect.objectContaining({ label: "Spending for Japan trip, August 2026", records: trip }),
       ]);
       const spending = yield* lastResult(ReadSpending, yield* modelRequest(1));
@@ -229,7 +229,7 @@ describe("ReadSpending", () => {
     () =>
       Effect.gen(function* () {
         const turn = yield* askAndRun(1);
-        const unknown = turn.answer?.figures.find(
+        const unknown = answerOf(turn).figures.find(
           (figure) => figure.label === "Not yet categorised, August 2026",
         );
         expect(unknown?.value).toEqual({
@@ -237,7 +237,7 @@ describe("ReadSpending", () => {
           amount: { currency: "AUD", minor: 98000n },
           signed: false,
         });
-        expect(turn.answer?.limits).toContainEqual({
+        expect(answerOf(turn).limits).toContainEqual({
           kind: "notUnderstood",
           figureId: unknown?.id,
         });

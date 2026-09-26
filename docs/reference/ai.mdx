@@ -3,7 +3,7 @@ title: AI
 description: Where models are used, what they receive, how their output is applied, and what they can never do.
 ---
 
-Two features call a model. Enrichment resolves counterparties and their defaults, or scores the model against your answers. The analyst answers questions about your records and writes a briefing of each month. Briefings have no screen yet (see the [roadmap](/roadmap)). Document extraction is not built: the statement parser reads every page, and a page it cannot read becomes a `value` source review.
+Two features call a model. Enrichment resolves counterparties and their defaults, or scores the model against your answers. The analyst answers questions about your records and writes a briefing of each month, which the month's overview shows. Document extraction is not built: the statement parser reads every page, and a page it cannot read becomes a `value` source review.
 
 A model never computes a total and never changes a booked field.
 
@@ -217,7 +217,7 @@ The analyst never applies a proposal, because its API binding holds no command b
 
 ### Briefings
 
-A briefing tells a month in four sections: what came in, what went out, what changed from the month before, and what needs an answer. Each section follows the answer grammar and cites figures by token. The contracts are in `packages/contracts/src/analyst/briefings.ts`, and the code is in `workers/analyst/src/briefings/`.
+A briefing tells a month in four sections: what came in, what went out, what changed from the month before, and what needs an answer. Each section follows the answer grammar and cites figures by token. The contracts are in `packages/contracts/src/analyst/briefings.ts`, and the code is in `workers/analyst/src/briefings/`. `Briefing` is a union on `status`: only a `ready` briefing has sections, the figures and records they cite, the basis, the limits, and `writtenAt`, and only a `blocked` or `failed` one has a `message`. In `BriefingSummary`, only a `ready` briefing has `writtenAt`.
 
 `readBriefingMonth` in `facts.ts` reads what a month's briefing is written from, with the model's own tools, as if the model had called them: `ReadFlow` for the month against the month before, `ListQuestions` for the month, and `ReadCoverage` for the month, which names the files whose import failed or waits for review. The reads run one after another, so their figures take the same numbers every time. `readBriefingFacts` registers them with a `TurnEvidence` from `TurnEvidence.briefing`, whose figures and records number from 1 and which stores no steps. A facts rebuild in progress becomes a `recalculating` limit, as it does for a turn. A read that fails ends the read of the facts with its `FinanceError`.
 

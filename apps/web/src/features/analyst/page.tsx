@@ -31,7 +31,7 @@ export function AnalystPage({
 const examples = [
   "Why was August more expensive than July?",
   "How much did the Japan trip cost, including the flights booked in March?",
-  "What subscriptions do I pay for, and which ones started this year?",
+  "Who did I pay the most in the last three months?",
 ];
 
 // A question that starts a conversation, about the selection it was asked from, if any.

@@ -15,27 +15,30 @@ import {
   YearMonth,
 } from "@repo/contracts/finance";
 import { shiftYearMonth } from "@repo/finance";
-import { RouterProvider, createMemoryHistory } from "@tanstack/react-router";
 import { Effect, Schema } from "effect";
 import { expect, test, vi } from "vitest";
-import { render } from "vitest-browser-react";
 import { page, userEvent } from "vitest/browser";
 
-import { ask, getConversation, listConversations } from "@/features/analyst/functions";
+import {
+  ask,
+  getConversation,
+  listBriefings,
+  listConversations,
+} from "@/features/analyst/functions";
 import { getReferenceData } from "@/features/events/functions";
 import { getFactsStatus, getMonthlyFlow } from "@/features/flow/functions";
 import { getModelSettings } from "@/features/models/functions";
 import { summarizeQuestions } from "@/features/questions/functions";
 import { getSettings } from "@/features/settings/functions";
 import { getSpending } from "@/features/spending/functions";
-import { getRouter } from "@/router";
-import { Route as root } from "@/routes/__root";
 import type { callAnalystRpc } from "@/server/analyst-client.server";
 import type { callApiRpc, fetchApi } from "@/server/api-client.server";
 
-// These tests run the app's own routes, whose tree imports every feature's server
-// functions, so `createServerFn` makes each one a mock. Server functions and the file
-// routes that forward requests import the API and analyst clients, which no test calls.
+import { openApp } from "../../support/app";
+
+// These tests run the app's own routes, so `createServerFn` makes every server function a
+// mock. Server functions and the file routes that forward requests import the API and
+// analyst clients, which no test calls.
 // oxlint-disable-next-line anti-slop/no-module-mocking -- Server functions are the remote transport boundary.
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => ({
@@ -139,8 +142,8 @@ const provider = {
 };
 
 // The API and the analyst as far as these tests go: records for July and August 2026, Food
-// in July, the analyst on, and no conversation until a question is asked. `asked` is the
-// question the analyst received.
+// in July, the analyst on, no briefing, and no conversation until a question is asked.
+// `asked` is the question the analyst received.
 let asked: Ask | undefined;
 function serve() {
   asked = undefined;
@@ -194,6 +197,7 @@ function serve() {
     version: 1,
   });
   vi.mocked(listConversations).mockResolvedValue({ rows: [], nextCursor: null });
+  vi.mocked(listBriefings).mockResolvedValue([]);
   let conversation: Conversation | undefined;
   vi.mocked(ask).mockImplementation(async ({ data }) => {
     asked = await Effect.runPromise(Schema.decodeEffect(Ask)(data));
@@ -207,10 +211,7 @@ function serve() {
           context: asked.context,
           status: "queued",
           steps: [],
-          answer: null,
-          message: null,
           askedAt,
-          finishedAt: null,
         },
       ],
     };
@@ -222,20 +223,9 @@ function serve() {
   });
 }
 
-// The app's router, with its routes and pages, opened at an address. The root's shell
-// renders <html> and <body>, which would land inside the test's container, and Chromium
-// hangs focusing a text field under a nested <body>, so the pages render without it.
-async function open(address: string, onTestFinished: (cleanup: () => Promise<void>) => void) {
+function open(address: string, onTestFinished: (cleanup: () => Promise<void>) => void) {
   serve();
-  const router = getRouter();
-  Object.assign(root.options, { shellComponent: undefined });
-  router.update({
-    ...router.options,
-    history: createMemoryHistory({ initialEntries: [address] }),
-  });
-  const screen = await render(<RouterProvider router={router} />);
-  onTestFinished(() => screen.unmount());
-  return router;
+  return openApp(address, onTestFinished);
 }
 
 test("Ask about this on a spending row opens a new question about that category in the period", async ({

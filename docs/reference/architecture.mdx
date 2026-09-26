@@ -27,7 +27,7 @@ flowchart LR
     Processor --> Sources
 ```
 
-The API is the only Worker that writes financial records and the only one with a database binding. The processor reads R2 and calls the API. The analyst keeps conversations and briefings in its Durable Object's SQLite and reads financial data only through the API. The web app's analyst screens call the Analyst Worker through its binding. Briefings have no screen yet (see the [roadmap](/roadmap)).
+The API is the only Worker that writes financial records and the only one with a database binding. The processor reads R2 and calls the API. The analyst keeps conversations and briefings in its Durable Object's SQLite and reads financial data only through the API. The web app's analyst screens and the overview's briefing call the Analyst Worker through its binding.
 
 ## Shared packages
 
@@ -96,7 +96,7 @@ One `Conversations` Durable Object holds every conversation and briefing, becaus
 | `proposals`     | The changes an answer proposed, in order, each with its intent, preview, title, reason, and status: pending, accepted, ignored, or stale.                        |
 | `briefings`     | Each month's briefing with its status, and once written, its sections, the figures and limits they show, and the fingerprint of its facts, or why it failed.     |
 
-A turn is `queued`, `running`, `answered`, `blocked`, or `failed`. `blocked` means the analyst is off or model usage reached the warning, and `failed` that it could not finish. Both keep a message that says why.
+A turn is `queued`, `running`, `answered`, `blocked`, or `failed`. `blocked` means the analyst is off or model usage reached the warning, and `failed` that it could not finish. Both keep a message that says why. The `Turn` contract is a union on `status`, so only an `answered` turn has an answer, only a `blocked` or `failed` one has a message, and only a finished one has `finishedAt`. `readConversation` decodes each row into the member of its status.
 
 `ask` carries a command ID. The turn takes that ID, and so does the conversation it starts, so repeating an ask returns the same conversation without queuing another turn. Reusing the ID for a different question fails with `conflict`. A conversation answers one question at a time. Asking while a turn is queued or running fails with `conflict`, and a unique index on unfinished turns holds the rule in storage.
 

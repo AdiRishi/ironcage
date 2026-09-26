@@ -9,6 +9,7 @@ import { Proposals } from "../../src/proposals/service.ts";
 import {
   analystOn,
   analystTest,
+  answerOf,
   commandId,
   fireAlarm,
   question,
@@ -60,7 +61,7 @@ const proposing = analystTest(
 
 // The one proposal in a conversation's last answer, as the analyst screen shows it.
 const shown = Effect.fn("shown")(function* (conversationId: ConversationId) {
-  const [proposal] = (yield* turnOf(conversationId)).answer?.proposals ?? [];
+  const [proposal] = answerOf(yield* turnOf(conversationId)).proposals;
   if (!proposal) return yield* Effect.die("The turn proposed nothing.");
   return proposal;
 });

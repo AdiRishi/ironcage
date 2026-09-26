@@ -3,13 +3,16 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { NoRecords } from "@/components/no-records";
+import { BriefingSection } from "@/features/analyst/briefing";
 import { monthlyFlowQuery, periodFlowQuery } from "@/features/flow/queries";
 import { importsQueryOptions } from "@/features/imports/queries";
+import { modelSettingsQuery } from "@/features/models/queries";
 import { FirstUse } from "@/features/overview/first-use";
 import { OverviewPage } from "@/features/overview/page";
 import { questionSummaryQuery } from "@/features/questions/queries";
 import { settingsQueryOptions } from "@/features/settings/queries";
 import {
+  endedMonth,
   flowInput,
   type PeriodChoice,
   periodRecords,
@@ -37,6 +40,8 @@ export const Route = createFileRoute("/")({
             period: periodSelection(period),
           }),
         ),
+        // Whether the analyst is on decides whether the month's briefing has a section.
+        endedMonth(period, settings.timezone) && queryClient.ensureQueryData(modelSettingsQuery()),
       ]);
   },
   component: Overview,
@@ -73,6 +78,7 @@ function RecordedOverview({ period, firstMonth }: { period: PeriodChoice; firstM
   const { data: questions } = useSuspenseQuery(
     questionSummaryQuery({ currency: settings.reportingCurrency, period: periodSelection(period) }),
   );
+  const month = endedMonth(period, settings.timezone);
   return (
     <OverviewPage
       flow={flow}
@@ -84,6 +90,7 @@ function RecordedOverview({ period, firstMonth }: { period: PeriodChoice; firstM
       firstMonth={firstMonth}
       today={today(settings.timezone)}
       questions={questions}
+      briefing={month && <BriefingSection month={month} />}
     />
   );
 }

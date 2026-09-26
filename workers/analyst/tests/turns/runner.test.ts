@@ -13,6 +13,7 @@ import {
   analystOff,
   analystOn,
   analystTest,
+  answerOf,
   askAndRun,
   commandId,
   fireAlarm,
@@ -79,10 +80,9 @@ describe("TurnRunner", () => {
         const turn = yield* askAndRun(1);
         expect(turn).toMatchObject({
           status: "answered",
-          message: null,
           steps: [{ label: "Reading spending in Food for August 2026", records: foodOnSpending }],
         });
-        expect(turn.answer).toEqual({
+        expect(answerOf(turn)).toEqual({
           text: "Food came to [[f1]] in August 2026.",
           missing: [],
           records: [],
@@ -136,15 +136,15 @@ describe("TurnRunner", () => {
   it.effect("a month cited from a series states the days that month's records lack", () =>
     Effect.gen(function* () {
       const july = yield* askAndRun(1);
-      expect(july.answer?.basis?.periods).toEqual([
+      expect(answerOf(july).basis?.periods).toEqual([
         { period: { start: "2026-07-01", endExclusive: "2026-08-01" }, comparison: null },
       ]);
-      expect(july.answer?.limits).toEqual([]);
+      expect(answerOf(july).limits).toEqual([]);
       const augustTurn = yield* askAndRun(2);
-      expect(augustTurn.answer?.basis?.periods).toEqual([
+      expect(answerOf(augustTurn).basis?.periods).toEqual([
         { period: { start: "2026-08-01", endExclusive: "2026-09-01" }, comparison: null },
       ]);
-      expect(augustTurn.answer?.limits).toEqual([mastercardGap]);
+      expect(answerOf(augustTurn).limits).toEqual([mastercardGap]);
     }).pipe(
       Effect.provide(
         analystTest(
@@ -175,7 +175,7 @@ describe("TurnRunner", () => {
     () =>
       Effect.gen(function* () {
         const turn = yield* askAndRun(1);
-        expect(turn.answer?.text).toBe("Food came to [[f1]] in August 2026.");
+        expect(answerOf(turn).text).toBe("Food came to [[f1]] in August 2026.");
         const requests = yield* modelRequests;
         expect(requests).toHaveLength(3);
         expect(requests[2]?.content.at(-1)).toMatchObject({
@@ -205,8 +205,10 @@ describe("TurnRunner", () => {
     () =>
       Effect.gen(function* () {
         const turn = yield* askAndRun(1);
-        expect(turn.answer?.missing).toEqual(["Ironcage does not detect recurring payments yet."]);
-        expect(turn.answer?.limits).toContainEqual({ kind: "notBuilt", capability: "recurring" });
+        expect(answerOf(turn).missing).toEqual([
+          "Ironcage does not detect recurring payments yet.",
+        ]);
+        expect(answerOf(turn).limits).toContainEqual({ kind: "notBuilt", capability: "recurring" });
         const requests = yield* modelRequests;
         expect(requests[2]?.content.at(-1)).toMatchObject({
           content: [
@@ -332,7 +334,6 @@ describe("TurnRunner", () => {
       expect(turn).toMatchObject({
         status: "blocked",
         message: "The analyst is off. Turn it on in Settings.",
-        answer: null,
       });
       expect(yield* modelRequests).toEqual([]);
       expect(yield* recordedUsage).toEqual([]);
@@ -348,7 +349,6 @@ describe("TurnRunner", () => {
           status: "failed",
           message:
             "The analyst could not finish an answer with linked figures. Ask again or narrow the question.",
-          answer: null,
         });
         expect(yield* modelRequests).toHaveLength(12);
         expect(yield* recordedUsage).toHaveLength(12);
@@ -400,7 +400,6 @@ describe("TurnRunner", () => {
       expect(turn).toMatchObject({
         status: "failed",
         message: "The service could not complete the request. Try again.",
-        answer: null,
       });
       expect(yield* modelRequests).toHaveLength(1);
     }).pipe(
@@ -430,7 +429,6 @@ describe("TurnRunner", () => {
         expect(turn).toMatchObject({
           status: "failed",
           message: "The analyst could not reach your records. Try again in a few minutes.",
-          answer: null,
         });
         expect(yield* modelRequests).toHaveLength(1);
         expect(turn.steps).toEqual([]);

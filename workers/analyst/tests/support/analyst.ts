@@ -1,5 +1,6 @@
 import * as SqliteNode from "@effect/sql-sqlite-node/SqliteClient";
-import type { AskContext, ConversationId } from "@repo/contracts/analyst";
+import { assert } from "@effect/vitest";
+import type { AskContext, ConversationId, Turn } from "@repo/contracts/analyst";
 import {
   CommandId,
   type ModelAllowance,
@@ -131,6 +132,11 @@ export const turnOf = Effect.fn("turnOf")(function* (conversationId: Conversatio
   if (!turn) return yield* Effect.die("The conversation has no turn.");
   return turn;
 });
+
+export function answerOf(turn: Turn) {
+  assert(turn.status === "answered", `The turn ended ${turn.status}.`);
+  return turn.answer;
+}
 
 // Asks in a new conversation, or in `conversationId`, and runs the turn as the alarm does.
 export const askAndRun = Effect.fn("askAndRun")(function* (

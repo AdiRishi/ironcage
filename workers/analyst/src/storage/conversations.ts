@@ -6,12 +6,10 @@ import {
   ConversationSummary,
   Proposal,
   RecordLink,
-  Turn,
   TurnId,
-  TurnStatus,
   TurnStep,
 } from "@repo/contracts/analyst";
-import { FinanceError } from "@repo/contracts/finance";
+import { FinanceError, Instant } from "@repo/contracts/finance";
 import { DateTime, Effect, Schema, Struct } from "effect";
 import { SqlClient } from "effect/unstable/sql";
 
@@ -25,13 +23,29 @@ const AnswerText = Schema.fromJsonString(
 );
 const RecordsText = Schema.NullOr(Schema.fromJsonString(Schema.toCodecJson(RecordLink)));
 
-const TurnRow = Schema.Struct({
-  ...Turn.fields,
+const askedColumns = {
+  id: TurnId,
+  question: Schema.String,
   context: ContextText,
   steps: Schema.fromJsonString(Schema.toCodecJson(Schema.Array(TurnStep))),
-  answer: Schema.NullOr(AnswerText),
-  proposals: Schema.fromJsonString(Schema.toCodecJson(Schema.Array(Proposal))),
-});
+  askedAt: Instant,
+};
+const TurnRow = Schema.Union([
+  Schema.Struct({ ...askedColumns, status: Schema.Literals(["queued", "running"]) }),
+  Schema.Struct({
+    ...askedColumns,
+    status: Schema.Literal("answered"),
+    answer: AnswerText,
+    proposals: Schema.fromJsonString(Schema.toCodecJson(Schema.Array(Proposal))),
+    finishedAt: Instant,
+  }),
+  Schema.Struct({
+    ...askedColumns,
+    status: Schema.Literals(["blocked", "failed"]),
+    message: Schema.String,
+    finishedAt: Instant,
+  }),
+]);
 const SummaryRow = Schema.Struct({
   ...ConversationSummary.fields,
   answering: Schema.BooleanFromBit,
@@ -43,7 +57,7 @@ const AskedRow = Schema.Struct({
 });
 const WaitingRow = Schema.Struct({
   id: TurnId,
-  status: TurnStatus.pick(["queued", "running"]),
+  status: Schema.Literals(["queued", "running"]),
   attempts: Schema.Int,
 });
 const ExistsRow = Schema.Struct({ exists: Schema.BooleanFromBit });
@@ -105,10 +119,14 @@ export const readConversation = Effect.fn("readConversation")(function* (id: Con
   );
   return {
     ...conversation,
-    turns: turns.map(({ answer, proposals, ...turn }) => ({
-      ...turn,
-      answer: answer === null ? null : { ...answer, proposals },
-    })),
+    turns: turns.map((turn) =>
+      turn.status === "answered"
+        ? {
+            ...Struct.omit(turn, ["proposals"]),
+            answer: { ...turn.answer, proposals: turn.proposals },
+          }
+        : turn,
+    ),
   };
 });
 

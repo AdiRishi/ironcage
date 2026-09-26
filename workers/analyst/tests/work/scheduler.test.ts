@@ -9,12 +9,12 @@ import { alarmPending, analystOff, analystTest, failedRun, fireAlarm } from "../
 
 const first = CommandId.make("00000000-0000-4000-8000-000000000001");
 const second = CommandId.make("00000000-0000-4000-8000-000000000002");
-const statusOf = Effect.fn("statusOf")(function* (commandId: typeof CommandId.Type) {
+const turnsOf = Effect.fn("turnsOf")(function* (commandId: typeof CommandId.Type) {
   const conversations = yield* Conversations;
   const conversation = yield* conversations.get({
     conversationId: ConversationId.make(commandId),
   });
-  return conversation.turns.map(({ status, message }) => ({ status, message }));
+  return conversation.turns;
 });
 const ask = Effect.fn("ask")(function* (commandId: typeof CommandId.Type, question: string) {
   const conversations = yield* Conversations;
@@ -30,12 +30,12 @@ describe("WorkScheduler", () => {
       expect(yield* alarmPending).toBe(true);
 
       yield* fireAlarm;
-      expect((yield* statusOf(first))[0]?.status).toBe("blocked");
-      expect((yield* statusOf(second))[0]?.status).toBe("queued");
+      expect((yield* turnsOf(first))[0]?.status).toBe("blocked");
+      expect((yield* turnsOf(second))[0]?.status).toBe("queued");
       expect(yield* alarmPending).toBe(true);
 
       yield* fireAlarm;
-      expect((yield* statusOf(second))[0]?.status).toBe("blocked");
+      expect((yield* turnsOf(second))[0]?.status).toBe("blocked");
       expect(yield* alarmPending).toBe(false);
     }).pipe(Effect.provide(analystTest({ getModelAllowance: () => analystOff }))),
   );
@@ -70,9 +70,9 @@ describe("WorkScheduler", () => {
       yield* Effect.gen(function* () {
         yield* ask(first, "What did I spend on food in August?");
         expect(yield* failedRun).toBe(true);
-        expect(yield* statusOf(first)).toEqual([{ status: "running", message: null }]);
+        expect(yield* turnsOf(first)).toMatchObject([{ status: "running" }]);
         yield* fireAlarm;
-        expect(yield* statusOf(first)).toEqual([
+        expect(yield* turnsOf(first)).toMatchObject([
           { status: "blocked", message: "The analyst is off. Turn it on in Settings." },
         ]);
       }).pipe(Effect.provide(analystTest({ getModelAllowance: allowance })));
@@ -89,10 +89,10 @@ describe("WorkScheduler", () => {
       for (let attempt = 3; attempt <= 5; attempt++) expect(yield* failedRun).toBe(true);
 
       yield* fireAlarm;
-      expect(yield* statusOf(first)).toEqual([
+      expect(yield* turnsOf(first)).toMatchObject([
         { status: "failed", message: "The analyst could not finish this answer. Ask again." },
       ]);
-      expect(yield* statusOf(second)).toEqual([{ status: "queued", message: null }]);
+      expect(yield* turnsOf(second)).toMatchObject([{ status: "queued" }]);
       expect(yield* alarmPending).toBe(true);
     }).pipe(
       Effect.provide(

@@ -19,7 +19,7 @@ import { referenceDataQuery } from "@/features/events/queries";
 import { postingQueryOptions } from "@/features/ledger/queries";
 
 import { type Names, namesOf } from "./names";
-import { recordLink } from "./record-link";
+import { briefingOverview, recordLink } from "./record-link";
 
 // The screen that shows what the analyst reads first: the one a question was asked from,
 // or for a stream, the records it opens, as selecting the stream does.
@@ -38,11 +38,7 @@ function contextRecords(context: AskContext): RecordLink {
         : { kind: "countedLedger", scope: context.scope, period: context.period, filter: {} };
     }
     case "briefing":
-      return {
-        kind: "overview",
-        period: { kind: "months", from: context.month, to: context.month },
-        comparison: { kind: "previous" },
-      };
+      return briefingOverview(context.month);
   }
 }
 

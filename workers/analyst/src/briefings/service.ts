@@ -1,9 +1,4 @@
-import type {
-  Briefing,
-  BriefingInput,
-  BriefingStatus,
-  BriefingSummary,
-} from "@repo/contracts/analyst";
+import type { Briefing, BriefingInput, BriefingSummary } from "@repo/contracts/analyst";
 import { FinanceError, type YearMonth } from "@repo/contracts/finance";
 import { calendarDateIn, hasRecords, monthLabel, shiftYearMonth, yearMonthOf } from "@repo/finance";
 import type { AnalystOperation, Api } from "@repo/infra/api";
@@ -29,22 +24,6 @@ const recentMonths = 12;
 
 // Why a briefing cannot be asked for now.
 type Refusal = ConstructorParameters<typeof FinanceError>[0];
-
-const unwritten = (
-  month: YearMonth,
-  status: Exclude<BriefingStatus, "ready">,
-  message: string | null = null,
-): Briefing => ({
-  month,
-  status,
-  sections: null,
-  figures: [],
-  records: [],
-  basis: null,
-  limits: [],
-  writtenAt: null,
-  message,
-});
 
 export class Briefings extends Context.Service<
   Briefings,
@@ -111,24 +90,29 @@ export class Briefings extends Context.Service<
           rebuilding: boolean,
         ) {
           const allowance = yield* api.getModelAllowance({ task: "briefing" });
-          if (!allowance.allowed) return unwritten(briefing.month, "blocked", allowance.message);
+          if (!allowance.allowed)
+            return {
+              month: briefing.month,
+              status: "blocked",
+              message: allowance.message,
+            } satisfies Briefing;
           // A rebuild moves the figures until it finishes, so the write waits for the
           // rebuild instead of following them. No other I/O may come between queuing and
           // scheduling, so the object commits the write and its alarm together.
           if (!rebuilding && (yield* queueRewrite(briefing))) yield* scheduler.schedule;
-          return unwritten(briefing.month, "writing");
+          return { month: briefing.month, status: "writing" } satisfies Briefing;
         });
 
         const get = Effect.fn("Briefings.get")(
           function* ({ month }: BriefingInput) {
             const briefing = yield* readBriefing(month);
-            if (!briefing) return unwritten(month, "none");
+            if (!briefing) return { month, status: "none" } satisfies Briefing;
             switch (briefing.status) {
               case "queued":
               case "writing":
-                return unwritten(month, "writing");
+                return { month, status: "writing" } satisfies Briefing;
               case "failed":
-                return unwritten(month, "failed", briefing.failure);
+                return { month, status: "failed", message: briefing.failure } satisfies Briefing;
               case "blocked":
                 return yield* writeAgain(briefing, (yield* api.getFactsStatus()).outdated > 0);
               case "ready": {
@@ -137,10 +121,7 @@ export class Briefings extends Context.Service<
                   Effect.provideService(Crypto.Crypto, crypto),
                 );
                 if (facts.fingerprint === briefing.fingerprint)
-                  return {
-                    ...Struct.omit(briefing, ["fingerprint"]),
-                    message: null,
-                  } satisfies Briefing;
+                  return Struct.omit(briefing, ["fingerprint"]) satisfies Briefing;
                 return yield* writeAgain(
                   briefing,
                   facts.evidence.limits.some((limit) => limit.kind === "recalculating"),
@@ -164,7 +145,7 @@ export class Briefings extends Context.Service<
             if (refused) return yield* new FinanceError(refused);
             yield* queueBriefing(month);
             yield* scheduler.schedule;
-            return unwritten(month, "writing");
+            return { month, status: "writing" } satisfies Briefing;
           },
           provide,
           toFinanceError,

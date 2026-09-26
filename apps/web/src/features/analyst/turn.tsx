@@ -59,7 +59,6 @@ function Outcome({
     case "running":
       return <StepsSoFar steps={turn.steps} />;
     case "answered": {
-      if (!turn.answer) return null;
       const cited = citationsOf(turn.answer);
       return (
         <section ref={ref} tabIndex={-1} aria-labelledby={`${id}-answer`} className="space-y-4">

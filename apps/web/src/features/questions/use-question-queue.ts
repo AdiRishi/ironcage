@@ -1,6 +1,8 @@
 import type { Question, QuestionId } from "@repo/contracts/finance";
 import { useEffect, useRef, useState } from "react";
 
+import { useAnnouncement } from "@/lib/use-announcement";
+
 import { questionTitle } from "./describe";
 
 // The order you work through questions in, and where focus goes as you do. Skip moves a
@@ -9,11 +11,7 @@ import { questionTitle } from "./describe";
 // so focus moves on once the refreshed list no longer has the question answered.
 export function useQuestionQueue(rows: readonly Question[]) {
   const [skipped, setSkipped] = useState<readonly QuestionId[]>([]);
-  // `count` tells one announcement from the next when their words are the same.
-  const [announcement, setAnnouncement] = useState({ text: "", count: 0 });
-  const announce = (text: string) => {
-    setAnnouncement((previous) => ({ text, count: previous.count + 1 }));
-  };
+  const [announcer, announce] = useAnnouncement();
   const headings = useRef(new Map<QuestionId, HTMLElement>());
   // Takes focus when no question is left.
   const fallback = useRef<HTMLHeadingElement>(null);
@@ -69,6 +67,7 @@ export function useQuestionQueue(rows: readonly Question[]) {
       if (heading) heading.focus();
       else focusing.current = id;
     },
-    announcement,
+    // The live region that says which question you skipped or answered.
+    announcer,
   };
 }

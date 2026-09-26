@@ -3,7 +3,7 @@ import { YearMonth } from "@repo/contracts/finance";
 import { Effect } from "effect";
 
 import { ReadFlow, ReadMonths } from "../../src/tools/flow.ts";
-import { analystOn, analystTest, askAndRun } from "../support/analyst.ts";
+import { analystOn, analystTest, answerOf, askAndRun } from "../support/analyst.ts";
 import { flowInAugust, mastercard } from "../support/ledger.ts";
 import { callTools, callToolsReading, lastResult, modelRequest } from "../support/model.ts";
 
@@ -35,18 +35,18 @@ describe("ReadFlow", () => {
         const spending = yield* askAndRun(1);
         const cameIn = yield* askAndRun(2);
         const figureNamed = (turn: typeof spending, label: string) =>
-          turn.answer?.figures.find((figure) => figure.label === label);
+          answerOf(turn).figures.find((figure) => figure.label === label);
         const unknown = figureNamed(spending, "Not yet understood, August 2026");
         const spent = figureNamed(spending, "Spending, August 2026");
         expect(unknown?.value).toMatchObject({ amount: aud(70000n) });
         expect(spent?.modelAmount).toEqual(aud(12000n));
-        expect(spending.answer?.limits).toEqual(
+        expect(answerOf(spending).limits).toEqual(
           expect.arrayContaining([
             { kind: "notUnderstood", figureId: unknown?.id },
             { kind: "modelShare", figureId: spent?.id },
           ]),
         );
-        expect(cameIn.answer?.limits.map((limit) => limit.kind)).toEqual([
+        expect(answerOf(cameIn).limits.map((limit) => limit.kind)).toEqual([
           "missingRecords",
           "notUnderstood",
         ]);
@@ -73,7 +73,7 @@ describe("ReadFlow", () => {
     () =>
       Effect.gen(function* () {
         const turn = yield* askAndRun(1);
-        const cited = turn.answer?.figures.filter((figure) => figure.label.startsWith("Came in"));
+        const cited = answerOf(turn).figures.filter((figure) => figure.label.startsWith("Came in"));
         expect(cited?.map(({ label, value, records }) => ({ label, value, records }))).toEqual([
           {
             label: "Came in, July 2026",
@@ -127,7 +127,7 @@ describe("ReadFlow", () => {
       ]);
       expect(flow.leftOver?.value).toBe("$5,400.00");
       expect(flow.shortBy).toBeNull();
-      expect(turn.answer?.basis?.periods).toEqual([
+      expect(answerOf(turn).basis?.periods).toEqual([
         { period: { start: "2026-08-01", endExclusive: "2026-09-01" }, comparison: null },
       ]);
     }).pipe(
@@ -157,7 +157,7 @@ describe("ReadMonths", () => {
     () =>
       Effect.gen(function* () {
         const turn = yield* askAndRun(1);
-        expect(turn.answer?.figures).toEqual([
+        expect(answerOf(turn).figures).toEqual([
           expect.objectContaining({
             label: "Spending, August 2026",
             modelAmount: aud(12000n),
@@ -170,12 +170,12 @@ describe("ReadMonths", () => {
             },
           }),
         ]);
-        expect(turn.answer?.basis?.periods).toEqual([
+        expect(answerOf(turn).basis?.periods).toEqual([
           { period: { start: "2026-08-01", endExclusive: "2026-09-01" }, comparison: null },
         ]);
-        expect(turn.answer?.limits).toEqual([
+        expect(answerOf(turn).limits).toEqual([
           mastercardGap,
-          { kind: "modelShare", figureId: turn.answer?.figures[0]?.id },
+          { kind: "modelShare", figureId: answerOf(turn).figures[0]?.id },
         ]);
       }).pipe(
         Effect.provide(

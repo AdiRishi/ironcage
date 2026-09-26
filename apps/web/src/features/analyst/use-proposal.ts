@@ -39,9 +39,8 @@ async function apply(preview: ProposalPreview, commandId: typeof CommandId.Type)
 const withProposal = (conversation: Conversation, proposal: Proposal): Conversation => ({
   ...conversation,
   turns: conversation.turns.map((turn) =>
-    turn.answer === null
-      ? turn
-      : {
+    turn.status === "answered"
+      ? {
           ...turn,
           answer: {
             ...turn.answer,
@@ -49,7 +48,8 @@ const withProposal = (conversation: Conversation, proposal: Proposal): Conversat
               item.id === proposal.id ? proposal : item,
             ),
           },
-        },
+        }
+      : turn,
   ),
 });
 

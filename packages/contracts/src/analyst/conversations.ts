@@ -21,28 +21,37 @@ export const Ask = Schema.Struct({
 });
 export type Ask = typeof Ask.Type;
 
-// A turn waits `queued` until the analyst starts on it. `blocked` means the analyst is
-// off or model usage reached the warning, and `failed` that it could not finish; both
-// say why in `message`.
-export const TurnStatus = Schema.Literals(["queued", "running", "answered", "blocked", "failed"]);
-export type TurnStatus = typeof TurnStatus.Type;
 // What the analyst read on the way to an answer, such as "Reading spending in Food for
 // August 2026", and the screen that shows the same read.
 export const TurnStep = Schema.Struct({ label: Schema.String, records: Schema.NullOr(RecordLink) });
 export type TurnStep = typeof TurnStep.Type;
-// `answer` is set once the turn is `answered`.
-export const Turn = Schema.Struct({
+const asked = {
   id: TurnId,
   question: Schema.String,
   context: Schema.NullOr(AskContext),
-  status: TurnStatus,
   steps: Schema.Array(TurnStep),
-  answer: Schema.NullOr(Answer),
-  message: Schema.NullOr(Schema.String),
   askedAt: Instant,
-  finishedAt: Schema.NullOr(Instant),
-});
+};
+// A turn waits `queued` until the analyst starts on it, and is `running` while it works.
+// `answered` holds the answer. `blocked` means the analyst is off or model usage reached
+// the warning, and `failed` that it could not finish; both say why in `message`.
+export const Turn = Schema.Union([
+  Schema.Struct({ ...asked, status: Schema.Literals(["queued", "running"]) }),
+  Schema.Struct({
+    ...asked,
+    status: Schema.Literal("answered"),
+    answer: Answer,
+    finishedAt: Instant,
+  }),
+  Schema.Struct({
+    ...asked,
+    status: Schema.Literals(["blocked", "failed"]),
+    message: Schema.String,
+    finishedAt: Instant,
+  }),
+]);
 export type Turn = typeof Turn.Type;
+export type TurnStatus = Turn["status"];
 
 export const ConversationInput = Schema.Struct({ conversationId: ConversationId });
 export const Conversation = Schema.Struct({

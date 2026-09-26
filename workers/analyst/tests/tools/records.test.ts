@@ -4,7 +4,7 @@ import { Effect } from "effect";
 
 import { ReadFlow } from "../../src/tools/flow.ts";
 import { ReadCoverage } from "../../src/tools/records.ts";
-import { analystOn, analystTest, askAndRun } from "../support/analyst.ts";
+import { analystOn, analystTest, answerOf, askAndRun } from "../support/analyst.ts";
 import { flowInAugust, mastercard } from "../support/ledger.ts";
 import { callTools, callToolsReading, lastResult, modelRequest } from "../support/model.ts";
 
@@ -46,10 +46,10 @@ describe("ReadCoverage", () => {
             problem: "The statement could not be read.",
           },
         ]);
-        expect(turn.answer?.basis?.periods).toEqual([
+        expect(answerOf(turn).basis?.periods).toEqual([
           { period: { start: "2026-08-01", endExclusive: "2026-09-01" }, comparison: null },
         ]);
-        expect(turn.answer?.limits).toEqual([mastercardGap]);
+        expect(answerOf(turn).limits).toEqual([mastercardGap]);
       }).pipe(
         Effect.provide(
           analystTest(
@@ -93,7 +93,7 @@ describe("ReadCoverage", () => {
   it.effect("a period checked and read against a comparison is named once, with it", () =>
     Effect.gen(function* () {
       const turn = yield* askAndRun(1);
-      expect(turn.answer?.basis?.periods).toEqual([
+      expect(answerOf(turn).basis?.periods).toEqual([
         {
           period: { start: "2026-08-01", endExclusive: "2026-09-01" },
           comparison: { start: "2026-07-01", endExclusive: "2026-08-01" },

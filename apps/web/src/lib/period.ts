@@ -89,6 +89,11 @@ export function currentMonth(timezone: string) {
   return yearMonthOf(today(timezone));
 }
 
+// The month a period is, once that month has ended in the settings timezone.
+export function endedMonth(period: PeriodChoice, timezone: string) {
+  return period.from === period.to && period.to < currentMonth(timezone) ? period.to : null;
+}
+
 export function resolvePeriodKey(key: PeriodKey | undefined, timezone: string): PeriodChoice {
   const { from, to } = keyMonths(key ?? currentMonth(timezone));
   return { from, to, label: periodLabel(monthsPeriod(from, to)) };

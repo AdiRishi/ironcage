@@ -12,6 +12,7 @@ import {
   type ComparisonKey,
   comparisonKey,
   comparisonSelection,
+  endedMonth,
   type PeriodKey,
   periodKey,
   periodRecords,
@@ -84,6 +85,22 @@ test("without a key the current month is the settings timezone's, not the clock'
     to: "2026-09",
   });
   expect(resolvePeriodKey(undefined, "UTC")).toMatchObject({ from: "2026-08", to: "2026-08" });
+});
+
+test("only one month that has ended in the settings timezone has a briefing", ({
+  onTestFinished,
+}) => {
+  vi.useFakeTimers({ now: Date.parse("2026-08-31T15:00:00Z") });
+  onTestFinished(() => {
+    vi.useRealTimers();
+  });
+  const briefed = (key: PeriodKey, timezone: string) =>
+    endedMonth(resolvePeriodKey(key, timezone), timezone);
+  expect(briefed(month("2026-08"), "Australia/Sydney")).toBe("2026-08");
+  expect(briefed(month("2026-08"), "UTC")).toBeNull();
+  expect(briefed(month("2026-09"), "Australia/Sydney")).toBeNull();
+  expect(briefed(2025, "Australia/Sydney")).toBeNull();
+  expect(briefed("2026-06..2026-07", "Australia/Sydney")).toBeNull();
 });
 
 test("chosen months are written as a month, a calendar year, or a range", () => {

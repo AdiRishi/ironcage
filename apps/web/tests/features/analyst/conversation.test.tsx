@@ -25,9 +25,12 @@ import { page, userEvent } from "vitest/browser";
 import { ConversationView } from "@/features/analyst/conversation";
 import {
   ask,
+  getBriefing,
   getConversation,
+  listBriefings,
   listConversations,
   refreshProposal,
+  requestBriefing,
   resolveProposal,
 } from "@/features/analyst/functions";
 import { AnalystPage } from "@/features/analyst/page";
@@ -48,9 +51,12 @@ import { createQueryClient } from "@/lib/query-client";
 // oxlint-disable-next-line anti-slop/no-module-mocking -- Server functions are the remote transport boundary.
 vi.mock("../../../src/features/analyst/functions", () => ({
   ask: vi.fn<typeof ask>(),
+  getBriefing: vi.fn<typeof getBriefing>(),
   getConversation: vi.fn<typeof getConversation>(),
+  listBriefings: vi.fn<typeof listBriefings>(),
   listConversations: vi.fn<typeof listConversations>(),
   refreshProposal: vi.fn<typeof refreshProposal>(),
+  requestBriefing: vi.fn<typeof requestBriefing>(),
   resolveProposal: vi.fn<typeof resolveProposal>(),
 }));
 // oxlint-disable-next-line anti-slop/no-module-mocking -- Server functions are the remote transport boundary.
@@ -110,17 +116,17 @@ const reading = {
   label: "Reading spending in Food for August 2026",
   records: { kind: "overview", period: august, comparison: { kind: "previous" } },
 } as const;
-const question = (fields: Pick<Turn, "status" | "steps" | "answer" | "message">): Turn => ({
+const asked = {
   id: TurnId.make("00000000-0000-4000-8000-0000000000e1"),
   question: "Why was August more expensive than July?",
   context: null,
   askedAt,
-  finishedAt: fields.status === "running" ? null : calculatedAt,
-  ...fields,
-});
-const answered = question({
+};
+const answered: Turn = {
+  ...asked,
   status: "answered",
   steps: [reading],
+  finishedAt: calculatedAt,
   answer: {
     text: "Dining out rose [[f2]].",
     missing: [],
@@ -153,8 +159,7 @@ const answered = question({
     limits: [],
     proposals: [],
   },
-  message: null,
-});
+};
 
 // The analyst as far as these tests go: one conversation, where asking queues a question
 // unless one is still waiting.
@@ -178,10 +183,7 @@ function serve(...turns: Turn[]) {
       context: input.context,
       status: "queued",
       steps: [],
-      answer: null,
-      message: null,
       askedAt,
-      finishedAt: null,
     };
     stored = { ...stored, turns: [...stored.turns, queued] };
     return stored;
@@ -254,7 +256,7 @@ test("a figure in an answer links to the spending it was read from, for that per
 test("a running question shows each step, then the answer once the analyst finishes", async ({
   onTestFinished,
 }) => {
-  serve(question({ status: "running", steps: [reading], answer: null, message: null }));
+  serve({ ...asked, status: "running", steps: [reading] });
   await renderConversation(onTestFinished);
 
   await expect.element(page.getByText("Reading spending in Food for August 2026…")).toBeVisible();
@@ -285,14 +287,13 @@ test("Enter sends the question and Shift+Enter starts a new line", async ({ onTe
 test("a question asked while the analyst is off says to turn it on in Settings", async ({
   onTestFinished,
 }) => {
-  serve(
-    question({
-      status: "blocked",
-      steps: [],
-      answer: null,
-      message: "The analyst is off. Turn it on in Settings.",
-    }),
-  );
+  serve({
+    ...asked,
+    status: "blocked",
+    steps: [],
+    message: "The analyst is off. Turn it on in Settings.",
+    finishedAt: calculatedAt,
+  });
   await renderConversation(onTestFinished);
 
   await expect.element(page.getByText("The analyst is off. Turn it on in Settings.")).toBeVisible();

@@ -58,7 +58,7 @@ export function QuestionsPage({
   children: React.ReactNode;
 }) {
   const list = useSuspenseInfiniteQuery(questionsQuery(input));
-  const { ordered, fallback, heading, skip, answered, focus, announcement } = useQuestionQueue(
+  const { ordered, fallback, heading, skip, answered, focus, announcer } = useQuestionQueue(
     list.data.pages.flatMap((page) => page.rows),
   );
   const { filter } = input;
@@ -135,10 +135,7 @@ export function QuestionsPage({
           More questions
         </Button>
       )}
-      <p aria-live="polite" className="sr-only">
-        {/* A new node for each announcement, so words said before are said again. */}
-        <span key={announcement.count}>{announcement.text}</span>
-      </p>
+      {announcer}
 
       {children}
     </div>

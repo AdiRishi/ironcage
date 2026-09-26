@@ -1,5 +1,6 @@
 import {
   Ask,
+  BriefingInput,
   ConversationInput,
   ListConversations,
   ProposalInput,
@@ -25,3 +26,12 @@ export const resolveProposal = createServerFn({ method: "POST" })
 export const refreshProposal = createServerFn({ method: "POST" })
   .validator(Schema.toStandardSchemaV1(ProposalInput))
   .handler(({ data }) => callAnalystRpc((client) => client.refreshProposal(data)));
+export const getBriefing = createServerFn({ method: "GET" })
+  .validator(Schema.toStandardSchemaV1(BriefingInput))
+  .handler(({ data }) => callAnalystRpc((client) => client.getBriefing(data)));
+export const requestBriefing = createServerFn({ method: "POST" })
+  .validator(Schema.toStandardSchemaV1(BriefingInput))
+  .handler(({ data }) => callAnalystRpc((client) => client.requestBriefing(data)));
+export const listBriefings = createServerFn({ method: "GET" }).handler(() =>
+  callAnalystRpc((client) => client.listBriefings()),
+);

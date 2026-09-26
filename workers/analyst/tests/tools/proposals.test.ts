@@ -10,7 +10,7 @@ import { Effect } from "effect";
 
 import { ProposeReferenceDefault, ProposeTransactionChange } from "../../src/tools/proposals.ts";
 import { ReadTransaction } from "../../src/tools/transactions.ts";
-import { analystOn, analystTest, askAndRun } from "../support/analyst.ts";
+import { analystOn, analystTest, answerOf, askAndRun } from "../support/analyst.ts";
 import {
   dinner,
   dinnerDetail,
@@ -69,7 +69,7 @@ describe("ProposeTransactionChange", () => {
     () =>
       Effect.gen(function* () {
         const turn = yield* askAndRun(1);
-        const [proposal] = turn.answer?.proposals ?? [];
+        const [proposal] = answerOf(turn).proposals;
         expect(proposal).toEqual({
           id: expect.any(String),
           intent: { kind: "transaction", postingId: dinner.id, patch: { nonPersonal: true } },
@@ -123,7 +123,7 @@ describe("ProposeTransactionChange", () => {
         message: "Open the transaction to change a split.",
       });
       expect(turn.status).toBe("answered");
-      expect(turn.answer?.proposals).toEqual([]);
+      expect(answerOf(turn).proposals).toEqual([]);
     }).pipe(
       Effect.provide(
         analystTest(
@@ -156,7 +156,7 @@ describe("ProposeTransactionChange", () => {
         message:
           'The reason cannot be shown. "$186.00" writes an amount. Cite the figure that holds it instead.',
       });
-      expect(turn.answer?.proposals).toEqual([]);
+      expect(answerOf(turn).proposals).toEqual([]);
     }).pipe(
       Effect.provide(
         analystTest(previewNonPersonal, [
@@ -177,9 +177,9 @@ describe("ProposeTransactionChange", () => {
   it.effect("a figure only the reason cites stays with the answer that shows the reason", () =>
     Effect.gen(function* () {
       const turn = yield* askAndRun(1);
-      const [proposal] = turn.answer?.proposals ?? [];
+      const [proposal] = answerOf(turn).proposals;
       expect(proposal?.reason).toMatch(/^Dinner for \[\[f\d+\]\] on a workday/);
-      expect(turn.answer?.figures).toEqual([
+      expect(answerOf(turn).figures).toEqual([
         expect.objectContaining({
           label: "Rockpool on 12 August 2026",
           value: { kind: "money", amount: { currency: "AUD", minor: -18600n }, signed: false },
@@ -219,7 +219,7 @@ describe("ProposeCounterpartyDefault", () => {
     () =>
       Effect.gen(function* () {
         const turn = yield* askAndRun(1);
-        expect(turn.answer?.proposals).toEqual([
+        expect(answerOf(turn).proposals).toEqual([
           expect.objectContaining({
             intent: {
               kind: "counterpartyDefault",
@@ -325,7 +325,7 @@ describe("ProposeReferenceDefault", () => {
     () =>
       Effect.gen(function* () {
         const turn = yield* askAndRun(1);
-        expect(turn.answer?.proposals).toEqual([
+        expect(answerOf(turn).proposals).toEqual([
           expect.objectContaining({
             intent: {
               kind: "referenceDefault",
@@ -360,7 +360,7 @@ describe("ProposeReferenceDefault", () => {
         message: expect.stringMatching(/^Payments to a person cannot be transfers\./),
       });
       expect(turn.status).toBe("answered");
-      expect(turn.answer?.proposals).toEqual([]);
+      expect(answerOf(turn).proposals).toEqual([]);
     }).pipe(Effect.provide(analystTest(samReads, [proposeRent("transfer", null), answer]))),
   );
 });

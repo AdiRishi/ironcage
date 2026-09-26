@@ -42,10 +42,7 @@ describe("Conversations", () => {
             context: foodInAugust,
             status: "queued",
             steps: [],
-            answer: null,
-            message: null,
             askedAt: "1970-01-01T00:00:00.000Z",
-            finishedAt: null,
           },
         ],
       });

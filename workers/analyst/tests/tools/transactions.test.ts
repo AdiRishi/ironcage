@@ -3,7 +3,7 @@ import { type LedgerPage, type ListPostings, YearMonth } from "@repo/contracts/f
 import { Effect, Ref } from "effect";
 
 import { ListTransactions, ReadTransaction } from "../../src/tools/transactions.ts";
-import { analystOn, analystTest, askAndRun } from "../support/analyst.ts";
+import { analystOn, analystTest, answerOf, askAndRun } from "../support/analyst.ts";
 import {
   dinner,
   dinnerEvent,
@@ -39,7 +39,7 @@ describe("ListTransactions", () => {
             records: counted,
           },
         ]);
-        expect(turn.answer?.figures).toEqual([
+        expect(answerOf(turn).figures).toEqual([
           expect.objectContaining({
             label: "a transaction on 12 August 2026, counted in Not yet understood",
             value: { kind: "money", amount: { currency: "AUD", minor: -6450n }, signed: false },
@@ -47,7 +47,7 @@ describe("ListTransactions", () => {
             records: { kind: "transaction", postingId: unidentified.id },
           }),
         ]);
-        expect(turn.answer?.limits).toEqual([
+        expect(answerOf(turn).limits).toEqual([
           {
             kind: "missingRecords",
             account: { id: mastercard.id, kind: "card", label: "Mastercard", currency: "AUD" },
@@ -123,7 +123,7 @@ describe("ListTransactions of the ledger", () => {
         expect(turn.steps).toEqual([
           { label: "Listing transactions in the ledger in August 2026", records: listed },
         ]);
-        expect(turn.answer?.limits).toEqual([{ kind: "partialList", shown: 1, records: listed }]);
+        expect(answerOf(turn).limits).toEqual([{ kind: "partialList", shown: 1, records: listed }]);
       }).pipe(
         Effect.provide(
           analystTest(
@@ -154,11 +154,11 @@ describe("ReadTransaction", () => {
       expect(turn.steps.map((step) => step.label)).toEqual([
         "Reading a transaction on 12 August 2026",
       ]);
-      expect(turn.answer?.figures).toEqual([
+      expect(answerOf(turn).figures).toEqual([
         expect.objectContaining({ label: "a transaction on 12 August 2026", basis: null }),
       ]);
-      expect(turn.answer?.basis).toBeNull();
-      expect(turn.answer?.records.map((record) => record.label)).toEqual([
+      expect(answerOf(turn).basis).toBeNull();
+      expect(answerOf(turn).records.map((record) => record.label)).toEqual([
         "a transaction on 12 August 2026",
       ]);
     }).pipe(

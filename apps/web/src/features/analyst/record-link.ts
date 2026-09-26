@@ -1,5 +1,5 @@
 import type { RecordLink } from "@repo/contracts/analyst";
-import type { MonthsSelection } from "@repo/contracts/finance";
+import type { MonthsSelection, YearMonth } from "@repo/contracts/finance";
 import { monthsDates } from "@repo/finance";
 import { linkOptions } from "@tanstack/react-router";
 
@@ -8,6 +8,14 @@ import { spendingSearch } from "@/features/spending/search";
 import { comparisonKey, periodKey } from "@/lib/period";
 
 const monthsKey = ({ from, to }: MonthsSelection) => periodKey(from, to);
+
+// The overview of the month a briefing tells, compared with the month before, as the
+// briefing is.
+export const briefingOverview = (month: YearMonth): RecordLink => ({
+  kind: "overview",
+  period: { kind: "months", from: month, to: month },
+  comparison: { kind: "previous" },
+});
 
 // The address of the screen that shows a figure's number or a record, built as that
 // screen builds its own links. A link that names months sets the period and the

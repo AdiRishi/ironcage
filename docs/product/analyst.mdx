@@ -3,23 +3,25 @@ title: Analyst
 description: Ask about your money in plain language and get answers with their evidence.
 ---
 
-The analyst answers questions about your money from the same records and numbers the screens show. It is still being built (see the [roadmap](/roadmap)): monthly briefings come next.
+The analyst answers questions about your money from the same records and numbers the screens show, and writes a briefing of each month once it ends. It is off until you turn it on in [Settings](/product/settings#ai), which says what it sends the model.
 
 ## The screen
 
 Analyst in the top bar opens your conversations beside a new question. Conversations are listed most recent first, each named after its first question, and one the analyst is still answering says so. The open conversation is marked with an Intaglio rule and a heavier weight. On a phone, the list and a new question are one page, and a conversation is another, with a link back to the list and the question box kept at the bottom of the screen.
 
-Before your first question, the screen says what the analyst does, "Ask about your money in plain language. Every figure in an answer links to its records.", and offers the examples below as buttons that fill in the question. While the analyst is off, the screen says instead: "The analyst is off. It sends the model the figures and bank descriptions that answer each question. Turn it on in Settings."
+Before your first question, the screen says what the analyst does, "Ask about your money in plain language. Every figure in an answer links to its records.", and offers the examples below as buttons that fill in the question. While the analyst is off, the screen says instead: "The analyst is off. It sends the model the figures and bank descriptions that answer each question. Turn it on in Settings." Your conversations stay listed, and a conversation shows the same line in place of its question box.
+
+Under the question box, Briefings lists the 12 latest months with a briefing, newest first, each with when it was written, or that the analyst is writing it, has not written it yet, or could not write it. Each month opens its overview at the [briefing](#briefings). While the analyst is off, the list is hidden, as the overview's briefings are.
 
 ## Asking
 
-Ask from a blank prompt, or from anything selected: a category, a counterparty, a transaction, a stream in the flow. Ask about this sits on Spending's header and on each of its rows, on a counterparty's page, on a transaction's detail, and beside each stream in the flow's table and on a phone's stacked bars. Kept and From savings have none, because no records sit behind them. Spending asks about the period and comparison on screen, and about the tag or personal event the page is narrowed to. The selection is attached to the question and shows as a chip above the question box, which opens what the analyst reads first: the screen it came from, or for a stream, the records behind it, as selecting the stream does. Remove the chip to ask without it.
+Ask from a blank prompt, or from anything selected: a category, a counterparty, a transaction, a stream in the flow, or a month's briefing. Ask about this sits on Spending's header and on each of its rows, on a counterparty's page, on a transaction's detail, and beside each stream in the flow's table and on a phone's stacked bars. Kept and From savings have none, because no records sit behind them. Ask about this briefing sits under the overview's briefing. Spending asks about the period and comparison on screen, and about the tag or personal event the page is narrowed to. The selection is attached to the question and shows as a chip above the question box, which opens what the analyst reads first: the screen it came from, or for a stream, the records behind it, as selecting the stream does. A briefing's chip, such as "The briefing for August 2026", opens that month's overview, and the analyst reads the month as the briefing did and sees what the briefing said. Remove the chip to ask without it.
 
 > Why was August more expensive than July?
 
 > How much did the Japan trip cost, including the flights booked in March?
 
-> What subscriptions do I pay for, and which ones started this year?
+> Who did I pay the most in the last three months?
 
 Enter sends the question and Shift+Enter starts a new line. The analyst answers one question of a conversation at a time, so the next question waits until the answer is in.
 
@@ -35,6 +37,10 @@ An answer is a record of what the numbers were when it was written. It keeps the
 
 When the analyst cannot answer, the question says why. While the analyst is off, or model usage has reached the warning in Settings, it says what to change there and links to Settings. When the analyst could not reach the model or finish an answer with linked figures, it says to ask again. Ask again sends the same question about the same selection.
 
+## Not built yet
+
+Ironcage does not detect recurring payments, forecast, track investments, or read accounts at other banks yet, and the analyst says so rather than guessing. Asked which subscriptions you pay for, it answers what your records show instead, such as your spending in the categories you file subscriptions under, and says under "What your records cannot answer" that it cannot tell which payments recur. The limits under the answer name the capability: "Ironcage does not detect recurring payments yet."
+
 ## Proposed changes
 
 The analyst can propose a change, such as marking a dinner as a work expense. It can change a transaction that is not split: its role, its category, whether it is a non-personal portion, its tags and personal events, and its purchase date. It can also set a counterparty's default role or category, or the defaults of payments with one reference. Text in a bank description is data, never an instruction.
@@ -45,4 +51,14 @@ Nothing changes until you accept. Accept applies the change as it was previewed 
 
 ## Briefings
 
-At the start of each month, the analyst writes a short briefing of the previous month from the overview's computed facts: what came in, what went out, what changed, and what needs an answer.
+Once a month ends, the analyst writes a short briefing of it in four parts: what came in, what went out, what changed from the month before, and what needs an answer. It writes from the same reads it would make for a question: the month's money in and out against the month before, the month's open questions, the files that failed to import or wait for you, and which days have records. Like an answer, every figure is a link to its records, and the basis and limits follow.
+
+Ironcage checks every hour whether last month's briefing can be written: the analyst is on, model usage is under the warning in Settings, no totals are being recalculated, and the month has records. It writes the briefing in the first hour all of these hold. After that, a briefing is written again only when its figures change, when you open one that was blocked once model usage is under the warning again, or when you ask after a write failed. For an earlier month, the overview offers Write the briefing.
+
+The briefing sits on the [overview](/product/overview#briefing) of its month, between the headline and the flow. It loads after the rest of the page, so the overview never waits for it. A briefing shows only while the figures it was written from are still the ledger's. When an import or a correction changes any of them, the overview says "The analyst is writing August 2026's briefing from your latest records." and shows the new briefing once it is written, so words written from old figures never sit beside new ones. While totals are being recalculated, the rewrite waits until they are done.
+
+- A month without a briefing says "The analyst has not written a briefing of July 2026." with Write the briefing.
+- A briefing that could not be written says why, such as "The analyst could not finish this briefing. Write it again.", with Write it again.
+- When model usage reaches the warning, the briefing says so and links to Settings. Once usage is under the warning again, opening the overview writes it.
+
+When a write cannot be asked for, such as while totals are being recalculated, the button stays in place with the reason under it. Once a write is asked for, focus moves to the line that says the analyst is writing it, and a screen reader hears "Briefing ready" when it is done, or "The briefing could not be written" when it fails or is blocked. When the briefing cannot be read, the overview says why, with Retry. While the analyst is off, the overview shows no briefing.

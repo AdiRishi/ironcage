@@ -1,4 +1,5 @@
-import { describe, expect, it } from "@effect/vitest";
+import { assert, describe, expect, it } from "@effect/vitest";
+import type { Briefing } from "@repo/contracts/analyst";
 import {
   CalendarDate,
   EventId,
@@ -101,6 +102,11 @@ const requestAugust = Effect.gen(function* () {
   yield* at("2026-09-02T01:00:00Z");
   return yield* Briefings.use((briefings) => briefings.request({ month: august }));
 });
+// A briefing that must be written from the figures the ledger gives now.
+function readyOf(briefing: Briefing) {
+  assert(briefing.status === "ready", `The briefing is ${briefing.status}.`);
+  return briefing;
+}
 // Asks for August's briefing on 2 September 2026, and writes it as the alarm does.
 const writeAugust = Effect.gen(function* () {
   yield* requestAugust;
@@ -155,9 +161,7 @@ describe("Briefings", () => {
         yield* septemberStarts;
         yield* briefings.queueLastMonth;
         expect(yield* alarmPending).toBe(true);
-        expect(yield* briefings.list).toEqual([
-          { month: "2026-08", status: "writing", writtenAt: null },
-        ]);
+        expect(yield* briefings.list).toEqual([{ month: "2026-08", status: "writing" }]);
         yield* fireAlarm;
         yield* briefings.queueLastMonth;
         expect(yield* alarmPending).toBe(false);
@@ -197,8 +201,7 @@ describe("Briefings", () => {
     "a briefing's figure tokens stand for the figures the reads gave, with the gaps they have",
     () =>
       Effect.gen(function* () {
-        const briefing = yield* writeAugust;
-        expect(briefing).toMatchObject({ status: "ready", message: null });
+        const briefing = readyOf(yield* writeAugust);
         const figure = (label: string) => {
           const found = briefing.figures.find((item) => item.label === label);
           expect(JSON.stringify(briefing.sections)).toContain(`[[${found?.id}]]`);
@@ -234,21 +237,10 @@ describe("Briefings", () => {
         yield* Effect.gen(function* () {
           expect((yield* writeAugust).status).toBe("ready");
           yield* Ref.set(flow, moreCameIn);
-          expect(yield* briefingOf(august)).toEqual({
-            month: "2026-08",
-            status: "writing",
-            sections: null,
-            figures: [],
-            records: [],
-            basis: null,
-            limits: [],
-            writtenAt: null,
-            message: null,
-          });
+          expect(yield* briefingOf(august)).toEqual({ month: "2026-08", status: "writing" });
           expect(yield* alarmPending).toBe(true);
           yield* fireAlarm;
-          const rewritten = yield* briefingOf(august);
-          expect(rewritten.status).toBe("ready");
+          const rewritten = readyOf(yield* briefingOf(august));
           expect(
             rewritten.figures.find((item) => item.label === "Came in, August 2026")?.value,
           ).toMatchObject({ amount: aud(900000n) });
@@ -389,7 +381,6 @@ describe("Briefings", () => {
           yield* Ref.set(allowance, yield* analystOff);
           expect(yield* briefingOf(august)).toMatchObject({
             status: "blocked",
-            sections: null,
             message: "The analyst is off. Turn it on in Settings.",
           });
           expect(yield* alarmPending).toBe(false);
@@ -431,7 +422,7 @@ describe("Briefings", () => {
             message: "Model usage reached the warning in Settings. Raise it to continue.",
           });
           expect(yield* Briefings.use((briefings) => briefings.list)).toEqual([
-            { month: "2026-08", status: "blocked", writtenAt: null },
+            { month: "2026-08", status: "blocked" },
           ]);
           expect(yield* alarmPending).toBe(false);
           expect(yield* modelRequests).toEqual([]);
@@ -524,8 +515,7 @@ describe("Briefings", () => {
     "a section that writes an amount goes back to the model, and the next one is kept",
     () =>
       Effect.gen(function* () {
-        const briefing = yield* writeAugust;
-        expect(briefing.status).toBe("ready");
+        const briefing = readyOf(yield* writeAugust);
         expect(
           briefing.figures.find((item) => item.label === "Went out, August 2026")?.value,
         ).toMatchObject({ amount: aud(310000n) });
@@ -555,7 +545,6 @@ describe("Briefings", () => {
       Effect.gen(function* () {
         expect(yield* writeAugust).toMatchObject({
           status: "failed",
-          sections: null,
           message: "The analyst could not write this briefing with linked figures. Write it again.",
         });
         expect(yield* modelRequests).toHaveLength(3);
@@ -565,7 +554,7 @@ describe("Briefings", () => {
   it.effect("asking again for a briefing that failed writes it again", () =>
     Effect.gen(function* () {
       expect((yield* writeAugust).status).toBe("failed");
-      expect(yield* writeAugust).toMatchObject({ status: "ready", message: null });
+      expect((yield* writeAugust).status).toBe("ready");
     }).pipe(
       Effect.provide(analystTest(reads, [writesAnAmount, writesAnAmount, writesAnAmount, written])),
     ),
