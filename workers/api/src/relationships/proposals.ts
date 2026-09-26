@@ -9,6 +9,8 @@ import {
 import { creditProposals } from "@repo/finance";
 import { Effect, Schema } from "effect";
 
+import { spendingDate } from "../database/columns.ts";
+
 export const proposeMovements = Effect.gen(function* () {
   const sql = yield* PgClient.PgClient;
   yield* sql`INSERT INTO review_items(id,kind,observation_ids,event_ids,question,candidates)
@@ -61,7 +63,7 @@ export const proposeCredits = Effect.gen(function* () {
   const costs =
     yield* sql`SELECT e.id AS "eventId", al.id AS "allocationId", e.counterparty_id AS "counterpartyId",
         d.alias_key AS "aliasKey", p.description,
-        (CASE WHEN e.purchase_on IS NOT NULL THEN e.purchase_on ELSE p.posted_on END)::text AS "spendingOn",
+        (${spendingDate(sql)})::text AS "spendingOn",
         jsonb_build_object('currency', e.currency, 'minor', (${remaining(sql)})::text) AS remaining
       FROM events e JOIN allocations al ON al.event_id = e.id JOIN postings p ON p.id = e.primary_posting_id
       LEFT JOIN posting_descriptors d ON d.posting_id = p.id

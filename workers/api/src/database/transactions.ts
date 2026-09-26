@@ -4,6 +4,17 @@ import { SqlError } from "effect/unstable/sql";
 
 import { refreshNotedFacts } from "../analysis/facts.ts";
 
+// Reads whose parts must agree, such as a flow and its coverage, see one snapshot. The
+// transaction cannot nest, so a command's `execute` calls repository functions rather
+// than a service's read.
+export const readTransaction = <A, E, R>(sql: PgClient.PgClient, effect: Effect.Effect<A, E, R>) =>
+  sql.withTransaction(
+    Effect.gen(function* () {
+      yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY`;
+      return yield* effect;
+    }),
+  );
+
 // Every write to financial records runs here. Serializable isolation lets writes that
 // touch different records run at once, and Postgres aborts one of two writes that
 // would not have given the same result one after the other. The aborted one runs again

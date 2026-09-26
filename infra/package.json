@@ -19,6 +19,10 @@
     "./api": {
       "types": "./src/api.ts",
       "default": "./src/api.ts"
+    },
+    "./analyst": {
+      "types": "./src/analyst.ts",
+      "default": "./src/analyst.ts"
     }
   },
   "scripts": {

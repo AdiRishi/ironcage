@@ -16,9 +16,10 @@ import { PeriodStrip } from "@/components/shell/period-strip";
 import { Recalculating } from "@/components/shell/recalculating";
 import { TopBar } from "@/components/shell/top-bar";
 import { monthlyFlowQuery } from "@/features/flow/queries";
-import { questionsQuery } from "@/features/questions/queries";
+import { questionSummaryQuery } from "@/features/questions/queries";
 import { settingsQueryOptions } from "@/features/settings/queries";
-import { PeriodSearch, resolvePeriodKey } from "@/lib/period";
+import { addressNotFound, namesNothing } from "@/lib/address";
+import { PeriodSearch, currentMonth, hasRecords, resolvePeriodKey } from "@/lib/period";
 
 import appCss from "@/global-styles/tailwind.css?url";
 
@@ -29,18 +30,18 @@ const readsPeriod = (pathname: string) =>
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   validateSearch: Schema.toStandardSchemaV1(PeriodSearch),
-  search: { middlewares: [retainSearchParams(["period"])] },
-  // Without a chosen period, screens read the current month. Before this month has any
-  // records, they read the latest month that does.
+  onError: addressNotFound,
+  search: { middlewares: [retainSearchParams(["period", "compare"])] },
+  // Without a chosen period, screens read the current month in the settings timezone.
+  // Before this month has any records, they read the latest month that does.
   beforeLoad: async ({ context, search, location }) => {
     if (search.period || !readsPeriod(location.pathname)) return;
     const settings = await context.queryClient.ensureQueryData(settingsQueryOptions());
     const months = await context.queryClient.ensureQueryData(
       monthlyFlowQuery(settings.reportingCurrency),
     );
-    const current = resolvePeriodKey(undefined);
-    const latest = months.findLast((month) => month.coverage !== "missing")?.month;
-    if (latest && latest < `${current.year}-${String(current.month).padStart(2, "0")}`)
+    const latest = months.findLast(hasRecords)?.month;
+    if (latest && latest < currentMonth(settings.timezone))
       throw redirect({
         href: `${location.pathname}${defaultStringifySearch({ ...location.search, period: latest })}`,
       });
@@ -49,7 +50,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     const settings = await context.queryClient.ensureQueryData(settingsQueryOptions());
     await Promise.all([
       context.queryClient.ensureQueryData(monthlyFlowQuery(settings.reportingCurrency)),
-      context.queryClient.ensureQueryData(questionsQuery(settings.reportingCurrency)),
+      context.queryClient.ensureQueryData(
+        questionSummaryQuery({ currency: settings.reportingCurrency, period: null }),
+      ),
     ]);
   },
   head: () => ({
@@ -66,13 +69,33 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: RouteError,
 });
 
+// The bar and the strip keep the address's period in every link they make, so an address
+// whose period or comparison cannot be read shows only the page that says so.
 function Layout() {
+  const readable = Route.useMatch({ select: (match) => match.searchError === undefined });
+  return (
+    <>
+      {readable && <Navigation />}
+      <main id="main" className="mx-auto max-w-[1280px] px-5 py-8 md:px-8 md:py-10">
+        <Outlet />
+      </main>
+    </>
+  );
+}
+
+function Navigation() {
   const { data: settings } = useSuspenseQuery(settingsQueryOptions());
   const months = useQuery(monthlyFlowQuery(settings.reportingCurrency)).data ?? [];
-  const questions = useQuery(questionsQuery(settings.reportingCurrency)).data ?? [];
-  const period = resolvePeriodKey(Route.useSearch().period);
+  const questions = useQuery(
+    questionSummaryQuery({ currency: settings.reportingCurrency, period: null }),
+  ).data;
+  const period = resolvePeriodKey(Route.useSearch().period, settings.timezone);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const showStrip = readsPeriod(pathname);
+  // The strip's links keep the rest of the address, so on an address that names nothing
+  // they would lead back to it. The bar's links carry only the period and comparison.
+  const showStrip = useRouterState({
+    select: (state) => readsPeriod(state.location.pathname) && !state.matches.some(namesNothing),
+  });
   return (
     <>
       <a
@@ -81,12 +104,15 @@ function Layout() {
       >
         Skip to content
       </a>
-      <TopBar questionCount={questions.length} />
+      <TopBar questionCount={questions?.count ?? 0} />
       <Recalculating />
-      {showStrip && months.length > 0 && <PeriodStrip months={months} period={period} />}
-      <main id="main" className="mx-auto max-w-[1280px] px-5 py-8 md:px-8 md:py-10">
-        <Outlet />
-      </main>
+      {showStrip && months.length > 0 && (
+        <PeriodStrip
+          months={months}
+          period={period}
+          measure={pathname.startsWith("/spending") ? "spending" : "outflow"}
+        />
+      )}
     </>
   );
 }

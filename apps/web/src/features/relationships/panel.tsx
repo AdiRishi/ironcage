@@ -3,6 +3,7 @@ import {
   CommandId,
   type EventId,
   type FinancialEvent,
+  type InterpretationReviewEvent,
   RelationshipChange,
 } from "@repo/contracts/finance";
 import { formatCurrency } from "@repo/finance";
@@ -15,25 +16,31 @@ import { Button } from "@/components/ui/button";
 import { useCommand } from "@/lib/use-command";
 
 import { getEvent } from "../events/functions";
-import { ImpactTables } from "../events/impact";
+import { ImpactSummary } from "../events/impact";
 import { RelationshipEditor } from "./editor";
 import { applyRelationship, getEventRelationships, previewRelationship } from "./functions";
 
-export function RelatedEvent({ eventId }: { eventId: typeof EventId.Type }) {
-  const query = useQuery({
-    queryKey: ["event", { eventId }],
-    queryFn: () => getEvent({ data: { eventId } }),
-  });
-  const event = query.data;
-  return event ? (
+// An event as a link to its transaction.
+export function EventLink({ event }: { event: InterpretationReviewEvent }) {
+  return (
     <Link
       className="underline underline-offset-4"
       to="/ledger/$id"
       params={{ id: event.primaryPostingId }}
     >
-      {event.postings.find((posting) => posting.id === event.primaryPostingId)?.description} ·{" "}
-      {formatCurrency(event.magnitude)}
+      {event.description} · {formatCurrency(event.magnitude)}
     </Link>
+  );
+}
+function RelatedEvent({ eventId }: { eventId: typeof EventId.Type }) {
+  const query = useQuery({
+    queryKey: ["event", { eventId }],
+    queryFn: () => getEvent({ data: { eventId } }),
+  });
+  const event = query.data;
+  const primary = event?.postings.find((posting) => posting.id === event.primaryPostingId);
+  return event && primary ? (
+    <EventLink event={{ ...event, description: primary.description }} />
   ) : (
     <span>{query.error?.message ?? "Loading related event…"}</span>
   );
@@ -191,7 +198,7 @@ export function RelationshipsPanel({ event }: { event: FinancialEvent }) {
       {preview.error && <p role="alert">{preview.error.message}</p>}
       {preview.data && (
         <div className="space-y-4">
-          <ImpactTables impacts={preview.data.impacts} />
+          <ImpactSummary impacts={preview.data.impacts} />
           <Button
             disabled={mutation.isPending}
             onClick={() => {

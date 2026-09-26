@@ -27,6 +27,8 @@ For processing imports and exports, status reads first ensure the Workflow exist
 
 Enable PlanetScale's managed backups and point-in-time recovery, and record the retention period. [Back up and restore](https://planetscale.com/docs/postgres/backups). Database backups do not include R2 objects, so keep an independent copy of every original file outside Cloudflare, either the user's own archive or a second bucket. Record where that copy lives.
 
+Database backups also do not include the analyst's conversations, proposals, and briefings. They live only in the SQLite storage of the `Conversations` Durable Object, which Cloudflare stores durably. Its [point-in-time recovery API](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/#pitr-point-in-time-recovery-api) can restore the object's whole database to any moment in the last 30 days, but only code inside the object can call it, and the analyst has no operation that does yet. A database restore leaves the object as it was. Briefings can be written again from the ledger, but nothing can rebuild a conversation.
+
 Before the first private import into a hosted stage, restore a backup into an isolated stage and confirm postings and review resolutions are present and original files can be retrieved from the independent copy. The settings screen states the retention period and the independent-copy arrangement. Source deletion removes data from the live system, not from retained backups, and the screen says so.
 
 Temporary export objects expire on a lifecycle rule. Lifecycle rules never touch the sources bucket.
@@ -36,7 +38,8 @@ Temporary export objects expire on a lifecycle rule. Lifecycle rules never touch
 An export is a zip containing JSON files per record type plus a manifest naming the format version, included record types, counts, and time. Original files are an optional addition. Large exports run as a Workflow and produce a temporary download. A failed export is requested again.
 
 The API takes one repeatable-read snapshot of every public base table, including
-command receipts and migrations. BIGINT and NUMERIC columns are decimal strings;
+command receipts and migrations. The analyst's conversations, proposals, and
+briefings are not in Postgres, so an export does not contain them. BIGINT and NUMERIC columns are decimal strings;
 dates and UTC instants retain their database meaning. `manifest.json` records the
 snapshot time and each table's count. The export's own row reflects its state at
 that time, before generation finished. Available originals use source IDs as ZIP

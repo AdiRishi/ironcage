@@ -1,6 +1,6 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { PgClient } from "@effect/sql-pg";
-import { CommandId, FinanceError } from "@repo/contracts/finance";
+import { CommandId, FinanceError, ImportId } from "@repo/contracts/finance";
 import { Crypto, Effect } from "effect";
 import { Layer } from "effect";
 import { expect } from "vitest";
@@ -11,6 +11,14 @@ import { applicationTest } from "../support/application.ts";
 import { account, reset, source } from "../support/fixtures.ts";
 
 const { test, services } = applicationTest();
+// Imports over the test services, with Workflow status from `status`.
+const importsWith = (status: (typeof ImportJobs.Service)["status"]) =>
+  Imports.layer.pipe(
+    Layer.provide(Layer.succeed(ImportJobs, { start: () => Effect.void, status })),
+    Layer.provideMerge(services),
+    Layer.provide(NodeCrypto.layer),
+  );
+
 test(
   "a stale retry is rejected even when Workflow status is unavailable",
   Effect.gen(function* () {
@@ -29,18 +37,8 @@ test(
     expect(error.kind).toBe("stale");
   }).pipe(
     Effect.provide(
-      Imports.layer.pipe(
-        Layer.provide(
-          Layer.succeed(ImportJobs, {
-            start: () => Effect.void,
-            status: () =>
-              Effect.fail(
-                new FinanceError({ kind: "unavailable", message: "Workflow unavailable" }),
-              ),
-          }),
-        ),
-        Layer.provideMerge(services),
-        Layer.provide(NodeCrypto.layer),
+      importsWith(() =>
+        Effect.fail(new FinanceError({ kind: "unavailable", message: "Workflow unavailable" })),
       ),
     ),
   ),
@@ -78,20 +76,18 @@ test(
       .pipe(Effect.flip);
     expect(stale.kind).toBe("stale");
     expect(yield* imports.get(file)).toEqual(first);
-  }).pipe(
-    Effect.provide(
-      Imports.layer.pipe(
-        Layer.provide(
-          Layer.succeed(ImportJobs, {
-            start: () => Effect.void,
-            status: () => Effect.succeed({ status: "running", failure: null }),
-          }),
-        ),
-        Layer.provideMerge(services),
-        Layer.provide(NodeCrypto.layer),
-      ),
-    ),
-  ),
+  }).pipe(Effect.provide(importsWith(() => Effect.succeed({ status: "running", failure: null })))),
+);
+
+test(
+  "an import the API does not have is not found, so its address shows no page",
+  Effect.gen(function* () {
+    yield* reset;
+    const error = yield* (yield* Imports)
+      .get({ importId: ImportId.make("00000000-0000-4000-8000-000000000001") })
+      .pipe(Effect.flip);
+    expect(error.kind).toBe("notFound");
+  }).pipe(Effect.provide(importsWith(() => Effect.succeed({ status: "running", failure: null })))),
 );
 
 test(
@@ -107,17 +103,7 @@ test(
     expect(result.failure?.message).toBe("Execution limit exceeded");
   }).pipe(
     Effect.provide(
-      Imports.layer.pipe(
-        Layer.provide(
-          Layer.succeed(ImportJobs, {
-            start: () => Effect.void,
-            status: () =>
-              Effect.succeed({ status: "errored", failure: "Execution limit exceeded" }),
-          }),
-        ),
-        Layer.provideMerge(services),
-        Layer.provide(NodeCrypto.layer),
-      ),
+      importsWith(() => Effect.succeed({ status: "errored", failure: "Execution limit exceeded" })),
     ),
   ),
 );

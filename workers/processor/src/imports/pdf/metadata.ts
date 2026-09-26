@@ -1,5 +1,5 @@
 import { type BankAccount, FinanceError, type Statement } from "@repo/contracts/finance";
-import { nextCalendarDate } from "@repo/finance";
+import { addDays } from "@repo/finance";
 import { Effect } from "effect";
 
 import { lines, text, type PdfPage } from "./text.ts";
@@ -68,7 +68,7 @@ export const metadata = Effect.fn("pdfMetadata")(function* (pages: ReadonlyArray
       if (label.startsWith("Closing balance") && end)
         statement = {
           ...statement,
-          closing: { on: nextCalendarDate(end), money: yield* pdfMoney(literal, true, true) },
+          closing: { on: addDays(end, 1), money: yield* pdfMoney(literal, true, true) },
         };
       if (label.startsWith("New transactions"))
         statement = {

@@ -9,6 +9,7 @@ import {
 } from "@repo/contracts/finance";
 
 import {
+  accountSuffix,
   bankReading,
   deriveInterpretation,
   describeCommBank,
@@ -215,5 +216,13 @@ describe("deriveInterpretation", () => {
         counterparty: person({ defaultRole: "purchase", defaultCategoryId: salary }),
       }),
     ).toMatchObject({ kind: "purchase", categoryId: null });
+  });
+});
+
+describe("accountSuffix", () => {
+  it("names an account by the last four digits of its number, whatever separates them", () => {
+    expect(accountSuffix("06 2000 1234 9239")).toBe("9239");
+    expect(accountSuffix("4000-1234-56")).toBe("3456");
+    expect(accountSuffix("12 3")).toBeNull();
   });
 });

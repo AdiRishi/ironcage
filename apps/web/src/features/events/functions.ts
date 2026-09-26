@@ -1,5 +1,14 @@
-import { PreviewCorrection, ApplyCorrection, UndoCorrection } from "@repo/contracts/finance";
-import { EventForPosting, EventInput, ReinterpretPostings } from "@repo/contracts/finance";
+import {
+  ApplyCorrection,
+  AssignEventCounterparty,
+  EventForPosting,
+  EventInput,
+  PreviewCorrection,
+  PreviewEventCounterparty,
+  PreviewUndoCorrection,
+  ReinterpretPostings,
+  UndoCorrection,
+} from "@repo/contracts/finance";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 
@@ -26,10 +35,22 @@ export const applyCorrection = createServerFn({ method: "POST" })
   .validator(Schema.toStandardSchemaV1(ApplyCorrection))
   .handler(({ data }) => callApiRpc((client) => client.applyCorrection(data)));
 
+export const previewEventCounterparty = createServerFn({ method: "POST" })
+  .validator(Schema.toStandardSchemaV1(PreviewEventCounterparty))
+  .handler(({ data }) => callApiRpc((client) => client.previewEventCounterparty(data)));
+
+export const assignEventCounterparty = createServerFn({ method: "POST" })
+  .validator(Schema.toStandardSchemaV1(AssignEventCounterparty))
+  .handler(({ data }) => callApiRpc((client) => client.assignEventCounterparty(data)));
+
+export const previewUndoCorrection = createServerFn({ method: "POST" })
+  .validator(Schema.toStandardSchemaV1(PreviewUndoCorrection))
+  .handler(({ data }) => callApiRpc((client) => client.previewUndoCorrection(data)));
+
 export const undoCorrection = createServerFn({ method: "POST" })
   .validator(Schema.toStandardSchemaV1(UndoCorrection))
   .handler(({ data }) => callApiRpc((client) => client.undoCorrection(data)));
 
-export const getCorrectionHistory = createServerFn({ method: "POST" })
+export const getEventHistory = createServerFn({ method: "GET" })
   .validator(Schema.toStandardSchemaV1(EventInput))
-  .handler(({ data }) => callApiRpc((client) => client.getCorrectionHistory(data)));
+  .handler(({ data }) => callApiRpc((client) => client.getEventHistory(data)));

@@ -6,7 +6,7 @@ import type {
   Money,
 } from "@repo/contracts/finance";
 
-import { addDays } from "./analysis/periods.ts";
+import { addDays } from "./dates.ts";
 
 export type CreditSide = {
   eventId: typeof EventId.Type;

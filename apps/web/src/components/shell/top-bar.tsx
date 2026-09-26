@@ -10,6 +10,7 @@ const destinations = [
   { to: "/ledger", label: "Ledger" },
   { to: "/counterparties", label: "Counterparties" },
   { to: "/sources", label: "Sources" },
+  { to: "/analyst", label: "Analyst" },
 ] as const;
 
 export function TopBar({ questionCount }: { questionCount: number }) {
@@ -20,14 +21,15 @@ export function TopBar({ questionCount }: { questionCount: number }) {
         <Link to="/" className="text-[1.0625rem] font-[720] tracking-[-0.02em] [font-stretch:125%]">
           ironcage
         </Link>
-        <nav aria-label="Main" className="hidden h-full items-stretch gap-6 md:flex">
+        <nav aria-label="Main" className="hidden h-full items-stretch gap-6 lg:flex">
           {destinations.map((item) => (
             <Link
               key={item.to}
               to={item.to}
               activeOptions={{ exact: "exact" in item, includeSearch: false }}
-              className="flex items-center border-b-2 border-transparent pt-0.5 text-slate hover:text-intaglio"
+              className="flex items-center border-b-2 pt-0.5 hover:text-intaglio"
               activeProps={{ className: "border-intaglio text-intaglio font-[560]" }}
+              inactiveProps={{ className: "border-transparent text-slate" }}
             >
               {item.label}
             </Link>
@@ -36,8 +38,9 @@ export function TopBar({ questionCount }: { questionCount: number }) {
         <div className="ml-auto flex items-center gap-2">
           <Link
             to="/questions"
-            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-slate hover:text-intaglio"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:text-intaglio"
             activeProps={{ className: "text-intaglio font-[560]" }}
+            inactiveProps={{ className: "text-slate" }}
           >
             Questions
             {questionCount > 0 && (
@@ -51,18 +54,25 @@ export function TopBar({ questionCount }: { questionCount: number }) {
             to="/settings"
             aria-label="Settings"
             title="Settings"
-            className="hidden rounded-md p-1.5 text-slate hover:text-intaglio md:block"
+            className="hidden rounded-md p-1.5 hover:text-intaglio lg:block"
             activeProps={{ className: "text-intaglio" }}
+            inactiveProps={{ className: "text-slate" }}
           >
             <Settings className="size-4.5" aria-hidden />
           </Link>
-          <Button variant="outline" size="sm" nativeButton={false} render={<Link to="/sources" />}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden lg:inline-flex"
+            nativeButton={false}
+            render={<Link to="/sources" />}
+          >
             Upload
           </Button>
           <Button
             variant="ghost"
             size="icon-sm"
-            className="md:hidden"
+            className="lg:hidden"
             aria-expanded={open}
             aria-controls="mobile-navigation"
             aria-label={open ? "Close menu" : "Open menu"}
@@ -73,7 +83,7 @@ export function TopBar({ questionCount }: { questionCount: number }) {
         </div>
       </div>
       {open && (
-        <nav id="mobile-navigation" aria-label="Main" className="border-t border-rule md:hidden">
+        <nav id="mobile-navigation" aria-label="Main" className="border-t border-rule lg:hidden">
           <ul className="mx-auto grid max-w-[1280px] px-5 py-2">
             {destinations.map((item) => (
               <li key={item.to}>
@@ -81,8 +91,9 @@ export function TopBar({ questionCount }: { questionCount: number }) {
                   to={item.to}
                   onClick={() => setOpen(false)}
                   activeOptions={{ exact: "exact" in item, includeSearch: false }}
-                  className="block py-2.5 text-slate"
+                  className="block py-2.5"
                   activeProps={{ className: "text-intaglio font-[560]" }}
+                  inactiveProps={{ className: "text-slate" }}
                 >
                   {item.label}
                 </Link>
@@ -92,8 +103,9 @@ export function TopBar({ questionCount }: { questionCount: number }) {
               <Link
                 to="/settings"
                 onClick={() => setOpen(false)}
-                className="block py-2.5 text-slate"
+                className="block py-2.5"
                 activeProps={{ className: "text-intaglio font-[560]" }}
+                inactiveProps={{ className: "text-slate" }}
               >
                 Settings
               </Link>

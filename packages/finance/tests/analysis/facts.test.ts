@@ -15,13 +15,14 @@ import { eventLedgerFacts } from "../../src/index.ts";
 const id = (prefix: string, n: number) => `${prefix}-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const deposit = AccountId.make(id("00000000", 1));
 const loan = AccountId.make(id("00000000", 2));
+const savings = AccountId.make(id("00000000", 3));
 const clothing = CategoryId.make(id("10000000", 1));
-const shopping = CategoryId.make(id("10000000", 2));
 const accountKinds = new Map([
   [deposit, "deposit" as const],
   [loan, "loan" as const],
+  [savings, "deposit" as const],
 ]);
-const topCategory = (category: string) => (category === clothing ? shopping : null);
+const postingId = (n: number, index: number) => PostingId.make(id("20000000", n * 10 + index));
 
 function event(
   n: number,
@@ -29,16 +30,17 @@ function event(
     minor: bigint;
     categoryId?: typeof CategoryId.Type | null;
     accounts?: (typeof AccountId.Type)[];
+    dates?: string[];
   },
 ): FinancialEvent {
-  const { minor, categoryId = null, accounts = [deposit], ...rest } = fields;
+  const { minor, categoryId = null, accounts = [deposit], dates = [], ...rest } = fields;
   const kind = rest.kind ?? "purchase";
   const role = kind === "loanPayment" || kind === "cardSettlement" ? "transfer" : kind;
   const postings = accounts.map((accountId, index) => ({
-    id: PostingId.make(id("20000000", n * 10 + index)),
+    id: postingId(n, index),
     accountId,
     accountLabel: "Account",
-    postedOn: CalendarDate.make("2026-04-02"),
+    postedOn: CalendarDate.make(dates[index] ?? "2026-04-02"),
     valueOn: null,
     description: "Synthetic",
     amount: { currency: "AUD", minor: index === 0 ? minor : -minor },
@@ -81,20 +83,13 @@ const facts = (
     accountKinds,
     counterparty: null,
     links: [],
-    topCategory,
     ...extra,
   });
 
 describe("eventLedgerFacts", () => {
-  it("puts a purchase in its category and top-level category", () => {
+  it("counts a purchase as spending in its category", () => {
     expect(facts(event(1, { minor: -12000n, categoryId: clothing }))).toMatchObject([
-      {
-        measure: "spending",
-        amountMinor: 12000n,
-        categoryId: clothing,
-        topCategoryId: shopping,
-        purchase: true,
-      },
+      { measure: "spending", amountMinor: 12000n, categoryId: clothing, purchase: true },
     ]);
   });
 
@@ -116,6 +111,7 @@ describe("eventLedgerFacts", () => {
         creditAllocationId: refund.allocations[0].id,
         costAllocationId: purchase.allocations[0].id,
         amount: { currency: "AUD", minor: 4000n },
+        creditEventId: refund.id,
       },
     ];
     expect(facts(purchase, { links })).toMatchObject([
@@ -140,34 +136,104 @@ describe("eventLedgerFacts", () => {
         creditAllocationId: refund.allocations[0].id,
         costAllocationId: allocation.id,
         amount: { currency: "AUD", minor: 12000n },
+        creditEventId: refund.id,
       },
     ];
     expect(facts(workDinner, { links })).toEqual([]);
     expect(facts(refund, { links })).toEqual([]);
   });
 
-  it("counts a loan repayment once, from the account the cash left", () => {
-    expect(facts(event(4, { kind: "loanPayment", minor: -390000n }))[0]?.measure).toBe(
-      "loanRepayment",
-    );
-    expect(
-      facts(event(5, { kind: "loanPayment", minor: 390000n, accounts: [loan] }))[0]?.measure,
-    ).toBe("internal");
-    expect(
-      facts(event(6, { kind: "loanPayment", minor: -390000n, accounts: [deposit, loan] }))[0]
-        ?.measure,
-    ).toBe("loanRepayment");
+  it("names the credit a linked reduction comes from, on the purchase's own posting", () => {
+    const purchase = event(10, { minor: -30000n, categoryId: clothing });
+    const repaid = event(11, { kind: "reimbursement", minor: 20000n, categoryId: clothing });
+    const links = [
+      {
+        creditAllocationId: repaid.allocations[0].id,
+        costAllocationId: purchase.allocations[0].id,
+        amount: { currency: "AUD", minor: 20000n },
+        creditEventId: repaid.id,
+      },
+    ];
+    expect(facts(purchase, { links })).toMatchObject([
+      { amountMinor: 30000n, postingId: postingId(10, 0), creditEventId: null },
+      { amountMinor: -20000n, postingId: postingId(10, 0), creditEventId: repaid.id },
+    ]);
   });
 
-  it("separates moving money to your own account elsewhere from moving it between ledger accounts", () => {
-    const moved = event(7, { kind: "transfer", minor: -500000n });
-    expect(facts(moved)[0]?.measure).toBe("internal");
+  it("counts a loan repayment once, on the deposit posting on the day the cash left", () => {
+    const pair = event(6, {
+      kind: "loanPayment",
+      minor: 390000n,
+      accounts: [loan, deposit],
+      dates: ["2026-02-01", "2026-01-31"],
+    });
+    expect(facts(pair)).toMatchObject([
+      {
+        measure: "loanRepayment",
+        amountMinor: 390000n,
+        postingId: postingId(6, 1),
+        accountId: deposit,
+        postedOn: "2026-01-31",
+        spendingOn: "2026-01-31",
+      },
+    ]);
+    expect(facts(event(4, { kind: "loanPayment", minor: -390000n }))).toMatchObject([
+      { measure: "loanRepayment", postingId: postingId(4, 0) },
+    ]);
+    expect(
+      facts(event(5, { kind: "loanPayment", minor: 390000n, accounts: [loan] })),
+    ).toMatchObject([{ measure: "internal" }]);
+  });
+
+  it("counts borrowing when the cash arrives in an account outside your loans", () => {
+    const pair = event(12, {
+      kind: "borrowing",
+      minor: -500000n,
+      accounts: [loan, deposit],
+      dates: ["2026-03-02", "2026-03-03"],
+    });
+    expect(facts(pair)).toMatchObject([
+      {
+        measure: "borrowing",
+        amountMinor: 500000n,
+        postingId: postingId(12, 1),
+        accountId: deposit,
+        postedOn: "2026-03-03",
+      },
+    ]);
+    expect(facts(event(13, { kind: "borrowing", minor: 500000n }))).toMatchObject([
+      { measure: "borrowing", postingId: postingId(13, 0) },
+    ]);
+    expect(
+      facts(event(14, { kind: "borrowing", minor: -500000n, accounts: [loan] })),
+    ).toMatchObject([{ measure: "internal" }]);
+  });
+
+  it("keeps a transfer internal only when its other side is one of your ledger accounts", () => {
+    const toSavings = event(15, { kind: "transfer", minor: -500000n });
+    expect(facts(toSavings)).toMatchObject([{ measure: "internal" }]);
+    expect(
+      facts({
+        ...event(16, { kind: "transfer", minor: -500000n, accounts: [deposit, savings] }),
+        roleSource: "link",
+      }),
+    ).toMatchObject([{ measure: "internal" }]);
+    expect(facts({ ...toSavings, roleSource: "link" })).toMatchObject([
+      { measure: "externalOut", amountMinor: 500000n },
+    ]);
     expect(
       facts(
-        { ...moved, counterpartyId: CounterpartyId.make(id("50000000", 1)) },
-        { counterparty: { kind: "ownAccount", source: "user" } },
-      )[0]?.measure,
-    ).toBe("externalOut");
+        {
+          ...toSavings,
+          roleSource: "counterparty",
+          counterpartyId: CounterpartyId.make(id("50000000", 1)),
+        },
+        { counterparty: { source: "user" } },
+      ),
+    ).toMatchObject([{ measure: "externalOut", amountMinor: 500000n }]);
+    expect(
+      facts({ ...event(17, { kind: "transfer", minor: 200000n }), roleSource: "user" }),
+    ).toMatchObject([{ measure: "externalIn", amountMinor: 200000n }]);
   });
 
   it("marks a value inherited from a model-made counterparty", () => {
@@ -175,11 +241,7 @@ describe("eventLedgerFacts", () => {
       ...event(8, { minor: -900n, categoryId: clothing }),
       roleSource: "bank" as const,
     };
-    expect(
-      facts(purchase, { counterparty: { kind: "business", source: "model" } })[0]?.modelAssigned,
-    ).toBe(true);
-    expect(
-      facts(purchase, { counterparty: { kind: "business", source: "user" } })[0]?.modelAssigned,
-    ).toBe(false);
+    expect(facts(purchase, { counterparty: { source: "model" } })[0]?.modelAssigned).toBe(true);
+    expect(facts(purchase, { counterparty: { source: "user" } })[0]?.modelAssigned).toBe(false);
   });
 });

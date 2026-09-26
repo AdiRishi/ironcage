@@ -1,25 +1,26 @@
 import {
   CommandId,
-  UpdateEnrichmentSettings,
-  type EnrichmentSettings,
   type EvaluationScore,
+  type ModelSettings,
   type RequestEnrichment,
   type RequestEvaluation,
 } from "@repo/contracts/finance";
-import { formatDecimal, parseMoney } from "@repo/finance";
-import { useForm } from "@tanstack/react-form";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Effect, Schema } from "effect";
-import { useId, useState } from "react";
+import { useForm, useStore } from "@tanstack/react-form";
+import { useQueryClient } from "@tanstack/react-query";
+import { Schema } from "effect";
+import { useId } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ModelSettingsSave } from "@/features/models/save";
+import { useModelSettingsCommand } from "@/features/models/use-model-settings";
 import { useCommand } from "@/lib/use-command";
 
-import { requestEnrichment, requestEvaluation, updateEnrichmentSettings } from "./functions";
-import { enrichmentSettingsQuery, useEnrichmentRuns } from "./queries";
+import { requestEnrichment, requestEvaluation } from "./functions";
+import { useEnrichmentRuns } from "./queries";
 
 const runStatusLabels = {
   pending: "Waiting.",
@@ -28,8 +29,7 @@ const runStatusLabels = {
   failed: "Stopped.",
 } as const;
 
-export function EnrichmentSection() {
-  const settings = useQuery(enrichmentSettingsQuery());
+export function EnrichmentSection({ settings }: { settings: ModelSettings }) {
   const runs = useEnrichmentRuns();
   const client = useQueryClient();
   const request = useCommand({
@@ -41,25 +41,27 @@ export function EnrichmentSection() {
     onSuccess: () => client.invalidateQueries(),
   });
   return (
-    <section className="space-y-4">
-      <h2 className="type-heading">Counterparty identification</h2>
+    <section id="identification" aria-labelledby="identification-heading" className="space-y-4">
+      <h2 id="identification-heading" className="type-heading">
+        Counterparty identification
+      </h2>
       <p className="type-small text-slate">
-        {settings.data?.provider.name} runs {settings.data?.provider.model}. It receives descriptor
-        text, payment channels, directions, account kinds, and category names. It never receives
-        amounts, balances, dates, or account numbers. Confident answers apply at once; the rest
-        become questions.
+        To identify counterparties, {settings.enrichment.provider.name} runs{" "}
+        {settings.enrichment.provider.model}. It receives descriptor text, payment channels,
+        directions, account kinds, and category names. It never receives amounts, balances, dates,
+        or account numbers. Confident answers apply at once; the rest become questions.
       </p>
-      {settings.data && <SettingsForm key={settings.data.version} settings={settings.data} />}
+      <IdentificationSettings settings={settings} />
       <div className="flex flex-wrap gap-2">
         <Button
-          disabled={!settings.data?.enabled || request.mutation.isPending}
+          disabled={!settings.enrichment.enabled || request.mutation.isPending}
           onClick={() => request.submit({ commandId: CommandId.make(crypto.randomUUID()) })}
         >
           {request.uncertain ? "Retry identification" : "Identify new counterparties"}
         </Button>
         <Button
           variant="outline"
-          disabled={!settings.data?.enabled || evaluation.mutation.isPending}
+          disabled={!settings.enrichment.enabled || evaluation.mutation.isPending}
           onClick={() => evaluation.submit({ commandId: CommandId.make(crypto.randomUUID()) })}
         >
           {evaluation.uncertain ? "Retry the check" : "Check the model against your answers"}
@@ -95,7 +97,7 @@ export function EnrichmentSection() {
           ))}
         </ul>
       )}
-      {[settings.error, runs.error, request.mutation.error, evaluation.mutation.error]
+      {[runs.error, request.mutation.error, evaluation.mutation.error]
         .filter((error) => error !== null)
         .map((error, index) => (
           <p role="alert" key={index}>
@@ -141,46 +143,41 @@ function Evaluation({
   );
 }
 
-function SettingsForm({ settings }: { settings: typeof EnrichmentSettings.Type }) {
+// The threshold is a whole percentage in the form.
+const Fields = Schema.Struct({
+  enabled: Schema.Boolean,
+  threshold: Schema.String.check(
+    Schema.makeFilter(
+      (value) =>
+        (/^\d{1,3}$/.test(value.trim()) && Number(value) <= 100) ||
+        "Enter a whole percentage from 0 to 100.",
+    ),
+  ),
+});
+const valuesOf = (settings: ModelSettings) => ({
+  enabled: settings.enrichment.enabled,
+  threshold: String(Math.round(settings.enrichment.autoApplyConfidence * 100)),
+});
+
+function IdentificationSettings({ settings }: { settings: ModelSettings }) {
   const id = useId();
-  const client = useQueryClient();
-  const [error, setError] = useState<string | null>(null);
-  const command = useCommand({
-    mutationFn: async (data: typeof UpdateEnrichmentSettings.Type) =>
-      updateEnrichmentSettings({
-        data: await Effect.runPromise(Schema.encodeEffect(UpdateEnrichmentSettings)(data)),
-      }),
-    onSuccess: () => client.invalidateQueries(),
-  });
   const form = useForm({
-    defaultValues: {
-      enabled: settings.enabled,
-      warning: settings.warning ? formatDecimal(settings.warning) : "",
-      threshold: String(Math.round(settings.autoApplyConfidence * 100)),
-    },
-    onSubmit: async ({ value }) => {
-      const amount = value.warning
-        ? await Effect.runPromise(parseMoney(value.warning, "USD").pipe(Effect.result))
-        : null;
-      const threshold = Number(value.threshold) / 100;
-      if (amount?._tag === "Failure") return setError(amount.failure.message);
-      if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1)
-        return setError("Use a threshold from 0 to 100.");
-      setError(null);
-      command.submit({
-        commandId: CommandId.make(crypto.randomUUID()),
-        enabled: value.enabled,
-        warning: amount?.success ?? null,
-        autoApplyConfidence: threshold,
-        expectedVersion: settings.version,
-      });
-    },
+    defaultValues: valuesOf(settings),
+    validators: { onSubmit: Schema.toStandardSchemaV1(Fields) },
+    onSubmit: ({ value }) =>
+      command.save({
+        enrichment: { enabled: value.enabled, autoApplyConfidence: Number(value.threshold) / 100 },
+      }),
   });
+  const touched = useStore(form.store, (state) => state.isTouched);
+  const command = useModelSettingsCommand(settings, touched, () =>
+    form.reset(form.state.values, { keepDefaultValues: true }),
+  );
   return (
     <form
       className="space-y-3"
-      onSubmit={(e) => {
-        e.preventDefault();
+      onSubmit={(event) => {
+        event.preventDefault();
         form.handleSubmit().catch(reportError);
       }}
     >
@@ -190,47 +187,35 @@ function SettingsForm({ settings }: { settings: typeof EnrichmentSettings.Type }
             <Label>
               <Checkbox
                 checked={field.state.value}
-                onCheckedChange={(checked) => field.handleChange(checked === true)}
+                onCheckedChange={(checked) => field.handleChange(checked)}
               />
               Identify counterparties with the model
             </Label>
           )}
         </form.Field>
-        <div className="grid max-w-md gap-3 sm:grid-cols-2">
-          <form.Field name="warning">
-            {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={`${id}-warning`}>Usage warning (USD)</Label>
-                <Input
-                  id={`${id}-warning`}
-                  inputMode="decimal"
-                  placeholder="No warning"
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                />
-              </div>
-            )}
-          </form.Field>
-          <form.Field name="threshold">
-            {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={`${id}-threshold`}>Apply automatically from (%)</Label>
-                <Input
-                  id={`${id}-threshold`}
-                  inputMode="numeric"
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                />
-              </div>
-            )}
-          </form.Field>
-        </div>
+        <form.Field name="threshold">
+          {(field) => (
+            <Field className="max-w-xs" data-invalid={field.state.meta.errors.length > 0}>
+              <FieldLabel htmlFor={`${id}-threshold`}>Apply automatically from (%)</FieldLabel>
+              <Input
+                id={`${id}-threshold`}
+                inputMode="numeric"
+                value={field.state.value}
+                onChange={(event) => field.handleChange(event.target.value)}
+                aria-invalid={field.state.meta.errors.length > 0}
+                aria-describedby={`${id}-threshold-error`}
+              />
+              <FieldError id={`${id}-threshold-error`} errors={field.state.meta.errors} />
+            </Field>
+          )}
+        </form.Field>
       </fieldset>
-      <Button variant="outline" type="submit" disabled={command.mutation.isPending}>
-        {command.uncertain ? "Retry saving" : "Save identification settings"}
-      </Button>
-      {error && <p role="alert">{error}</p>}
-      {command.mutation.error && <p role="alert">{command.mutation.error.message}</p>}
+      <ModelSettingsSave
+        command={command}
+        now={`identification is ${settings.enrichment.enabled ? "on" : "off"} and applies answers from ${Math.round(settings.enrichment.autoApplyConfidence * 100)}% confidence`}
+        saved="Identification settings saved."
+        label="Save identification settings"
+      />
     </form>
   );
 }

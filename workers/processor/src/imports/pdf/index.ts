@@ -1,5 +1,5 @@
 import { FinanceError, type ParsedFile, type ParsedObservation } from "@repo/contracts/finance";
-import { nextCalendarDate } from "@repo/finance";
+import { addDays } from "@repo/finance";
 import { Effect } from "effect";
 import { extractTextItems } from "unpdf";
 
@@ -46,7 +46,7 @@ const decodeStatement = Effect.fn("decodeStatement")(function* (pages: ReadonlyA
         const money = yield* pdfMoney(row.balance);
         statement = /OPENING/i.test(row.description)
           ? { ...statement, opening: { on, money } }
-          : { ...statement, closing: { on: nextCalendarDate(on), money } };
+          : { ...statement, closing: { on: addDays(on, 1), money } };
         statement = {
           ...statement,
           raw: {

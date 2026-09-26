@@ -12,14 +12,17 @@ import { AccountResolution } from "../../src/accounts/resolution.ts";
 import { Accounts } from "../../src/accounts/service.ts";
 import { Flows } from "../../src/analysis/flows.ts";
 import { FactRebuilds } from "../../src/analysis/rebuild.ts";
+import { Spending } from "../../src/analysis/spending.ts";
 import { Commands } from "../../src/database/commands.ts";
 import { Corrections } from "../../src/events/corrections.ts";
 import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
+import { CounterpartyHistory } from "../../src/interpretation/counterparty-history.ts";
 import { Enrichment } from "../../src/interpretation/enrichment.ts";
 import { Questions } from "../../src/interpretation/questions.ts";
-import { EnrichmentConfig, EnrichmentJobs, FactJobs } from "../../src/platform/services.ts";
+import { Models } from "../../src/models/service.ts";
+import { EnrichmentJobs, FactJobs, ModelProviders } from "../../src/platform/services.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { References } from "../../src/references/service.ts";
 import { InterpretationReviews } from "../../src/relationships/reviews.ts";
@@ -61,11 +64,31 @@ export function applicationTest() {
   return { test, services, stack };
 }
 
+// Each feature has its own model and prices, so a task given the other feature's model
+// fails the tests.
+export const syntheticProviders = {
+  enrichment: {
+    name: "Synthetic provider",
+    model: "synthetic-identification",
+    inputMicrousdPerMillion: 150_000n,
+    cachedInputMicrousdPerMillion: 30_000n,
+    outputMicrousdPerMillion: 500_000n,
+  },
+  analyst: {
+    name: "Synthetic provider",
+    model: "synthetic-analyst",
+    inputMicrousdPerMillion: 300_000n,
+    cachedInputMicrousdPerMillion: 60_000n,
+    outputMicrousdPerMillion: 1_200_000n,
+  },
+};
+
 export const applicationServices = <E>(
   database: Layer.Layer<PgClient.PgClient | SqlClient.SqlClient, E>,
 ) =>
   Layer.mergeAll(
     Flows.layer,
+    Spending.layer,
     FactRebuilds.layer,
     Accounts.layer,
     AccountHistory.layer,
@@ -79,24 +102,16 @@ export const applicationServices = <E>(
     Reviews.layer,
     Settings.layer,
     Counterparties.layer,
+    CounterpartyHistory.layer,
     Questions.layer,
     Enrichment.layer,
+    Models.layer,
   ).pipe(
     Layer.provideMerge(Publication.layer),
     Layer.provideMerge(Commands.layer),
     Layer.provide(AccountResolution.layer),
     Layer.provideMerge(database),
-    Layer.provide(
-      Layer.succeed(EnrichmentConfig, {
-        provider: {
-          name: "Synthetic provider",
-          model: "synthetic",
-          inputMicrousdPerMillion: 150_000n,
-          cachedInputMicrousdPerMillion: 30_000n,
-          outputMicrousdPerMillion: 500_000n,
-        },
-      }),
-    ),
+    Layer.provide(Layer.succeed(ModelProviders, syntheticProviders)),
     Layer.provide(
       Layer.succeed(FactJobs, {
         start: () => Effect.void,

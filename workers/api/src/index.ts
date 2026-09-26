@@ -1,4 +1,5 @@
 import * as BrowserCrypto from "@effect/platform-browser/BrowserCrypto";
+import type { CommandId } from "@repo/contracts/finance";
 import type { apiBindings } from "@repo/infra/worker-bindings";
 import { Effect, Layer } from "effect";
 import { HttpRouter } from "effect/unstable/http";
@@ -8,6 +9,7 @@ import { AccountResolution } from "./accounts/resolution.ts";
 import { Accounts } from "./accounts/service.ts";
 import { Flows } from "./analysis/flows.ts";
 import { FactRebuilds } from "./analysis/rebuild.ts";
+import { Spending } from "./analysis/spending.ts";
 import { Commands } from "./database/commands.ts";
 import { Corrections } from "./events/corrections.ts";
 import { Events } from "./events/service.ts";
@@ -18,14 +20,15 @@ import { Publication } from "./imports/publication.ts";
 import { Imports } from "./imports/service.ts";
 import { Uploads } from "./imports/uploads.ts";
 import { Counterparties } from "./interpretation/counterparties.ts";
+import { CounterpartyHistory } from "./interpretation/counterparty-history.ts";
 import { Enrichment } from "./interpretation/enrichment.ts";
 import { Questions } from "./interpretation/questions.ts";
 import { Models } from "./models/service.ts";
 import {
-  EnrichmentConfig,
   EnrichmentJobs,
   ExportJobs,
   FactJobs,
+  ModelProviders,
   RetentionPolicy,
   TemporaryExports,
   ImportJobs,
@@ -44,6 +47,7 @@ import { SourceFiles } from "./sources/service.ts";
 // come from this object, so a changed service signature reaches every caller.
 const operations = Effect.gen(function* () {
   const flows = yield* Flows;
+  const spending = yield* Spending;
   const factRebuilds = yield* FactRebuilds;
   const relationships = yield* Relationships;
   const interpretationReviews = yield* InterpretationReviews;
@@ -54,6 +58,7 @@ const operations = Effect.gen(function* () {
   const events = yield* Events;
   const sourceFiles = yield* SourceFiles;
   const counterparties = yield* Counterparties;
+  const counterpartyHistory = yield* CounterpartyHistory;
   const questions = yield* Questions;
   const enrichment = yield* Enrichment;
   const models = yield* Models;
@@ -68,7 +73,8 @@ const operations = Effect.gen(function* () {
   return {
     getPeriodFlow: flows.period,
     getMonthlyFlow: flows.monthly,
-    getSpending: flows.spending,
+    getCoverage: flows.coverage,
+    getSpending: spending.breakdown,
     getFactsStatus: () => factRebuilds.status,
     rebuildFactsBatch: () => factRebuilds.rebuild,
     getEventRelationships: relationships.get,
@@ -90,20 +96,22 @@ const operations = Effect.gen(function* () {
     deleteReference: references.remove,
     previewCorrection: corrections.preview,
     applyCorrection: corrections.apply,
+    previewEventCounterparty: corrections.previewCounterparty,
+    assignEventCounterparty: corrections.assignCounterparty,
+    previewUndoCorrection: corrections.previewUndo,
     undoCorrection: corrections.undo,
-    getCorrectionHistory: corrections.history,
+    getEventHistory: corrections.history,
     reinterpretPostings: events.interpret,
     listCounterparties: counterparties.list,
     getCounterparty: counterparties.get,
-    saveCounterparty: counterparties.save,
-    mergeCounterparties: counterparties.merge,
-    moveAlias: counterparties.moveAlias,
-    saveReferenceDefault: counterparties.saveReference,
-    deleteReferenceDefault: counterparties.deleteReference,
-    assignEventCounterparty: counterparties.assignEvent,
+    searchDescriptors: counterparties.searchDescriptors,
+    previewCounterpartyChange: counterparties.preview,
+    applyCounterpartyChange: counterparties.apply,
+    listCounterpartyHistory: counterpartyHistory.list,
+    previewCounterpartyUndo: counterpartyHistory.previewUndo,
+    undoCounterpartyChange: counterpartyHistory.undo,
     listQuestions: questions.list,
-    getEnrichmentSettings: () => enrichment.settings,
-    updateEnrichmentSettings: enrichment.configure,
+    summarizeQuestions: questions.summary,
     requestEnrichment: enrichment.request,
     requestEvaluation: enrichment.evaluate,
     listEnrichmentRuns: () => enrichment.runs,
@@ -117,7 +125,11 @@ const operations = Effect.gen(function* () {
     getReferenceData: () => events.references,
     listSourceFiles: () => sourceFiles.list,
     removeSourceBytes: sourceFiles.remove,
-    getModelUsage: () => models.get,
+    getModelSettings: () => models.settings,
+    updateModelSettings: models.updateSettings,
+    getModelAllowance: models.allowance,
+    recordModelUsage: models.record,
+    getModelUsage: () => models.usage,
     requestExport: exports.request,
     listExports: () => exports.list,
     getExport: exports.get,
@@ -133,6 +145,7 @@ const operations = Effect.gen(function* () {
     updateAccount: accounts.update,
     listPostings: postings.list,
     listLedger: postings.ledger,
+    listCountedLedger: postings.counted,
     getPosting: postings.get,
     retryImport: imports.retry,
     listImports: imports.list,
@@ -155,14 +168,55 @@ export type InternalOperation =
   | "getImportSource"
   | "failImport"
   | "publishImport"
-  | "rebuildFactsBatch";
+  | "rebuildFactsBatch"
+  | "getModelAllowance"
+  | "recordModelUsage";
 export type WebOperation = Exclude<keyof ApiOperations, InternalOperation>;
+
+// An operation whose input carries a command ID writes records.
+type CommandOperation = {
+  [K in keyof ApiOperations]: Parameters<ApiOperations[K]> extends [
+    { readonly commandId: typeof CommandId.Type },
+  ]
+    ? K
+    : never;
+}[keyof ApiOperations];
+// The analyst reads what the screens read, previews changes you accept on the screens,
+// and writes only the usage of its own model calls. Naming a command here fails to
+// compile.
+type AnalystRead<K extends Exclude<WebOperation, CommandOperation>> = K;
+export type AnalystOperation =
+  | AnalystRead<
+      | "getPeriodFlow"
+      | "getMonthlyFlow"
+      | "getCoverage"
+      | "getSpending"
+      | "listCountedLedger"
+      | "listLedger"
+      | "getPosting"
+      | "getEventForPosting"
+      | "getEventHistory"
+      | "listCounterparties"
+      | "getCounterparty"
+      | "listQuestions"
+      | "summarizeQuestions"
+      | "getReferenceData"
+      | "listAccounts"
+      | "listImports"
+      | "getSettings"
+      | "getFactsStatus"
+      | "previewCorrection"
+      | "previewCounterpartyChange"
+    >
+  | "getModelAllowance"
+  | "recordModelUsage";
 
 export const api = Effect.fn("Api.initialize")(function* (
   bindings: Effect.Success<ReturnType<typeof apiBindings>>,
 ) {
   const services = Layer.mergeAll(
     Flows.layer,
+    Spending.layer,
     FactRebuilds.layer,
     Accounts.layer,
     AccountHistory.layer,
@@ -176,6 +230,7 @@ export const api = Effect.fn("Api.initialize")(function* (
     SourceFiles.layer,
     Models.layer,
     Counterparties.layer,
+    CounterpartyHistory.layer,
     Questions.layer,
     Enrichment.layer,
     Reviews.layer,
@@ -189,7 +244,7 @@ export const api = Effect.fn("Api.initialize")(function* (
     Layer.provide([Commands.layer, AccountResolution.layer]),
     Layer.provide([
       bindings.database,
-      Layer.succeed(EnrichmentConfig, { provider: bindings.enrichmentProvider }),
+      Layer.succeed(ModelProviders, bindings.modelProviders),
       EnrichmentJobs.layer({
         start: bindings.processor.startEnrichment,
         status: bindings.processor.getEnrichmentInstance,

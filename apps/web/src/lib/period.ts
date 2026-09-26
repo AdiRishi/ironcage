@@ -1,116 +1,196 @@
-import { CalendarDate, type FlowInput, type PeriodSelection } from "@repo/contracts/finance";
-import { Schema } from "effect";
+import {
+  CalendarDate,
+  type ComparisonSelection,
+  type DateBasis,
+  type FlowInput,
+  type MonthlyFlow,
+  type MonthTotal,
+  PeriodSelection,
+  YearMonth,
+} from "@repo/contracts/finance";
+import {
+  addDays,
+  calendarDateIn,
+  comparisonPeriod,
+  monthsPeriod,
+  periodLabel,
+  yearMonthOf,
+  yearMonthStart,
+} from "@repo/finance";
+import { DateTime, Result, Schema } from "effect";
 
-// The period every screen reads, kept in the URL as `?period=2026-08` or `?period=2026`.
-// No parameter means the current month so far.
-export const PeriodKey = Schema.String.check(Schema.isPattern(/^\d{4}(-\d{2})?$/));
-export const PeriodSearch = Schema.Struct({ period: Schema.optional(PeriodKey) });
+// Range keys are written `first..last`, both included.
+function ends(key: `${string}..${string}`) {
+  const at = key.indexOf("..");
+  return [key.slice(0, at), key.slice(at + 2)] as const;
+}
+const ordered = (message: string) =>
+  Schema.makeFilter((key: `${string}..${string}`) => {
+    const [first, last] = ends(key);
+    return first <= last || message;
+  });
 
-const monthNames = new Intl.DateTimeFormat("en-AU", { month: "long" });
-const monthShort = new Intl.DateTimeFormat("en-AU", { month: "short" });
+// A year stays a number in the address, so it reads `?period=2026` rather than a
+// quoted string.
+const Year = Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 9999 }));
+const MonthRangeKey = Schema.TemplateLiteral([YearMonth, "..", YearMonth]).check(
+  ordered("The first month must not come after the last."),
+);
+const DateRangeKey = Schema.TemplateLiteral([CalendarDate, "..", CalendarDate]).check(
+  ordered("The first date must not come after the last."),
+);
 
-export type ResolvedPeriod = {
-  key: string | null;
-  unit: "month" | "year";
-  year: number;
-  month: number | null;
-  current: boolean;
-  label: string;
-  selection: PeriodSelection;
-};
-
-function today() {
-  const now = new Date();
-  return { year: now.getFullYear(), month: now.getMonth() + 1 };
+const MonthsKey = Schema.Union([Year, YearMonth, MonthRangeKey]);
+function keyMonths(key: typeof MonthsKey.Type) {
+  if (Schema.is(YearMonth)(key)) return { from: key, to: key };
+  if (Schema.is(Year)(key)) {
+    const year = String(key).padStart(4, "0");
+    return { from: YearMonth.make(`${year}-01`), to: YearMonth.make(`${year}-12`) };
+  }
+  const [from, to] = ends(key);
+  return { from: YearMonth.make(from), to: YearMonth.make(to) };
 }
 
-export function resolvePeriodKey(key: string | undefined): ResolvedPeriod {
-  const now = today();
-  const [yearText, monthText] = (key ?? "").split("-");
-  const year = key ? Number(yearText) : now.year;
-  const month = key ? (monthText ? Number(monthText) : null) : now.month;
-  if (month === null) {
-    const offset = year - now.year;
-    return {
-      key: key ?? null,
-      unit: "year",
-      year,
-      month: null,
-      current: offset === 0,
-      label: String(year),
-      selection: {
-        kind: "calendar",
-        unit: "year",
-        count: 1,
-        offset: Math.min(0, offset),
-        alignment: offset === 0 ? "elapsed" : "full",
-      },
-    };
-  }
-  const offset = (year - now.year) * 12 + (month - now.month);
+// The months every screen reads: `?period=2026`, `?period=2026-08`, or
+// `?period=2026-03..2026-05`. Without one, screens read the current month. The months
+// and both comparisons the overview and spending offer fall within years 0001 to 9999.
+export const PeriodKey = MonthsKey.check(
+  Schema.makeFilter((key) => {
+    const { from, to } = keyMonths(key);
+    return (
+      (Schema.is(PeriodSelection)({ kind: "months", from, to }) &&
+        Result.isSuccess(wholeComparisonOf(from, to, undefined)) &&
+        Result.isSuccess(wholeComparisonOf(from, to, "lastYear"))) ||
+      "Choose months whose period and comparisons fall between years 0001 and 9999."
+    );
+  }),
+);
+export type PeriodKey = typeof PeriodKey.Type;
+// What the overview and spending compare with. Without one, it is the period before.
+export const ComparisonKey = Schema.Union([Schema.Literal("lastYear"), DateRangeKey]);
+export type ComparisonKey = typeof ComparisonKey.Type;
+export const PeriodSearch = Schema.Struct({
+  period: Schema.optional(PeriodKey),
+  compare: Schema.optional(ComparisonKey),
+});
+
+// Whole months. The API decides whether the last of them is still in progress.
+export type PeriodChoice = {
+  readonly from: YearMonth;
+  readonly to: YearMonth;
+  readonly label: string;
+};
+
+// Today in the settings timezone. Period resolution reads no other clock.
+export function today(timezone: string) {
+  return calendarDateIn(DateTime.nowUnsafe(), timezone);
+}
+export function currentMonth(timezone: string) {
+  return yearMonthOf(today(timezone));
+}
+
+// The month a period is, once that month has ended in the settings timezone.
+export function endedMonth(period: PeriodChoice, timezone: string) {
+  return period.from === period.to && period.to < currentMonth(timezone) ? period.to : null;
+}
+
+export function resolvePeriodKey(key: PeriodKey | undefined, timezone: string): PeriodChoice {
+  const { from, to } = keyMonths(key ?? currentMonth(timezone));
+  return { from, to, label: periodLabel(monthsPeriod(from, to)) };
+}
+
+// The one key for a span of months: a month, a calendar year, or a range.
+export function periodKey(from: YearMonth, to: YearMonth): PeriodKey {
+  if (from === to) return from;
+  const year = from.slice(0, 4);
+  if (from === `${year}-01` && to === `${year}-12`) return Number(year);
+  return `${from}..${to}`;
+}
+
+// A month has records when a file covers some of its days. A purchase dated in a month
+// that no file covers still counts in that month, so its amounts alone prove nothing.
+export const hasRecords = (month: typeof MonthTotal.Type) => month.coverage !== "missing";
+
+export function periodMonths(months: typeof MonthlyFlow.Type, period: PeriodChoice) {
+  return months.filter((month) => period.from <= month.month && month.month <= period.to);
+}
+
+// The monthly flow is empty until the first file publishes a transaction.
+export const hasImported = (months: typeof MonthlyFlow.Type) => months.length > 0;
+
+export type PeriodRecords = "none" | "missing" | "recorded";
+export function periodRecords(
+  months: typeof MonthlyFlow.Type,
+  period: PeriodChoice,
+): PeriodRecords {
+  if (!hasImported(months)) return "none";
+  return periodMonths(months, period).some(hasRecords) ? "recorded" : "missing";
+}
+
+export function comparisonSelection(
+  compare: ComparisonKey | undefined,
+): typeof ComparisonSelection.Type {
+  if (compare === undefined) return { kind: "previous" };
+  if (compare === "lastYear") return { kind: "previousYear" };
+  const [start, last] = ends(compare);
   return {
-    key: key ?? null,
-    unit: "month",
-    year,
-    month,
-    current: offset === 0,
-    label: `${monthNames.format(new Date(year, month - 1, 1))} ${year}`,
-    selection: {
-      kind: "calendar",
-      unit: "month",
-      count: 1,
-      offset: Math.max(-120, Math.min(0, offset)),
-      alignment: offset === 0 ? "elapsed" : "full",
-    },
+    kind: "fixed",
+    start: CalendarDate.make(start),
+    endExclusive: addDays(CalendarDate.make(last), 1),
   };
 }
 
-export function flowInput(period: ResolvedPeriod, currency: string): FlowInput {
+// The address of a comparison, the inverse of `comparisonSelection`.
+export function comparisonKey(
+  selection: typeof ComparisonSelection.Type,
+): ComparisonKey | undefined {
+  switch (selection.kind) {
+    case "previous":
+      return undefined;
+    case "previousYear":
+      return "lastYear";
+    case "fixed":
+      return `${selection.start}..${addDays(selection.endExclusive, -1)}`;
+  }
+}
+
+// Screens place facts on spending dates, so a number and the records it opens read the
+// same days.
+export const analysisBasis = "spending" as const satisfies typeof DateBasis.Type;
+
+export function periodSelection(period: PeriodChoice) {
+  return { kind: "months", from: period.from, to: period.to } satisfies PeriodSelection;
+}
+
+export function flowInput(
+  period: PeriodChoice,
+  compare: ComparisonKey | undefined,
+  currency: string,
+): FlowInput {
   return {
-    period: period.selection,
-    comparison: { kind: "previous" },
-    basis: "spending",
+    period: periodSelection(period),
+    comparison: comparisonSelection(compare),
+    basis: analysisBasis,
     currency,
   };
 }
 
-export function monthLabel(month: string) {
-  const [year, value] = month.split("-").map(Number);
-  return `${monthNames.format(new Date(year ?? 0, (value ?? 1) - 1, 1))} ${year}`;
+function wholeComparisonOf(from: YearMonth, to: YearMonth, compare: ComparisonKey | undefined) {
+  return comparisonPeriod(
+    { kind: "months", from, to },
+    comparisonSelection(compare),
+    monthsPeriod(from, to),
+  );
 }
-export function monthInitial(month: string) {
-  const [year, value] = month.split("-").map(Number);
-  return monthShort.format(new Date(year ?? 0, (value ?? 1) - 1, 1)).slice(0, 1);
-}
-
-// Inclusive calendar dates for filters that take a from and to date.
-export function periodDates(period: ResolvedPeriod) {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  if (period.unit === "year")
-    return {
-      from: CalendarDate.make(`${period.year}-01-01`),
-      to: CalendarDate.make(`${period.year}-12-31`),
-    };
-  const month = period.month ?? 1;
-  const last = new Date(period.year, month, 0).getDate();
-  return {
-    from: CalendarDate.make(`${period.year}-${pad(month)}-01`),
-    to: CalendarDate.make(`${period.year}-${pad(month)}-${pad(last)}`),
-  };
+// What the whole months compare with, so a month in progress names the whole month
+// before it, and comparisons not yet chosen can be named too. PeriodKey admits only
+// months whose comparisons resolve, and chosen dates always do.
+export function wholeComparison(period: PeriodChoice, compare: ComparisonKey | undefined) {
+  return Result.getOrThrow(wholeComparisonOf(period.from, period.to, compare));
 }
 
-export function periodRange(period: ResolvedPeriod) {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  if (period.unit === "year")
-    return {
-      start: CalendarDate.make(`${period.year}-01-01`),
-      endExclusive: CalendarDate.make(`${period.year + 1}-01-01`),
-    };
-  const month = period.month ?? 1;
-  const next =
-    month === 12 ? { year: period.year + 1, month: 1 } : { year: period.year, month: month + 1 };
-  return {
-    start: CalendarDate.make(`${period.year}-${pad(month)}-01`),
-    endExclusive: CalendarDate.make(`${next.year}-${pad(next.month)}-01`),
-  };
+const initials = new Intl.DateTimeFormat("en-AU", { month: "narrow", timeZone: "UTC" });
+// The month's first letter, for charts too narrow for its name.
+export function monthInitial(month: YearMonth) {
+  return initials.format(Date.parse(yearMonthStart(month)));
 }

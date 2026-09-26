@@ -28,15 +28,19 @@ import { useCommand } from "@/lib/use-command";
 
 import { ReferenceChoice } from "./choice";
 import { applyCorrection, previewCorrection } from "./functions";
-import { ImpactTables } from "./impact";
+import { ImpactSummary } from "./impact";
 
 export function EventEditor({
   event,
   references,
+  onApplied,
   onClose,
 }: {
   event: FinancialEvent;
   references: typeof ReferenceData.Type;
+  // Runs once the correction is saved, before queries refresh, so a page can keep its
+  // place when the correction removes what it shows.
+  onApplied?: () => void;
   onClose: () => void;
 }) {
   const id = useId();
@@ -54,6 +58,7 @@ export function EventEditor({
         data: await Effect.runPromise(Schema.encodeEffect(ApplyCorrection)(data)),
       }),
     onSuccess: async () => {
+      onApplied?.();
       await client.invalidateQueries();
       onClose();
     },
@@ -296,7 +301,7 @@ export function EventEditor({
       </fieldset>
       {inputError && <p role="alert">{inputError}</p>}
       {preview.error && <p role="alert">{preview.error.message}</p>}
-      {preview.data && <ImpactTables impacts={preview.data.impacts} />}
+      {preview.data && <ImpactSummary impacts={preview.data.impacts} />}
       {mutation.error && <p role="alert">{mutation.error.message}</p>}
       <div className="flex gap-3">
         <Button

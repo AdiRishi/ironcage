@@ -1,7 +1,7 @@
-import type { FlowInput, SpendingInput } from "@repo/contracts/finance";
+import type { FlowInput } from "@repo/contracts/finance";
 import { queryOptions } from "@tanstack/react-query";
 
-import { getFactsStatus, getMonthlyFlow, getPeriodFlow, getSpending } from "./functions";
+import { getFactsStatus, getMonthlyFlow, getPeriodFlow } from "./functions";
 
 export const periodFlowQuery = (input: FlowInput) =>
   queryOptions({ queryKey: ["periodFlow", input], queryFn: () => getPeriodFlow({ data: input }) });
@@ -10,8 +10,6 @@ export const monthlyFlowQuery = (currency: string) =>
     queryKey: ["monthlyFlow", currency],
     queryFn: () => getMonthlyFlow({ data: { currency } }),
   });
-export const spendingQuery = (input: SpendingInput) =>
-  queryOptions({ queryKey: ["spending", input], queryFn: () => getSpending({ data: input }) });
 // Polls while a background rebuild is recalculating totals, in a background tab too,
 // so screens left open refetch when it finishes.
 export const factsStatusQuery = () =>

@@ -3,6 +3,7 @@ import { SourceFileId } from "@repo/contracts/finance";
 import { Effect, Schema } from "effect";
 
 import { instant } from "../database/columns.ts";
+import { readTransaction } from "../database/transactions.ts";
 
 const Column = Schema.Struct({ table: Schema.String, name: Schema.String, type: Schema.String });
 const TableData = Schema.Struct({ json: Schema.String, count: Schema.Int });
@@ -14,9 +15,9 @@ const Source = Schema.Struct({
 });
 
 export const takeSnapshot = Effect.fn("Exports.snapshot")(function* (sql: PgClient.PgClient) {
-  return yield* sql.withTransaction(
+  return yield* readTransaction(
+    sql,
     Effect.gen(function* () {
-      yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY`;
       const times =
         yield* sql`SELECT ${instant(sql, sql`transaction_timestamp()`)} AS instant`.pipe(
           Effect.flatMap(

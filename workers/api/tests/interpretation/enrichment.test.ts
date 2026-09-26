@@ -6,12 +6,19 @@ import { expect } from "vitest";
 import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
+import { CounterpartyHistory } from "../../src/interpretation/counterparty-history.ts";
 import { Enrichment } from "../../src/interpretation/enrichment.ts";
-import { Questions } from "../../src/interpretation/questions.ts";
-import { EnrichmentConfig, EnrichmentJobs } from "../../src/platform/services.ts";
+import { EnrichmentJobs, ModelProviders } from "../../src/platform/services.ts";
 import { Postings } from "../../src/postings/service.ts";
-import { applicationTest } from "../support/application.ts";
-import { account, parsed, reset, source } from "../support/fixtures.ts";
+import { applicationTest, syntheticProviders } from "../support/application.ts";
+import {
+  account,
+  createCounterparty,
+  openQuestions,
+  parsed,
+  reset,
+  source,
+} from "../support/fixtures.ts";
 
 const { test, services } = applicationTest();
 const commandId = Crypto.Crypto.use((crypto) => crypto.randomUUIDv4).pipe(
@@ -122,11 +129,15 @@ test(
     expect(first.allocations[0]).toMatchObject({ categorySource: "counterparty" });
     expect((yield* event("SQ *NEW CAFE 0412 Card xx1234")).allocations[0].categoryId).toBeNull();
     expect((yield* event("Transfer To Jane Smith NetBank Rent")).kind).toBe("unresolved");
-    const questions = yield* (yield* Questions).list({ currency: "AUD" });
     expect(
-      questions
+      (yield* openQuestions)
         .toSorted((a, b) => a.kind.localeCompare(b.kind))
-        .map((question) => [question.kind, question.counterparty?.name]),
+        .map((question) => [
+          question.kind,
+          question.kind === "counterparty" || question.kind === "person"
+            ? question.counterparty.name
+            : null,
+        ]),
     ).toEqual([
       ["counterparty", "New Cafe"],
       ["person", "Jane Smith"],
@@ -156,26 +167,28 @@ test(
     expect(known.counterpartyId).not.toBeNull();
     expect(uncertain.counterpartyId).toBeNull();
     expect(uncertain.allocations[0]?.categoryId).toBeNull();
-    const question = (yield* (yield* Questions).list({ currency: "AUD" })).find(
-      (row) => row.kind === "alias",
-    );
+    const question = (yield* openQuestions).find((row) => row.kind === "alias");
     expect(question).toMatchObject({
       aliasKey: "WOOLWORTHS METRO SURRY HILLS",
       counterparty: { id: known.counterpartyId, name: "Woolworths" },
-      proposal: { confidence: 0.5, reason: "Probably the same supermarket chain." },
-      eventCount: 1,
+      basis: { kind: "model", confidence: 0.5, reason: "Probably the same supermarket chain." },
+      affects: { eventCount: 1 },
     });
-    yield* (yield* Counterparties).moveAlias({
+    if (!question || !known.counterpartyId) return yield* Effect.die("Expected the question");
+    yield* (yield* Counterparties).apply({
       commandId: yield* commandId,
-      aliasKey: "WOOLWORTHS METRO SURRY HILLS",
-      counterpartyId: known.counterpartyId!,
+      change: {
+        kind: "moveAlias",
+        aliasKey: "WOOLWORTHS METRO SURRY HILLS",
+        expectedVersion: question.aliasVersion,
+        counterpartyId: known.counterpartyId,
+        event: null,
+      },
     });
     const confirmed = yield* event("WOOLWORTHS METRO 77 SURRY HILLS Card xx1234");
     expect(confirmed.counterpartyId).toBe(known.counterpartyId);
     expect(confirmed.allocations[0]?.categoryId).toBe(known.allocations[0]?.categoryId);
-    expect(
-      (yield* (yield* Questions).list({ currency: "AUD" })).some((row) => row.kind === "alias"),
-    ).toBe(false);
+    expect((yield* openQuestions).some((row) => row.kind === "alias")).toBe(false);
   }).pipe(Effect.provide(services)),
 );
 
@@ -211,6 +224,22 @@ test(
       categorySource: "counterparty",
     });
     expect(yield* enrichment.proposals).toEqual([]);
+    const woolworths = (yield* event("WOOLWORTHS 1234 SYDNEY AU Card xx1234")).counterpartyId;
+    if (!woolworths) return yield* Effect.die("Expected Woolworths");
+    const history = yield* CounterpartyHistory;
+    const [accepted] = (yield* history.list({ counterpartyId: woolworths })).rows;
+    if (!accepted) return yield* Effect.die("Expected the acceptance in history");
+    expect(accepted).toMatchObject({
+      kind: "acceptCategory",
+      subjects: [{ id: woolworths, name: "Woolworths" }],
+      eventCount: 1,
+      undoable: true,
+    });
+    yield* history.undo({ commandId: yield* commandId, changeId: accepted.id });
+    expect((yield* event("WOOLWORTHS 1234 SYDNEY AU Card xx1234")).allocations[0]).toMatchObject({
+      categoryId: categories.find((row) => row.slug === "food.groceries")?.id,
+      categorySource: "counterparty",
+    });
     const again = yield* enrichment
       .resolveProposal({
         commandId: yield* commandId,
@@ -270,9 +299,7 @@ test(
               start: () => Effect.void,
               status: () => Effect.succeed({ status: "errored", failure: "Worker restarted." }),
             }),
-            Layer.succeed(EnrichmentConfig, {
-              provider: yield* enrichment.settings.pipe(Effect.map((row) => row.provider)),
-            }),
+            Layer.succeed(ModelProviders, syntheticProviders),
           ]),
         ),
       ),
@@ -311,22 +338,11 @@ test(
       (row) => row.slug === "food.coffee",
     );
     if (!groceries || !coffee) return yield* Effect.die("Expected seeded categories");
-    const counterparties = yield* Counterparties;
     for (const [aliasKey, name, categoryId] of [
       ["WOOLWORTHS SYDNEY", "Woolworths", groceries.id],
       ["SQ NEW CAFE", "New Cafe", coffee.id],
     ] as const)
-      yield* counterparties.save({
-        commandId: yield* commandId,
-        target: { kind: "create", aliasKeys: [aliasKey] },
-        fields: {
-          name,
-          kind: "business",
-          brand: null,
-          defaultCategoryId: categoryId,
-          defaultRole: null,
-        },
-      });
+      yield* createCounterparty({ name, defaultCategoryId: categoryId }, [aliasKey]);
     const enrichment = yield* Enrichment;
     const run = yield* enrichment.evaluate({ commandId: yield* commandId });
     expect(run).toMatchObject({ purpose: "evaluate", requested: 2 });
@@ -372,7 +388,12 @@ test(
       confident: 1,
       confidentRight: 1,
     });
-    const cafe = (yield* counterparties.list({ search: "Cafe", currency: "AUD", period: null }))[0];
+    const [cafe] = yield* (yield* Counterparties).list({
+      search: "Cafe",
+      currency: "AUD",
+      period: null,
+      direction: "out",
+    });
     expect(cafe?.defaultCategoryId).toBe(coffee.id);
   }).pipe(Effect.provide(services)),
 );

@@ -51,15 +51,29 @@ export const CounterpartyRole = Schema.Literals([
   "refund",
   "reimbursement",
 ]);
+// The default roles a person can take. Money to yourself at another bank makes the
+// counterparty an own account, so a person is never a transfer.
+export const PersonRole = CounterpartyRole.pick(["purchase", "income", "refund", "reimbursement"]);
+export type PersonRole = typeof PersonRole.Type;
 export const CategoryTree = Schema.Literals(["spending", "income"]);
 export type CategoryTree = typeof CategoryTree.Type;
+// A category with everything below it, or `uncategorised` for money whose role takes a
+// category that it does not have yet.
+export const CategoryChoice = Schema.Union([CategoryId, Schema.Literal("uncategorised")]);
+export type CategoryChoice = typeof CategoryChoice.Type;
+// A question's kind and what it groups by, such as `person:<counterparty>:rent`.
+export const QuestionId = Schema.NonEmptyString.pipe(Schema.brand("QuestionId"));
+export type QuestionId = typeof QuestionId.Type;
 export const InterpretationFilter = Schema.Struct({
   role: Schema.optionalKey(FinancialRole),
-  categoryId: Schema.optionalKey(CategoryId),
+  categoryId: Schema.optionalKey(CategoryChoice),
   counterpartyId: Schema.optionalKey(CounterpartyId),
   tagId: Schema.optionalKey(TagId),
   personalEventId: Schema.optionalKey(PersonalEventId),
-  interpretationReview: Schema.optionalKey(Schema.Boolean),
+  // Transactions behind an open question, or behind none.
+  openQuestion: Schema.optionalKey(Schema.Boolean),
+  // The transactions behind one question.
+  questionId: Schema.optionalKey(QuestionId),
 });
 export const Channel = Schema.Literals([
   "card",

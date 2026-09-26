@@ -15,7 +15,6 @@ import {
   EnrichmentRun,
   EnrichmentRunId,
   EnrichmentRuns,
-  EnrichmentSettings,
   EvaluationAnswer,
   EventId,
   FinanceError,
@@ -24,22 +23,30 @@ import {
   RequestEnrichment,
   RequestEvaluation,
   ResolveCategoryProposal,
-  UpdateEnrichmentSettings,
   CounterpartyId,
+  type ModelTask,
 } from "@repo/contracts/finance";
-import { scoreEvaluation } from "@repo/finance";
+import { scoreEvaluation, takesDefaultRole } from "@repo/finance";
 import { Context, Crypto, Effect, Layer, Schema, Struct } from "effect";
 import type { Statement } from "effect/unstable/sql";
 
 import { instant } from "../database/columns.ts";
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
+import { insertModelUsage, readModelAllowance, readModelSettings } from "../models/repository.ts";
 import {
-  EnrichmentConfig,
   EnrichmentJobs,
+  ModelProviders,
   ensureWorkflowStatus,
   workflowEnded,
 } from "../platform/services.ts";
+import {
+  applyImages,
+  noImages,
+  readCounterpartyRecords,
+  recordChange,
+} from "./counterparty-changes.ts";
+import { descriptorSamples } from "./descriptors.ts";
 import { reinterpret } from "./engine.ts";
 
 const batchSize = 25;
@@ -51,6 +58,10 @@ const runColumns = (sql: PgClient.PgClient) =>
     (SELECT count(*)::int FROM enrichment_items i WHERE i.run_id = r.id AND i.status = 'failed') AS failed, r.failure`;
 
 const RunRow = Schema.Struct(Struct.omit(EnrichmentRun.fields, ["evaluation"]));
+const purposeTasks = {
+  identify: "enrichment",
+  evaluate: "evaluation",
+} as const satisfies Record<(typeof EnrichmentRun.Type)["purpose"], ModelTask>;
 const Prediction = Schema.Struct({ ...EvaluationAnswer.fields, confidence: Confidence });
 
 // Runs matching `where`, newest first. An evaluation run carries its score so far.
@@ -60,15 +71,10 @@ const readRuns = Effect.fn("readEnrichmentRuns")(function* (where: Statement.Fra
     yield* sql`SELECT ${runColumns(sql)} FROM enrichment_runs r WHERE ${where} ORDER BY r.created_at DESC, r.id DESC LIMIT 20`.pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(RunRow))),
     );
+  const settings = yield* readModelSettings;
   return yield* Effect.forEach(rows, (row) =>
     Effect.gen(function* () {
       if (row.purpose !== "evaluate") return { ...row, evaluation: null };
-      const [settings] =
-        yield* sql`SELECT auto_apply_confidence::float8 AS threshold FROM enrichment_settings WHERE id = 1`.pipe(
-          Effect.flatMap(
-            Schema.decodeUnknownEffect(Schema.Tuple([Schema.Struct({ threshold: Confidence })])),
-          ),
-        );
       const answers =
         yield* sql`SELECT expected, predicted FROM enrichment_evaluations WHERE run_id = ${row.id}`.pipe(
           Effect.flatMap(
@@ -81,7 +87,10 @@ const readRuns = Effect.fn("readEnrichmentRuns")(function* (where: Statement.Fra
         );
       return {
         ...row,
-        evaluation: scoreEvaluation({ rows: answers, threshold: settings.threshold }),
+        evaluation: scoreEvaluation({
+          rows: answers,
+          threshold: settings.enrichment.autoApplyConfidence,
+        }),
       };
     }),
   );
@@ -95,42 +104,12 @@ const readRun = Effect.fn("readEnrichmentRun")(function* (runId: typeof Enrichme
   return run;
 });
 
-const readSettings = Effect.gen(function* () {
-  const sql = yield* PgClient.PgClient;
-  const config = yield* EnrichmentConfig;
-  const [row] =
-    yield* sql`SELECT enabled, CASE WHEN warning_minor IS NULL THEN NULL ELSE jsonb_build_object('currency', 'USD', 'minor', warning_minor::text) END AS warning,
-      auto_apply_confidence::float8 AS "autoApplyConfidence", version FROM enrichment_settings WHERE id = 1`;
-  return yield* Schema.decodeUnknownEffect(EnrichmentSettings)({
-    ...row,
-    provider: yield* Schema.encodeEffect(EnrichmentSettings.fields.provider)(config.provider),
-  });
-});
-
-// Enrichment only runs while you have it switched on and recorded usage is under
-// the warning. Late reports and concurrent calls can overshoot the warning.
-const ensureEnabled = Effect.gen(function* () {
-  const sql = yield* PgClient.PgClient;
-  const settings = yield* readSettings;
-  if (!settings.enabled)
-    return yield* new FinanceError({
-      kind: "unavailable",
-      message: "Counterparty identification is switched off. Turn it on in Settings.",
-    });
-  const [usage] =
-    yield* sql`SELECT COALESCE(sum(cost_minor), 0)::text AS total FROM model_usage WHERE cost_currency = 'USD'`.pipe(
-      Effect.flatMap(
-        Schema.decodeUnknownEffect(
-          Schema.Tuple([Schema.Struct({ total: Schema.BigIntFromString })]),
-        ),
-      ),
-    );
-  if (settings.warning && usage.total >= settings.warning.minor)
-    return yield* new FinanceError({
-      kind: "unavailable",
-      message: "Model usage reached the warning threshold. Raise it in Settings to continue.",
-    });
-  return settings;
+// The provider a run calls, while the model allowance allows the run's task.
+const ensureAllowed = Effect.fn("ensureModelAllowed")(function* (task: ModelTask) {
+  const allowance = yield* readModelAllowance(task);
+  if (!allowance.allowed)
+    return yield* new FinanceError({ kind: "unavailable", message: allowance.message });
+  return allowance.provider;
 });
 
 // The taxonomy, existing counterparties, and your recent answers as examples. An
@@ -212,8 +191,7 @@ const applyResult = Effect.fn("applyEnrichmentResult")(function* ({
   if (!counterpartyId) {
     counterpartyId = CounterpartyId.make(yield* crypto.randomUUIDv4);
     const applied = result.kind !== "person" && result.confidence >= threshold;
-    const defaultRole =
-      result.kind === "person" || result.kind === "institution" ? result.defaultRole : null;
+    const defaultRole = takesDefaultRole(result.kind) ? result.defaultRole : null;
     yield* sql`INSERT INTO counterparties (id, name, kind, brand, default_category_id, default_role, source, status, model, confidence, reason)
       VALUES (${counterpartyId}, ${result.name}, ${result.kind}, ${result.brand}, ${yield* resolveCategory(result.categoryKey)}, ${defaultRole},
         'model', ${applied ? "applied" : "proposed"}, ${model}, ${result.confidence}, ${result.reason})`;
@@ -232,10 +210,6 @@ const applyResult = Effect.fn("applyEnrichmentResult")(function* ({
 export class Enrichment extends Context.Service<
   Enrichment,
   {
-    readonly settings: Effect.Effect<typeof EnrichmentSettings.Type, FinanceError>;
-    readonly configure: (
-      input: typeof UpdateEnrichmentSettings.Type,
-    ) => Effect.Effect<boolean, FinanceError>;
     readonly request: (
       input: typeof RequestEnrichment.Type,
     ) => Effect.Effect<typeof EnrichmentRun.Type, FinanceError>;
@@ -263,17 +237,15 @@ export class Enrichment extends Context.Service<
       const crypto = yield* Crypto.Crypto;
       const commands = yield* Commands;
       const jobs = yield* EnrichmentJobs;
-      const config = yield* EnrichmentConfig;
+      const providers = yield* ModelProviders;
       const provide = <A, E>(
-        effect: Effect.Effect<A, E, PgClient.PgClient | Crypto.Crypto | EnrichmentConfig>,
+        effect: Effect.Effect<A, E, PgClient.PgClient | Crypto.Crypto | ModelProviders>,
       ) =>
         effect.pipe(
           Effect.provideService(PgClient.PgClient, sql),
           Effect.provideService(Crypto.Crypto, crypto),
-          Effect.provideService(EnrichmentConfig, config),
+          Effect.provideService(ModelProviders, providers),
         );
-
-      const settings = readSettings.pipe(provide, toFinanceError);
 
       // A run whose Workflow ended without finishing its aliases failed; a start that
       // was lost after the run committed is recovered, since creating is idempotent.
@@ -283,41 +255,12 @@ export class Enrichment extends Context.Service<
         if (!state || !workflowEnded(state)) return run;
         yield* sql`UPDATE enrichment_runs SET status = 'failed', failure = ${state.failure ?? "Identification stopped before it finished. Run it again to continue."}
           WHERE id = ${run.id} AND status IN ('pending', 'running')`;
-        return yield* readRun(run.id).pipe(Effect.provideService(PgClient.PgClient, sql));
+        return yield* provide(readRun(run.id));
       });
       const activeRuns = readRuns(sql`r.status IN ('pending', 'running')`).pipe(
-        Effect.provideService(PgClient.PgClient, sql),
+        provide,
         Effect.flatMap((rows) => Effect.forEach(rows, refresh)),
       );
-
-      const configure = Effect.fn("Enrichment.configure")(function* (
-        input: typeof UpdateEnrichmentSettings.Type,
-      ) {
-        if (input.warning && (input.warning.currency !== "USD" || input.warning.minor <= 0n))
-          return yield* new FinanceError({
-            kind: "invalid",
-            message: "Use a positive USD usage warning.",
-          });
-        return yield* commands.run({
-          commandId: input.commandId,
-          input: {
-            operation: "updateEnrichmentSettings",
-            input: yield* Schema.encodeEffect(Schema.toCodecJson(UpdateEnrichmentSettings))(input),
-          },
-          result: Schema.Boolean,
-          execute: Effect.gen(function* () {
-            const rows =
-              yield* sql`UPDATE enrichment_settings SET enabled = ${input.enabled}, warning_minor = ${input.warning?.minor ?? null},
-                auto_apply_confidence = ${input.autoApplyConfidence}, version = version + 1 WHERE id = 1 AND version = ${input.expectedVersion} RETURNING id`;
-            if (rows.length === 0)
-              return yield* new FinanceError({
-                kind: "stale",
-                message: "These settings changed. Review them and save again.",
-              });
-            return true;
-          }),
-        });
-      }, toFinanceError);
 
       const request = Effect.fn("Enrichment.request")(function* (
         input: typeof RequestEnrichment.Type,
@@ -333,7 +276,7 @@ export class Enrichment extends Context.Service<
           result: Schema.toCodecJson(EnrichmentRun),
           execute: provide(
             Effect.gen(function* () {
-              yield* ensureEnabled;
+              const provider = yield* ensureAllowed("enrichment");
               // Aliases without a counterparty, largest amounts first. Amounts order
               // the work here and never reach the model.
               const aliases =
@@ -348,7 +291,7 @@ export class Enrichment extends Context.Service<
                   ),
                 );
               const id = EnrichmentRunId.make(input.commandId);
-              yield* sql`INSERT INTO enrichment_runs (id, purpose, status, model, requested) VALUES (${id}, 'identify', ${aliases.length > 0 ? "pending" : "completed"}, ${config.provider.model}, ${aliases.length})`;
+              yield* sql`INSERT INTO enrichment_runs (id, purpose, status, model, requested) VALUES (${id}, 'identify', ${aliases.length > 0 ? "pending" : "completed"}, ${provider.model}, ${aliases.length})`;
               if (aliases.length > 0)
                 yield* sql`INSERT INTO enrichment_items ${sql.insert(aliases.map((row, position) => ({ run_id: id, alias_key: row.aliasKey, position })))}`;
               return yield* readRun(id);
@@ -375,7 +318,7 @@ export class Enrichment extends Context.Service<
           result: Schema.toCodecJson(EnrichmentRun),
           execute: provide(
             Effect.gen(function* () {
-              yield* ensureEnabled;
+              const provider = yield* ensureAllowed("evaluation");
               const answers =
                 yield* sql`SELECT a.alias_key AS "aliasKey", c.id AS "counterpartyId", c.name, c.kind,
                     COALESCE(k.slug, k.id::text) AS "categoryKey", COALESCE(t.slug, t.id::text) AS "topCategoryKey"
@@ -398,7 +341,7 @@ export class Enrichment extends Context.Service<
                   ),
                 );
               const id = EnrichmentRunId.make(input.commandId);
-              yield* sql`INSERT INTO enrichment_runs (id, purpose, status, model, requested) VALUES (${id}, 'evaluate', ${answers.length > 0 ? "pending" : "completed"}, ${config.provider.model}, ${answers.length})`;
+              yield* sql`INSERT INTO enrichment_runs (id, purpose, status, model, requested) VALUES (${id}, 'evaluate', ${answers.length > 0 ? "pending" : "completed"}, ${provider.model}, ${answers.length})`;
               if (answers.length > 0) {
                 yield* sql`INSERT INTO enrichment_items ${sql.insert(answers.map((row, position) => ({ run_id: id, alias_key: row.aliasKey, position })))}`;
                 yield* sql`INSERT INTO enrichment_evaluations (run_id, alias_key, counterparty_id, expected)
@@ -420,7 +363,7 @@ export class Enrichment extends Context.Service<
       }, toFinanceError);
 
       const runs = readRuns(sql`true`).pipe(
-        Effect.provideService(PgClient.PgClient, sql),
+        provide,
         Effect.flatMap((rows) => Effect.forEach(rows, refresh, { concurrency: 4 })),
         toFinanceError,
       );
@@ -433,8 +376,8 @@ export class Enrichment extends Context.Service<
             Effect.gen(function* () {
               yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
               const run = yield* readRun(runId);
-              const settings = yield* ensureEnabled;
-              if (run.model !== settings.provider.model)
+              const provider = yield* ensureAllowed(purposeTasks[run.purpose]);
+              if (run.model !== provider.model)
                 return yield* new FinanceError({
                   kind: "unavailable",
                   message: "The configured model changed. Start a new run.",
@@ -443,7 +386,7 @@ export class Enrichment extends Context.Service<
                 run.status === "completed" || run.status === "failed"
                   ? []
                   : yield* sql`SELECT i.alias_key AS "aliasKey",
-                        ARRAY(SELECT s.text FROM (SELECT d.counterparty_text AS text, count(*) AS n FROM posting_descriptors d WHERE d.alias_key = i.alias_key AND d.counterparty_text IS NOT NULL GROUP BY 1 ORDER BY n DESC, 1 LIMIT 3) s) AS samples,
+                        ${descriptorSamples(sql, sql("i.alias_key"))} AS samples,
                         ARRAY(SELECT DISTINCT d.channel FROM posting_descriptors d WHERE d.alias_key = i.alias_key ORDER BY 1) AS channels,
                         ARRAY(SELECT DISTINCT CASE WHEN p.amount_minor < 0 THEN 'out' ELSE 'in' END FROM posting_descriptors d JOIN postings p ON p.id = d.posting_id WHERE d.alias_key = i.alias_key ORDER BY 1) AS directions,
                         ARRAY(SELECT DISTINCT a.kind FROM posting_descriptors d JOIN postings p ON p.id = d.posting_id JOIN accounts a ON a.id = p.account_id WHERE d.alias_key = i.alias_key ORDER BY 1) AS "accountKinds",
@@ -474,7 +417,7 @@ export class Enrichment extends Context.Service<
                 runId,
                 aliases,
                 ...(yield* readBatchContext(hidden)),
-                provider: settings.provider,
+                provider,
               } satisfies typeof EnrichmentBatch.Type;
             }),
           ),
@@ -494,11 +437,17 @@ export class Enrichment extends Context.Service<
           execute: provide(
             Effect.gen(function* () {
               const run = yield* readRun(input.runId);
-              const settings = yield* readSettings;
+              const settings = yield* readModelSettings;
               const report = input.report;
-              yield* sql`INSERT INTO model_usage (id, task, model, input_tokens, output_tokens, cost_minor, cost_currency, status)
-                VALUES (${yield* crypto.randomUUIDv4}, ${run.purpose === "evaluate" ? "evaluation" : "enrichment"}, ${run.model}, ${report.inputTokens}, ${report.outputTokens},
-                  ${report.cost?.minor ?? null}, ${report.cost?.currency ?? null}, ${report.status})`;
+              yield* insertModelUsage({
+                commandId: input.commandId,
+                task: purposeTasks[run.purpose],
+                model: run.model,
+                inputTokens: report.inputTokens,
+                outputTokens: report.outputTokens,
+                cost: report.cost,
+                status: report.status,
+              });
               const pending = new Set(
                 (yield* sql`SELECT alias_key AS "aliasKey" FROM enrichment_items WHERE run_id = ${input.runId} AND status = 'pending' AND ${sql.in("alias_key", input.aliasKeys)}`.pipe(
                   Effect.flatMap(
@@ -546,7 +495,7 @@ export class Enrichment extends Context.Service<
                 yield* applyResult({
                   result,
                   model: run.model,
-                  threshold: settings.autoApplyConfidence,
+                  threshold: settings.enrichment.autoApplyConfidence,
                 });
                 resolved.push(result.aliasKey);
               }
@@ -628,26 +577,25 @@ export class Enrichment extends Context.Service<
               }
               const categoryId = CategoryId.make(yield* crypto.randomUUIDv4);
               yield* sql`INSERT INTO categories (id, name, tree, parent_id) VALUES (${categoryId}, ${proposal.name}, ${proposal.tree}, ${proposal.parentId})`;
-              const moved =
-                yield* sql`UPDATE counterparties SET default_category_id = ${categoryId}, version = version + 1, updated_at = now()
-                  WHERE id IN (SELECT m.id FROM (${movable(sql`${input.proposalId}::uuid`)}) m) RETURNING id`.pipe(
-                  Effect.flatMap(
-                    Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: CounterpartyId }))),
-                  ),
-                );
+              const moved = yield* readCounterpartyRecords(
+                sql`id IN (SELECT m.id FROM (${movable(sql`${input.proposalId}::uuid`)}) m)`,
+              );
+              const images = {
+                ...noImages,
+                counterparties: moved.map((before) => ({
+                  before,
+                  after: { ...before, defaultCategoryId: categoryId, version: before.version + 1 },
+                })),
+              };
+              yield* applyImages(images);
+              if (moved.length > 0)
+                yield* recordChange({
+                  commandId: input.commandId,
+                  kind: "acceptCategory",
+                  undoes: null,
+                  images,
+                });
               yield* sql`UPDATE category_proposals SET status = 'accepted' WHERE id = ${input.proposalId}`;
-              const affected =
-                moved.length === 0
-                  ? []
-                  : yield* sql`SELECT id FROM events WHERE active AND ${sql.in(
-                      "counterparty_id",
-                      moved.map((row) => row.id),
-                    )}`.pipe(
-                      Effect.flatMap(
-                        Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: EventId }))),
-                      ),
-                    );
-              yield* reinterpret(affected.map((row) => row.id));
               return { categoryId, moved: moved.length };
             }),
           ),
@@ -655,8 +603,6 @@ export class Enrichment extends Context.Service<
       }, toFinanceError);
 
       return Enrichment.of({
-        settings,
-        configure,
         request,
         runs,
         batch,

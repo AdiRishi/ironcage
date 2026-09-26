@@ -22,12 +22,13 @@ import {
   Version,
 } from "@repo/contracts/finance";
 import {
+  accountSuffix,
   allocationRole,
   bankReading,
   type CounterpartyDefaults,
   deriveInterpretation,
   descriptorProfiles,
-  hasEffectiveRuleConflict,
+  conflictingRules,
   ruleActions,
   ruleMatches,
 } from "@repo/finance";
@@ -135,15 +136,15 @@ export const loadReference = Effect.gen(function* () {
         ),
       ),
     );
-  const ownedAccounts =
-    yield* sql`SELECT id, kind, CASE WHEN length(account_number) >= 4 THEN right(regexp_replace(account_number, '\\D', '', 'g'), 4) END AS suffix FROM accounts`.pipe(
+  const accounts =
+    yield* sql`SELECT id, kind, account_number AS "accountNumber" FROM accounts`.pipe(
       Effect.flatMap(
         Schema.decodeUnknownEffect(
           Schema.Array(
             Schema.Struct({
               id: AccountId,
               kind: AccountKind,
-              suffix: Schema.NullOr(Schema.String),
+              accountNumber: Schema.NullOr(Schema.String),
             }),
           ),
         ),
@@ -175,7 +176,11 @@ export const loadReference = Effect.gen(function* () {
     counterparties: new Map<string, CounterpartyDefaults>(
       counterparties.map((counterparty) => [counterparty.id, counterparty]),
     ),
-    ownedAccounts,
+    ownedAccounts: accounts.map(({ id, kind, accountNumber }) => ({
+      id,
+      kind,
+      suffix: accountNumber ? accountSuffix(accountNumber) : null,
+    })),
   };
 });
 
@@ -193,7 +198,8 @@ export type DerivedChange = {
 };
 
 // A counterparty's defaults for one payment: its default for the payment's reference
-// when you set one, otherwise its own.
+// when you set one, otherwise its own. A reference default is always yours, so it
+// applies even while the model's counterparty waits for your answer.
 function counterpartyDefaults(
   reference: Reference,
   counterpartyId: typeof CounterpartyId.Type,
@@ -209,6 +215,7 @@ function counterpartyDefaults(
         ...counterparty,
         defaultRole: byReference.defaultRole,
         defaultCategoryId: byReference.defaultCategoryId,
+        applied: true,
       }
     : counterparty;
 }
@@ -284,6 +291,23 @@ export const reinterpret = Effect.fn("reinterpret")(function* (scope: EventScope
   return yield* writeDerivation(planDerivation(subjects, yield* loadReference));
 });
 
+// Bank structure reads a transfer from an own-account suffix only while one of your
+// accounts ends in it, so the events naming an account's suffix change when the account
+// gains that number.
+export const reinterpretOwnAccount = Effect.fn("reinterpretOwnAccount")(function* (
+  accountNumber: string,
+) {
+  const sql = yield* PgClient.PgClient;
+  const suffix = accountSuffix(accountNumber);
+  if (!suffix) return [];
+  const named =
+    yield* sql`SELECT e.id FROM events e JOIN posting_descriptors d ON d.posting_id = e.primary_posting_id
+      WHERE e.active AND d.own_account_suffix = ${suffix}`.pipe(
+      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: EventId })))),
+    );
+  return yield* reinterpret(named.map((row) => row.id));
+});
+
 // Rules claim events with a snapshot of themselves, so a later edit with future
 // scope leaves earlier applications as they were.
 export const claimRules = Effect.fn("claimRules")(function* ({
@@ -325,15 +349,23 @@ export const claimRules = Effect.fn("claimRules")(function* ({
   return claimed;
 });
 
-export function subjectRuleConflict(subject: Subject) {
+export function subjectConflictingRules(subject: Subject) {
   const [allocation, ...rest] = subject.allocations;
-  return hasEffectiveRuleConflict({
+  return conflictingRules({
     rules: subject.rules,
     roleLocked:
       subject.roleProtected || subject.roleSource === "user" || subject.roleSource === "link",
     categoryLocked: rest.length > 0 || allocation?.categorySource === "user",
   });
 }
+
+// What the rules claiming an event disagree about: its role, its category, or both.
+export const disputedValues = Effect.fn("disputedValues")(function* (eventId: typeof EventId.Type) {
+  const subjects = yield* loadSubjects([eventId]);
+  return subjects.flatMap((subject) =>
+    subjectConflictingRules(subject).map((rule) => rule.action.kind),
+  );
+});
 
 export function matchesSubject(
   rule: Rule,

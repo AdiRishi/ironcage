@@ -1,32 +1,32 @@
-import {
-  CommandId,
-  EventChange,
-  type EventId,
-  type Correction,
-  type UndoCorrection,
-} from "@repo/contracts/finance";
-import { financialRoleLabels } from "@repo/finance";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Effect, Schema } from "effect";
+import type { EventId, ReferenceData } from "@repo/contracts/finance";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
-import { useCommand } from "@/lib/use-command";
+import { HistoryEntry } from "@/features/history/entry";
+import { settingsQueryOptions } from "@/features/settings/queries";
 
-import { getCorrectionHistory, previewCorrection, undoCorrection } from "./functions";
-import { ImpactTables } from "./impact";
+import { eventHistoryQuery } from "./queries";
 
-export function EventHistory({ eventId }: { eventId: typeof EventId.Type }) {
-  const history = useQuery({
-    queryKey: ["corrections", eventId],
-    queryFn: () => getCorrectionHistory({ data: { eventId } }),
-  });
+// Every change that set something on this transaction, newest first: its own
+// corrections and the counterparty changes that reached it.
+export function EventHistory({
+  eventId,
+  references,
+}: {
+  eventId: typeof EventId.Type;
+  references: typeof ReferenceData.Type;
+}) {
+  const history = useQuery(eventHistoryQuery(eventId));
+  const { data: settings } = useSuspenseQuery(settingsQueryOptions());
   return (
-    <section className="space-y-4">
-      <h3 className="font-semibold">Correction history</h3>
-      {history.isPending && <output>Loading history…</output>}
+    <section aria-labelledby="event-history-heading" className="space-y-2">
+      <h3 id="event-history-heading" className="font-[560]">
+        History
+      </h3>
+      {history.isPending && <output className="text-slate">Loading history…</output>}
       {history.error && (
         <p role="alert">
-          {history.error.message}
+          {history.error.message}{" "}
           <Button
             variant="link"
             onClick={() => {
@@ -37,72 +37,24 @@ export function EventHistory({ eventId }: { eventId: typeof EventId.Type }) {
           </Button>
         </p>
       )}
-      {history.data?.length === 0 && <p className="type-small text-slate">No corrections yet.</p>}
-      {history.data?.map((correction) => (
-        <HistoryItem key={correction.id} correction={correction} />
-      ))}
-    </section>
-  );
-}
-function HistoryItem({ correction }: { correction: typeof Correction.Type }) {
-  const client = useQueryClient();
-  const preview = useMutation({
-    mutationFn: async () => {
-      const change = await Effect.runPromise(
-        Schema.decodeEffect(Schema.toType(EventChange))({
-          eventId: correction.eventId,
-          kind: correction.prior.kind,
-          purchaseOn: correction.prior.purchaseOn,
-          allocations: correction.prior.allocations,
-        }),
-      );
-      return previewCorrection({
-        data: { change: await Effect.runPromise(Schema.encodeEffect(EventChange)(change)) },
-      });
-    },
-  });
-  const { mutation, submit, uncertain } = useCommand({
-    mutationFn: (data: typeof UndoCorrection.Type) => undoCorrection({ data }),
-    onSuccess: async () => {
-      preview.reset();
-      await client.invalidateQueries();
-    },
-  });
-  return (
-    <article className="space-y-3 rounded-md border p-4">
-      <p className="text-sm">
-        {correction.createdAt} · {correction.scope === "undo" ? "Undo" : "Correction"} ·{" "}
-        {financialRoleLabels[correction.prior.kind]} →{" "}
-        {financialRoleLabels[correction.accepted.kind]} · {correction.accepted.allocations.length}{" "}
-        allocations
-      </p>
-      <Button
-        variant="outline"
-        disabled={preview.isPending || mutation.isPending || uncertain}
-        onClick={() => preview.mutate()}
-      >
-        {preview.isPending ? "Calculating…" : "Preview undo"}
-      </Button>
-      {preview.error && <p role="alert">{preview.error.message}</p>}
-      {preview.data && (
-        <>
-          <ImpactTables impacts={preview.data.impacts} />
-          <Button
-            disabled={mutation.isPending}
-            onClick={() => {
-              if (preview.data)
-                submit({
-                  commandId: CommandId.make(crypto.randomUUID()),
-                  correctionId: correction.id,
-                  expectedVersions: preview.data.expectedVersions,
-                });
-            }}
-          >
-            {uncertain ? "Retry undo" : "Confirm undo"}
-          </Button>
-        </>
+      {history.data?.entries.length === 0 && (
+        <p className="type-small text-slate">No changes yet.</p>
       )}
-      {mutation.error && <p role="alert">{mutation.error.message}</p>}
-    </article>
+      {history.data && history.data.entries.length > 0 && (
+        <ol className="divide-y divide-rule border-y border-rule">
+          {history.data.entries.map((entry) => (
+            <li key={entry.kind === "correction" ? entry.correction.id : entry.change.id}>
+              <HistoryEntry
+                entry={
+                  entry.kind === "correction" ? { ...entry, names: history.data.names } : entry
+                }
+                references={references}
+                timeZone={settings.timezone}
+              />
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   );
 }

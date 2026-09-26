@@ -22,7 +22,9 @@ export default defineConfig({
         extends: true,
         // Register server-function mocks before Vite follows their Worker-only imports.
         server: { preTransformRequests: false },
-        optimizeDeps: { exclude: ["@/server/api-client.server"] },
+        optimizeDeps: {
+          exclude: ["@/server/api-client.server", "@/server/analyst-client.server"],
+        },
         test: {
           name: "components",
           include: ["tests/**/*.test.tsx"],
@@ -30,7 +32,8 @@ export default defineConfig({
           browser: {
             enabled: true,
             headless: true,
-            provider: playwright(),
+            // East of UTC, a local midnight read through UTC falls on the day before.
+            provider: playwright({ contextOptions: { timezoneId: "Australia/Sydney" } }),
             instances: [{ browser: "chromium" }],
           },
         },

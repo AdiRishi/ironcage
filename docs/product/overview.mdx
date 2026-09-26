@@ -7,45 +7,55 @@ The overview is the home screen. It reads the selected period, which is the curr
 
 ## Headline
 
-Three figures lead the page: what came in, what went out, and what was left over, or the shortfall when more went out than came in. Money moved between your own accounts is in none of them; a line under the flow says how much moved. Under what went out, a line says how much of the spending rests on the model's judgement. A month in progress is labelled with the number of days elapsed. If an account's records stop partway through the period, the headline names the account and the missing dates.
+Three figures lead the page: what came in, what went out, and what was left over, or the shortfall when more went out than came in. Money moved between your own accounts is in none of them; a line under the flow says how much moved. Under what went out, a line says how much of the spending rests on the model's judgement. Under the title, a line says what the figures are compared with, and selecting it chooses another comparison, as on [Spending](/product/spending#comparing-periods). A month in progress is labelled with the number of days elapsed. If an account has no records for some days of the period, such as a card whose statement for the month is missing or an account whose records stop partway through, a line under the title names the account and those days. If the comparison period lacks records, a line names the account and the missing dates too. Each figure names the dates it is compared with, such as "$380 more than in August 2026", or says there are no records to compare with. For a period in progress those are only the same days, so September on the 25th reads "$380 more than in 1 to 25 August 2026".
+
+## Briefing
+
+For a month that has ended, the [analyst's briefing](/product/analyst#briefings) of it sits between the headline and the flow, while the analyst is on. It tells the month in four short parts: what came in, what went out, what changed from the month before, and what needs an answer. Each figure in it is a link to the screen that shows the same number, and a line under it states what the figures rest on, as under an answer, followed by their limits, such as an account with days missing. Ask about this briefing asks the analyst a new question about the month.
+
+The briefing loads after the rest of the overview, which never waits for it, and it shows only while the figures it was written from are still the ledger's. When they change, the section says the analyst is writing it again from your latest records. A month without a briefing offers Write the briefing, and one that could not be written says why and offers Write it again. When the briefing cannot be read, the section says why and offers Retry. A year, a range of months, and the month in progress have no briefing.
 
 ## Flow
 
-A flow diagram sits below the headline. Inflows enter from the left, grouped by source:
+A flow diagram sits below the headline and the briefing. Inflows enter from the left, grouped by source:
 
-- income, split by income category, such as salary and interest
+- income, split by top-level income category, such as salary and interest, with anything not yet categorised as its own stream
 - money borrowed
 - money from your accounts outside Ironcage
-- anything not yet interpreted
+- anything not yet understood, as "Not yet understood, incoming"
 
 Outflows leave to the right, grouped by destination:
 
 - spending, split into top-level categories, with anything not yet categorised as its own stream
 - loan principal: repayments less the interest already counted as spending
 - money sent to your accounts outside Ironcage, such as savings and investments
-- anything not yet interpreted
+- anything not yet understood, as "Not yet understood, outgoing"
 
 Refunds and reimbursements are not inflows. They reduce the spending they return, so a $300 dinner with $200 repaid is $100 of dining. Loan interest is spending in its category, not part of a loan stream.
 
-When more came in than went out, a "Kept" stream on the right balances the two sides. When more went out, a "From savings" stream on the left does. A button switches the diagram to a table of the same streams, and on a phone the streams are stacked bars.
+When more came in than went out, a "Kept" stream on the right balances the two sides. When more went out, a "From savings" stream on the left does. Either one equals the left-over figure or the shortfall in the headline. They have no records of their own, so they cannot be selected, and each says what it is: what came in less what went out, or what went out beyond what came in.
 
-The streams are proportional. Selecting a stream opens it: a spending category opens [Spending](/product/spending) at that category, and any other stream opens the [Ledger](/product/ledger) filtered to its records.
+A spending category where more came back than went out, such as a travel refund that arrives a month after the trip, is drawn on the left as "Travel, net money back" with the amount returned. What went out in the headline is already net of it, so the line above the diagram names it apart from the sources: "$9,000 came in from 2 sources, and $5,260 went out to 4 destinations after $300 in Travel came back."
+
+A button switches the diagram to a table of the same streams, grouped into what came in and what went out, and on a phone the streams are stacked bars. In the table and the bars, Ask about this beside each stream asks the [analyst](/product/analyst#asking) about it for the period, against the comparison. Kept and From savings have none.
+
+The streams are proportional. Selecting a stream opens the records behind it: a spending category opens [Spending](/product/spending) at that category, and any other stream opens the [Ledger](/product/ledger#opened-from-a-number) at the transactions it counts, with a total equal to the stream. Every stream except Kept and From savings can be selected in the diagram, the table, and the bars, by pointer or keyboard. Each one is named with its direction and amount, such as "Not yet categorised, $120 went out", so income and spending not yet categorised stay apart.
 
 The left-over figure is inflow minus outflow. It is not available cash.
 
 ## What changed
 
-Compared with the previous period of the same length, a short list names the largest changes in plain sentences. Each sentence has an amount and a link to its records.
+Compared with the comparison period chosen under the title, the period before unless you choose another, a short list names the largest changes in plain sentences. Its heading names the dates compared, such as "What changed compared with August 2026". Each sentence has an amount and a link to its records. When the comparison period has no records, the list says there is nothing to compare with instead of calling every category new.
 
 > Dining out rose $310 to $720. Eleven visits instead of six, and the average bill went from $58 to $65.
 
 > Electricity was $0 this month and $284 last month. The quarterly bill has not arrived yet.
 
-The sentences come from deterministic comparisons. The analyst can rewrite them into a briefing, but it never changes the numbers.
+The sentences come from deterministic comparisons. The briefing tells the same month in the analyst's words, and every number in it comes from the same calculations.
 
 ## Needs your eye
 
-If there are open questions, a count with the amount at stake links to [Questions](/product/questions), for example "6 questions affect $1,420 this month". Files that failed to import appear here too.
+This section counts the open questions with a transaction in the selected period and the money those transactions move in and out, such as "6 questions affect $1,420 in August 2026". A transaction belongs to the period by its spending date, as it does in the flow. Selecting the count opens [Questions](/product/questions#counts-and-periods) narrowed to the period, where the same questions add up to the same amount. With no question in the period, it says nothing in the period is waiting on you. Files that failed to import appear here too.
 
 ## Coverage
 
@@ -53,4 +63,4 @@ A thin strip per account shows which days in the period have records and whether
 
 ## First use
 
-Before any import, the overview explains which files to download from NetBank, and how, and links to [Sources](/product/sources) to upload them.
+Until the first file has imported, the overview explains which files to download from NetBank, and how, and links to [Sources](/product/sources) to upload them. Files still importing, waiting on you, or failed are listed above it, each with Retry or a link to review it. When the first file finishes, the overview opens on the latest month with records.

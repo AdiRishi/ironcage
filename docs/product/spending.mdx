@@ -5,24 +5,50 @@ description: Where money went, broken down as far as the evidence allows, and ho
 
 ## The breakdown
 
-Spending opens on the top-level categories for the selected period, largest first, each with its amount, its share, and a small line of the previous twelve months. Selecting a category opens its subcategories, then its counterparties, then the transactions. The path so far stays visible as a breadcrumb, so Food, then Dining out, then a specific restaurant is three selections away. The address holds the period and the open category, so a bookmark reopens the same view.
+Spending opens on the top-level categories for the selected period, largest first, each with its amount, its share of the spending, and a sparkline of the twelve months that end with the selected period. A row that took money back, such as a repayment not yet linked to its purchase, has no share, and the others' shares are of what was spent. Selecting a category opens its subcategories, then its counterparties, then the transactions. The path so far stays visible as a breadcrumb, so Food, then Dining out, then a specific restaurant is three selections away. The rows add up to the number above them: every part of it is listed, however small.
+
+Every piece of spending has a way down:
+
+- A category with subcategories also lists what sits on the category itself, such as "Food, unspecified". It opens its counterparties, like a subcategory with none below it.
+- "Not yet categorised" opens the counterparties of spending that has no category yet.
+- "Unidentified" holds the spending whose counterparty is not known. It opens its transactions like any counterparty.
+
+The last level keeps the header and chart for that counterparty and lists the transactions under them, each with what it counts toward the number on the day it counts, and Show older for earlier ones. See these transactions in the ledger, under the total at every level, opens the same records in the [ledger](/product/ledger#opened-from-a-number), where they can be filtered further. At the level of one counterparty, Open the page for Dinner Place sits beside it and leads to [that counterparty](/product/counterparties#a-counterparty), where its default category can be changed.
+
+Ask about this, under the total and at the end of each row, asks the [analyst](/product/analyst#asking) about that scope in the period, against the comparison, narrowed to the same trip or tag.
+
+The address holds the period, the comparison, the category, whether only what sits on it counts, and the counterparty, so a bookmark reopens the same view.
 
 Every level shows the same four facts:
 
 - the amount for the period
-- the change against the comparison period, as an amount and a percentage, or "new" when the earlier period was zero
-- how many purchases, and the average purchase
-- how much of the amount rests on the model's judgment and not on you, a rule, or the bank
+- the change against the comparison period, as an amount and a percentage, "new" when the earlier period was zero, or the amount alone when refunds outweighed spending in the earlier period
+- how many purchases, and the average purchase: what the purchases cost, less refunds linked to them, divided by their number. Interest, fees, and refunds not tied to a purchase are spending but not purchases, so they stay out of the average
+- how much of the amount rests on the model's judgment and not on you, a rule, or the bank, such as "$410 of this is model-assigned" beside a hollow ring
+
+## One trip or tag
+
+The address can narrow spending to one personal event or tag, so "how much did the Japan trip cost?" is a number on this screen. Only the parts of purchases that carry it count, less the refunds linked to them. A line under the title names the trip or tag and offers all the spending in the scope again, and the path, the rows, and the ledger link all stay narrowed.
 
 ## Comparing periods
 
-The comparison period defaults to the previous period of the same length. A month in progress compares with the same number of days of the previous month. You can choose the same period last year or any custom range.
+A line under the title says what the period is compared with, such as "Compared with August 2026". For a month in progress it reads "25 days so far, compared with the same days of August 2026", and March in progress on the 30th compares with all of February. Selecting the comparison offers:
 
-A change splits into two parts: more purchases and dearer purchases. "Delivery rose $100: $45 from two more orders and $55 from a higher average order" means 10 orders at $20 became 12 orders at $25.
+- the period before, with the same number of months, which is the default
+- the same period last year
+- chosen dates, picked on a calendar with both days included
+
+Compare applies the choice. It stays in the address and carries over to the overview, so both screens compare the same dates. Every change names the dates it is compared with: "$310 more than in August 2025, which was $1,200". For a period in progress those are the same days, so 2026 on 25 September reads "$310 more than in 1 January to 25 September 2025, which was $1,200".
+
+Days without records are not zero spending. When an account has no records for some days of the period, such as a card whose statement for the month is missing, a line under the title names the account and those days, because the total leaves them out. When an account has no records for part of the comparison period, a line names the account and the dates, and the comparison leaves those days out. When the comparison period has no records at all, the page says there are no records to compare with, and each row shows "No records" in place of a change.
+
+A change splits into more purchases, dearer purchases, and everything else, such as interest or a refund not tied to a purchase. "Delivery rose $90: $45 from two more orders, $55 from a higher average order, and −$10 from a refund" means 10 orders at $20 became 12 orders at $25, less a $10 refund.
 
 ## Over time
 
-A chart beside the total shows the open category, or all spending, over the twelve months that end with the selected period, and each row has the same twelve months as a sparkline. The period strip shows all spending across the whole history. Months with missing coverage are drawn as an outline and are not read as zero.
+A chart beside the total shows the open category, counterparty, or all spending over the twelve months that end with the selected period, with the selected months inked. Show as a table lists the same months with their amounts. The chart adds up the whole scope, not only the rows listed, so a month where only an unlisted part spent still counts. Each row has the same twelve months as a sparkline. On this screen the period strip draws each month's spending across the whole history.
+
+A month without records is a dashed outline labelled "no records", never a zero bar. A month with some records missing, such as one without its card statement, is an outline at the height its records reach, because what it shows is less than it spent. The chart, the sparklines, and the strip all draw months this way.
 
 ## Mixed retailers
 

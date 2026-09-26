@@ -7,10 +7,16 @@ import { Effect } from "effect";
 
 import { api, type ApiOperations } from "../../workers/api/src/index.ts";
 
-export type { WebOperation } from "../../workers/api/src/index.ts";
+export type { AnalystOperation, WebOperation } from "../../workers/api/src/index.ts";
+
+// The API's operations as another Worker's binding reaches them.
+export type ApiClient<Operation extends keyof ApiOperations> = WorkerClient<
+  Pick<ApiOperations, Operation>
+>;
 import { workerCompatibility, workerObservability } from "./cloudflare-config.ts";
 import { localPostgres } from "./database/local.ts";
 import { apiBindings } from "./worker-bindings.ts";
+import type { WorkerClient } from "./worker-client.ts";
 
 export const financialStorage = Effect.gen(function* () {
   if (globalThis.__ALCHEMY_RUNTIME__) {

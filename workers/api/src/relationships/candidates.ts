@@ -7,6 +7,7 @@ import {
 import { isCost, remainingAllocation } from "@repo/finance";
 import { Effect, Schema } from "effect";
 
+import { containsText } from "../database/columns.ts";
 import { readEvent } from "../events/repository.ts";
 import { readCredits } from "./repository.ts";
 
@@ -26,7 +27,7 @@ export const relationshipCandidates = Effect.fn("relationshipCandidates")(functi
     ? sql`AND (p.posted_on,p.id)<(${input.cursor.postedOn}::date,${input.cursor.id}::uuid)`
     : sql``;
   const ids =
-    yield* sql`SELECT e.id FROM events e JOIN postings p ON p.id=e.primary_posting_id WHERE e.active AND e.id<>${event.id} AND e.currency=${event.magnitude.currency} AND ${role} AND p.description ILIKE ${`%${input.search}%`} ${cursor} ORDER BY p.posted_on DESC,p.id DESC LIMIT 51`.pipe(
+    yield* sql`SELECT e.id FROM events e JOIN postings p ON p.id=e.primary_posting_id WHERE e.active AND e.id<>${event.id} AND e.currency=${event.magnitude.currency} AND ${role} AND ${containsText(sql, sql("p.description"), input.search)} ${cursor} ORDER BY p.posted_on DESC,p.id DESC LIMIT 51`.pipe(
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: EventId })))),
     );
   const events = yield* Effect.forEach(ids.slice(0, 50), (row) => readEvent(row.id));

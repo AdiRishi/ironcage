@@ -1,4 +1,4 @@
-import { CalendarDate, type FlowInput } from "@repo/contracts/finance";
+import type { FlowInput, MonthlyFlow } from "@repo/contracts/finance";
 import { useSuspenseInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -10,17 +10,17 @@ import { useImportCompletion } from "@/features/imports/use-import-completion";
 import { settingsQueryOptions } from "@/features/settings/queries";
 import { SourcesPage } from "@/features/sources/page";
 import { sourceFilesQueryOptions } from "@/features/sources/queries";
-import { periodRange, resolvePeriodKey } from "@/lib/period";
+import { currentMonth } from "@/lib/period";
 
-// The whole history, from the first month with records to the end of this month.
-function historyInput(firstMonth: string | undefined, currency: string): FlowInput {
-  const { start, endExclusive } = periodRange(resolvePeriodKey(undefined));
+// The whole history, from the first month with records through today.
+function historyInput(
+  months: typeof MonthlyFlow.Type,
+  timezone: string,
+  currency: string,
+): FlowInput {
+  const current = currentMonth(timezone);
   return {
-    period: {
-      kind: "fixed",
-      start: firstMonth ? CalendarDate.make(`${firstMonth}-01`) : start,
-      endExclusive,
-    },
+    period: { kind: "months", from: months[0]?.month ?? current, to: current },
     comparison: { kind: "previous" },
     basis: "spending",
     currency,
@@ -35,7 +35,7 @@ export const Route = createFileRoute("/sources/")({
     );
     await Promise.all([
       context.queryClient.ensureQueryData(
-        periodFlowQuery(historyInput(months[0]?.month, settings.reportingCurrency)),
+        periodFlowQuery(historyInput(months, settings.timezone, settings.reportingCurrency)),
       ),
       context.queryClient.ensureInfiniteQueryData(importsQueryOptions()),
       context.queryClient.ensureQueryData(sourceFilesQueryOptions()),
@@ -50,7 +50,7 @@ function Sources() {
   const { data: settings } = useSuspenseQuery(settingsQueryOptions());
   const { data: months } = useSuspenseQuery(monthlyFlowQuery(settings.reportingCurrency));
   const { data: flow } = useSuspenseQuery(
-    periodFlowQuery(historyInput(months[0]?.month, settings.reportingCurrency)),
+    periodFlowQuery(historyInput(months, settings.timezone, settings.reportingCurrency)),
   );
   const history = useSuspenseInfiniteQuery(importsQueryOptions());
   const imports = history.data.pages.flatMap((page) => page.rows);

@@ -2,29 +2,34 @@ import {
   ApplyCorrection,
   CommandId,
   type Counterparty,
-  type CounterpartyId,
   type FinancialEvent,
+  type PostingDetail,
   type PostingId,
   type ReferenceData,
-  type SaveCounterparty,
 } from "@repo/contracts/finance";
-import { financialRoleLabels } from "@repo/finance";
-import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { financialRoleLabels, patchEvent } from "@repo/finance";
+import { useQuery, useQueryClient, useSuspenseQueries } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Array as Arr, Effect, Schema } from "effect";
-import { useId, useState } from "react";
+import { Array as Arr, Effect, Result, Schema } from "effect";
+import { useDeferredValue, useId, useState } from "react";
 
 import { CategorySelect } from "@/components/category-select";
 import { ProvenanceMark } from "@/components/provenance";
 import { Button } from "@/components/ui/button";
-import { saveCounterparty } from "@/features/counterparties/functions";
+import { ChangePreview } from "@/features/counterparties/change-preview";
 import { counterpartyQuery } from "@/features/counterparties/queries";
+import { useCounterpartyChange } from "@/features/counterparties/use-counterparty-change";
 import { EventEditor } from "@/features/events/editor";
 import { applyCorrection } from "@/features/events/functions";
 import { EventHistory } from "@/features/events/history";
 import { eventForPostingQuery, referenceDataQuery } from "@/features/events/queries";
 import { RelationshipsPanel } from "@/features/relationships/panel";
 import { useCommand } from "@/lib/use-command";
+import { useFocusRequest } from "@/lib/use-focus-request";
+
+import { CounterpartyChange } from "./counterparty-change";
+
+type Descriptor = (typeof PostingDetail.Type)["descriptor"];
 
 type Source = "you" | "rule" | "model" | "bank" | "none";
 
@@ -49,7 +54,13 @@ function sourceOf(
 
 // The first layer of a transaction: who it was with, what role it played, and which
 // category it belongs to, each with who decided it.
-export function Meaning({ postingId }: { postingId: typeof PostingId.Type }) {
+export function Meaning({
+  postingId,
+  descriptor,
+}: {
+  postingId: typeof PostingId.Type;
+  descriptor: Descriptor;
+}) {
   const event = useQuery(eventForPostingQuery(postingId));
   const references = useQuery(referenceDataQuery());
   if (event.isPending || references.isPending) return <p className="text-slate">Loading…</p>;
@@ -57,39 +68,26 @@ export function Meaning({ postingId }: { postingId: typeof PostingId.Type }) {
     return <p role="alert">{(event.error ?? references.error)?.message}</p>;
   if (!event.data)
     return <p className="text-slate">This transaction has not been interpreted yet.</p>;
-  return event.data.counterpartyId ? (
-    <WithCounterparty
-      event={event.data}
-      references={references.data}
-      counterpartyId={event.data.counterpartyId}
-    />
-  ) : (
-    <MeaningDetail event={event.data} references={references.data} counterparty={null} />
-  );
-}
-
-function WithCounterparty({
-  event,
-  references,
-  counterpartyId,
-}: {
-  event: FinancialEvent;
-  references: typeof ReferenceData.Type;
-  counterpartyId: typeof CounterpartyId.Type;
-}) {
-  const { data } = useSuspenseQuery(counterpartyQuery(counterpartyId));
-  return <MeaningDetail event={event} references={references} counterparty={data.counterparty} />;
+  return <MeaningDetail event={event.data} descriptor={descriptor} references={references.data} />;
 }
 
 function MeaningDetail({
-  event,
+  event: current,
+  descriptor,
   references,
-  counterparty,
 }: {
   event: FinancialEvent;
+  descriptor: Descriptor;
   references: typeof ReferenceData.Type;
-  counterparty: Counterparty | null;
 }) {
+  // A change can leave the transaction with a counterparty this page has not loaded. The
+  // deferred event keeps the transaction on screen as it was until that counterparty
+  // loads. Suspending instead would blank the page and drop keyboard focus.
+  const event = useDeferredValue(current);
+  const [detail] = useSuspenseQueries({
+    queries: Arr.fromNullishOr(event.counterpartyId).map((id) => counterpartyQuery(id)),
+  });
+  const counterparty = detail?.data.counterparty ?? null;
   const [editing, setEditing] = useState(false);
   const [allocation] = event.allocations;
   const split = event.allocations.length > 1;
@@ -127,6 +125,9 @@ function MeaningDetail({
                 }
                 question={counterparty.status === "proposed"}
               />
+            )}
+            {event.active && (
+              <CounterpartyChange event={event} descriptor={descriptor} references={references} />
             )}
           </span>
           {counterparty?.source === "model" && counterparty.reason && (
@@ -188,13 +189,13 @@ function MeaningDetail({
         <EventEditor event={event} references={references} onClose={() => setEditing(false)} />
       )}
       <RelationshipsPanel event={event} />
-      <EventHistory eventId={event.id} />
+      <EventHistory eventId={event.id} references={references} />
     </section>
   );
 }
 
 // Changing one transaction's category asks whether the counterparty's default should
-// change instead, which applies it to every transaction from them.
+// change instead, which applies it to every transaction from them after a preview.
 function CategoryChange({
   event,
   references,
@@ -210,21 +211,27 @@ function CategoryChange({
 }) {
   const id = useId();
   const client = useQueryClient();
+  // The choice below the select comes and goes, and the select is disabled while a change
+  // saves, so focus returns to the select once the choice is settled and moves to the
+  // apply button when a preview arrives.
+  const [selectRef, requestSelect] = useFocusRequest<HTMLSelectElement>();
+  const [applyRef, requestApply] = useFocusRequest<HTMLButtonElement>();
   const [pending, setPending] = useState<typeof current | undefined>(undefined);
-  const refresh = () => client.invalidateQueries();
+  const settle = () => {
+    requestSelect();
+    setPending(undefined);
+  };
   const correction = useCommand({
     mutationFn: async (data: typeof ApplyCorrection.Type) =>
       applyCorrection({
         data: await Effect.runPromise(Schema.encodeEffect(ApplyCorrection)(data)),
       }),
-    onSuccess: refresh,
+    onSuccess: () => client.invalidateQueries(),
   });
-  const counterpartyDefault = useCommand({
-    mutationFn: (data: typeof SaveCounterparty.Type) => saveCounterparty({ data }),
-    onSuccess: refresh,
-  });
+  const everywhere = useCounterpartyChange(settle);
   const tree = event.kind === "income" ? "income" : "spending";
   const choose = (value: typeof current) => {
+    everywhere.reset();
     if (value === current) return setPending(undefined);
     if (counterparty) return setPending(value);
     applyOnlyThis(value);
@@ -233,31 +240,30 @@ function CategoryChange({
     correction.submit({
       commandId: CommandId.make(crypto.randomUUID()),
       expectedVersions: [{ eventId: event.id, version: event.version }],
-      change: {
-        eventId: event.id,
-        kind: event.kind,
-        purchaseOn: event.purchaseOn,
-        allocations: Arr.map(event.allocations, (row) => ({ ...row, categoryId: value })),
-      },
+      // The category is chosen here only for a transaction that is not split.
+      change: Result.getOrThrow(patchEvent(event, { categoryId: value })),
     });
-    setPending(undefined);
+    settle();
   };
-  const applyEverywhere = (value: typeof current) => {
-    if (!counterparty) return;
-    counterpartyDefault.submit({
-      commandId: CommandId.make(crypto.randomUUID()),
-      target: { kind: "update", id: counterparty.id, expectedVersion: counterparty.version },
-      fields: {
-        name: counterparty.name,
-        kind: counterparty.kind,
-        brand: counterparty.brand,
-        defaultCategoryId: value,
-        defaultRole: counterparty.defaultRole,
-      },
-    });
-    setPending(undefined);
+  const previewEverywhere = (value: typeof current) => {
+    requestApply();
+    if (counterparty)
+      everywhere.preview({
+        kind: "update",
+        counterpartyId: counterparty.id,
+        expectedVersion: counterparty.version,
+        fields: {
+          name: counterparty.name,
+          kind: counterparty.kind,
+          brand: counterparty.brand,
+          defaultCategoryId: value,
+          defaultRole: counterparty.defaultRole,
+        },
+      });
   };
-  const busy = correction.mutation.isPending || counterpartyDefault.mutation.isPending;
+  const busy = correction.mutation.isPending || everywhere.pending || everywhere.uncertain;
+  const error = correction.mutation.error ?? everywhere.error;
+  const previewed = everywhere.previewed;
   return (
     <div className="space-y-2">
       <span className="flex items-center gap-2">
@@ -265,6 +271,7 @@ function CategoryChange({
           Category
         </label>
         <CategorySelect
+          ref={selectRef}
           id={id}
           categories={references.categories}
           tree={tree}
@@ -274,14 +281,14 @@ function CategoryChange({
         />
         <ProvenanceMark assignedBy={source} />
       </span>
-      {pending !== undefined && counterparty && (
+      {pending !== undefined && counterparty && !previewed && (
         <fieldset className="flex flex-wrap items-center gap-2">
           <legend className="sr-only">Where the change applies</legend>
           <span aria-hidden className="type-small text-slate">
             Apply to
           </span>
-          <Button size="sm" onClick={() => applyEverywhere(pending)} disabled={busy}>
-            Every {counterparty.name} transaction
+          <Button size="sm" onClick={() => previewEverywhere(pending)} disabled={busy}>
+            {everywhere.previewing ? "Calculating…" : `Every ${counterparty.name} transaction`}
           </Button>
           <Button
             size="sm"
@@ -291,14 +298,45 @@ function CategoryChange({
           >
             Only this one
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setPending(undefined)} disabled={busy}>
+          <Button size="sm" variant="ghost" onClick={settle} disabled={busy}>
             Cancel
           </Button>
         </fieldset>
       )}
-      {(correction.mutation.error ?? counterpartyDefault.mutation.error) && (
+      {counterparty && previewed && (
+        <div className="space-y-3">
+          <ChangePreview eventCount={previewed.eventCount} impacts={previewed.impacts} />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              ref={applyRef}
+              size="sm"
+              onClick={everywhere.confirm}
+              disabled={everywhere.pending}
+              focusableWhenDisabled
+            >
+              {everywhere.pending
+                ? "Saving…"
+                : everywhere.uncertain
+                  ? "Retry"
+                  : `Apply to all ${counterparty.name} transactions`}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => {
+                everywhere.reset();
+                settle();
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+      {error && (
         <p role="alert" className="type-small text-attention">
-          {(correction.mutation.error ?? counterpartyDefault.mutation.error)?.message}
+          {error.message}
         </p>
       )}
     </div>

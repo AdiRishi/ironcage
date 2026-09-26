@@ -1,12 +1,15 @@
+import { FinanceError } from "@repo/contracts/finance";
 import type { Input } from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import { PostgresLayer } from "alchemy/SQL/Postgres";
 import { Effect } from "effect";
 
-import type { Api, financialStorage } from "./api.ts";
+import { AnalystGateway, type Analyst } from "./analyst.ts";
+import { Api, type AnalystOperation, type ApiClient, type financialStorage } from "./api.ts";
 import { retentionPolicy } from "./database/retention.ts";
 import type { DeploymentConfig } from "./deployment-config.ts";
-import { EnrichmentGateway, enrichmentProvider } from "./enrichment.ts";
+import { EnrichmentGateway } from "./enrichment.ts";
+import { modelProviders } from "./models.ts";
 import {
   EnrichmentWorkflow,
   ExportWorkflow,
@@ -22,7 +25,7 @@ export const apiBindings = Effect.fn("ApplicationPlatform.ApiBindings")(function
   const sources = yield* Cloudflare.R2.ReadWriteBucket(storage.sources);
   const processor = yield* Cloudflare.Workers.bindWorker(Processor);
   return {
-    enrichmentProvider,
+    modelProviders,
     retention: yield* retentionPolicy,
     sources,
     exports: yield* Cloudflare.R2.ReadWriteBucket(storage.exports),
@@ -42,12 +45,22 @@ export const processorBindings = Effect.fn("ApplicationPlatform.ProcessorBinding
 export const enrichmentBindings = Effect.fn("ApplicationPlatform.EnrichmentBindings")(function* () {
   return yield* Cloudflare.AI.QueryGateway(EnrichmentGateway);
 });
+export const conversationBindings = Effect.fn("ApplicationPlatform.ConversationBindings")(
+  function* () {
+    const api: ApiClient<AnalystOperation> = yield* Cloudflare.Workers.bindWorker(Api, {
+      errors: [FinanceError],
+    });
+    return { api, gateway: yield* Cloudflare.AI.QueryGateway(AnalystGateway) };
+  },
+);
 export const websiteBindings = (
   environment: DeploymentConfig["environment"],
   api: Effect.Success<typeof Api>,
+  analyst: Effect.Success<typeof Analyst>,
   access: { issuer: string; audience: Input<string> },
 ) => ({
   API: api,
+  ANALYST: analyst,
   ENVIRONMENT: environment,
   ACCESS_ISSUER: access.issuer,
   ACCESS_AUDIENCE: access.audience,

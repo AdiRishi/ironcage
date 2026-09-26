@@ -1,7 +1,6 @@
 import { PgClient } from "@effect/sql-pg";
 import {
   Correction,
-  CorrectionHistory,
   EventId,
   type FinancialEvent,
   FinanceError,
@@ -31,23 +30,24 @@ export const checkEventVersions = Effect.fn("checkEventVersions")(function* (
       message: "The interpretation changed. Keep your edit and preview it again.",
     });
 });
-export const correctionHistory = Effect.fn("correctionHistory")(function* (
+export const readCorrections = Effect.fn("readCorrections")(function* (
   eventId: typeof EventId.Type,
 ) {
   const sql = yield* PgClient.PgClient;
-  return yield* sql`SELECT id, event_id AS "eventId", command_id AS "commandId", prior, accepted, scope, ${instant(sql, sql("created_at"))} AS "createdAt" FROM corrections WHERE event_id = ${eventId} ORDER BY created_at DESC, id DESC`.pipe(
-    Effect.flatMap(Schema.decodeUnknownEffect(CorrectionHistory)),
+  return yield* sql`SELECT id, event_id AS "eventId", command_id AS "commandId", prior, accepted, action, change, ${instant(sql, sql("created_at"))} AS "createdAt" FROM corrections WHERE event_id = ${eventId} ORDER BY created_at DESC, id DESC`.pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Correction))),
   );
 });
 export const recordCorrection = Effect.fn("recordCorrection")(function* ({
   prior,
   accepted,
   commandId,
-  scope,
-}: Pick<typeof Correction.Type, "prior" | "accepted" | "commandId" | "scope">) {
+  action,
+  change,
+}: Pick<typeof Correction.Type, "prior" | "accepted" | "commandId" | "action" | "change">) {
   const sql = yield* PgClient.PgClient;
   const crypto = yield* Crypto.Crypto;
-  yield* sql`INSERT INTO corrections (id, event_id, command_id, prior, accepted, scope) VALUES (${yield* crypto.randomUUIDv4}, ${prior.id}, ${commandId}, ${sql.json(yield* Schema.encodeEffect(Schema.toCodecJson(Correction.fields.prior))(prior))}, ${sql.json(yield* Schema.encodeEffect(Schema.toCodecJson(Correction.fields.accepted))(accepted))}, ${scope})`;
+  yield* sql`INSERT INTO corrections (id, event_id, command_id, prior, accepted, action, change) VALUES (${yield* crypto.randomUUIDv4}, ${prior.id}, ${commandId}, ${sql.json(yield* Schema.encodeEffect(Schema.toCodecJson(Correction.fields.prior))(prior))}, ${sql.json(yield* Schema.encodeEffect(Schema.toCodecJson(Correction.fields.accepted))(accepted))}, ${action}, ${change})`;
 });
 
 export const validateEventRelationships = Effect.fn("validateEventRelationships")(function* (

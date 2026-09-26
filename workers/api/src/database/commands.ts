@@ -7,15 +7,14 @@ import type { SqlError } from "effect/unstable/sql";
 import { toFinanceError } from "./failures.ts";
 import { writeTransaction } from "./transactions.ts";
 
+// What a command's database work can fail with.
+export type WriteFailure = FinanceError | SqlError.SqlError | Schema.SchemaError | PlatformError;
+
 interface Command<A, R> {
   readonly commandId: typeof CommandId.Type;
   readonly input: Schema.Json;
   readonly result: Schema.Codec<A, Schema.Json>;
-  readonly execute: Effect.Effect<
-    A,
-    FinanceError | SqlError.SqlError | Schema.SchemaError | PlatformError,
-    R
-  >;
+  readonly execute: Effect.Effect<A, WriteFailure, R>;
 }
 const Receipt = Schema.Struct({ inputHash: Schema.String, result: Schema.Json });
 const encodeJson = Schema.encodeEffect(Schema.fromJsonString(Schema.Json));

@@ -7,6 +7,7 @@ import { expect } from "vitest";
 
 import { Flows } from "../../src/analysis/flows.ts";
 import { FactRebuilds } from "../../src/analysis/rebuild.ts";
+import { Models } from "../../src/models/service.ts";
 import { applicationServices, applicationTest } from "../support/application.ts";
 import {
   PopulatedFixture,
@@ -66,6 +67,22 @@ test(
         yield* sql`SELECT e.id FROM events e JOIN allocations a ON a.event_id = e.id WHERE e.active
           GROUP BY e.id, e.magnitude_minor HAVING sum(a.amount_minor) <> e.magnitude_minor`;
       expect(unbalanced).toEqual([]);
+      // The fixture holds the split and the salary's category as corrections, and the
+      // salary's as undone. Each set the allocations.
+      const corrections =
+        yield* sql`SELECT action, change, count(*)::int AS count FROM corrections GROUP BY 1, 2 ORDER BY 1, 2`.pipe(
+          Effect.flatMap(
+            Schema.decodeUnknownEffect(
+              Schema.Array(
+                Schema.Struct({ action: Schema.String, change: Schema.String, count: Schema.Int }),
+              ),
+            ),
+          ),
+        );
+      expect(corrections).toEqual([
+        { action: "correct", change: "allocations", count: 2 },
+        { action: "undo", change: "allocations", count: 1 },
+      ]);
 
       // July's spending, counted by hand from the fixture: rent 1,840.00, groceries
       // 84.50, dinner 300.00 less the 200.00 linked repayment, two 120.00 purchases,
@@ -85,6 +102,15 @@ test(
       });
       expect(july.totals.spending.minor).toBe(506450n);
       expect(july.totals.income.minor).toBe(500000n);
+
+      // The fixture changed identification's settings from their defaults, and the
+      // analyst came later.
+      expect(yield* (yield* Models).settings).toMatchObject({
+        enrichment: { enabled: true, autoApplyConfidence: 0.75 },
+        analyst: { enabled: false },
+        warning: { currency: "USD", minor: 1500n },
+        version: 2,
+      });
     }).pipe(Effect.provide(services));
     yield* admin(`DROP DATABASE ${database} WITH (FORCE)`);
   }),

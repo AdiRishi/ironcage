@@ -25,6 +25,7 @@
       "dependsOn": ["^typecheck"],
       "inputs": [
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/workers/analyst/src/**",
         "$TURBO_ROOT$/workers/api/src/**",
         "$TURBO_ROOT$/workers/processor/src/**"
       ]

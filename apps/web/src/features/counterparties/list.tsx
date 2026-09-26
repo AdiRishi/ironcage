@@ -1,44 +1,228 @@
-import type { CounterpartyList, ReferenceData } from "@repo/contracts/finance";
+import type {
+  CounterpartyList,
+  CounterpartySummary,
+  FlowDirection,
+  ReferenceData,
+} from "@repo/contracts/finance";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { createColumnHelper, metaHelper, tableFeatures, useTable } from "@tanstack/react-table";
+import { cn } from "cn";
+import { useMemo, useState } from "react";
 
 import { Amount } from "@/components/amount";
 import { ProvenanceMark } from "@/components/provenance";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { categoryColor } from "@/lib/category-colors";
-import type { ResolvedPeriod } from "@/lib/period";
+import type { PeriodChoice } from "@/lib/period";
 
-const kindLabels = {
-  business: "Business",
-  person: "Person",
-  ownAccount: "Your account",
-  institution: "Institution",
-} as const;
+import { kindLabels } from "./choices";
+
+type Summary = typeof CounterpartySummary.Type;
+type Categories = (typeof ReferenceData.Type)["categories"];
+
+const directions = [
+  { value: "out", label: "Money out", amount: "Paid" },
+  { value: "in", label: "Money in", amount: "Received" },
+] as const satisfies ReadonlyArray<{ value: FlowDirection; label: string; amount: string }>;
+
+// `rowHeader` renders the column's cells as the row's header, which names the row.
+const features = tableFeatures({
+  columnMeta: metaHelper<{ className: string; rowHeader?: boolean }>(),
+});
+const helper = createColumnHelper<typeof features, Summary>();
+const narrow = "max-sm:hidden";
+
+function columnsFor(direction: (typeof directions)[number], categories: Categories) {
+  const outgoing = direction.value === "out";
+  return helper.columns([
+    helper.display({
+      id: "name",
+      header: "Counterparty",
+      meta: { className: "w-full max-w-0", rowHeader: true },
+      cell: ({ row: { original: row } }) => (
+        <span className="flex min-w-0 items-center gap-2">
+          <Link
+            to="/counterparties/$counterpartyId"
+            params={{ counterpartyId: row.id }}
+            className="truncate rounded-sm font-[520] hover:text-intaglio hover:underline"
+          >
+            {row.name}
+          </Link>
+          <ProvenanceMark
+            assignedBy={row.source === "user" ? "you" : "model"}
+            question={row.status === "proposed" || (row.kind === "person" && !row.defaultRole)}
+          />
+        </span>
+      ),
+    }),
+    helper.display({
+      id: "kind",
+      header: "Kind",
+      meta: { className: `${narrow} whitespace-nowrap text-slate` },
+      cell: ({ row }) => kindLabels[row.original.kind],
+    }),
+    helper.display({
+      id: "category",
+      header: "Usual category",
+      meta: { className: "max-w-40" },
+      cell: ({ row }) => {
+        const category = categories.find((item) => item.id === row.original.defaultCategoryId);
+        return category ? (
+          <span className="flex min-w-0 items-center gap-2">
+            <span
+              aria-hidden
+              className="size-2 shrink-0 rounded-[2px]"
+              style={{ background: categoryColor(category.slug) }}
+            />
+            <span className="truncate">{category.name}</span>
+          </span>
+        ) : (
+          <span className="text-slate">None</span>
+        );
+      },
+    }),
+    helper.display({
+      id: "count",
+      header: "Transactions",
+      meta: { className: `${narrow} text-right tabular` },
+      cell: ({ row }) => (outgoing ? row.original.outflowEvents : row.original.inflowEvents),
+    }),
+    helper.display({
+      id: "amount",
+      header: direction.amount,
+      meta: { className: "text-right tabular whitespace-nowrap" },
+      cell: ({ row }) => (
+        <Amount value={outgoing ? row.original.outflow : row.original.inflow} cents={false} />
+      ),
+    }),
+  ]);
+}
+
+// Counterparties in one direction, largest amount first. One whose refunds exceed its
+// purchases comes last, with its net amount.
+function CounterpartyTable({
+  rows,
+  direction,
+  categories,
+}: {
+  rows: typeof CounterpartyList.Type;
+  direction: (typeof directions)[number];
+  categories: Categories;
+}) {
+  const columns = useMemo(() => columnsFor(direction, categories), [direction, categories]);
+  const table = useTable({ features, columns, data: rows, getRowId: (row) => row.id });
+  return (
+    <Table>
+      <TableHeader>
+        {table.getHeaderGroups().map((group) => (
+          <TableRow key={group.id} className="border-rule hover:bg-transparent">
+            {group.headers.map((header) => (
+              <TableHead
+                key={header.id}
+                scope="col"
+                className={cn(
+                  "px-0 pl-4 type-small font-normal text-slate first:pl-0",
+                  header.column.columnDef.meta?.className,
+                )}
+              >
+                <table.FlexRender header={header} />
+              </TableHead>
+            ))}
+          </TableRow>
+        ))}
+      </TableHeader>
+      <TableBody>
+        {table.getRowModel().rows.map((row) => (
+          <TableRow key={row.id} className="border-rule hover:bg-sheet">
+            {row.getAllCells().map((cell) => {
+              const meta = cell.column.columnDef.meta;
+              return meta?.rowHeader ? (
+                <TableHead
+                  key={cell.id}
+                  scope="row"
+                  className={cn("h-auto px-0 py-3 font-normal", meta.className)}
+                >
+                  <table.FlexRender cell={cell} />
+                </TableHead>
+              ) : (
+                <TableCell key={cell.id} className={cn("px-0 py-3 pl-4", meta?.className)}>
+                  <table.FlexRender cell={cell} />
+                </TableCell>
+              );
+            })}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+// The list holds only counterparties with money in the tab's direction, so without a search
+// an empty tab either had no money move that way or has nobody identified behind it.
+function EmptyTab({
+  direction,
+  period,
+  search,
+  moneyMoved,
+}: {
+  direction: FlowDirection;
+  period: PeriodChoice;
+  search: string;
+  moneyMoved: boolean;
+}) {
+  if (search) return `No counterparties match “${search}” in ${period.label}.`;
+  if (!moneyMoved)
+    return `Nothing ${direction === "out" ? "went out" : "came in"} during ${period.label}.`;
+  return (
+    <>
+      Ironcage has not identified anyone {direction === "out" ? "you paid" : "who paid you"} in{" "}
+      {period.label}. Run counterparty identification in{" "}
+      <Link
+        to="/settings"
+        hash="identification"
+        className="text-intaglio underline underline-offset-4"
+      >
+        Settings
+      </Link>
+      , or answer{" "}
+      <Link to="/questions" className="text-intaglio underline underline-offset-4">
+        Questions
+      </Link>
+      .
+    </>
+  );
+}
 
 export function CounterpartiesPage({
   counterparties,
   references,
   period,
   direction,
+  moneyMoved,
   search,
   onSearch,
   onDirection,
 }: {
   counterparties: typeof CounterpartyList.Type;
   references: typeof ReferenceData.Type;
-  period: ResolvedPeriod;
-  direction: "out" | "in";
+  period: PeriodChoice;
+  direction: FlowDirection;
+  moneyMoved: boolean;
   search: string;
   onSearch: (search: string) => void;
-  onDirection: (direction: "out" | "in") => void;
+  onDirection: (direction: FlowDirection) => void;
 }) {
   const [text, setText] = useState(search);
-  const amount = (row: (typeof counterparties)[number]) =>
-    direction === "out" ? row.outflow : row.inflow;
-  const rows = counterparties
-    .filter((row) => amount(row).minor > 0n)
-    .toSorted((left, right) => (amount(right).minor > amount(left).minor ? 1 : -1));
   return (
     <div className="space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -53,7 +237,7 @@ export function CounterpartiesPage({
             className="flex w-full gap-2 sm:w-auto"
             onSubmit={(event) => {
               event.preventDefault();
-              onSearch(text.trim());
+              onSearch(text);
             }}
           >
             <Input
@@ -69,76 +253,42 @@ export function CounterpartiesPage({
           </form>
         </search>
       </header>
-      <fieldset className="flex gap-1">
-        <legend className="sr-only">Direction</legend>
-        {(["out", "in"] as const).map((value) => (
-          <Button
-            key={value}
-            size="sm"
-            variant={direction === value ? "default" : "ghost"}
-            aria-pressed={direction === value}
-            onClick={() => onDirection(value)}
-          >
-            {value === "out" ? "Money out" : "Money in"}
-          </Button>
+      <Tabs
+        value={direction}
+        onValueChange={(value) => {
+          const next = directions.find((item) => item.value === value);
+          if (next) onDirection(next.value);
+        }}
+        className="gap-4"
+      >
+        <TabsList variant="line">
+          {directions.map((item) => (
+            <TabsTrigger key={item.value} value={item.value}>
+              {item.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {directions.map((item) => (
+          <TabsContent key={item.value} value={item.value}>
+            {counterparties.length === 0 ? (
+              <p className="max-w-[72ch] type-body text-slate">
+                <EmptyTab
+                  direction={item.value}
+                  period={period}
+                  search={search}
+                  moneyMoved={moneyMoved}
+                />
+              </p>
+            ) : (
+              <CounterpartyTable
+                rows={counterparties}
+                direction={item}
+                categories={references.categories}
+              />
+            )}
+          </TabsContent>
         ))}
-      </fieldset>
-      {rows.length === 0 ? (
-        <p className="text-slate">
-          {search
-            ? `No counterparties match “${search}” in ${period.label}.`
-            : `Nothing in ${period.label}.`}
-        </p>
-      ) : (
-        <ul className="divide-y divide-rule border-y border-rule">
-          {rows.map((row) => {
-            const category = references.categories.find(
-              (item) => item.id === row.defaultCategoryId,
-            );
-            return (
-              <li key={row.id}>
-                <Link
-                  to="/counterparties/$counterpartyId"
-                  params={{ counterpartyId: row.id }}
-                  className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-0.5 px-1 py-3 hover:bg-sheet sm:grid-cols-[minmax(0,1fr)_14rem_6rem_8rem]"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="truncate font-[520]">{row.name}</span>
-                    <ProvenanceMark
-                      assignedBy={row.source === "user" ? "you" : "model"}
-                      question={
-                        row.status === "proposed" || (row.kind === "person" && !row.defaultRole)
-                      }
-                    />
-                  </span>
-                  <span className="col-start-1 flex min-w-0 items-center gap-2 type-small text-slate sm:col-start-auto">
-                    {category ? (
-                      <>
-                        <span
-                          aria-hidden
-                          className="size-2 shrink-0 rounded-[2px]"
-                          style={{ background: categoryColor(category.slug) }}
-                        />
-                        <span className="truncate">{category.name}</span>
-                      </>
-                    ) : (
-                      kindLabels[row.kind]
-                    )}
-                  </span>
-                  <span className="hidden text-right type-small text-slate tabular sm:block">
-                    {row.eventCount} {row.eventCount === 1 ? "time" : "times"}
-                  </span>
-                  <Amount
-                    value={amount(row)}
-                    cents={false}
-                    className="col-start-2 row-span-2 row-start-1 text-right whitespace-nowrap sm:col-start-4 sm:row-span-1"
-                  />
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      </Tabs>
     </div>
   );
 }

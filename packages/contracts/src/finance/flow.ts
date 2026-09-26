@@ -1,14 +1,20 @@
-import { Schema } from "effect";
+import { Schema, Struct } from "effect";
 
 import {
   AccountCoverage,
+  CategoryScope,
+  ComparisonCoverage,
   ComparisonSelection,
+  CountedScope,
+  CoverageState,
   DateBasis,
   Period,
   PeriodSelection,
+  Scope,
+  ScopeCrumb,
 } from "./analysis.ts";
-import { CategoryId, CounterpartyId } from "./interpretation.ts";
-import { Currency, Instant, Money } from "./values.ts";
+import { InterpretationFilter } from "./interpretation.ts";
+import { Currency, Instant, Money, YearMonth } from "./values.ts";
 
 export const FlowInput = Schema.Struct({
   period: PeriodSelection,
@@ -18,41 +24,70 @@ export const FlowInput = Schema.Struct({
 });
 export type FlowInput = typeof FlowInput.Type;
 
-export const StreamKind = Schema.Literals([
-  "category",
-  "uncategorized",
-  "income",
-  "borrowing",
-  "externalIn",
-  "externalOut",
-  "loanPrincipal",
-  "unresolvedIn",
-  "unresolvedOut",
-]);
-export type StreamKind = typeof StreamKind.Type;
-export const FlowStream = Schema.Struct({
+const StreamFields = {
   key: Schema.String,
-  kind: StreamKind,
-  categoryId: Schema.NullOr(CategoryId),
-  slug: Schema.NullOr(Schema.String),
   label: Schema.String,
   amount: Money,
   previous: Money,
   modelAmount: Money,
-});
+  // The ledger facts the stream sums. The counted ledger lists the records behind them.
+  scope: CountedScope,
+};
+export const FlowStream = Schema.Union([
+  // Spending in one top-level category.
+  Schema.Struct({
+    kind: Schema.Literal("category"),
+    slug: Schema.NullOr(Schema.String),
+    ...StreamFields,
+  }),
+  Schema.Struct({
+    kind: Schema.Literals([
+      "uncategorised",
+      "income",
+      "borrowing",
+      "externalIn",
+      "externalOut",
+      "loanPrincipal",
+      "unresolvedIn",
+      "unresolvedOut",
+    ]),
+    ...StreamFields,
+  }),
+]);
 export type FlowStream = typeof FlowStream.Type;
 
-// One of the largest changes against the comparison period, at subcategory level.
-export const PeriodChange = Schema.Struct({
-  categoryId: Schema.NullOr(CategoryId),
-  label: Schema.String,
-  parentLabel: Schema.NullOr(Schema.String),
+// Spending in a period against the comparison period. The change splits into a part
+// from the number of purchases, a part from the average purchase, and `otherPart`, the
+// change in spending that is not a purchase, such as interest or a refund linked to no
+// purchase. The three sum to the change. A period with no purchases has no average, and
+// when either period has none the first two parts are null. `percentChange` is a whole
+// percent, and null unless the comparison amount is positive.
+export const ChangeFigures = Schema.Struct({
   current: Money,
   previous: Money,
+  change: Money,
+  percentChange: Schema.NullOr(Schema.Int),
   purchases: Schema.Int,
   previousPurchases: Schema.Int,
+  averagePurchase: Schema.NullOr(Money),
+  previousAveragePurchase: Schema.NullOr(Money),
   purchasesPart: Schema.NullOr(Money),
   averagePart: Schema.NullOr(Money),
+  otherPart: Money,
+});
+export type ChangeFigures = typeof ChangeFigures.Type;
+
+// `modelAmount` is the part of the current amount that rests on the model's reading of
+// transactions.
+export const SpendingFigures = Schema.Struct({ ...ChangeFigures.fields, modelAmount: Money });
+
+// One of the largest changes against the comparison period, in the facts placed on one
+// category, which `category` opens.
+export const PeriodChange = Schema.Struct({
+  category: CategoryScope,
+  label: Schema.String,
+  parentLabel: Schema.NullOr(Schema.String),
+  ...SpendingFigures.fields,
 });
 export type PeriodChange = typeof PeriodChange.Type;
 
@@ -76,43 +111,62 @@ export const PeriodFlow = Schema.Struct({
   modelShare: Money,
   changes: Schema.Array(PeriodChange),
   coverage: Schema.Array(AccountCoverage),
+  comparisonCoverage: ComparisonCoverage,
 });
 export type PeriodFlow = typeof PeriodFlow.Type;
 
 export const MonthlyFlowInput = Schema.Struct({ currency: Currency });
+// `modelShare` is the part of the month's spending that rests on the model's reading of
+// transactions, as `PeriodFlow`'s is.
 export const MonthTotal = Schema.Struct({
-  month: Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}$/)),
+  month: YearMonth,
   inflow: Money,
   outflow: Money,
   spending: Money,
-  coverage: Schema.Literals(["complete", "partial", "missing"]),
+  modelShare: Money,
+  coverage: CoverageState,
 });
 export const MonthlyFlow = Schema.Array(MonthTotal);
 
+// The days each account in the currency has records and reconciled statements for, and
+// the days of the period it has none for.
+export const CoverageInput = Schema.Struct({ period: PeriodSelection, currency: Currency });
+export const PeriodCoverage = Schema.Struct({
+  period: Period,
+  calculatedAt: Instant,
+  coverage: Schema.Array(AccountCoverage),
+});
+export type PeriodCoverage = typeof PeriodCoverage.Type;
+
+// A tag or personal event narrows spending to the allocations that carry it.
 export const SpendingInput = Schema.Struct({
   ...FlowInput.fields,
-  categoryId: Schema.NullOr(CategoryId),
+  ...Scope.fields,
+  ...Struct.pick(InterpretationFilter.fields, ["tagId", "personalEventId"]),
 });
 export type SpendingInput = typeof SpendingInput.Type;
+// A scope opens its categories one level down. A scope with no categories below it opens
+// its counterparties, and one counterparty opens the records the counted ledger lists.
+export const SpendingLevel = Schema.Literals(["categories", "counterparties", "transactions"]);
+// `share` is the row's whole percent of what the rows with a positive amount add up to,
+// and null when its own amount is not positive. `slug` colours the row: its category's,
+// or the open category's for a counterparty. `months` follows the breakdown's months.
 export const SpendingRow = Schema.Struct({
-  categoryId: Schema.NullOr(CategoryId),
-  slug: Schema.NullOr(Schema.String),
   label: Schema.String,
-  current: Money,
-  previous: Money,
-  purchases: Schema.Int,
-  previousPurchases: Schema.Int,
-  modelAmount: Money,
+  slug: Schema.NullOr(Schema.String),
+  opens: Scope,
+  share: Schema.NullOr(Schema.Int),
+  figures: SpendingFigures,
   months: Schema.Array(Money),
 });
 export type SpendingRow = typeof SpendingRow.Type;
-export const SpendingCounterparty = Schema.Struct({
-  counterpartyId: Schema.NullOr(CounterpartyId),
-  label: Schema.String,
-  current: Money,
-  previous: Money,
-  purchases: Schema.Int,
-  previousPurchases: Schema.Int,
+// The scope's own amount in a month, the part of it that rests on the model, and whether
+// that month's records are complete.
+export const SpendingMonth = Schema.Struct({
+  month: YearMonth,
+  amount: Money,
+  modelAmount: Money,
+  coverage: CoverageState,
 });
 export const SpendingBreakdown = Schema.Struct({
   period: Period,
@@ -120,15 +174,21 @@ export const SpendingBreakdown = Schema.Struct({
   basis: DateBasis,
   currency: Currency,
   calculatedAt: Instant,
-  path: Schema.Array(
-    Schema.Struct({ id: CategoryId, label: Schema.String, slug: Schema.NullOr(Schema.String) }),
-  ),
-  total: Money,
-  previousTotal: Money,
-  modelAmount: Money,
-  // First day of each of the twelve months that end with the selected period.
-  months: Schema.Array(Schema.String),
+  scope: Scope,
+  // The open category's slug, which colours the scope and its counterparty rows. Null
+  // for all spending and for spending with no category.
+  slug: Schema.NullOr(Schema.String),
+  // The category and the categories above it, top-level first, then the counterparty.
+  // Empty for all spending.
+  path: Schema.Array(ScopeCrumb),
+  level: SpendingLevel,
+  figures: SpendingFigures,
+  // The twelve months that end with the month containing the period's last day.
+  months: Schema.Array(SpendingMonth),
+  coverage: Schema.Array(AccountCoverage),
+  comparisonCoverage: ComparisonCoverage,
+  // Every part of the scope with spending in either period, so the rows add up to it.
+  // Empty at the transactions level.
   rows: Schema.Array(SpendingRow),
-  counterparties: Schema.Array(SpendingCounterparty),
 });
 export type SpendingBreakdown = typeof SpendingBreakdown.Type;

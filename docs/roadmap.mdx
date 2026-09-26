@@ -11,21 +11,19 @@ sidebar:
 - **Financial events.** Postings group into events with roles and allocations. The model supports splits, credit links, movement links, corrections with history and undo, and rules with preview.
 - **Understanding.** Descriptors, counterparties, and a two-level taxonomy. GLM-5.3-Flash on Workers AI names counterparties and their defaults when you start a run from Settings. It applies what it is confident about with provenance and asks about the rest. Answering a question or editing a counterparty applies to every transaction from it. See [Interpretation](/reference/interpretation) and [AI](/reference/ai).
 - **The analysis projection.** Ledger facts are rewritten inside every write that changes what they read, and rebuilt in the background when their derivation changes. The flow, spending, previews, and counterparty totals all read them, so the same question gives the same number everywhere. See [Analysis](/reference/analysis#ledger-facts).
-- **Historical comparison.** The flow and spending compare a month or a year with the one before. Spending rows open their subcategories, and a leaf opens its transactions in the ledger.
+- **Comparisons.** The overview and spending read a month, a range of months, or a year, and compare it with the period before, the same period last year, or chosen dates. A comparison period without records is shown as missing, never as zero.
+- **Records behind the flow.** Every flow stream opens the transactions behind it, in the diagram, its table, and the phone bars. A spending category opens Spending, and every other stream opens the ledger with what each transaction counts toward the stream and a total equal to it. See [Records behind a number](/reference/analysis#records-behind-a-number).
+- **The spending drill.** Spending opens from categories to their counterparties to the transactions one counterparty counts, on one screen under a breadcrumb. Every level shows the amount, the change, the purchases and their average, and the model's share, and its rows add up to it. Each total opens the same records in the ledger on the same date basis, and a personal event or tag can narrow it, so a trip's cost is a number on the screen. See [Spending](/reference/analysis#spending).
+- **Counterparty changes.** A counterparty takes a descriptor from another, moves one of its own, or merges into another, and a transaction moves to another counterparty alone or with every transaction the bank writes the same way. Each change is previewed, kept in history with the records before and after, and can be undone while no later change has touched the same records. See [Corrections and history](/reference/interpretation#corrections-and-history).
+- **Questions.** Each card says what it affects, what Ironcage proposes, and why, and opens every transaction behind it. Accept and Something else preview their change on the card and apply it there, and choosing a counterparty you already have moves the descriptor or merges instead of making a duplicate. Payments to a person are proposed from your answer for the same reference elsewhere, a category the reference names, or the model. Skip moves a card to the end without saving anything. The top bar counts every question, and the overview counts those in the period and opens them. See [Questions](/reference/interpretation#questions).
+- **First use.** Until the first file imports, the overview shows which files to download from NetBank and how, lists the files uploaded so far with Retry, and links to Sources, which keeps the same guide one selection away. A period without records says so on the overview, spending, the ledger, and counterparties, and names the files that would fill it instead of showing zeros. An OFX or statement for an unknown account asks which account it is while an account of the same kind that you added has no bank number, instead of adding a second account.
+- **The analyst.** Questions in plain language, asked from a blank box or about a selection: a spending scope, a counterparty, a transaction, a flow stream, or a briefing. The analyst reads through the same operations the screens use, and every amount, count, change, and percent in an answer is a figure code calculated, linked to the screen that shows it, with the basis and limits under the answer. Changes it proposes wait as cards until you accept them. Once a month ends, it writes a briefing of the month, which the overview shows while the figures it was written from still hold. It is off until you turn it on. See [AI](/reference/ai#analyst).
+- **The application design.** The [design language](/design), the layout, and the screens for the month, the flow of money, spending, the ledger, counterparties, questions, sources, and settings, as [Product](/product) describes them.
 - **Exports and source removal.** A full ZIP export, and removing original file bytes without changing any posting.
 
 ## Being built
 
-Each item gets a working screen before the next item starts.
-
-1. **Finishing the application design.** The [design language](/design), the layout, and the screens for the month, the flow of money, spending, the ledger, counterparties, questions, sources, and settings are in place. What remains, measured against [Product](/product):
-   - Flow streams open the records behind them.
-   - Spending drills from a subcategory to its counterparties and then their transactions, and the ledger it opens reads the same date basis as spending.
-   - Questions can be skipped, answered in place, and show a proposed answer for people.
-   - Counterparties can take a descriptor from another counterparty, and a transaction can move to a different counterparty. Counterparty-level changes appear in history and can be undone.
-   - Other comparisons: the same period last year and a chosen range.
-   - Guidance on first use.
-2. **The analyst.** Conversation over the same read operations the screens use, with every claim linked to records. Monthly briefings written from computed facts.
+Nothing is being built now. The next item comes from Later, and like every item, it gets a working screen before the one after it starts.
 
 ## Later
 

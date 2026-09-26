@@ -4,12 +4,7 @@ import { expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 
 import { DisplaySettings } from "@/features/settings/display-settings";
-import {
-  getSettings,
-  updateSettings,
-  getRetention,
-  getModelUsage,
-} from "@/features/settings/functions";
+import { getSettings, updateSettings, getRetention } from "@/features/settings/functions";
 import { settingsQueryOptions } from "@/features/settings/queries";
 import { AppRequestError } from "@/lib/app-error";
 import { createQueryClient } from "@/lib/query-client";
@@ -19,7 +14,6 @@ vi.mock("../../../src/features/settings/functions", () => ({
   getSettings: vi.fn<typeof getSettings>(),
   updateSettings: vi.fn<typeof updateSettings>(),
   getRetention: vi.fn<typeof getRetention>(),
-  getModelUsage: vi.fn<typeof getModelUsage>(),
 }));
 
 function SettingsEditor() {

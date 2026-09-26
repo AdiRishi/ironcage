@@ -20,6 +20,12 @@ export type OwnedAccount = {
   suffix: string | null;
 };
 
+// The own-account suffix that names an account: the last four digits of its number.
+export function accountSuffix(accountNumber: string) {
+  const digits = accountNumber.replaceAll(/\D/g, "");
+  return digits.length >= 4 ? digits.slice(-4) : null;
+}
+
 export type BankReading = {
   role: FinancialRole | null;
   categorySlug: string | null;
@@ -98,6 +104,12 @@ export type CounterpartyDefaults = {
   applied: boolean;
 };
 
+// Only people and institutions take a default role. A business and an own account decide
+// by their kind.
+export function takesDefaultRole(kind: CounterpartyKind) {
+  return kind === "person" || kind === "institution";
+}
+
 export function counterpartyRole(
   counterparty: CounterpartyDefaults,
   amountMinor: bigint,
@@ -162,8 +174,9 @@ export function ruleActions(rules: readonly Rule[]): RuleActions {
   };
 }
 
-// A disagreement between rules only matters for a value the rules would set.
-export function hasEffectiveRuleConflict({
+// The rules that disagree about a value they would set. A disagreement over a value you
+// fixed does not matter, so it names no rules.
+export function conflictingRules({
   rules,
   roleLocked,
   categoryLocked,
@@ -173,7 +186,11 @@ export function hasEffectiveRuleConflict({
   categoryLocked: boolean;
 }) {
   const actions = ruleActions(rules);
-  return (actions.roleConflict && !roleLocked) || (actions.categoryConflict && !categoryLocked);
+  return rules.filter((rule) =>
+    rule.action.kind === "role"
+      ? actions.roleConflict && !roleLocked
+      : actions.categoryConflict && !categoryLocked,
+  );
 }
 
 export type Derivation = {

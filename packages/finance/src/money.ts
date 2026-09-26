@@ -49,12 +49,23 @@ export function formatDecimal({ minor, currency }: Money) {
   return `${minor < 0n ? "-" : ""}${absolute / scale}${exponent === 0 ? "" : `.${(absolute % scale).toString().padStart(exponent, "0")}`}`;
 }
 
-// "$6,380" or "$6,380.45", with a real minus sign. Whole amounts round half up.
-export function formatCurrency({ minor, currency }: Money, { cents = true } = {}) {
+// The quotient rounded to the nearest integer, with halves rounded away from zero.
+export function divideRounded(numerator: bigint, denominator: bigint) {
+  const quotient = numerator / denominator;
+  const remainder = numerator % denominator;
+  const twice = remainder < 0n ? -2n * remainder : 2n * remainder;
+  if (twice < (denominator < 0n ? -denominator : denominator)) return quotient;
+  return numerator < 0n === denominator < 0n ? quotient + 1n : quotient - 1n;
+}
+
+// "$6,380" or "$6,380.45", with a real minus sign. Whole amounts round half away from
+// zero. An amount under one unit keeps its cents, so 40 cents never reads as "$0".
+export function formatCurrency({ minor, currency }: Money, { cents: withCents = true } = {}) {
   const exponent = currencyExponent(currency);
   const scale = 10n ** BigInt(exponent);
   const absolute = minor < 0n ? -minor : minor;
-  const whole = cents ? absolute / scale : (absolute + scale / 2n) / scale;
+  const cents = withCents || (absolute > 0n && absolute < scale);
+  const whole = cents ? absolute / scale : divideRounded(absolute, scale);
   const symbol = new Intl.NumberFormat("en-AU", {
     style: "currency",
     currency,
@@ -65,4 +76,10 @@ export function formatCurrency({ minor, currency }: Money, { cents = true } = {}
   const fraction =
     cents && exponent > 0 ? `.${(absolute % scale).toString().padStart(exponent, "0")}` : "";
   return `${minor < 0n ? "−" : ""}${symbol}${fraction}`;
+}
+
+// "76%", or "+76%" and "−12%" for a change, with a real minus sign.
+export function formatPercent(percent: number, { signed = false } = {}) {
+  const sign = percent < 0 ? "−" : signed && percent > 0 ? "+" : "";
+  return `${sign}${Math.abs(percent)}%`;
 }

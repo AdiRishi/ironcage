@@ -13,6 +13,7 @@ import { Context, Crypto, Effect, Layer, Schema } from "effect";
 
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
+import { readTransaction } from "../database/transactions.ts";
 import { interpretPending, reinterpret } from "../interpretation/engine.ts";
 import { readReferenceData } from "../references/read.ts";
 import { readEvent } from "./repository.ts";
@@ -54,22 +55,15 @@ export class Events extends Context.Service<
         });
       }, toFinanceError);
       const get = Effect.fn("Events.get")(
-        function* ({ eventId }: typeof EventInput.Type) {
-          return yield* sql.withTransaction(
-            Effect.gen(function* () {
-              yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
-              return yield* readEvent(eventId);
-            }),
-          );
-        },
+        ({ eventId }: typeof EventInput.Type) => readTransaction(sql, readEvent(eventId)),
         Effect.provideService(PgClient.PgClient, sql),
         toFinanceError,
       );
       const forPosting = Effect.fn("Events.forPosting")(
         function* ({ postingId }: typeof EventForPosting.Type) {
-          return yield* sql.withTransaction(
+          return yield* readTransaction(
+            sql,
             Effect.gen(function* () {
-              yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
               const [row] =
                 yield* sql`SELECT event_id AS id FROM event_postings WHERE posting_id = ${postingId} AND active`.pipe(
                   Effect.flatMap(
@@ -83,14 +77,10 @@ export class Events extends Context.Service<
         Effect.provideService(PgClient.PgClient, sql),
         toFinanceError,
       );
-      const references = sql
-        .withTransaction(
-          Effect.gen(function* () {
-            yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
-            return yield* readReferenceData;
-          }),
-        )
-        .pipe(Effect.provideService(PgClient.PgClient, sql), toFinanceError);
+      const references = readTransaction(sql, readReferenceData).pipe(
+        Effect.provideService(PgClient.PgClient, sql),
+        toFinanceError,
+      );
       return Events.of({
         interpret,
         get,

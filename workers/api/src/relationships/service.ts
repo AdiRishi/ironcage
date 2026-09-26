@@ -14,6 +14,7 @@ import { Context, Crypto, Effect, Layer, Schema } from "effect";
 import { previewImpacts } from "../analysis/preview.ts";
 import { Commands } from "../database/commands.ts";
 import { toFinanceError } from "../database/failures.ts";
+import { readTransaction } from "../database/transactions.ts";
 import { checkEventVersions } from "../events/correction-records.ts";
 import { relationshipCandidates } from "./candidates.ts";
 import { planRelationship } from "./plan.ts";
@@ -45,27 +46,22 @@ export class Relationships extends Context.Service<
           Effect.provideService(PgClient.PgClient, sql),
           Effect.provideService(Crypto.Crypto, crypto),
         );
-      const snapshot = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-        sql.withTransaction(
-          Effect.gen(function* () {
-            yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
-            return yield* effect;
-          }),
-        );
       const get = Effect.fn("Relationships.get")(
-        (input: typeof EventInput.Type) => snapshot(readRelationships(input.eventId)),
+        (input: typeof EventInput.Type) => readTransaction(sql, readRelationships(input.eventId)),
         provide,
         toFinanceError,
       );
       const candidates = Effect.fn("Relationships.candidates")(
-        (input: typeof ListRelationshipCandidates.Type) => snapshot(relationshipCandidates(input)),
+        (input: typeof ListRelationshipCandidates.Type) =>
+          readTransaction(sql, relationshipCandidates(input)),
         provide,
         toFinanceError,
       );
       const preview = Effect.fn("Relationships.preview")(
         ({ change }: typeof PreviewRelationship.Type) =>
-          snapshot(
+          sql.withTransaction(
             Effect.gen(function* () {
+              yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
               const plan = yield* planRelationship(change);
               const impacts = yield* previewImpacts({
                 before: plan.before,

@@ -2,18 +2,26 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { URL } from "node:url";
 
 import { PgClient } from "@effect/sql-pg";
-import { CommandId, FinanceError, ImportSummary, ResolveReview } from "@repo/contracts/finance";
+import {
+  CommandId,
+  FinanceError,
+  ImportSummary,
+  type ParsedFile,
+  ResolveReview,
+  YearMonth,
+} from "@repo/contracts/finance";
 import { parseCsv, parseOfx } from "@repo/processor/imports";
 import { Crypto, Console, Duration, Effect, Schema } from "effect";
 import { expect } from "vitest";
 
 import { Accounts } from "../../src/accounts/service.ts";
+import { Flows } from "../../src/analysis/flows.ts";
 import { Commands } from "../../src/database/commands.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { Reviews } from "../../src/review/service.ts";
 import { applicationTest } from "../support/application.ts";
-import { account, parsed, reset, source } from "../support/fixtures.ts";
+import { account, openQuestions, parsed, parsedRows, reset, source } from "../support/fixtures.ts";
 
 const { test, services } = applicationTest();
 
@@ -400,5 +408,185 @@ test(
     const postings = yield* Postings;
     expect((yield* postings.get({ postingId: choice.id })).evidence).toHaveLength(1);
     expect((yield* reviews.list()).rows).toHaveLength(1);
+  }).pipe(Effect.provide(services)),
+);
+
+// A synthetic OFX export of the deposit account 062000 12345678.
+const depositOfx = (statement: string) =>
+  parseOfx(
+    new TextEncoder().encode(`OFXHEADER:100
+DATA:OFXSGML
+VERSION:102
+ENCODING:USASCII
+CHARSET:1252
+
+<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><CURDEF>AUD
+<BANKACCTFROM><BANKID>062000<ACCTID>12345678<ACCTTYPE>SAVINGS</BANKACCTFROM>
+${statement}
+</STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>`),
+  );
+const august = depositOfx(`<BANKTRANLIST><DTSTART>20260801000000<DTEND>20260831235959
+<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20260803<TRNAMT>-12.50<FITID>1001<MEMO>Bakery</STMTTRN>
+<STMTTRN><TRNTYPE>CREDIT<DTPOSTED>20260810<TRNAMT>500.00<FITID>1002<MEMO>Salary</STMTTRN>
+</BANKTRANLIST><LEDGERBAL><BALAMT>487.50<DTASOF>20260831140000</LEDGERBAL>`);
+const earlySeptember = depositOfx(`<BANKTRANLIST><DTSTART>20260901000000<DTEND>20260915235959
+<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20260905<TRNAMT>-20.00<FITID>1003<MEMO>Bakery</STMTTRN>
+</BANKTRANLIST><LEDGERBAL><BALAMT>467.50<DTASOF>20260915140000</LEDGERBAL>`);
+
+test(
+  "an OFX for an unknown account asks which account while an account you added has no bank number",
+  Effect.gen(function* () {
+    yield* reset;
+    const owner = yield* account();
+    const upload = yield* source(null, "ofx");
+    const publication = yield* Publication;
+    expect(yield* publication.publish({ ...(yield* august), importId: upload.importId })).toEqual({
+      observations: 2,
+      newPostings: 0,
+      matchedPostings: 0,
+      reviewItems: 1,
+    });
+    const accounts = yield* Accounts;
+    expect(yield* accounts.list).toHaveLength(1);
+    const reviews = yield* Reviews;
+    const [review] = (yield* reviews.list()).rows;
+    expect(review?.kind).toBe("account");
+    if (!review) return yield* Effect.die("Expected the account review.");
+    expect(review.question.message).toContain("the CommBank deposit account ending 5678");
+    expect(
+      yield* reviews.resolve({
+        commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
+        reviewItemId: review.id,
+        expectedVersion: review.version,
+        resolution: { kind: "account", accountId: owner.id },
+      }),
+    ).toEqual({ observations: 2, newPostings: 2, matchedPostings: 0, reviewItems: 0 });
+    const owners = yield* accounts.list;
+    expect(owners).toHaveLength(1);
+    expect(owners[0]).toMatchObject({ id: owner.id, bankId: "062000", accountNumber: "12345678" });
+    const postings = yield* Postings;
+    expect((yield* postings.list({ filter: { accountId: owner.id } })).rows).toHaveLength(2);
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "an OFX for an unknown account adds it when no account of its kind lacks a bank number",
+  Effect.gen(function* () {
+    yield* reset;
+    const accounts = yield* Accounts;
+    const card = yield* accounts.create({
+      commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
+      label: "Card",
+      kind: "card",
+      institution: "commbank",
+      currency: "AUD",
+    });
+    const upload = yield* source(null, "ofx");
+    const publication = yield* Publication;
+    expect(yield* publication.publish({ ...(yield* august), importId: upload.importId })).toEqual({
+      observations: 2,
+      newPostings: 2,
+      matchedPostings: 0,
+      reviewItems: 0,
+    });
+    const added = (yield* accounts.list).filter((item) => item.id !== card.id);
+    expect(added).toHaveLength(1);
+    expect(added[0]).toMatchObject({
+      kind: "deposit",
+      bankId: "062000",
+      accountNumber: "12345678",
+    });
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "an OFX for a known account publishes to it while another account you added has no bank number",
+  Effect.gen(function* () {
+    yield* reset;
+    const publication = yield* Publication;
+    const first = yield* source(null, "ofx");
+    yield* publication.publish({ ...(yield* august), importId: first.importId });
+    const accounts = yield* Accounts;
+    const [known] = yield* accounts.list;
+    if (!known) return yield* Effect.die("Expected the account the OFX added.");
+    const added = yield* account();
+    const second = yield* source(null, "ofx");
+    expect(
+      yield* publication.publish({ ...(yield* earlySeptember), importId: second.importId }),
+    ).toEqual({ observations: 1, newPostings: 1, matchedPostings: 0, reviewItems: 0 });
+    const postings = yield* Postings;
+    expect((yield* postings.list({ filter: { accountId: known.id } })).rows).toHaveLength(3);
+    expect((yield* postings.list({ filter: { accountId: added.id } })).rows).toHaveLength(0);
+  }).pipe(Effect.provide(services)),
+);
+
+// A deposit account's file that names its account, as an OFX envelope does.
+const identified = (accountNumber: string, rows: Parameters<typeof parsedRows>[0]) =>
+  ({
+    ...parsedRows(rows),
+    account: {
+      institution: "commbank",
+      bankId: "062000",
+      accountNumber,
+      kind: "deposit",
+      currency: "AUD",
+    },
+  }) satisfies ParsedFile;
+const toSavings = identified("12345678", [
+  { description: "Transfer to xx9239 CommBank app", postedOn: "2026-08-05", minor: -10000n },
+]);
+const savings = identified("10009239", [
+  { description: "Credit Interest", postedOn: "2026-08-31", minor: 150n },
+]);
+const publishIdentified = Effect.fn(function* (file: ParsedFile) {
+  const upload = yield* source(null, "ofx");
+  return yield* (yield* Publication).publish({ ...file, importId: upload.importId });
+});
+const augustTotals = Effect.gen(function* () {
+  const flow = yield* (yield* Flows).period({
+    period: { kind: "months", from: YearMonth.make("2026-08"), to: YearMonth.make("2026-08") },
+    comparison: { kind: "previous" },
+    basis: "posted",
+    currency: "AUD",
+  });
+  return { outflow: flow.totals.outflow.minor, internal: flow.totals.internal.minor };
+});
+const openQuestionKinds = openQuestions.pipe(
+  Effect.map((questions) => questions.map((question) => question.kind)),
+);
+
+test(
+  "a transfer to an account that has no number yet is internal once the account's first file adds it",
+  Effect.gen(function* () {
+    yield* reset;
+    yield* publishIdentified(toSavings);
+    expect(yield* openQuestionKinds).toEqual(["ownAccount"]);
+    expect(yield* augustTotals).toEqual({ outflow: 10000n, internal: 0n });
+    yield* publishIdentified(savings);
+    expect(yield* openQuestionKinds).toEqual([]);
+    expect(yield* augustTotals).toEqual({ outflow: 0n, internal: 10000n });
+  }).pipe(Effect.provide(services)),
+);
+
+test(
+  "a transfer to an account you added is internal once you choose it for a file with its number",
+  Effect.gen(function* () {
+    yield* reset;
+    yield* publishIdentified(toSavings);
+    const added = yield* account();
+    yield* publishIdentified(savings);
+    const reviews = yield* Reviews;
+    const [review] = (yield* reviews.list()).rows;
+    if (review?.kind !== "account") return yield* Effect.die("Expected the account review.");
+    expect(yield* openQuestionKinds).toEqual(["ownAccount"]);
+    expect(yield* augustTotals).toEqual({ outflow: 10000n, internal: 0n });
+    yield* reviews.resolve({
+      commandId: CommandId.make(yield* Crypto.Crypto.use((crypto) => crypto.randomUUIDv4)),
+      reviewItemId: review.id,
+      expectedVersion: review.version,
+      resolution: { kind: "account", accountId: added.id },
+    });
+    expect(yield* openQuestionKinds).toEqual([]);
+    expect(yield* augustTotals).toEqual({ outflow: 0n, internal: 10000n });
   }).pipe(Effect.provide(services)),
 );

@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./analyst": {
+      "types": "./src/analyst.ts",
+      "default": "./src/analyst.ts"
+    },
     "./finance": {
       "types": "./src/finance.ts",
       "default": "./src/finance.ts"

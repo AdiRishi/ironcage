@@ -10,6 +10,8 @@ import {
   CalendarDate,
   CategoryId,
   CommandId,
+  CounterpartyId,
+  EventId,
   RuleId,
   type Account,
   type Rule,
@@ -24,10 +26,11 @@ import { Corrections } from "../../src/events/corrections.ts";
 import { Events } from "../../src/events/service.ts";
 import { Publication } from "../../src/imports/publication.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
+import { Models } from "../../src/models/service.ts";
 import { Postings } from "../../src/postings/service.ts";
 import { Relationships } from "../../src/relationships/service.ts";
 import { Rules } from "../../src/rules/service.ts";
-import { parsedRows, reset, source } from "./fixtures.ts";
+import { createCounterparty, parsedRows, reset, source } from "./fixtures.ts";
 
 const migrationsDirectory = fileURLToPath(new URL("../../migrations/", import.meta.url));
 export const migrationFiles = () =>
@@ -107,7 +110,7 @@ const eventFor = (events: readonly FinancialEvent[], description: string) => {
   return event;
 };
 
-const categoryId = Effect.fn(function* (slug: string) {
+export const categoryId = Effect.fn(function* (slug: string) {
   const sql = yield* PgClient.PgClient;
   const [row] = yield* sql`SELECT id FROM categories WHERE slug = ${slug}`.pipe(
     Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: CategoryId })))),
@@ -116,11 +119,39 @@ const categoryId = Effect.fn(function* (slug: string) {
   return row.id;
 });
 
+// The active event whose primary posting has this description.
+export const activeEvent = Effect.fn(function* (description: string) {
+  const sql = yield* PgClient.PgClient;
+  const [row] =
+    yield* sql`SELECT e.id FROM events e JOIN postings p ON p.id = e.primary_posting_id WHERE e.active AND p.description = ${description}`.pipe(
+      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: EventId })))),
+    );
+  if (!row) return yield* Effect.die(`Expected an event for ${description}`);
+  return yield* (yield* Events).get({ eventId: row.id });
+});
+
+export const counterpartyNamed = Effect.fn(function* (name: string) {
+  const sql = yield* PgClient.PgClient;
+  const [row] = yield* sql`SELECT id FROM counterparties WHERE name = ${name}`.pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: CounterpartyId })))),
+  );
+  if (!row) return yield* Effect.die(`Expected a counterparty named ${name}`);
+  return (yield* (yield* Counterparties).get({ counterpartyId: row.id })).counterparty;
+});
+
 // A synthetic history that reaches every kind of record a migration might rewrite:
-// three account kinds, counterparties set by you, a rule, a split, a credit link, and
-// a card settlement.
+// model settings you changed, three account kinds, counterparties set by you, a rule,
+// a split, a correction you undid, a credit link, and a card settlement.
 export const populate = Effect.gen(function* () {
   yield* reset;
+  const models = yield* Models;
+  yield* models.updateSettings({
+    commandId: yield* commandId,
+    enrichment: { enabled: true, autoApplyConfidence: 0.75 },
+    analyst: { enabled: true },
+    warning: { currency: "USD", minor: 1500n },
+    expectedVersion: (yield* models.settings).version,
+  });
   const everyday = yield* createAccount("deposit", "Everyday");
   const card = yield* createAccount("card", "Card");
   const loan = yield* createAccount("loan", "Home loan");
@@ -152,40 +183,28 @@ export const populate = Effect.gen(function* () {
     { description: "Loan Repayment", postedOn: "2026-07-28", minor: 390000n },
   ]);
 
-  const counterparties = yield* Counterparties;
-  yield* counterparties.save({
-    commandId: yield* commandId,
-    target: { kind: "create", aliasKeys: ["JANE SMITH"] },
-    fields: {
+  yield* createCounterparty(
+    {
       name: "Jane Smith",
       kind: "person",
-      brand: null,
       defaultCategoryId: yield* categoryId("housing.rent"),
       defaultRole: "purchase",
     },
-  });
-  yield* counterparties.save({
-    commandId: yield* commandId,
-    target: { kind: "create", aliasKeys: ["WOOLWORTHS SYDNEY"] },
-    fields: {
-      name: "Woolworths",
-      kind: "business",
-      brand: null,
-      defaultCategoryId: yield* categoryId("food.groceries"),
-      defaultRole: null,
-    },
-  });
-  yield* counterparties.save({
-    commandId: yield* commandId,
-    target: { kind: "create", aliasKeys: ["JOHN CITIZEN"] },
-    fields: {
+    ["JANE SMITH"],
+  );
+  yield* createCounterparty(
+    { name: "Woolworths", defaultCategoryId: yield* categoryId("food.groceries") },
+    ["WOOLWORTHS SYDNEY"],
+  );
+  yield* createCounterparty(
+    {
       name: "John Citizen",
       kind: "person",
-      brand: null,
       defaultCategoryId: yield* categoryId("food.dining-out"),
       defaultRole: "reimbursement",
     },
-  });
+    ["JOHN CITIZEN"],
+  );
 
   const rules = yield* Rules;
   const dining = yield* categoryId("food.dining-out");
@@ -240,6 +259,28 @@ export const populate = Effect.gen(function* () {
         },
       ],
     },
+  });
+
+  const salary = yield* events.get({
+    eventId: eventFor(deposits, "Salary ACME PTY LTD HR123456").id,
+  });
+  const [pay] = salary.allocations;
+  const categorised = yield* corrections.apply({
+    commandId: yield* commandId,
+    expectedVersions: [{ eventId: salary.id, version: salary.version }],
+    change: {
+      eventId: salary.id,
+      kind: salary.kind,
+      purchaseOn: null,
+      allocations: [{ ...pay, categoryId: yield* categoryId("income-salary") }],
+    },
+  });
+  const [correction] = (yield* corrections.history({ eventId: salary.id })).entries;
+  if (correction?.kind !== "correction") return yield* Effect.die("Expected the salary correction");
+  yield* corrections.undo({
+    commandId: yield* commandId,
+    correctionId: correction.correction.id,
+    expectedVersions: [{ eventId: salary.id, version: categorised.version }],
   });
 
   const relationships = yield* Relationships;

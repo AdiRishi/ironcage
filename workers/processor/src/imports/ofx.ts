@@ -5,7 +5,7 @@ import {
   FinanceError,
   type ParsedFile,
 } from "@repo/contracts/finance";
-import { decodeEntities, nextCalendarDate, parseCalendarDate, parseMoney } from "@repo/finance";
+import { addDays, decodeEntities, parseCalendarDate, parseMoney } from "@repo/finance";
 import { Effect, Schema } from "effect";
 import { parseSync } from "ofx-js";
 
@@ -150,9 +150,7 @@ export const parseOfx = Effect.fn("parseOfx")(function* (bytes: Uint8Array) {
       statedEnd: yield* date(statement.BANKTRANLIST.DTEND),
       opening: null,
       closing: {
-        on: statement.LEDGERBAL.DTASOF.endsWith("235959")
-          ? nextCalendarDate(ledgerDate)
-          : ledgerDate,
+        on: statement.LEDGERBAL.DTASOF.endsWith("235959") ? addDays(ledgerDate, 1) : ledgerDate,
         money: yield* parseMoney(statement.LEDGERBAL.BALAMT, account.currency),
       },
       debitTotal: null,

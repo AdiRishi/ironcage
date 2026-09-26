@@ -1,7 +1,11 @@
 import type { AccountCoverage, Import, PeriodFlow } from "@repo/contracts/finance";
+import { ChevronRight } from "lucide-react";
+import { useId } from "react";
 
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ExportsSection } from "@/features/exports/section";
-import { ImportRecord } from "@/features/imports/import-record";
+import { NetBankGuide } from "@/features/imports/netbank-guide";
+import { PendingImports } from "@/features/imports/pending-imports";
 import { UploadFiles } from "@/features/imports/upload-files";
 
 import { SourceFilesSection } from "./section";
@@ -17,7 +21,6 @@ export function SourcesPage({
   imports: readonly Import[];
   timezone: string;
 }) {
-  const attention = imports.filter((item) => item.status !== "complete");
   return (
     <div className="max-w-4xl space-y-12">
       <header className="space-y-2">
@@ -29,18 +32,9 @@ export function SourcesPage({
 
       <UploadFiles />
 
-      {attention.length > 0 && (
-        <section aria-labelledby="attention-heading" className="space-y-3">
-          <h2 id="attention-heading" className="type-heading">
-            Imports that need you
-          </h2>
-          <ul className="divide-y divide-rule rounded-lg border border-rule bg-sheet">
-            {attention.map((item) => (
-              <ImportRecord key={item.id} item={item} timezone={timezone} />
-            ))}
-          </ul>
-        </section>
-      )}
+      <DownloadGuide />
+
+      <PendingImports imports={imports} timezone={timezone} heading="Imports that need you" />
 
       <Timeline coverage={coverage} />
 
@@ -48,6 +42,26 @@ export function SourcesPage({
 
       <ExportsSection timezone={timezone} />
     </div>
+  );
+}
+
+function DownloadGuide() {
+  const id = useId();
+  return (
+    <Collapsible render={<section aria-labelledby={id} />} className="space-y-6">
+      <h2 id={id} className="type-heading">
+        <CollapsibleTrigger className="group flex items-center gap-2 rounded-sm text-left hover:text-intaglio">
+          <ChevronRight
+            aria-hidden
+            className="size-4 shrink-0 text-slate transition-transform group-data-panel-open:rotate-90"
+          />
+          Which files to download from NetBank
+        </CollapsibleTrigger>
+      </h2>
+      <CollapsibleContent className="pl-6">
+        <NetBankGuide heading="h3" />
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 

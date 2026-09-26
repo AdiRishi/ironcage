@@ -103,10 +103,8 @@ test(
     const credit = find(rows, "Payment received");
     const reviews = yield* InterpretationReviews;
     expect(
-      (yield* reviews.list({})).rows.some(
-        (row) => row.eventIds.includes(debit.id) && row.eventIds.includes(credit.id),
-      ),
-    ).toBe(true);
+      (yield* reviews.list({})).rows.map((row) => row.events.map((event) => event.id).sort()),
+    ).toContainEqual([debit.id, credit.id].sort());
     const preview = yield* apply({
       kind: "linkMovement",
       eventId: debit.id,
@@ -235,6 +233,9 @@ test(
     });
     expect(preview.impacts[0]?.after.spending.minor).toBe(10300n);
     expect(preview.impacts[0]?.after.income.minor).toBe(0n);
+    // An external account is not in the ledger, so the $2,000 went out.
+    expect(preview.impacts[0]?.after.internal.minor).toBe(0n);
+    expect(preview.impacts[0]?.after.outflow.minor).toBe(210300n);
     const fee = find(rows, "International Fee");
     const purchase = find(rows, "Purchase Card xx1234");
     const feePreview = yield* apply({

@@ -22,7 +22,7 @@ import { useCommand } from "@/lib/use-command";
 
 import { accountsQueryOptions } from "../accounts/queries";
 import { ReferenceChoice } from "../events/choice";
-import { ImpactTables } from "../events/impact";
+import { ImpactSummary } from "../events/impact";
 import { referenceDataQuery } from "../events/queries";
 import { previewRule, saveRule } from "./functions";
 export function RuleEditor({
@@ -246,7 +246,7 @@ export function RuleEditor({
             {preview.data.matched} matching events · {preview.data.affected.length} affected ·{" "}
             {preview.data.exceptions.length} exceptions · {preview.data.conflicts.length} conflicts
           </p>
-          <ImpactTables impacts={preview.data.impacts} />
+          <ImpactSummary impacts={preview.data.impacts} />
           <p className="type-small text-slate">
             Exclude individual events below, then preview again. Specific corrections and splits
             always take precedence.

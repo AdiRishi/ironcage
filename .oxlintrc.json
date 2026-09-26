@@ -76,6 +76,8 @@
     "effecttsgo/prefer-schema-over-json": "off",
     "effecttsgo/process-env": "off",
     "react/react-in-jsx-scope": "off",
+    // A Base UI radio is a button, so its label wraps it rather than pointing at it.
+    "jsx-a11y/label-has-associated-control": ["error", { "controlComponents": ["RadioGroupItem"] }],
     // Workers can be terminated after a response, so unhandled asynchronous
     // work is a correctness error rather than a stylistic preference.
     "typescript/no-floating-promises": ["error", { "ignoreVoid": false }],
@@ -117,6 +119,10 @@
         "typescript/restrict-template-expressions": "off",
         "anti-slop/require-safety-comment-for-type-assertion": "off",
         "jsx-a11y/label-has-associated-control": "off",
+        // InputGroupAddon passes a pointer click on its padding to the input, which the
+        // keyboard reaches directly.
+        "jsx-a11y/click-events-have-key-events": "off",
+        "jsx-a11y/no-noninteractive-element-interactions": "off",
         // Base UI renders its own elements and sets the matching ARIA role on
         // them; the rule cannot see through the primitive to know the role is
         // already correct.

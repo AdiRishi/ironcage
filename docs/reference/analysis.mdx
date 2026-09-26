@@ -3,7 +3,7 @@ title: Analysis
 description: Measures, the flow of money, ledger facts, and comparisons, with the arithmetic spelled out.
 ---
 
-The API computes every number. SQL sums ledger facts and postings, and functions in `packages/finance/src/` do the rest of the arithmetic. No model computes a result. Narrating results is the planned analyst's job. Money examples are invented.
+The API computes every number. SQL sums ledger facts and postings, and functions in `packages/finance/src/` do the rest of the arithmetic. No model computes a result. The analyst narrates results in answers and briefings, and quotes only figures that code computed (see [AI](/reference/ai#analyst)). Money examples are invented.
 
 ## Events and allocations
 
@@ -34,15 +34,35 @@ These measures come from ledger facts, and every screen, preview, and counterpar
 | Inflow             | Flow, monthly series           | The sum of the flow's in streams.                                                                                        |
 | Outflow            | Flow, monthly series           | The sum of the flow's out streams.                                                                                       |
 | Internal           | Flow                           | Movements between ledger accounts. Reported as a total and never drawn.                                                  |
-| Left over          | Overview                       | Inflow minus outflow. The overview says "Short by" when it is negative.                                                  |
-| Unresolved outflow | Flow                           | Unresolved debits, shown as the out stream "Not yet understood".                                                         |
+| Left over          | Overview                       | Inflow minus outflow, from `leftOver`. The overview says "Short by" when it is negative.                                 |
+| Unresolved outflow | Flow                           | Unresolved debits, shown as the out stream "Not yet understood, outgoing".                                               |
+| Unresolved inflow  | Flow                           | Unresolved credits, and credits with no category or link, shown as the in stream "Not yet understood, incoming".         |
 | Loan principal     | Flow                           | Loan repayments minus the interest and fees charged on loan accounts in the same period, never below zero.               |
 | Purchase count     | Spending, flow changes         | Distinct purchase events with positive spending, including fully refunded ones.                                          |
+| Purchase spending  | Spending, flow changes         | Spending from purchase events, including the credits linked to them. Interest, fees, and unlinked credits are left out.  |
+| Average purchase   | Spending, flow changes         | Purchase spending over the purchase count, rounded to the cent with halves away from zero. None without purchases.       |
 | Model share        | Flow, spending                 | The part of spending whose category or role came from a counterparty the model set.                                      |
+
+`averagePurchase` in `packages/finance/src/analysis/spending.ts` computes the average, and `divideRounded` in `packages/finance/src/money.ts` rounds it. Housing with $1,840 of rent and $2,800 of mortgage interest has one purchase, averaging $1,840, not $4,640. A change in spending splits into three parts, which [Changes](#changes) defines.
 
 A refund or reimbursement reduces spending in its own category on its own date. When a credit link applies it to a specific purchase, the linked amount reduces spending in the purchase's category and period instead. Unlinked credits without a category reduce nothing and are listed as unresolved inflow.
 
-Every flow and spending result names its period, comparison period, date basis, currency, and calculation time. The flow also reports coverage for each account: observed dates, reconciled intervals, missing periods, and the latest import.
+Every flow and spending result names its period, comparison period, date basis, currency, and calculation time, and says whether the comparison period has records (see [Periods](#periods)). The flow also reports coverage for each account: observed dates, reconciled intervals, missing periods, and the latest import. `getCoverage`, `Flows.coverage` in `workers/api/src/analysis/flows.ts`, reports the same coverage for any period selection on its own, for readers that need a period's coverage without its flow, such as the analyst.
+
+### Measures as ledger facts
+
+`measures` in `packages/finance/src/analysis/measures.ts` defines every number the flow draws, a `LedgerMeasure`, as parts that each sum one fact measure. Every measure but one is a single fact measure, whole. Loan principal has two parts: `loanRepayment` facts, less `spending` facts on loan accounts. `measureTotal` adds or subtracts the parts and floors loan principal at zero. `factDirection` says whether each fact measure's money moved in or out.
+
+A counted scope narrows a measure to categories and a counterparty. The category scope is one of these:
+
+| Kind            | Facts it selects                                          |
+| --------------- | --------------------------------------------------------- |
+| `all`           | Every fact.                                               |
+| `category`      | Facts placed on the category or on any category below it. |
+| `unspecified`   | Facts placed on exactly that category.                    |
+| `uncategorised` | Facts with no category.                                   |
+
+The counterparty scope is `all`, one `counterparty`, or `unidentified` for facts with no counterparty. `inCategoryScope` decides whether a fact falls in a category scope.
 
 ## Ledger facts
 
@@ -52,17 +72,35 @@ The flow, the monthly series, spending, previews, and counterparty totals read a
 | ------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `spending`                      | Purchases and financing costs, positive. Refunds and reimbursements, negative. Non-personal parts are left out. |
 | `income`                        | Income allocations.                                                                                             |
-| `internal`                      | Transfers between ledger accounts, card settlements, and the loan side of a repayment.                          |
-| `externalOut`, `externalIn`     | Transfers to and from a counterparty of kind `ownAccount`.                                                      |
-| `loanRepayment`                 | A repayment, counted once from the account the cash left.                                                       |
-| `borrowing`                     | A drawdown, counted once from the loan side.                                                                    |
+| `internal`                      | Card settlements, transfers whose other side is a ledger account, and repayments or drawdowns only on a loan.   |
+| `externalOut`, `externalIn`     | Every other transfer, by direction.                                                                             |
+| `loanRepayment`                 | A repayment with a posting outside loan accounts, counted once on that posting.                                 |
+| `borrowing`                     | A drawdown with a posting outside loan accounts, counted once on that posting.                                  |
 | `unresolvedOut`, `unresolvedIn` | Unresolved events by direction, and credits with no category or link.                                           |
 
-Each row carries its account, counterparty, category and top-level category, posted and spending dates, amount, whether it is a purchase, and whether the value that placed it came from a model-set counterparty.
+A transfer's other side is a ledger account when the event holds both postings, or when bank structure set the role. `bankReading` in `packages/finance/src/interpretation.ts` reads a transfer only from an own-account suffix that matches one of your ledger accounts, so such a transfer is internal before the other posting is imported. A one-posting transfer whose role you, a rule, a movement link, or a counterparty set is external, including one to a counterparty of kind `ownAccount` and one linked to an account outside the ledger.
 
-A credit linked to a purchase is emitted by the purchase's event, as a negative `spending` row in the purchase's category, dates, account, and counterparty. The credit's own event emits only the part that no link applies. So the facts of an event depend only on its own rows and the credit links that touch it, and a change to the purchase moves the linked reduction with it. A credit linked to a non-personal part of a purchase reduces nothing, because that part is not spending.
+Each row holds these columns:
 
-Statement triggers note which events a transaction changed. Any change to an event, its allocations, its posting membership, a credit link, a counterparty's kind or source, or a category's parent notes the affected events. A credit link notes both of its events. So does a change to a posting's posted date, value date, account, currency, or amount, for the events that contain it. The notes live in a transaction-local setting, `ironcage.fact_events`, written by `note_fact_events` in migration `0022_serializable_writes.sql`, so concurrent transactions never read or write a shared marker. `writeTransaction` in `workers/api/src/database/transactions.ts` runs `refreshNotedFacts` after the write's work and before it commits. Every write to those tables runs through it, so a committed write leaves no fact behind. Period queries sum facts over indexes on `(currency, measure, spending_on)` and `(currency, measure, posted_on)`.
+| Column                           | Holds                                                                                               |
+| -------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `event_id`, `allocation_id`      | The event and the allocation the fact comes from.                                                   |
+| `posting_id`                     | The posting the money moved through.                                                                |
+| `credit_event_id`                | On the reduction a linked credit makes to a purchase, the credit's event. Null on every other fact. |
+| `account_id`                     | The account of `posting_id`.                                                                        |
+| `counterparty_id`, `category_id` | The event's counterparty and the allocation's category.                                             |
+| `measure`, `amount_minor`        | The fact measure and the amount, in minor units of `currency`.                                      |
+| `posted_on`, `spending_on`       | The dates the `posted` and `spending` bases place the fact on.                                      |
+| `purchase`                       | Whether the event is a purchase.                                                                    |
+| `model_assigned`                 | Whether the value that placed the fact came from a model-set counterparty.                          |
+
+The posting the money moved through is the event's primary posting, or its posting outside loan accounts when the primary posting is on a loan. The fact takes that posting's account and posted date. Its spending date is the purchase date for a purchase that has one, and that posting's posted date otherwise. A repayment debited from the deposit account on 31 January and credited to the loan on 1 February counts on 31 January, on the deposit posting. A repayment or drawdown recorded only on a loan moves no money in or out of your cash accounts, so it is internal.
+
+A credit linked to a purchase is emitted by the purchase's event, as a negative `spending` row in the purchase's category, dates, posting, account, and counterparty. The row names the credit's event in `credit_event_id`, whose primary posting is the record behind it (see [Records behind a number](#records-behind-a-number)). The credit's own event emits only the part that no link applies. So the facts of an event depend only on its own rows and the credit links that touch it, and a change to the purchase moves the linked reduction with it. A credit linked to a non-personal part of a purchase reduces nothing, because that part is not spending.
+
+Facts hold no top-level category and do not read a counterparty's kind. Scopes read the category tree when they are queried, so moving a category changes no fact. Migration `0027_fact_records.sql` filled `posting_id` on existing facts from their event's primary posting, and the rebuild for `factsVersion` 3 derives both columns.
+
+Statement triggers note which events a transaction changed. Any change to an event, its allocations, its posting membership, a credit link, or a counterparty's source notes the affected events. A credit link notes both of its events. So does a change to a posting's posted date, value date, account, currency, or amount, for the events that contain it. The notes live in a transaction-local setting, `ironcage.fact_events`, written by `note_fact_events` in migration `0022_serializable_writes.sql`, so concurrent transactions never read or write a shared marker. `writeTransaction` in `workers/api/src/database/transactions.ts` runs `refreshNotedFacts` after the write's work and before it commits. Every write to those tables runs through it, so a committed write leaves no fact behind. Period queries sum facts over indexes on `(currency, measure, spending_on)` and `(currency, measure, posted_on)`.
 
 ### Rebuilding after a derivation change
 
@@ -76,39 +114,104 @@ A reviewed correction that changes a posting's amount or currency changes its ev
 
 `summarizeFlow` in `packages/finance/src/analysis/flow.ts` turns summed facts into streams:
 
-| Side | Streams                                                                                                                             |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| In   | Income by income category, borrowing, transfers from your other accounts, and credits not yet understood.                           |
-| Out  | Spending by top-level category in taxonomy order, loan principal, transfers to your other accounts, and outflow not yet understood. |
+| Side | Streams                                                                                                                                                                |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| In   | Income by top-level income category, then income not yet categorised, borrowing, transfers from your other accounts, and credits not yet understood.                   |
+| Out  | Spending by top-level category in taxonomy order, then spending not yet categorised, loan principal, transfers to your other accounts, and outflow not yet understood. |
+
+Every stream carries the counted scope it sums. A category stream's scope is its measure with that top-level category, so a subcategory added under Salary stays in the Salary stream. The streams without a category have the `uncategorised` scope and read "Not yet categorised". Every other stream is its measure whole. `summarizeFlow` sums the rows each scope selects with `measureTotal` and `inCategoryScope`. The API sums facts into those rows by measure, category, and whether the fact sits on a loan account, so loan principal needs no query of its own. The monthly series groups each month's facts the same way. The stream's scope opens its records (see [Records behind a number](#records-behind-a-number)).
 
 Loan principal is repayments minus the interest and fees charged on loan accounts in the same period, never below zero. Interest is already spending, so cash out equals spending plus principal. Movements between ledger accounts are reported as a total and never drawn.
 
-The overview's list of changes is the six subcategories whose spending changed most, each split into a purchases part and an average part.
+The overview's list of changes, from `largestChanges`, is the six categories whose own spending changed most, each with its figures from `changeFigures` (see [Changes](#changes)) and the part of its amount that rests on the model. Each change carries the category scope it opens: `category` for a category without subcategories, `unspecified` for the spending placed on a category that has them, labelled like "Food, unspecified", and `uncategorised` for spending with no category.
 
-`getMonthlyFlow` in `workers/api/src/analysis/flows.ts` returns inflow, outflow, and spending for every calendar month from the first month with a ledger fact through the current month, by spending date. It runs `summarizeFlow` once per month. Each month carries a coverage mark. A month is `complete` when every account whose records span it has no missing days in it, `partial` when some account has observed days in it, and `missing` otherwise. The period strip, spending, and Sources read the series, and a screen without `?period=` uses it to find the latest month with records.
+`getMonthlyFlow` in `workers/api/src/analysis/flows.ts` returns inflow, outflow, spending, and the part of spending that rests on the model (`modelShare`) for every calendar month from the first month with a ledger fact through the month containing today in the settings timezone, by spending date. It runs `summarizeFlow` once per month. Each month carries a coverage mark from `monthCoverage` in `packages/finance/src/analysis/coverage.ts`. The month is `missing` when no account has records in it, as every month before the first record is, `partial` when `periodGaps` finds days of it without records (see [Periods](#periods)), and `complete` otherwise. `hasRecords`, from the same module, is the first rule, and the analyst uses it on `getCoverage` to find whether a month has records before it queues the month's briefing, from the hourly run or when you ask. So the strip draws a month partial exactly when the overview and spending name its gaps. The period strip, spending, and Sources read the series, and a screen without `?period=` uses it to find the latest month with records.
+
+## Records behind a number
+
+The `listCountedLedger` operation lists the postings behind a counted scope in a period, on a date basis, in a currency. Its query, `countedLedger` in `workers/api/src/postings/counted.ts`, resolves the period the way the flow does and selects facts with the fragments in `workers/api/src/analysis/fact-sql.ts`: the date for the basis, the period, each part of the measure, and the category and counterparty scopes. The flow's fact sums, spending, and counterparty totals build their selections from the same fragments, so a stream and the records it opens cannot select different facts.
+
+The record behind a fact is the primary posting of its `credit_event_id` when it has one, and its `posting_id` otherwise. Facts are grouped into one row per record, part, and basis date. A row's `counted` is what its facts add to the part, signed the way the bank booked the money, so money out is negative. `on` is the basis date, which differs from the posted date for a purchase made before it posted and for a linked credit. Examples:
+
+| Records                                                                               | Rows                                                                                 |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| A $300 dinner on 4 July, with a $200 repayment on 6 July linked to it, in Dining out. | The dinner counts −$300. The repayment counts +$200 on 4 July. The total is $100.    |
+| A $120 purchase split into $80 of Clothing and $40 of Home, in Clothing.              | The purchase counts −$80 of its −$120.                                               |
+| Loan principal in a month with a $3,900 repayment and $2,800 of interest on the loan. | The repayment from the deposit account and the interest charge. The total is $1,100. |
+
+The page lists the measure's parts in order, each with its label, whether it adds to the total or is taken off, its amount as the measure counts it, and how many postings it lists. Loan principal has two parts, "Repayments" and "Interest and fees on your loans". Every other measure has one. `total` is `measureTotal` over the parts, so it equals the number the scope came from. `path` holds the scope's crumbs, the same ones spending returns (see [Spending](#spending)). The label names the narrowest part of the scope: the last crumb's label, such as "Dining out", "Food, unspecified", "Not yet categorised", a counterparty's name, or "Unidentified", and the measure's label when the scope is the whole measure. The labels come from `packages/finance/src/analysis/measures.ts`, and spending's rows use them too. The two unresolved measures are labelled "Not yet understood, incoming" and "Not yet understood, outgoing", so their records never share a title. A scope naming a category or counterparty that does not exist fails with `notFound`.
+
+The ledger's posting filters apply on top, and the total and parts count only the rows that pass. Text, account, amount, role, open questions, source review, and import match the record's posting. Tag and personal event match the fact's allocation, so a split counts only its tagged part. Rows sort by part, then by basis date and posting ID, both descending. The cursor holds all three, so a page that ends inside one part continues with the rest of it and then the next part. The page and the totals are read in one `REPEATABLE READ READ ONLY` transaction.
+
+`workers/api/tests/postings/counted.test.ts` opens every stream of the populated fixture's July and August on both bases and requires the counted ledger's total to equal the stream and its rows to sum to its parts.
 
 ## Comparisons
 
-The flow and spending operations take `{ period, comparison, basis, currency }` and sum ledger facts for both periods in one query. Spending also takes a category, and a null category means all spending. Its rows are the selected category's direct children, or the top-level categories when none is selected. Each row also carries a 12-month series that ends with the month containing the period's last day. The result lists the 25 counterparties with the most spending in the period within the selected category.
+The flow and spending operations take `{ period, comparison, basis, currency }` and sum ledger facts for both periods in one query. Spending selects its facts with the fragments the counted ledger uses, so a row and the records it opens total the same.
+
+### Spending
+
+`getSpending` is `Spending.breakdown` in `workers/api/src/analysis/spending.ts`. Besides the period, it takes a category scope and a counterparty scope (see [Measures as ledger facts](#measures-as-ledger-facts)), and optionally a tag or a personal event. The scope decides the level of the drill, which says what its rows are:
+
+| Scope                                                                          | Level            | Rows                                                                                                                                                                              |
+| ------------------------------------------------------------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| All categories, or a `category` with subcategories                             | `categories`     | The top-level categories and "Not yet categorised", or the open category's subcategories and a row for the facts placed on the open category itself, such as "Food, unspecified". |
+| A `category` without subcategories, `unspecified`, or `uncategorised`          | `counterparties` | Each counterparty, and "Unidentified" for the facts whose event has no counterparty.                                                                                              |
+| A `counterparty` or `unidentified` counterparty scope, with any category scope | `transactions`   | None. The counted ledger lists the records (see [Records behind a number](#records-behind-a-number)).                                                                             |
+
+A category row opens its category, the open category's own row opens the `unspecified` scope, and "Not yet categorised" opens `uncategorised`. `rollupKeys` in `packages/finance/src/analysis/categories.ts` gives every category the row its facts add to. A counterparty row keeps the category scope and opens its counterparty, or `unidentified`.
+
+The rows partition the scope. Every fact in the scope adds to exactly one row, every row with spending in either period is listed, and there is no limit, so the rows' amounts add up to the scope's. Rows sort by amount, then by comparison amount, largest first, and then by label. One query sums each row and the whole scope with `GROUPING SETS`, so the scope counts a purchase once when a split puts it in two rows. Shopping with a $120 purchase split into $80 of Clothing and $40 of Home and furniture has one purchase, and so does each of its two rows. The scope and every row carry `changeFigures` (see [Changes](#changes)) and the model's part of the amount. Each row with a positive amount carries its `share`, a whole percent from `shares` of what the rows with positive amounts add up to. A row that spent nothing, or took money back, has none. So when John's $200 repayment of a $300 dinner is not yet linked, Dining out's $100 lists Dinner Place at $300 with a share of 100%, not 300%, and John Citizen at −$200 with no share.
+
+A tag or a personal event narrows spending to the facts of the allocations that carry it. A credit linked to a purchase reduces the purchase's allocation, so a trip's spending is less the refunds linked to its purchases. The counted ledger takes the same two filters and matches them the same way.
+
+`path` holds the crumbs from all spending down to the scope, from `scopePath` in `workers/api/src/analysis/scopes.ts`: the category and the categories above it, top-level first, then the counterparty. Each crumb is labelled like the row that opens it and opens its own scope. All spending has no crumbs. `slug` is the open category's slug, or the nearest one above it, which colours the scope, its chart, and its counterparty rows. It is null for all spending and for `uncategorised`. A scope naming a category or counterparty that does not exist fails with `notFound`.
+
+`months` is the scope's own series for the twelve months that end with the month containing the period's last day, from `trailingYear` in `packages/finance/src/analysis/periods.ts`, on the date basis. A second grouped query sums each month for the scope and for each row, so the scope's series counts months in which only rows that are not listed spent. For all spending on the spending basis it equals the monthly series. A period in year 0001 has no twelve months behind it, so spending fails with `invalid`. Each month carries the part of its amount that rests on the model, and its coverage from `monthCoverage` (see [Flow](#flow)), so a month before the first record is `missing` and never reads as zero. The result also carries the account coverage of the period and the comparison coverage.
 
 ### Periods
 
-Periods are `[start, endExclusive)`. Relative selections support rolling day counts and calendar weeks, months, quarters, and years. Weeks start on Monday. A relative selection resolves once per request in the settings timezone. The comparison is the previous period, the same period a year earlier, or fixed dates. A period in progress compares with the same number of elapsed days of the comparison period, clamped at month end. Fixed dates never move. Neither alignment fills unobserved days with zero; missing coverage is reported.
+Periods are `[start, endExclusive)`. Every read that takes a selection resolves it once per request through `resolveSelection` in `workers/api/src/analysis/periods.ts`. It reads today in the settings timezone inside the read's transaction and passes it to `resolvePeriod` in `packages/finance/src/analysis/periods.ts`. The flow and spending call `resolvePeriods`, which also passes the result to `comparisonPeriod` for the comparison period:
+
+| Selection  | Period                                                                                                                                                                                                                            |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `months`   | Whole calendar months, `from` through `to`, written `YYYY-MM`. The month containing today ends after today. Earlier and later months resolve whole. The last month is before December 9999, whose period would end in year 10000. |
+| `calendar` | Weeks, months, quarters, or years counted back from the one containing today. Weeks start on Monday.                                                                                                                              |
+| `rolling`  | A number of days ending today.                                                                                                                                                                                                    |
+| `fixed`    | The given dates.                                                                                                                                                                                                                  |
+
+`comparisonPeriod` moves the period back. `previous` moves it by its own span: a number of months for `months` and calendar months, quarters, and years, and a number of days for weeks, rolling, and fixed periods. `previousYear` moves it back twelve months. A `fixed` comparison is the given dates.
+
+A whole period made of months compares with whole months, so February 2029 compares with all of February 2028, 29 February included. Any other period, including a month in progress, ends the day after its last day moved back. Month arithmetic clamps that day to the end of a shorter month, so a comparison never runs past the end of its own months. On 25 September 2026, September so far compares with 1 to 25 August 2026, or with 1 to 25 September 2025 for the year before. July to September 2026 compares with 1 April to 25 June 2026. On 30 March 2027, March compares with all of February 2027 and nothing more. On 25 September 2028, 2028 compares with 1 January to 25 September 2027, the same calendar days rather than the same number of days.
+
+Neither period fills days without records with zero. `comparisonCoverage` in `packages/finance/src/analysis/coverage.ts` counts a day as covered for an account when it falls between the first and last record of one of the account's files, or inside a reconciled statement. A reconciled statement proves that its days without transactions had none. It looks for gaps only in the accounts that cover part of the period, since an account with no records in the period cannot make the comparison read as zero. For each one, the gaps are the comparison's days the account does not cover. The comparison is `missing` when no account covers any of it, `partial` when some account has a gap, and `complete` otherwise. So a card opened this month, compared with last month that the everyday account covers, is `partial` with the card's gap, not `missing`.
+
+`periodGaps`, from the same module, finds the gaps in the period itself with the same covered days. An account is expected to have records for every day of the months from its first covered day through the month of the latest covered day of any account. Its gaps are the days of the period in those months that it does not cover: the days after its records stop, a month whose card statement is missing between two that are there, or the latest month while the card's statement for it is not in yet. When the everyday account has records through 30 September and the card's last statement closes on 11 August, the card has no records for 12 to 31 August or for September, and both months are `partial`. An account opened in June lacks only the days of June before its first record, so a year names those days and not the five months before. Nothing marks an account closed, so an account whose records stopped is named for every month after them through the latest records. The overview and spending name each gap beside their figures (see [Frontend](/reference/frontend)).
+
+`periodLabel` and `monthLabel` in `packages/finance/src/analysis/labels.ts` name periods in Australian English: "August 2026", "2026", "March to May 2026", "November 2025 to February 2026", "1 to 25 August 2026", "3 March to 14 April 2026", and "3 March 2026". `dateLabel` names one day the same way.
+
+`periodsWithin` in `packages/finance/src/analysis/periods.ts` keeps the parts of intervals that fall inside a period, so reconciled statements from June, 28 July to 14 August, and 20 August to 9 September leave 1 to 14 August and 20 to 31 August of August.
 
 ### Changes
 
-Absolute change is current minus previous. Relative change is the absolute change over previous, only when previous is nonzero. A zero previous gives no percentage, and the UI says "new".
+Absolute change is current minus previous, which `compareMoney` in `packages/finance/src/analysis/spending.ts` gives with the percentage. `percentChange` gives the change as a whole percent of previous, with halves rounded away from zero, and only when previous is positive. A change from zero has no ratio, and a change from net refunds has no meaningful sign, so neither has a percentage. A rise from $200 to $225 is 13%, and a fall from $200 to $175 is −13%. When the comparison period has records, Spending shows "New" and the overview says "none in" the comparison period. When `comparisonCoverage` is `missing`, both screens say there are no records to compare with (see [Periods](#periods)).
 
-The purchases part of a change is `(n1 - n0) * (p0 + p1) / 2` and the average part is `(p1 - p0) * (n0 + n1) / 2`, where `n` is the purchase count and `p` the average purchase. The two sum exactly to the change. Intermediate values are exact rationals. `purchaseDecomposition` floors each part to cents and gives the remaining cent to the part with the larger remainder, so the parts sum to the change.
+`changeFigures` splits a change into three parts that sum exactly to it. The purchases part and the average part split the change in purchase spending (see [Measures](#measures)). The purchases part is `(n1 - n0) * (p0 + p1) / 2` and the average part is `(p1 - p0) * (n0 + n1) / 2`, where `n` is the purchase count and `p` the unrounded average purchase. Intermediate values are exact rationals. `purchaseDecomposition` floors each part to cents and gives the remaining cent to the part with the larger remainder, so the two sum to the change in purchase spending. The other part is the change in the rest of spending: interest, fees, and credits linked to no purchase. A period without purchases has no average. When either period has none, the change in purchase spending stays whole, and the change has no purchases or average part.
 
-Example: 10 delivery orders totalling $200 in July, 12 totalling $300 in August. The change is $100. The purchases part is `(12 - 10) * (20 + 25) / 2 = $45`, and the average part is `(25 - 20) * (10 + 12) / 2 = $55`.
+Example: 10 delivery orders totalling $200 in July. In August, 12 orders totalling $300 and a $10 refund linked to no order. The change is $90, or 45%. The purchases part is `(12 - 10) * (20 + 25) / 2 = $45`, the average part is `(25 - 20) * (10 + 12) / 2 = $55`, and the other part is −$10.
 
 ## Previews
 
-Correction, rule, and relationship previews show what a change does to the flow of every month it touches, by spending date. `previewImpacts` in `workers/api/src/analysis/preview.ts` derives the facts of the events as the change leaves them, and of the events whose credit links it adds or removes. It collects the months of their stored and new facts. For each month it runs `summarizePeriod` from `workers/api/src/analysis/flows.ts`, the same query and `summarizeFlow` call the overview runs. It then writes the new facts inside a savepoint, summarises each month again, and rolls the savepoint back. A preview therefore shows each month exactly as the overview will show it once the change is saved.
+Every preview shows what a change does to the flow of every month it touches, by spending date. For each month it runs `summarizePeriod` from `workers/api/src/analysis/flows.ts`, the same query and `summarizeFlow` call the overview runs, before and after the change's facts are written, and then rolls the facts back. A preview therefore shows each month exactly as the overview will show it once the change is saved.
+
+Correction, rule, and relationship previews use `previewImpacts` in `workers/api/src/analysis/preview.ts`. It derives the facts of the events as the change leaves them, and of the events whose credit links it adds or removes, writes them inside a savepoint, and rolls the savepoint back.
+
+Counterparty changes, their undo, moving a transaction to another counterparty, and undoing a correction use `previewWrite` in the same file. It runs the command's real write inside a write transaction, so it applies the same checks and derivation as the command. It takes the events the fact triggers noted, and the months of their stored facts and of the facts they would now produce. It measures those months, refreshes the noted facts, measures them again, and rolls the whole transaction back. `eventCount` is the number of noted events. A new default category can change what 42 transactions mean and leave every total as it was, so the count shows a change the totals cannot. A descriptor move chosen from one transaction also returns that transaction as the rolled-back write left it, so the preview can show where it ends up.
 
 Each month reports what came in, what went out, spending, income, loan principal, both "not yet understood" streams, money moved between your accounts, and how much of spending rests on the model.
 
 ## Counterparty totals
 
-The counterparty list and detail sum ledger facts by counterparty, through `summaries` in `workers/api/src/interpretation/counterparties.ts`. A counterparty's outflow is its share of the out streams: `spending`, `externalOut`, `loanRepayment`, and `unresolvedOut` facts, so a refund reduces it. Its inflow is its share of the in streams: `income`, `borrowing`, `externalIn`, and `unresolvedIn`. Movements between your own accounts count in neither. The list limits both to the selected period by spending date, and the detail's monthly history covers all records. A counterparty's outflow in a category equals its row on the Spending screen. A credit linked to a purchase reduces the purchase's counterparty, not the one who paid it back.
+The counterparty list and detail sum ledger facts by counterparty, through `summaries` in `workers/api/src/interpretation/counterparties.ts`. A counterparty's outflow is its share of the out streams: the facts `factDirection` marks out, which are `spending`, `externalOut`, `loanRepayment`, and `unresolvedOut`, so a refund reduces it. Its inflow is its share of the in streams: `income`, `borrowing`, `externalIn`, and `unresolvedIn`. Movements between your own accounts count in neither. `outflowEvents` and `inflowEvents` count the transactions behind each amount, so a refund counts toward the outflow it reduces. A counterparty's outflow in a category equals its row on the Spending screen. A credit linked to a purchase reduces the purchase's counterparty, not the one who paid it back.
+
+The list shows one direction at a time for the selected period, by spending date. It holds every counterparty with a nonzero amount in that direction, largest first, so one whose refunds exceed its purchases comes last with a negative amount. The detail's monthly history covers all records, with every month from the first with records to the last, so an empty month is there with nothing in it. Each month carries its coverage from `monthCoverage` (see [Flow](#flow)), counting only the accounts the counterparty's facts go through. A month with no statement for the card you pay Woolworths with is `missing`, not zero, even when the everyday account has records for it.

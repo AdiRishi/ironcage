@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 
+import { FlowDirection } from "./analysis.ts";
 import {
   CategoryId,
   CategoryTree,
@@ -8,31 +9,12 @@ import {
   CounterpartyKind,
   CounterpartyRole,
 } from "./interpretation.ts";
-import { ModelProvider } from "./models.ts";
-import { AccountKind, CommandId, Instant, Institution, Money, Version } from "./values.ts";
+import { Confidence, ModelProvider } from "./models.ts";
+import { AccountKind, CommandId, Instant, Institution, Money } from "./values.ts";
 
 export const EnrichmentRunId = Schema.String.check(Schema.isUUID()).pipe(
   Schema.brand("EnrichmentRunId"),
 );
-export const Confidence = Schema.Finite.check(
-  Schema.isGreaterThanOrEqualTo(0),
-  Schema.isLessThanOrEqualTo(1),
-);
-
-export const EnrichmentSettings = Schema.Struct({
-  enabled: Schema.Boolean,
-  warning: Schema.NullOr(Money),
-  autoApplyConfidence: Confidence,
-  version: Version,
-  provider: ModelProvider,
-});
-export const UpdateEnrichmentSettings = Schema.Struct({
-  commandId: CommandId,
-  enabled: Schema.Boolean,
-  warning: Schema.NullOr(Money),
-  autoApplyConfidence: Confidence,
-  expectedVersion: Version,
-});
 
 // What the model said about one alias you answered, beside your answer. Category keys
 // are slugs, or IDs for categories you created.
@@ -81,7 +63,7 @@ export const EnrichmentAlias = Schema.Struct({
   aliasKey: Schema.String,
   samples: Schema.Array(Schema.String),
   channels: Schema.Array(Channel),
-  directions: Schema.Array(Schema.Literals(["out", "in"])),
+  directions: Schema.Array(FlowDirection),
   accountKinds: Schema.Array(AccountKind),
   institutions: Schema.Array(Institution),
   transactionCount: Schema.Int,

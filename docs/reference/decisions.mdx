@@ -5,6 +5,38 @@ description: Why the architecture looks the way it does.
 
 Each entry records a decision, the reason, and what would change it. Newer entries come first.
 
+## The analyst is Effect AI in a Durable Object
+
+**Decision.** The analyst is an Alchemy Effect Durable Object, `Conversations`, hosted by a small Analyst Worker. It keeps conversations in the object's SQLite through `@effect/sql-sqlite-do` and calls the model through Effect AI's `LanguageModel`, `Chat`, and `Toolkit`, with Alchemy's Workers AI adapter behind its own AI Gateway. A question is stored as a queued turn and answered by the object's alarm, and the web app polls the conversation. It replaces the plan for an Agents SDK `AIChatAgent`.
+
+**Why.** The rest of the system is Effect, and the object is an Effect layer like the API. It reads the API through a binding typed `ApiClient<AnalystOperation>`, so calling any command other than recording its own model usage fails to compile, and `FinanceError` crosses every hop as the class. Tools take their parameters from the contract schemas. `AIChatAgent` is a plain Durable Object subclass, so it would need hand-written RPC to the API, a second AI stack with its own schema adapters, a WebSocket outside the server functions, and tests in the Workers pool. It adds resumable token streams and broadcast to several clients, which the product does not use, because an answer appears only after its figures are checked. The analyst's tests run the same SQL on `node:sqlite` and replace only the API and the model.
+
+**Would change if** answers need to stream as the model writes them, or several people share one deployment.
+
+## Alchemy is patched until upstream has the fixes
+
+**Decision.** `patches/alchemy@2.0.0-beta.79.patch`, made with `pnpm patch`, changes Alchemy's TypeScript source, which Workers bundle, and its compiled `lib` files, which Node and the type checker load. Docker container and volume reads accept a resource with no previous inputs. `bindWorker(worker, { errors })` revives the declared error classes, as a Durable Object's `errors` already does. The Workers AI `LanguageModel` fails with the matching `AiError` reason when the reply has an HTTP error status, instead of returning an empty answer. It leaves token counts the reply does not report undefined instead of zero, and it accepts `reasoningEffort` and extra request headers.
+
+**Why.** Each change fixes a bug or adds a missing option that the analyst, the model usage records, or the local stack depend on. Each is small enough to send upstream as it is. Wrapping Alchemy in application code would copy its adapter and binding code.
+
+**Would change if** an Alchemy release includes the changes. The patch then shrinks or goes away with the upgrade.
+
+## Counterparty history as row images, undone last first
+
+**Decision.** A counterparty change stores every record it wrote, counterparties, aliases, reference defaults, and the events, rules, and movement-link snapshots it pointed elsewhere, as it was before and as the change left it. Undo is a new change that writes the before images back, and only while every record is still as the change left it.
+
+**Why.** A merge deletes its source, and a descriptor move changes the meaning of every transaction the bank writes that way, so undo needs the rows themselves, not a description of the command. Replaying an earlier snapshot, as an event correction does, would silently revert later changes to the same records, such as renaming the target of an old merge. Refusing until the later change is undone keeps undo exact.
+
+**Would change if** undoing one change often has to wait on a long chain of later ones, which would call for a merge of images instead of last in, first out.
+
+## Previews run the write and roll it back
+
+**Decision.** A preview of a counterparty change, an undo, or a counterparty move runs the command's real write inside a write transaction, measures every month whose facts it changed, and rolls back.
+
+**Why.** A counterparty change reaches its transactions through reinterpretation, and a second model of that derivation for previews would drift from the command. Running the write gives the preview the same checks, the same derivation, and the same facts the overview will read. The write also reports how many transactions change meaning, which a totals-only preview misses when a change moves spending between categories and leaves every total as it was.
+
+**Would change if** previews of large merges hold write transactions long enough to cause serialization retries for other writers.
+
 ## Serializable writes instead of one lock
 
 **Decision.** Every write runs as a `SERIALIZABLE` transaction and runs again when Postgres reports a serialization failure. The events a transaction changed are noted in a transaction-local setting and their facts refreshed before commit.
@@ -41,11 +73,11 @@ Each entry records a decision, the reason, and what would change it. Newer entri
 
 **Why.** Loading every event and posting for each request grows with history. The projection keeps period queries bounded and indexed. Writing it in the same transaction keeps read-after-write consistency, which a materialized view refreshed later would not.
 
-## Three Workers with one writer
+## Four Workers with one writer
 
-**Decision.** Web, API, and processor are separate Workers. Only the API has a database binding.
+**Decision.** Web, API, processor, and analyst are separate Workers. Only the API has a database binding.
 
-**Why.** One writer makes the write protocol, receipts, and serializable transactions the single place consistency is enforced. PDF.js stays out of the writer's bundle and CPU budget. Model calls run in the processor's enrichment Workflow through the Workers AI binding, so a slow or failed call never holds a write transaction open. The analyst will get its own Durable Object runtime.
+**Why.** One writer makes the write protocol, receipts, and serializable transactions the single place consistency is enforced. PDF.js stays out of the writer's bundle and CPU budget. Model calls run in the processor's enrichment Workflow and the analyst's Durable Object through the Workers AI binding, so a slow or failed call never holds a write transaction open.
 
 ## Postgres for financial records
 

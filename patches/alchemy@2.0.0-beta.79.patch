@@ -1,5 +1,197 @@
+diff --git a/lib/Cloudflare/AI/LanguageModel.d.ts b/lib/Cloudflare/AI/LanguageModel.d.ts
+index 66f145e3358f0be346556e4dfd80aff115ee399a..bc6c8accd5585deeda203995a942e51f0f0e7f3d 100644
+--- a/lib/Cloudflare/AI/LanguageModel.d.ts
++++ b/lib/Cloudflare/AI/LanguageModel.d.ts
+@@ -39,7 +39,14 @@ export interface LanguageModelOptions {
+         readonly seed?: number;
+         readonly frequencyPenalty?: number;
+         readonly presencePenalty?: number;
++        /** Sent as `reasoning_effort` to models that reason before answering. */
++        readonly reasoningEffort?: "low" | "medium" | "high";
+     };
++    /**
++     * Extra HTTP headers sent with every request, e.g. `x-session-affinity`
++     * to route a conversation's requests to the same model instance.
++     */
++    readonly headers?: Readonly<Record<string, string>>;
+ }
+ /**
+  * Provide a {@link AiLanguageModel.LanguageModel} layer backed by the supplied
+@@ -50,5 +57,5 @@ export declare const makeLanguageModelLayer: (options: LanguageModelOptions) =>
+  * Build a {@link AiLanguageModel.LanguageModel} that proxies generateText/streamText
+  * through the supplied AI Gateway client to a Workers AI model.
+  */
+-export declare const makeLanguageModel: ({ client, model, parameters, }: LanguageModelOptions) => Effect.Effect<AiLanguageModel.LanguageModel, never, RuntimeContext>;
++export declare const makeLanguageModel: ({ client, model, parameters, headers, }: LanguageModelOptions) => Effect.Effect<AiLanguageModel.LanguageModel, never, RuntimeContext>;
+ //# sourceMappingURL=LanguageModel.d.ts.map
+\ No newline at end of file
+diff --git a/lib/Cloudflare/AI/LanguageModel.js b/lib/Cloudflare/AI/LanguageModel.js
+index c0682b3f22d0d3e1657e9a3e6120cc9b01089df9..c3715d722d0b38d55680d9fb243e40f6bca745ad 100644
+--- a/lib/Cloudflare/AI/LanguageModel.js
++++ b/lib/Cloudflare/AI/LanguageModel.js
+@@ -13,7 +13,7 @@ export const makeLanguageModelLayer = (options) => Layer.effect(AiLanguageModel.
+  * Build a {@link AiLanguageModel.LanguageModel} that proxies generateText/streamText
+  * through the supplied AI Gateway client to a Workers AI model.
+  */
+-export const makeLanguageModel = ({ client, model, parameters, }) => Effect.gen(function* () {
++export const makeLanguageModel = ({ client, model, parameters, headers, }) => Effect.gen(function* () {
+     const ai = yield* client.raw;
+     const gatewayId = client.id === undefined ? undefined : yield* client.id;
+     const callRaw = (body, method) => Effect.tryPromise({
+@@ -21,10 +21,14 @@ export const makeLanguageModel = ({ client, model, parameters, }) => Effect.gen(
+             ...(gatewayId === undefined
+                 ? {}
+                 : { gateway: { id: gatewayId } }),
++            ...(headers === undefined ? {} : { extraHeaders: headers }),
+             returnRawResponse: true,
+         }),
+         catch: (cause) => toAiError(cause, method),
+-    });
++    }).pipe(
++    // `returnRawResponse` skips the binding's own status check, so an
++    // error reply would otherwise parse as an empty successful one.
++    Effect.flatMap((resp) => resp.ok ? Effect.succeed(resp) : failWithStatus(resp, method)));
+     return yield* AiLanguageModel.make({
+         generateText: (options) => Effect.gen(function* () {
+             const body = toRequestBody({ options, parameters, stream: false });
+@@ -190,7 +194,7 @@ const toRequestBody = ({ options, parameters, stream, }) => {
+         // `stream_options.include_usage` is the OpenAI-compatible opt-in for
+         // usage tokens to appear in the final streamed chunk. Without it most
+         // Workers AI models omit `usage` from the stream entirely, leaving the
+-        // `finish` part with zeroed counts.
++        // `finish` part without counts.
+         ...(stream
+             ? { stream: true, stream_options: { include_usage: true } }
+             : {}),
+@@ -209,6 +213,9 @@ const toRequestBody = ({ options, parameters, stream, }) => {
+         ...(parameters?.presencePenalty !== undefined
+             ? { presence_penalty: parameters.presencePenalty }
+             : {}),
++        ...(parameters?.reasoningEffort !== undefined
++            ? { reasoning_effort: parameters.reasoningEffort }
++            : {}),
+     };
+ };
+ // ---------------------------------------------------------------------------
+@@ -235,27 +242,32 @@ const mapFinishReason = (raw) => {
+             return "other";
+     }
+ };
++// Counts the reply leaves out stay `undefined`. A zero would claim the call
++// was free and hide the gap from anyone metering usage.
+ const mapUsage = (raw) => {
+     const usage = raw?.usage ?? {};
+-    const promptTokens = usage.prompt_tokens ?? 0;
+-    const completionTokens = usage.completion_tokens ?? 0;
++    const promptTokens = usage.prompt_tokens;
++    const completionTokens = usage.completion_tokens;
+     const cached = usage.prompt_tokens_details?.cached_tokens;
++    const reasoning = usage.completion_tokens_details?.reasoning_tokens;
+     // Construct an actual `Response.Usage` instance — `Schema.Class<Usage>`
+     // encodes by going through the class constructor / `isInstance` check, so a
+     // plain struct that "matches" the encoded shape isn't enough.
+     return new Response.Usage({
+         inputTokens: {
+-            uncached: cached !== undefined
++            uncached: promptTokens !== undefined && cached !== undefined
+                 ? Math.max(0, promptTokens - cached)
+                 : promptTokens,
+             total: promptTokens,
+-            cacheRead: cached ?? 0,
+-            cacheWrite: 0,
++            cacheRead: cached,
++            cacheWrite: undefined,
+         },
+         outputTokens: {
+             total: completionTokens,
+-            text: 0,
+-            reasoning: 0,
++            text: completionTokens !== undefined && reasoning !== undefined
++                ? completionTokens - reasoning
++                : undefined,
++            reasoning,
+         },
+     });
+ };
+@@ -670,4 +682,24 @@ const toAiError = (cause, method) => AiError.AiError.make({
+         description: cause instanceof Error ? cause.message : "AI Gateway request failed",
+     }),
+ });
++const failWithStatus = (resp, method) => Effect.tryPromise({
++    try: () => resp.text(),
++    catch: (cause) => toAiError(cause, method),
++}).pipe(Effect.flatMap((body) => {
++    const description = body.length > 0
++        ? `HTTP ${resp.status}: ${body.slice(0, 500)}`
++        : `HTTP ${resp.status}`;
++    return Effect.fail(AiError.AiError.make({
++        module: "Cloudflare.AI.LanguageModel",
++        method,
++        // `reasonFromHttpStatus` maps 400 to an invalid request but leaves
++        // 422 as an unknown error.
++        reason: resp.status === 422
++            ? new AiError.InvalidRequestError({ description })
++            : AiError.reasonFromHttpStatus({
++                status: resp.status,
++                description,
++            }),
++    }));
++}));
+ //# sourceMappingURL=LanguageModel.js.map
+\ No newline at end of file
+diff --git a/lib/Cloudflare/Workers/WorkerBinding.d.ts b/lib/Cloudflare/Workers/WorkerBinding.d.ts
+index c7f0bbbeb55239d82314e80e1fa0463db2971a6b..43aa5052015638f722b80107c338d1166920aa2b 100644
+--- a/lib/Cloudflare/Workers/WorkerBinding.d.ts
++++ b/lib/Cloudflare/Workers/WorkerBinding.d.ts
+@@ -4,7 +4,7 @@ import * as Effect from "effect/Effect";
+ import * as Redacted from "effect/Redacted";
+ import type { Json } from "effect/Schema";
+ import type * as Output from "../../Output.ts";
+-import type { Rpc } from "../../Rpc.ts";
++import type { Rpc, RpcErrorClass } from "../../Rpc.ts";
+ import type { Gateway as AiGateway } from "../AI/Gateway.ts";
+ import type { SearchInstance } from "../AI/SearchInstance.ts";
+ import type { SearchNamespace } from "../AI/SearchNamespace.ts";
+@@ -401,6 +401,13 @@ export declare const bindWorker: <Shape, Req = never>(workerEff: Effect.Effect<i
+         additionalWorkspaces: string[] | undefined;
+         metadata?: string | undefined;
+     } | undefined, never>;
+-} & Rpc<Shape>)) => Effect.Effect<Shape, never, Req | Worker<any>>;
++} & Rpc<Shape>), options?: {
++    /**
++     * Tagged-error classes the bound Worker's RPC methods can fail with.
++     * Failures whose `_tag` matches one are reconstructed as real class
++     * instances instead of the plain objects RPC serialization produces.
++     */
++    readonly errors?: ReadonlyArray<RpcErrorClass> | undefined;
++}) => Effect.Effect<Shape, never, Req | Worker<any>>;
+ export {};
+ //# sourceMappingURL=WorkerBinding.d.ts.map
+\ No newline at end of file
+diff --git a/lib/Cloudflare/Workers/WorkerBinding.js b/lib/Cloudflare/Workers/WorkerBinding.js
+index 9ebeb11cf92541e41e7af2139aad95cb879b42bf..c6f09987a0a0ad3561fbbc125973113bfe5a08bd 100644
+--- a/lib/Cloudflare/Workers/WorkerBinding.js
++++ b/lib/Cloudflare/Workers/WorkerBinding.js
+@@ -6,7 +6,7 @@ import { Dataset } from "../AnalyticsEngine/Dataset.js";
+ import { SendEmail } from "../Email/SendEmail.js";
+ import { makeRpcStub } from "./Rpc.js";
+ import { Worker, WorkerEnvironment } from "./Worker.js";
+-export const bindWorker = Effect.fn(function* (workerEff) {
++export const bindWorker = Effect.fn(function* (workerEff, options) {
+     // Worker classes and regular Effects are both yieldable here.
+     const worker = isYieldableEffectLike(workerEff)
+         ? yield* workerEff
+@@ -26,6 +26,6 @@ export const bindWorker = Effect.fn(function* (workerEff) {
+     // deployed worker, so we hand `makeRpcStub` an `Effect<stub>` that
+     // resolves the binding lazily on each method call.
+     const stubEff = WorkerEnvironment.pipe(Effect.map((env) => env[worker.LogicalId]));
+-    return makeRpcStub(stubEff);
++    return makeRpcStub(stubEff, options);
+ });
+ //# sourceMappingURL=WorkerBinding.js.map
+\ No newline at end of file
 diff --git a/lib/Docker/Container.js b/lib/Docker/Container.js
-index eda60bf..e663ab9 100644
+index eda60bf2183cfda4a47c410f00a92c32ed5afbd2..e663ab9d70bdcaab89123525de7b10eeb42049e4 100644
 --- a/lib/Docker/Container.js
 +++ b/lib/Docker/Container.js
 @@ -185,7 +185,7 @@ export const ContainerProvider = () => Provider.effect(Container, Effect.gen(fun
@@ -21,7 +213,7 @@ index eda60bf..e663ab9 100644
                  : info.Config.Image);
              if (output)
 diff --git a/lib/Docker/Volume.js b/lib/Docker/Volume.js
-index a70f35d..8dafc34 100644
+index a70f35d206f20de6c97103c1a9a60b60bf3b3b5e..8dafc3423742db265c2ae4a4709d107243fcee04 100644
 --- a/lib/Docker/Volume.js
 +++ b/lib/Docker/Volume.js
 @@ -58,7 +58,7 @@ export const VolumeProvider = () => Provider.effect(Volume, Effect.gen(function*
@@ -33,8 +225,200 @@ index a70f35d..8dafc34 100644
              const name = yield* dockerPhysicalName(id, olds, instanceId);
              const info = yield* docker.volume
                  .inspect(name, context)
+diff --git a/src/Cloudflare/AI/LanguageModel.ts b/src/Cloudflare/AI/LanguageModel.ts
+index cabb5ca3ddff89a50197ade71eccb2d61e88dc60..2ba214449d8bbce4d91846feff2587797e0b1aa6 100644
+--- a/src/Cloudflare/AI/LanguageModel.ts
++++ b/src/Cloudflare/AI/LanguageModel.ts
+@@ -52,7 +52,14 @@ export interface LanguageModelOptions {
+     readonly seed?: number;
+     readonly frequencyPenalty?: number;
+     readonly presencePenalty?: number;
++    /** Sent as `reasoning_effort` to models that reason before answering. */
++    readonly reasoningEffort?: "low" | "medium" | "high";
+   };
++  /**
++   * Extra HTTP headers sent with every request, e.g. `x-session-affinity`
++   * to route a conversation's requests to the same model instance.
++   */
++  readonly headers?: Readonly<Record<string, string>>;
+ }
+ 
+ /**
+@@ -72,6 +79,7 @@ export const makeLanguageModel = ({
+   client,
+   model,
+   parameters,
++  headers,
+ }: LanguageModelOptions): Effect.Effect<
+   AiLanguageModel.LanguageModel,
+   never,
+@@ -94,11 +102,18 @@ export const makeLanguageModel = ({
+               ...(gatewayId === undefined
+                 ? {}
+                 : { gateway: { id: gatewayId } }),
++              ...(headers === undefined ? {} : { extraHeaders: headers }),
+               returnRawResponse: true,
+             },
+           ),
+         catch: (cause) => toAiError(cause, method),
+-      });
++      }).pipe(
++        // `returnRawResponse` skips the binding's own status check, so an
++        // error reply would otherwise parse as an empty successful one.
++        Effect.flatMap((resp) =>
++          resp.ok ? Effect.succeed(resp) : failWithStatus(resp, method),
++        ),
++      );
+ 
+     return yield* AiLanguageModel.make({
+       generateText: (options) =>
+@@ -176,6 +191,7 @@ interface WorkersAiInputs {
+   readonly random_seed?: number;
+   readonly frequency_penalty?: number;
+   readonly presence_penalty?: number;
++  readonly reasoning_effort?: "low" | "medium" | "high";
+ }
+ 
+ // ---------------------------------------------------------------------------
+@@ -366,7 +382,7 @@ const toRequestBody = ({
+     // `stream_options.include_usage` is the OpenAI-compatible opt-in for
+     // usage tokens to appear in the final streamed chunk. Without it most
+     // Workers AI models omit `usage` from the stream entirely, leaving the
+-    // `finish` part with zeroed counts.
++    // `finish` part without counts.
+     ...(stream
+       ? { stream: true, stream_options: { include_usage: true } }
+       : {}),
+@@ -385,6 +401,9 @@ const toRequestBody = ({
+     ...(parameters?.presencePenalty !== undefined
+       ? { presence_penalty: parameters.presencePenalty }
+       : {}),
++    ...(parameters?.reasoningEffort !== undefined
++      ? { reasoning_effort: parameters.reasoningEffort }
++      : {}),
+   };
+ };
+ 
+@@ -414,30 +433,40 @@ const mapFinishReason = (raw: unknown): Response.FinishReason => {
+   }
+ };
+ 
++// Counts the reply leaves out stay `undefined`. A zero would claim the call
++// was free and hide the gap from anyone metering usage.
+ const mapUsage = (raw: Record<string, unknown> | undefined): Response.Usage => {
+   const usage = (raw?.usage as Record<string, unknown> | undefined) ?? {};
+-  const promptTokens = (usage.prompt_tokens as number | undefined) ?? 0;
+-  const completionTokens = (usage.completion_tokens as number | undefined) ?? 0;
++  const promptTokens = usage.prompt_tokens as number | undefined;
++  const completionTokens = usage.completion_tokens as number | undefined;
+   const cached = (
+     usage.prompt_tokens_details as { cached_tokens?: number } | undefined
+   )?.cached_tokens;
++  const reasoning = (
++    usage.completion_tokens_details as
++      | { reasoning_tokens?: number }
++      | undefined
++  )?.reasoning_tokens;
+   // Construct an actual `Response.Usage` instance — `Schema.Class<Usage>`
+   // encodes by going through the class constructor / `isInstance` check, so a
+   // plain struct that "matches" the encoded shape isn't enough.
+   return new Response.Usage({
+     inputTokens: {
+       uncached:
+-        cached !== undefined
++        promptTokens !== undefined && cached !== undefined
+           ? Math.max(0, promptTokens - cached)
+           : promptTokens,
+       total: promptTokens,
+-      cacheRead: cached ?? 0,
+-      cacheWrite: 0,
++      cacheRead: cached,
++      cacheWrite: undefined,
+     },
+     outputTokens: {
+       total: completionTokens,
+-      text: 0,
+-      reasoning: 0,
++      text:
++        completionTokens !== undefined && reasoning !== undefined
++          ? completionTokens - reasoning
++          : undefined,
++      reasoning,
+     },
+   });
+ };
+@@ -1050,3 +1079,34 @@ const toAiError = (
+         cause instanceof Error ? cause.message : "AI Gateway request failed",
+     }),
+   });
++
++const failWithStatus = (
++  resp: Response,
++  method: "generateText" | "streamText",
++): Effect.Effect<never, AiError.AiError> =>
++  Effect.tryPromise({
++    try: () => resp.text(),
++    catch: (cause) => toAiError(cause, method),
++  }).pipe(
++    Effect.flatMap((body) => {
++      const description =
++        body.length > 0
++          ? `HTTP ${resp.status}: ${body.slice(0, 500)}`
++          : `HTTP ${resp.status}`;
++      return Effect.fail(
++        AiError.AiError.make({
++          module: "Cloudflare.AI.LanguageModel",
++          method,
++          // `reasonFromHttpStatus` maps 400 to an invalid request but leaves
++          // 422 as an unknown error.
++          reason:
++            resp.status === 422
++              ? new AiError.InvalidRequestError({ description })
++              : AiError.reasonFromHttpStatus({
++                  status: resp.status,
++                  description,
++                }),
++        }),
++      );
++    }),
++  );
+diff --git a/src/Cloudflare/Workers/WorkerBinding.ts b/src/Cloudflare/Workers/WorkerBinding.ts
+index 7b98a2fa4d7c1d363127957dc25811bd8cb9910b..e2957d2e0faea4ffab791a7e3eb4d1fb2b8ec6ff 100644
+--- a/src/Cloudflare/Workers/WorkerBinding.ts
++++ b/src/Cloudflare/Workers/WorkerBinding.ts
+@@ -36,7 +36,7 @@ import type { URLEffect } from "./Worker.ts";
+ import type { BrowserBinding } from "./BrowserBinding.ts";
+ import type { DurableObjectLike } from "./DurableObject.ts";
+ import type { RateLimitBinding } from "./RateLimitBinding.ts";
+-import { makeRpcStub } from "./Rpc.ts";
++import { makeRpcStub, type RpcErrorClass } from "./Rpc.ts";
+ import type { SecretKeyBinding } from "./SecretKeyBinding.ts";
+ import type { VersionMetadataBinding } from "./VersionMetadataBinding.ts";
+ import { Worker, WorkerEnvironment } from "./Worker.ts";
+@@ -220,6 +220,14 @@ export const bindWorker = Effect.fn(function* <Shape, Req = never>(
+   workerEff:
+     | (Worker & Rpc<Shape>)
+     | Effect.Effect<Worker & Rpc<Shape>, never, Req>,
++  options?: {
++    /**
++     * Tagged-error classes the bound Worker's RPC methods can fail with.
++     * Failures whose `_tag` matches one are reconstructed as real class
++     * instances instead of the plain objects RPC serialization produces.
++     */
++    readonly errors?: ReadonlyArray<RpcErrorClass> | undefined;
++  },
+ ) {
+   // Worker classes and regular Effects are both yieldable here.
+   const worker = isYieldableEffectLike(workerEff)
+@@ -243,5 +251,5 @@ export const bindWorker = Effect.fn(function* <Shape, Req = never>(
+   const stubEff = WorkerEnvironment.pipe(
+     Effect.map((env) => (env as Record<string, unknown>)[worker.LogicalId]),
+   );
+-  return makeRpcStub<Shape>(stubEff);
++  return makeRpcStub<Shape>(stubEff, options);
+ });
 diff --git a/src/Docker/Container.ts b/src/Docker/Container.ts
-index 366e659..9dc9489 100644
+index 366e65915c9405bd12f629a1dc3cce64b5f64c38..9dc94890c44440397594783088c18376cdf8a5f5 100644
 --- a/src/Docker/Container.ts
 +++ b/src/Docker/Container.ts
 @@ -348,7 +348,7 @@ export const ContainerProvider = () =>
@@ -56,7 +440,7 @@ index 366e659..9dc9489 100644
                : info.Config.Image,
            );
 diff --git a/src/Docker/Volume.ts b/src/Docker/Volume.ts
-index 560ceb5..01cfd4a 100644
+index 560ceb56b997c1c2d264c86d950920ab19b06344..01cfd4a75ea8a32ee7bb46f30658e8426b54ef22 100644
 --- a/src/Docker/Volume.ts
 +++ b/src/Docker/Volume.ts
 @@ -116,7 +116,7 @@ export const VolumeProvider = () =>

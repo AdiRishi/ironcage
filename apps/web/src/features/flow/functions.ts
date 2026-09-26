@@ -1,4 +1,4 @@
-import { FlowInput, MonthlyFlowInput, SpendingInput } from "@repo/contracts/finance";
+import { FlowInput, MonthlyFlowInput } from "@repo/contracts/finance";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 
@@ -10,9 +10,6 @@ export const getPeriodFlow = createServerFn({ method: "GET" })
 export const getMonthlyFlow = createServerFn({ method: "GET" })
   .validator(Schema.toStandardSchemaV1(MonthlyFlowInput))
   .handler(({ data }) => callApiRpc((client) => client.getMonthlyFlow(data)));
-export const getSpending = createServerFn({ method: "GET" })
-  .validator(Schema.toStandardSchemaV1(SpendingInput))
-  .handler(({ data }) => callApiRpc((client) => client.getSpending(data)));
 export const getFactsStatus = createServerFn({ method: "GET" }).handler(() =>
   callApiRpc((client) => client.getFactsStatus()),
 );

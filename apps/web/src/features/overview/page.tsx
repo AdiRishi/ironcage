@@ -1,15 +1,20 @@
 import type {
   AccountCoverage,
+  CalendarDate,
   Money,
   PeriodChange,
   PeriodFlow,
-  Question,
+  QuestionSummary,
+  YearMonth,
 } from "@repo/contracts/finance";
-import { formatCurrency } from "@repo/finance";
+import { affectedMoney, formatCurrency, leftOver, periodLabel } from "@repo/finance";
 import { Link } from "@tanstack/react-router";
 
 import { Amount } from "@/components/amount";
-import type { ResolvedPeriod } from "@/lib/period";
+import { ComparisonControl } from "@/components/comparison-control";
+import { ComparisonCoverageNote, IncompleteRecordsNote } from "@/components/comparison-coverage";
+import type { ComparisonKey, PeriodChoice } from "@/lib/period";
+import { scopeSearch } from "@/lib/scope";
 
 import { FlowDiagram } from "./flow-diagram";
 
@@ -20,50 +25,66 @@ const days = (start: string, end: string) =>
 export function OverviewPage({
   flow,
   period,
+  compare,
+  onCompare,
+  firstMonth,
+  today,
   questions,
+  briefing,
 }: {
   flow: PeriodFlow;
-  period: ResolvedPeriod;
-  questions: readonly Question[];
+  period: PeriodChoice;
+  compare: ComparisonKey | undefined;
+  onCompare: (compare: ComparisonKey | undefined) => void;
+  firstMonth: YearMonth;
+  today: CalendarDate;
+  questions: typeof QuestionSummary.Type;
+  // The analyst's briefing of the month, which sits between the headline and the flow.
+  briefing?: React.ReactNode;
 }) {
-  const previousLabel = comparisonLabel(period);
-  const recordsEnd = lastRecordedDay(flow);
-  const surplus = money(flow.currency, flow.totals.inflow.minor - flow.totals.outflow.minor);
+  // The dates compared, which for a period in progress are only the same days.
+  const previousLabel = periodLabel(flow.comparison);
+  const unrecorded = flow.comparisonCoverage.state === "missing";
+  const surplus = leftOver(flow.totals);
   return (
     <div className="space-y-12">
       <header className="space-y-6">
         <div>
           <h1 className="type-title">{period.label}</h1>
-          {period.current && (
-            <p className="mt-1 type-small text-slate">
-              {days(flow.period.start, flow.period.endExclusive)} days so far, compared with the
-              same days of {previousLabel}.
-            </p>
-          )}
-          {recordsEnd && (
-            <p className="mt-1 type-small text-intaglio">
-              <span
-                aria-hidden
-                className="mr-1.5 inline-block size-2 rounded-full border-[1.5px] border-outflow"
-              />
-              Your records stop on {recordsEnd}, so this {period.unit} is incomplete. Upload later
-              statements to finish it.
-            </p>
-          )}
+          <div className="mt-1 space-y-1">
+            <ComparisonControl
+              period={period}
+              current={flow.period}
+              comparison={flow.comparison}
+              value={compare}
+              onChange={onCompare}
+              firstMonth={firstMonth}
+              today={today}
+            />
+            <ComparisonCoverageNote
+              coverage={flow.comparisonCoverage}
+              comparison={flow.comparison}
+            />
+            <IncompleteRecordsNote
+              coverage={flow.coverage}
+              period={flow.period}
+              label={period.label}
+            />
+          </div>
         </div>
         <dl className="grid gap-x-12 gap-y-6 sm:grid-cols-[auto_auto_1fr]">
           <Figure
             label="Came in"
             swatch="bg-inflow"
             value={flow.totals.inflow}
-            previous={flow.previousTotals.inflow}
+            previous={unrecorded ? null : flow.previousTotals.inflow}
             previousLabel={previousLabel}
           />
           <Figure
             label="Went out"
             swatch="bg-outflow"
             value={flow.totals.outflow}
-            previous={flow.previousTotals.outflow}
+            previous={unrecorded ? null : flow.previousTotals.outflow}
             previousLabel={previousLabel}
             note={
               flow.modelShare.minor > 0n ? (
@@ -91,11 +112,13 @@ export function OverviewPage({
         </dl>
       </header>
 
+      {briefing}
+
       <section aria-labelledby="flow-heading" className="space-y-4">
         <h2 id="flow-heading" className="type-heading">
           Where it came from and where it went
         </h2>
-        <FlowDiagram flow={flow} />
+        <FlowDiagram flow={flow} period={period} compare={compare} />
         {flow.totals.internal.minor > 0n && (
           <p className="type-small text-slate">
             <Amount value={flow.totals.internal} cents={false} /> moved between your own accounts
@@ -107,15 +130,17 @@ export function OverviewPage({
       <div className="grid gap-12 border-t border-rule pt-10 lg:grid-cols-[7fr_5fr]">
         <section aria-labelledby="changes-heading" className="space-y-4">
           <h2 id="changes-heading" className="type-heading">
-            What changed since {previousLabel}
+            What changed compared with {previousLabel}
           </h2>
-          {flow.changes.length === 0 ? (
-            <p className="text-slate">Spending looks the same as {previousLabel}.</p>
+          {unrecorded ? (
+            <p className="text-slate">There are no records to compare with.</p>
+          ) : flow.changes.length === 0 ? (
+            <p className="text-slate">Spending looks the same as in {previousLabel}.</p>
           ) : (
             <ul className="divide-y divide-rule">
               {flow.changes.map((change) => (
                 <ChangeRow
-                  key={change.categoryId ?? "none"}
+                  key={"id" in change.category ? change.category.id : change.category.kind}
                   change={change}
                   previousLabel={previousLabel}
                 />
@@ -124,33 +149,12 @@ export function OverviewPage({
           )}
         </section>
         <div className="space-y-10">
-          <NeedsAnswers questions={questions} currency={flow.currency} />
+          <NeedsYourEye questions={questions} label={period.label} />
           <Coverage coverage={flow.coverage} period={flow.period} />
         </div>
       </div>
     </div>
   );
-}
-
-// The last day any account has records for, when that is before the period ends.
-function lastRecordedDay(flow: PeriodFlow) {
-  const end = flow.coverage
-    .flatMap((item) => item.observed.map((interval) => interval.endExclusive))
-    .filter((date) => date > flow.period.start)
-    .toSorted()
-    .at(-1);
-  if (!end || end >= flow.period.endExclusive) return null;
-  return new Intl.DateTimeFormat("en-AU", {
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-  }).format(Date.parse(end) - 86_400_000);
-}
-
-function comparisonLabel(period: ResolvedPeriod) {
-  if (period.unit === "year") return String(period.year - 1);
-  const previous = new Date(period.year, (period.month ?? 1) - 2, 1);
-  return new Intl.DateTimeFormat("en-AU", { month: "long" }).format(previous);
 }
 
 function Figure({
@@ -164,11 +168,11 @@ function Figure({
   label: string;
   swatch: string;
   value: Money;
-  previous: Money;
+  // Null when the comparison period has no records.
+  previous: Money | null;
   previousLabel: string;
   note?: React.ReactNode;
 }) {
-  const delta = value.minor - previous.minor;
   return (
     <div>
       <dt className="flex items-center gap-2 type-small text-slate">
@@ -178,14 +182,7 @@ function Figure({
       <dd className="mt-1 space-y-1">
         <span className="block type-figure">{formatCurrency(value, { cents: false })}</span>
         <span className="block type-small text-slate">
-          {delta === 0n ? (
-            `The same as ${previousLabel}`
-          ) : (
-            <>
-              <Amount value={money(value.currency, delta < 0n ? -delta : delta)} cents={false} />{" "}
-              {delta > 0n ? "more" : "less"} than {previousLabel}
-            </>
-          )}
+          <Change value={value} previous={previous} previousLabel={previousLabel} />
         </span>
         {note && <span className="block type-small text-slate">{note}</span>}
       </dd>
@@ -193,18 +190,34 @@ function Figure({
   );
 }
 
+function Change({
+  value,
+  previous,
+  previousLabel,
+}: {
+  value: Money;
+  previous: Money | null;
+  previousLabel: string;
+}) {
+  if (!previous) return "No records to compare with";
+  const delta = value.minor - previous.minor;
+  if (delta === 0n) return `The same as in ${previousLabel}`;
+  return (
+    <>
+      <Amount value={money(value.currency, delta < 0n ? -delta : delta)} cents={false} />{" "}
+      {delta > 0n ? "more" : "less"} than in {previousLabel}
+    </>
+  );
+}
+
 function ChangeRow({ change, previousLabel }: { change: PeriodChange; previousLabel: string }) {
-  const delta = change.current.minor - change.previous.minor;
+  const delta = change.change.minor;
   const size = money(change.current.currency, delta < 0n ? -delta : delta);
-  const average = (total: Money, count: number) =>
-    formatCurrency(money(total.currency, count === 0 ? 0n : total.minor / BigInt(count)), {
-      cents: false,
-    });
   return (
     <li className="py-3">
       <Link
         to="/spending"
-        search={{ category: change.categoryId ?? undefined }}
+        search={scopeSearch({ category: change.category, counterparty: { kind: "all" } })}
         className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-0.5 rounded-sm"
       >
         <span>
@@ -227,12 +240,12 @@ function ChangeRow({ change, previousLabel }: { change: PeriodChange; previousLa
           {delta > 0n ? "+" : "−"}
           {formatCurrency(size, { cents: false })}
         </span>
-        {change.previousPurchases > 0 && change.purchases > 0 && change.purchasesPart && (
+        {change.previousAveragePurchase && change.averagePurchase && (
           <span className="col-span-2 type-small text-slate">
             {change.purchases} {change.purchases === 1 ? "purchase" : "purchases"} instead of{" "}
             {change.previousPurchases}, and the average went from{" "}
-            {average(change.previous, change.previousPurchases)} to{" "}
-            {average(change.current, change.purchases)}.
+            <Amount value={change.previousAveragePurchase} cents={false} /> to{" "}
+            <Amount value={change.averagePurchase} cents={false} />.
           </span>
         )}
       </Link>
@@ -240,31 +253,33 @@ function ChangeRow({ change, previousLabel }: { change: PeriodChange; previousLa
   );
 }
 
-function NeedsAnswers({
+// The questions whose transactions fall in the period, and the money those transactions
+// move. The figure opens Questions narrowed to the period.
+function NeedsYourEye({
   questions,
-  currency,
+  label,
 }: {
-  questions: readonly Question[];
-  currency: string;
+  questions: typeof QuestionSummary.Type;
+  label: string;
 }) {
-  const amount = questions.reduce(
-    (sum, question) => sum + question.outflow.minor + question.inflow.minor,
-    0n,
-  );
   return (
     <section aria-labelledby="questions-heading" className="space-y-3">
       <h2 id="questions-heading" className="type-heading">
-        Needs your answer
+        Needs your eye
       </h2>
-      {questions.length === 0 ? (
-        <p className="text-slate">Nothing is waiting on you.</p>
+      {questions.count === 0 ? (
+        <p className="text-slate">Nothing in {label} is waiting on you.</p>
       ) : (
-        <Link to="/questions" className="group block space-y-1 rounded-sm">
+        <Link
+          to="/questions"
+          search={{ scope: "period" }}
+          className="group block space-y-1 rounded-sm"
+        >
           <p>
-            <span className="type-figure-s text-attention tabular">{questions.length}</span>{" "}
-            {questions.length === 1 ? "question affects" : "questions affect"}{" "}
-            <Amount value={money(currency, amount)} cents={false} className="font-[560]" /> across
-            your history.
+            <span className="type-figure-s text-attention tabular">{questions.count}</span>{" "}
+            {questions.count === 1 ? "question affects" : "questions affect"}{" "}
+            <Amount value={affectedMoney(questions)} cents={false} className="font-[560]" /> in{" "}
+            {label}.
           </p>
           <p className="type-small text-slate group-hover:text-intaglio">
             Answer them to make every total more certain.

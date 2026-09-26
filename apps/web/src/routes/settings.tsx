@@ -1,17 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { accountsQueryOptions } from "@/features/accounts/queries";
+import { modelSettingsQuery, modelUsageQuery } from "@/features/models/queries";
 import { SettingsPage } from "@/features/settings/page";
-import {
-  settingsQueryOptions,
-  retentionQueryOptions,
-  modelUsageQueryOptions,
-} from "@/features/settings/queries";
+import { settingsQueryOptions, retentionQueryOptions } from "@/features/settings/queries";
 
 export const Route = createFileRoute("/settings")({
   loader: ({ context }) =>
     Promise.all([
-      context.queryClient.ensureQueryData(modelUsageQueryOptions()),
+      context.queryClient.ensureQueryData(modelSettingsQuery()),
+      context.queryClient.ensureQueryData(modelUsageQuery()),
       context.queryClient.ensureQueryData(accountsQueryOptions()),
       context.queryClient.ensureQueryData(settingsQueryOptions()),
       context.queryClient.ensureQueryData(retentionQueryOptions()),

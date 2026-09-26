@@ -20,7 +20,11 @@ Ironcage is a private web application for one person's bank accounts: deposit ac
 
 ## The period
 
-Every screen except Settings reads one period. A strip of months runs along the top of the application, each month drawn as a short bar of its outflow. Selecting a month, a range, or a year changes every screen. The period lives in the URL, so a bookmark reopens the same view against current data.
+The overview, Spending, the ledger, and counterparties read one period. Questions covers the whole history, like the count in the top bar, and reads the period only when opened from the overview's count. Sources, Settings, and the analyst read no period, and each answer names the periods it rests on. A strip of months runs along the top of the application, each month drawn as a short bar of its outflow, or of its spending on [Spending](/product/spending). Select a bar for that month, or the year under it for the whole year. Choose months, at the end of the strip, selects a run of whole months, such as March to May, and the strip inks every month in it. The choice changes every screen.
+
+A month in progress runs to today in the timezone set in Settings. Without a chosen period, screens open on the current month, or on the latest month with records when this month has none yet. The period lives in the URL, so a bookmark reopens the same view against current data.
+
+A period without records says so and names the files that would fill it, such as "No records for March 2026 yet. Upload the March 2026 statements.", with a link to Sources. A period has records when a file covers some of its days. A purchase made on 31 March and posted on 2 April counts in March, but if no file covers March, March still has no records.
 
 ## Rules that hold everywhere
 

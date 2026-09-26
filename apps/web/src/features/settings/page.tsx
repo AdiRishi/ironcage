@@ -1,21 +1,23 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
-import { CreateAccountDialog } from "@/features/accounts/create-account";
-import { EditAccountDialog } from "@/features/accounts/edit-account";
-import { accountKindLabels } from "@/features/accounts/labels";
 import { accountsQueryOptions } from "@/features/accounts/queries";
+import { AccountsSection } from "@/features/accounts/section";
+import { AnalystSettings } from "@/features/analyst/settings";
+import { modelSettingsQuery, modelUsageQuery } from "@/features/models/queries";
+import { ModelUsageSection } from "@/features/models/usage";
 
 import { AccountPeriodsSection } from "../accounts/periods";
 import { EnrichmentSection } from "../enrichment/settings";
 import { DisplaySettings } from "./display-settings";
-import { ModelUsageSection } from "./model-usage";
 import { settingsQueryOptions, retentionQueryOptions } from "./queries";
 
 export function SettingsPage() {
   const { data: accounts } = useSuspenseQuery(accountsQueryOptions());
   const { data: retention } = useSuspenseQuery(retentionQueryOptions());
   const { data: settings } = useSuspenseQuery(settingsQueryOptions());
+  const { data: models } = useSuspenseQuery(modelSettingsQuery());
+  const { data: usage } = useSuspenseQuery(modelUsageQuery());
   return (
     <div className="max-w-4xl space-y-12">
       <header>
@@ -42,36 +44,11 @@ export function SettingsPage() {
           </span>
         </Link>
       </nav>
-      <section aria-labelledby="accounts-heading" className="space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <h2 id="accounts-heading" className="type-heading">
-            Accounts
-          </h2>
-          <CreateAccountDialog />
-        </div>
-        {accounts.length === 0 ? (
-          <p className="text-slate">Upload an OFX file or add an account to begin.</p>
-        ) : (
-          <ul className="divide-y divide-rule border-y border-rule">
-            {accounts.map((account) => (
-              <li key={account.id} className="flex items-center justify-between gap-4 py-3">
-                <div>
-                  <p className="font-[560]">{account.label}</p>
-                  <p className="type-small text-slate">
-                    {accountKindLabels[account.kind]} · {account.currency}
-                    {account.accountNumber &&
-                      ` · ${account.bankId ? `${account.bankId} ` : ""}${account.accountNumber}`}
-                  </p>
-                </div>
-                <EditAccountDialog account={account} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <AccountsSection accounts={accounts} />
       <AccountPeriodsSection accounts={accounts} />
-      <EnrichmentSection />
-      <ModelUsageSection />
+      <ModelUsageSection usage={usage} settings={models} />
+      <EnrichmentSection settings={models} />
+      <AnalystSettings settings={models} />
       <section aria-labelledby="display-heading" className="space-y-4">
         <h2 id="display-heading" className="type-heading">
           Display

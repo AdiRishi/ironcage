@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { URL } from "node:url";
 
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
+import { Conversation } from "@repo/contracts/analyst";
 import {
   SourceFile,
   ExportRecord,
@@ -9,6 +10,7 @@ import {
   Account,
   ImportPage,
   type ImportId,
+  ModelUsage,
   PostingPage,
   UploadResult,
 } from "@repo/contracts/finance";
@@ -25,6 +27,7 @@ import { providers } from "../src/providers.ts";
 import { webApplication } from "../src/web-application.ts";
 import { workerGraph } from "../src/workers.ts";
 import { localPlatformProviders } from "./support/ai-gateway.ts";
+import AnalystDriver from "./support/analyst-driver.ts";
 import Driver from "./support/api-driver.ts";
 import { waitForWorker } from "./support/worker-readiness.ts";
 
@@ -39,10 +42,12 @@ const Stack = Alchemy.Stack(
   Effect.gen(function* () {
     const workers = yield* workerGraph;
     const driver = yield* Driver;
+    const analystDriver = yield* AnalystDriver;
     const web = live ? yield* webApplication(yield* deploymentConfig(), workers) : undefined;
     return {
       url: driver.url.as<string>(),
       apiUrl: Output.map(driver.url, (url) => `${url}/http`),
+      analystUrl: analystDriver.url.as<string>(),
       webUrl: web?.url,
     };
   }),
@@ -131,115 +136,53 @@ test(
 );
 
 test(
-  "a CSV upload publishes exact amounts once and retains its original bytes",
+  "a question asked while the analyst is off ends blocked in its conversation without a model call",
   Effect.gen(function* () {
-    const { url, apiUrl } = yield* stack;
-    yield* waitForWorker(url);
-    const command = {
-      commandId: yield* randomUUID,
-      label: "Daily account",
-      kind: "deposit",
-      institution: "commbank",
-      currency: "AUD",
-    };
-    const account = yield* HttpClient.post(`${url}/accounts`, {
-      body: HttpBody.jsonUnsafe(command),
+    const { url, analystUrl } = yield* stack;
+    yield* waitForWorker(analystUrl);
+    const commandId = yield* randomUUID;
+    const asked = yield* HttpClient.post(`${analystUrl}/ask`, {
+      body: HttpBody.jsonUnsafe({
+        commandId,
+        conversationId: null,
+        question: "What did I spend on food in August?",
+        context: null,
+      }),
     }).pipe(
       Effect.flatMap((response) => response.json),
-      Effect.flatMap(Schema.decodeUnknownEffect(Account)),
+      Effect.flatMap(Schema.decodeUnknownEffect(Conversation)),
     );
-    const repeated = yield* HttpClient.post(`${url}/accounts`, {
-      body: HttpBody.jsonUnsafe(command),
-    }).pipe(Effect.flatMap((response) => response.json));
-    expect(repeated).toEqual(account);
-    const csv =
-      "02/09/2026,-4.50,Coffee,100.00\n02/09/2026,-4.50,Coffee,104.50\n01/09/2026,+109.00,Deposit,109.00\n";
-    const body = new FormData();
-    body.set("accountId", account.id);
-    body.set("institution", "commbank");
-    body.set("file", new Blob([csv], { type: "text/csv" }), "transactions.csv");
-    const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
-      body: HttpBody.formData(body),
-    }).pipe(
+    const answered = yield* HttpClient.get(`${analystUrl}/conversations/${asked.id}`).pipe(
       Effect.flatMap((response) => response.json),
-      Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
+      Effect.flatMap(Schema.decodeUnknownEffect(Conversation)),
+      Effect.repeat({
+        schedule: Schedule.spaced("200 millis"),
+        while: (conversation) =>
+          conversation.turns.some((turn) => turn.status === "queued" || turn.status === "running"),
+      }),
+      Effect.timeout("30 seconds"),
     );
-    const completed = yield* waitForImport(url, upload.importId);
-    expect(completed?.status).toBe("complete");
-    expect(completed?.summary).toEqual({
-      observations: 3,
-      newPostings: 3,
-      matchedPostings: 0,
-      reviewItems: 0,
-    });
-    const duplicate = yield* HttpClient.post(`${apiUrl}/uploads`, {
-      body: HttpBody.formData(body),
-    }).pipe(
+    expect(answered.turns).toMatchObject([
+      {
+        id: commandId,
+        status: "blocked",
+        message: "The analyst is off. Turn it on in Settings.",
+      },
+    ]);
+    const usage = yield* HttpClient.get(`${url}/model-usage`).pipe(
       Effect.flatMap((response) => response.json),
-      Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
+      Effect.flatMap(Schema.decodeUnknownEffect(ModelUsage)),
     );
-    expect(duplicate).toEqual({ ...upload, existing: true });
-    const postings = yield* HttpClient.post(`${url}/transactions`, {
-      body: HttpBody.jsonUnsafe({ filter: { accountId: account.id } }),
-    }).pipe(
-      Effect.flatMap((response) => response.json),
-      Effect.flatMap(Schema.decodeUnknownEffect(PostingPage)),
-    );
-    expect(
-      postings.rows.map((row) => row.amount.minor).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
-    ).toEqual([-450n, -450n, 10900n]);
-    const source = yield* HttpClient.get(`${apiUrl}/sources/${upload.sourceFileId}`).pipe(
-      Effect.flatMap((response) => response.text),
-    );
-    expect(source).toBe(csv);
+    expect(usage.tasks.map((entry) => entry.task)).not.toContain("analyst");
   }),
   { timeout: 60_000 },
 );
 
 const corpusDirectory = new URL("../../fixtures/commbank/", import.meta.url);
-test.skipIf(live || !existsSync(corpusDirectory))(
-  "every private CSV imports independently with the source row count",
-  Effect.gen(function* () {
-    const { url, apiUrl } = yield* stack;
-    const files = readdirSync(corpusDirectory).filter((name) => name.endsWith(".csv"));
-    let observations = 0;
-    for (const [index, file] of files.entries()) {
-      const account = yield* HttpClient.post(`${url}/accounts`, {
-        body: HttpBody.jsonUnsafe({
-          commandId: yield* randomUUID,
-          label: `CSV verification ${index + 1}`,
-          kind: "deposit",
-          institution: "commbank",
-          currency: "AUD",
-        }),
-      }).pipe(
-        Effect.flatMap((response) => response.json),
-        Effect.flatMap(Schema.decodeUnknownEffect(Account)),
-      );
-      const bytes = new Uint8Array(readFileSync(new URL(file, corpusDirectory)));
-      const expectedRows = new TextDecoder().decode(bytes).trimEnd().split("\n").length;
-      const body = new FormData();
-      body.set("accountId", account.id);
-      body.set("institution", "commbank");
-      body.set("file", new Blob([bytes], { type: "text/csv" }), `corpus-${index + 1}.csv`);
-      const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
-        body: HttpBody.formData(body),
-      }).pipe(
-        Effect.flatMap((response) => response.json),
-        Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
-      );
-      const completed = yield* waitForImport(url, upload.importId);
-      expect(completed?.status).toBe("complete");
-      expect(completed?.summary?.observations).toBe(expectedRows);
-      expect(completed?.summary?.newPostings).toBe(expectedRows);
-      observations += completed?.summary?.observations ?? 0;
-    }
-    expect(files).toHaveLength(26);
-    expect(observations).toBe(3031);
-  }),
-  { timeout: 180_000 },
-);
 
+// The tests share one database. While an account added by hand has no bank number, a file
+// naming an account Ironcage does not know yet asks which account it belongs to, so files that
+// add their own accounts are uploaded before any test adds an account by hand.
 test.skipIf(live || !existsSync(corpusDirectory))(
   "overlapping private OFX exports identify four accounts without duplicate postings",
   Effect.gen(function* () {
@@ -345,6 +288,115 @@ test.skipIf(live || !existsSync(corpusDirectory))(
 );
 
 test(
+  "a CSV upload publishes exact amounts once and retains its original bytes",
+  Effect.gen(function* () {
+    const { url, apiUrl } = yield* stack;
+    yield* waitForWorker(url);
+    const command = {
+      commandId: yield* randomUUID,
+      label: "Daily account",
+      kind: "deposit",
+      institution: "commbank",
+      currency: "AUD",
+    };
+    const account = yield* HttpClient.post(`${url}/accounts`, {
+      body: HttpBody.jsonUnsafe(command),
+    }).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(Account)),
+    );
+    const repeated = yield* HttpClient.post(`${url}/accounts`, {
+      body: HttpBody.jsonUnsafe(command),
+    }).pipe(Effect.flatMap((response) => response.json));
+    expect(repeated).toEqual(account);
+    const csv =
+      "02/09/2026,-4.50,Coffee,100.00\n02/09/2026,-4.50,Coffee,104.50\n01/09/2026,+109.00,Deposit,109.00\n";
+    const body = new FormData();
+    body.set("accountId", account.id);
+    body.set("institution", "commbank");
+    body.set("file", new Blob([csv], { type: "text/csv" }), "transactions.csv");
+    const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
+      body: HttpBody.formData(body),
+    }).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
+    );
+    const completed = yield* waitForImport(url, upload.importId);
+    expect(completed?.status).toBe("complete");
+    expect(completed?.summary).toEqual({
+      observations: 3,
+      newPostings: 3,
+      matchedPostings: 0,
+      reviewItems: 0,
+    });
+    const duplicate = yield* HttpClient.post(`${apiUrl}/uploads`, {
+      body: HttpBody.formData(body),
+    }).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
+    );
+    expect(duplicate).toEqual({ ...upload, existing: true });
+    const postings = yield* HttpClient.post(`${url}/transactions`, {
+      body: HttpBody.jsonUnsafe({ filter: { accountId: account.id } }),
+    }).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.flatMap(Schema.decodeUnknownEffect(PostingPage)),
+    );
+    expect(
+      postings.rows.map((row) => row.amount.minor).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+    ).toEqual([-450n, -450n, 10900n]);
+    const source = yield* HttpClient.get(`${apiUrl}/sources/${upload.sourceFileId}`).pipe(
+      Effect.flatMap((response) => response.text),
+    );
+    expect(source).toBe(csv);
+  }),
+  { timeout: 60_000 },
+);
+
+test.skipIf(live || !existsSync(corpusDirectory))(
+  "every private CSV imports independently with the source row count",
+  Effect.gen(function* () {
+    const { url, apiUrl } = yield* stack;
+    const files = readdirSync(corpusDirectory).filter((name) => name.endsWith(".csv"));
+    let observations = 0;
+    for (const [index, file] of files.entries()) {
+      const account = yield* HttpClient.post(`${url}/accounts`, {
+        body: HttpBody.jsonUnsafe({
+          commandId: yield* randomUUID,
+          label: `CSV verification ${index + 1}`,
+          kind: "deposit",
+          institution: "commbank",
+          currency: "AUD",
+        }),
+      }).pipe(
+        Effect.flatMap((response) => response.json),
+        Effect.flatMap(Schema.decodeUnknownEffect(Account)),
+      );
+      const bytes = new Uint8Array(readFileSync(new URL(file, corpusDirectory)));
+      const expectedRows = new TextDecoder().decode(bytes).trimEnd().split("\n").length;
+      const body = new FormData();
+      body.set("accountId", account.id);
+      body.set("institution", "commbank");
+      body.set("file", new Blob([bytes], { type: "text/csv" }), `corpus-${index + 1}.csv`);
+      const upload = yield* HttpClient.post(`${apiUrl}/uploads`, {
+        body: HttpBody.formData(body),
+      }).pipe(
+        Effect.flatMap((response) => response.json),
+        Effect.flatMap(Schema.decodeUnknownEffect(UploadResult)),
+      );
+      const completed = yield* waitForImport(url, upload.importId);
+      expect(completed?.status).toBe("complete");
+      expect(completed?.summary?.observations).toBe(expectedRows);
+      expect(completed?.summary?.newPostings).toBe(expectedRows);
+      observations += completed?.summary?.observations ?? 0;
+    }
+    expect(files).toHaveLength(26);
+    expect(observations).toBe(3031);
+  }),
+  { timeout: 180_000 },
+);
+
+test(
   "a repeated export request produces one complete ZIP with a counted manifest and original files",
   Effect.gen(function* () {
     const { url, apiUrl } = yield* stack;
@@ -398,12 +450,14 @@ test(
       "corrections",
       "counterparties",
       "counterparty_aliases",
+      "counterparty_change_events",
+      "counterparty_change_subjects",
+      "counterparty_changes",
       "counterparty_references",
       "credit_links",
       "enrichment_evaluations",
       "enrichment_items",
       "enrichment_runs",
-      "enrichment_settings",
       "event_postings",
       "events",
       "exports",
@@ -411,6 +465,7 @@ test(
       "fee_associations",
       "imports",
       "ledger_facts",
+      "model_settings",
       "model_usage",
       "movement_links",
       "observations",

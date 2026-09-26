@@ -136,8 +136,8 @@ export function UploadFiles() {
         <CreateAccountDialog />
       </div>
       <p className="mb-5 type-small text-slate">
-        Choose an account for CSV. OFX and PDF can identify its account automatically; select an
-        account you added manually to connect it.
+        OFX files and statements name their account. A CSV does not, so choose its account above, or
+        add one.
       </p>
       <div
         className={`rounded-md border-2 border-dashed p-8 text-center ${dragging ? "border-primary bg-accent" : "border-border"}`}

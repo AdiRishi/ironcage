@@ -10,10 +10,13 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AnalystRouteRouteImport } from './routes/analyst/route'
 import { Route as QuestionsRouteImport } from './routes/questions'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SpendingRouteImport } from './routes/spending'
 import { Route as UploadsRouteImport } from './routes/uploads'
+import { Route as AnalystIndexRouteImport } from './routes/analyst/index'
+import { Route as AnalystConversationIdRouteImport } from './routes/analyst/$conversationId'
 import { Route as CounterpartiesIndexRouteImport } from './routes/counterparties/index'
 import { Route as CounterpartiesCounterpartyIdRouteImport } from './routes/counterparties/$counterpartyId'
 import { Route as ExportsExportIdRouteImport } from './routes/exports/$exportId'
@@ -28,6 +31,11 @@ import { Route as SourcesImportsImportIdRouteImport } from './routes/sources/imp
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalystRouteRoute = AnalystRouteRouteImport.update({
+  id: '/analyst',
+  path: '/analyst',
   getParentRoute: () => rootRouteImport,
 } as any)
 const QuestionsRoute = QuestionsRouteImport.update({
@@ -49,6 +57,16 @@ const UploadsRoute = UploadsRouteImport.update({
   id: '/uploads',
   path: '/uploads',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AnalystIndexRoute = AnalystIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AnalystRouteRoute,
+} as any)
+const AnalystConversationIdRoute = AnalystConversationIdRouteImport.update({
+  id: '/$conversationId',
+  path: '/$conversationId',
+  getParentRoute: () => AnalystRouteRoute,
 } as any)
 const CounterpartiesIndexRoute = CounterpartiesIndexRouteImport.update({
   id: '/counterparties/',
@@ -104,16 +122,19 @@ const SourcesImportsImportIdRoute = SourcesImportsImportIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/analyst': typeof AnalystRouteRouteWithChildren
   '/questions': typeof QuestionsRoute
   '/settings': typeof SettingsRoute
   '/spending': typeof SpendingRoute
   '/uploads': typeof UploadsRoute
+  '/analyst/$conversationId': typeof AnalystConversationIdRoute
   '/counterparties/$counterpartyId': typeof CounterpartiesCounterpartyIdRoute
   '/exports/$exportId': typeof ExportsExportIdRoute
   '/ledger/$id': typeof LedgerIdRoute
   '/settings/categories': typeof SettingsCategoriesRoute
   '/settings/rules': typeof SettingsRulesRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
+  '/analyst/': typeof AnalystIndexRoute
   '/counterparties/': typeof CounterpartiesIndexRoute
   '/ledger/': typeof LedgerIndexRoute
   '/sources/': typeof SourcesIndexRoute
@@ -125,12 +146,14 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/spending': typeof SpendingRoute
   '/uploads': typeof UploadsRoute
+  '/analyst/$conversationId': typeof AnalystConversationIdRoute
   '/counterparties/$counterpartyId': typeof CounterpartiesCounterpartyIdRoute
   '/exports/$exportId': typeof ExportsExportIdRoute
   '/ledger/$id': typeof LedgerIdRoute
   '/settings/categories': typeof SettingsCategoriesRoute
   '/settings/rules': typeof SettingsRulesRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
+  '/analyst': typeof AnalystIndexRoute
   '/counterparties': typeof CounterpartiesIndexRoute
   '/ledger': typeof LedgerIndexRoute
   '/sources': typeof SourcesIndexRoute
@@ -139,16 +162,19 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/analyst': typeof AnalystRouteRouteWithChildren
   '/questions': typeof QuestionsRoute
   '/settings': typeof SettingsRoute
   '/spending': typeof SpendingRoute
   '/uploads': typeof UploadsRoute
+  '/analyst/$conversationId': typeof AnalystConversationIdRoute
   '/counterparties/$counterpartyId': typeof CounterpartiesCounterpartyIdRoute
   '/exports/$exportId': typeof ExportsExportIdRoute
   '/ledger/$id': typeof LedgerIdRoute
   '/settings_/categories': typeof SettingsCategoriesRoute
   '/settings_/rules': typeof SettingsRulesRoute
   '/sources/$sourceFileId': typeof SourcesSourceFileIdRoute
+  '/analyst/': typeof AnalystIndexRoute
   '/counterparties/': typeof CounterpartiesIndexRoute
   '/ledger/': typeof LedgerIndexRoute
   '/sources/': typeof SourcesIndexRoute
@@ -158,16 +184,19 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/analyst'
     | '/questions'
     | '/settings'
     | '/spending'
     | '/uploads'
+    | '/analyst/$conversationId'
     | '/counterparties/$counterpartyId'
     | '/exports/$exportId'
     | '/ledger/$id'
     | '/settings/categories'
     | '/settings/rules'
     | '/sources/$sourceFileId'
+    | '/analyst/'
     | '/counterparties/'
     | '/ledger/'
     | '/sources/'
@@ -179,12 +208,14 @@ export interface FileRouteTypes {
     | '/settings'
     | '/spending'
     | '/uploads'
+    | '/analyst/$conversationId'
     | '/counterparties/$counterpartyId'
     | '/exports/$exportId'
     | '/ledger/$id'
     | '/settings/categories'
     | '/settings/rules'
     | '/sources/$sourceFileId'
+    | '/analyst'
     | '/counterparties'
     | '/ledger'
     | '/sources'
@@ -192,16 +223,19 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/analyst'
     | '/questions'
     | '/settings'
     | '/spending'
     | '/uploads'
+    | '/analyst/$conversationId'
     | '/counterparties/$counterpartyId'
     | '/exports/$exportId'
     | '/ledger/$id'
     | '/settings_/categories'
     | '/settings_/rules'
     | '/sources/$sourceFileId'
+    | '/analyst/'
     | '/counterparties/'
     | '/ledger/'
     | '/sources/'
@@ -210,6 +244,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AnalystRouteRoute: typeof AnalystRouteRouteWithChildren
   QuestionsRoute: typeof QuestionsRoute
   SettingsRoute: typeof SettingsRoute
   SpendingRoute: typeof SpendingRoute
@@ -233,6 +268,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analyst': {
+      id: '/analyst'
+      path: '/analyst'
+      fullPath: '/analyst'
+      preLoaderRoute: typeof AnalystRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/questions': {
@@ -262,6 +304,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/uploads'
       preLoaderRoute: typeof UploadsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/analyst/': {
+      id: '/analyst/'
+      path: '/'
+      fullPath: '/analyst/'
+      preLoaderRoute: typeof AnalystIndexRouteImport
+      parentRoute: typeof AnalystRouteRoute
+    }
+    '/analyst/$conversationId': {
+      id: '/analyst/$conversationId'
+      path: '/$conversationId'
+      fullPath: '/analyst/$conversationId'
+      preLoaderRoute: typeof AnalystConversationIdRouteImport
+      parentRoute: typeof AnalystRouteRoute
     }
     '/counterparties/': {
       id: '/counterparties/'
@@ -336,8 +392,23 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AnalystRouteRouteChildren {
+  AnalystConversationIdRoute: typeof AnalystConversationIdRoute
+  AnalystIndexRoute: typeof AnalystIndexRoute
+}
+
+const AnalystRouteRouteChildren: AnalystRouteRouteChildren = {
+  AnalystConversationIdRoute: AnalystConversationIdRoute,
+  AnalystIndexRoute: AnalystIndexRoute,
+}
+
+const AnalystRouteRouteWithChildren = AnalystRouteRoute._addFileChildren(
+  AnalystRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AnalystRouteRoute: AnalystRouteRouteWithChildren,
   QuestionsRoute: QuestionsRoute,
   SettingsRoute: SettingsRoute,
   SpendingRoute: SpendingRoute,

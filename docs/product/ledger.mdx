@@ -7,11 +7,27 @@ description: Every transaction, what it means, and the evidence behind it.
 
 Every posting from every account in one list, newest first. Each row shows the date, the counterparty (or the bank's description when none is known), the category, the account, and the signed amount. Rows the model assigned show a small mark. Rows waiting on a question show a different one.
 
-Filters cover account, dates, amount, text, counterparty, category, role, provenance, and open questions. Filters live in the URL.
+Filters cover account, dates, amount, text, counterparty, category, role, provenance, and open questions. Each choice starts at everything, such as "All categories". The category filter also offers "Not yet categorised": purchases, refunds, and income that have no category yet. Filters live in the URL.
+
+## Opened from a number
+
+Selecting a stream in the [flow](/product/overview#flow) opens the ledger at the transactions behind that number, in the same period. A spending category opens [Spending](/product/spending) instead, which drills down to the same transactions on its own screen. See these transactions in the ledger, under every spending total, opens them here. The title names the number and the period, such as "Loan principal in July 2026", "Salary in July 2026", or "Dining out in July 2026", and the total beneath it equals the number it came from. Above the title, the measure is named. For spending, the path to the number, such as Spending / Food / Dining out, leads back to each level of Spending. Money in and money out that are not yet understood are separate numbers, "Not yet understood, incoming" and "Not yet understood, outgoing".
+
+Each transaction shows what it counts toward the number, which can differ from what the bank booked:
+
+- A $120 purchase split into $80 of Clothing and $40 of Home counts "−$80.00 of −$120.00" in Clothing.
+- A $300 dinner with $200 repaid by a friend counts −$300, and the repayment counts +$200 on the dinner's date. Dining out totals $100.
+- A purchase made on 30 June and posted on 3 July counts on 30 June and says "Posted 3 July 2026".
+
+Transactions are grouped by the day they count on. Loan principal lists two parts, each with a subtotal: the repayments, and the interest and fees charged on your loans, which are taken off because they already count as spending. Principal is never below zero.
+
+The number sets the category, counterparty, currency, and dates, so those filters are not offered. The other filters narrow the list, and the total then counts only what matches. A link under the title shows every transaction in the period instead. When nothing counts toward the number in the period, the page says so and suggests another period.
+
+A question's See all opens the ledger at every transaction the question covers, whatever the period, under "One question".
 
 ## The detail
 
-Opening a transaction shows three layers, top to bottom.
+Opening a transaction shows three layers, top to bottom. Ask about this, under its amount and description, asks the [analyst](/product/analyst#asking) about it.
 
 1. **What it means.** Counterparty, role, category, tags, and personal event, each with its provenance. For a model assignment: the confidence and the one-line reason, for example "Woolworths is a supermarket chain". Linked postings appear here: the other side of a transfer, the refund applied to a purchase.
 2. **What the bank booked.** Account, posted date, value date, description, and signed amount. These never change.
@@ -24,9 +40,20 @@ You can change the counterparty, role, category, tags, personal event, or purcha
 When you change the category of a transaction whose counterparty has other transactions, Ironcage asks where the change applies:
 
 - **Only this one.** For example, one Bunnings trip was a gift.
-- **Everything from this counterparty.** This sets the counterparty's default. Future and past transactions follow it, except those you set by hand.
+- **Every Bunnings transaction.** This sets the counterparty's default after a preview. Future and past transactions follow it, except those you set by hand.
 
-A change that affects spending, income, cash, or debt shows its effect before it is saved. History lists every change with its time and scope. Nothing is erased.
+Change, next to the counterparty, moves the transaction to another counterparty. When the bank writes other transactions the same way, Ironcage asks which of them move:
+
+- **Only this one.** The transaction keeps the counterparty you chose, whatever its description says.
+- **Every transaction written as WOOLWORTHS METRO (3).** The descriptor moves to the counterparty you chose, with every transaction the bank writes that way, past and future. That includes this transaction if you had moved it by hand. Other transactions you moved by hand stay where you put them, and the count leaves them out.
+
+A transaction you moved by hand can follow the bank's description again. The preview shows the counterparty, role, and category the transaction ends up with.
+
+A change that affects spending, income, cash, or debt shows its effect before it is saved.
+
+### History
+
+History lists every change that set something on the transaction, newest first: its own corrections, and every counterparty change that changed what it means. Each entry says what changed, when, and its scope: "Only this transaction", "Every Woolworths transaction", or "Every transaction the bank writes as WOOLWORTHS METRO 77 SURRY HILLS". A descriptor reads as the text the bank printed, as the counterparty's descriptor list shows it. When the bank printed it more than one way, the scope counts the others, as in "Every transaction the bank writes as WOOLWORTHS METRO 77 SURRY HILLS or 2 similar texts", because the change reached them too. A transaction returned to its descriptor says "Now follows the bank's description", and names the counterparty that description resolves to, if any. Undo previews first and adds a new entry, so nothing is erased. A counterparty change that a later change touched says "Changed again later" instead of offering Undo.
 
 ## Money counted once
 

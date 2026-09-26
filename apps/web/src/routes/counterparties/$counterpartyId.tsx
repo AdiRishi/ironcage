@@ -3,9 +3,11 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { CounterpartyPage } from "@/features/counterparties/detail";
-import { counterpartyQuery } from "@/features/counterparties/queries";
+import { counterpartyHistoryQuery, counterpartyQuery } from "@/features/counterparties/queries";
 import { referenceDataQuery } from "@/features/events/queries";
 import { ledgerQuery } from "@/features/ledger/queries";
+import { settingsQueryOptions } from "@/features/settings/queries";
+import { addressNotFound, pathParam } from "@/lib/address";
 
 const recentInput = (counterpartyId: typeof CounterpartyId.Type) => ({
   filter: { counterpartyId },
@@ -13,13 +15,18 @@ const recentInput = (counterpartyId: typeof CounterpartyId.Type) => ({
 
 export const Route = createFileRoute("/counterparties/$counterpartyId")({
   params: {
-    parse: ({ counterpartyId }) => ({ counterpartyId: CounterpartyId.make(counterpartyId) }),
+    parse: ({ counterpartyId }) => ({ counterpartyId: pathParam(CounterpartyId, counterpartyId) }),
   },
+  onError: addressNotFound,
   loader: ({ context, params }) =>
     Promise.all([
       context.queryClient.ensureQueryData(counterpartyQuery(params.counterpartyId)),
       context.queryClient.ensureQueryData(referenceDataQuery()),
       context.queryClient.ensureQueryData(ledgerQuery(recentInput(params.counterpartyId))),
+      context.queryClient.ensureInfiniteQueryData(
+        counterpartyHistoryQuery({ counterpartyId: params.counterpartyId }),
+      ),
+      context.queryClient.ensureQueryData(settingsQueryOptions()),
     ]),
   component: Counterparty,
 });
@@ -29,12 +36,14 @@ function Counterparty() {
   const { data: detail } = useSuspenseQuery(counterpartyQuery(counterpartyId));
   const { data: references } = useSuspenseQuery(referenceDataQuery());
   const { data: recent } = useSuspenseQuery(ledgerQuery(recentInput(counterpartyId)));
+  const { data: settings } = useSuspenseQuery(settingsQueryOptions());
   return (
     <CounterpartyPage
-      key={`${detail.counterparty.id}:${detail.counterparty.version}`}
+      key={detail.counterparty.id}
       detail={detail}
       references={references}
       recent={recent}
+      timeZone={settings.timezone}
     />
   );
 }

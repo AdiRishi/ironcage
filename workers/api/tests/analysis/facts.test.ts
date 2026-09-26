@@ -1,38 +1,22 @@
 import { PgClient } from "@effect/sql-pg";
-import { CategoryId, CommandId, EventId } from "@repo/contracts/finance";
+import { CommandId } from "@repo/contracts/finance";
 import { Crypto, Effect, Schema } from "effect";
 import { expect } from "vitest";
 
 import { FactRebuilds } from "../../src/analysis/rebuild.ts";
 import { Corrections } from "../../src/events/corrections.ts";
-import { Events } from "../../src/events/service.ts";
 import { Counterparties } from "../../src/interpretation/counterparties.ts";
+import { CounterpartyHistory } from "../../src/interpretation/counterparty-history.ts";
 import { Relationships } from "../../src/relationships/service.ts";
 import { applicationTest } from "../support/application.ts";
-import { populate } from "../support/populated.ts";
+import { createCounterparty, updateCounterparty } from "../support/fixtures.ts";
+import { activeEvent, categoryId, counterpartyNamed, populate } from "../support/populated.ts";
 
 const { test, services } = applicationTest();
 const commandId = Crypto.Crypto.use((crypto) => crypto.randomUUIDv4).pipe(
   Effect.map((id) => CommandId.make(id)),
 );
 
-const eventFor = Effect.fn(function* (description: string) {
-  const sql = yield* PgClient.PgClient;
-  const [row] =
-    yield* sql`SELECT e.id FROM events e JOIN postings p ON p.id = e.primary_posting_id WHERE e.active AND p.description = ${description}`.pipe(
-      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: EventId })))),
-    );
-  if (!row) return yield* Effect.die(`Expected an event for ${description}`);
-  return yield* (yield* Events).get({ eventId: row.id });
-});
-const category = Effect.fn(function* (slug: string) {
-  const sql = yield* PgClient.PgClient;
-  const [row] = yield* sql`SELECT id FROM categories WHERE slug = ${slug}`.pipe(
-    Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: CategoryId })))),
-  );
-  if (!row) return yield* Effect.die(`Expected category ${slug}`);
-  return row.id;
-});
 const spendingIn = Effect.fn(function* (slug: string) {
   const sql = yield* PgClient.PgClient;
   const [row] =
@@ -45,13 +29,13 @@ const spendingIn = Effect.fn(function* (slug: string) {
 });
 const snapshot = Effect.gen(function* () {
   const sql = yield* PgClient.PgClient;
-  return yield* sql`SELECT event_id, allocation_id, account_id, counterparty_id, category_id, top_category_id, measure,
-      posted_on::text, spending_on::text, currency, amount_minor::text, purchase, model_assigned
-    FROM ledger_facts ORDER BY 1, 2, 7, 11, 9`;
+  return yield* sql`SELECT event_id, allocation_id, credit_event_id, posting_id, account_id, counterparty_id, category_id,
+      measure, posted_on::text, spending_on::text, currency, amount_minor::text, purchase, model_assigned
+    FROM ledger_facts ORDER BY 1, 2, 3, 8, 12, 10`;
 });
 
 const recategoriseDinner = Effect.gen(function* () {
-  const dinner = yield* eventFor("Dinner Place SYDNEY AU Card xx1234");
+  const dinner = yield* activeEvent("Dinner Place SYDNEY AU Card xx1234");
   const [allocation] = dinner.allocations;
   const corrections = yield* Corrections;
   yield* corrections.apply({
@@ -61,7 +45,7 @@ const recategoriseDinner = Effect.gen(function* () {
       eventId: dinner.id,
       kind: dinner.kind,
       purchaseOn: null,
-      allocations: [{ ...allocation, categoryId: yield* category("food.delivery") }],
+      allocations: [{ ...allocation, categoryId: yield* categoryId("food.delivery") }],
     },
   });
 });
@@ -82,32 +66,82 @@ test(
   Effect.gen(function* () {
     yield* populate;
     yield* recategoriseDinner;
-    const counterparties = yield* Counterparties;
-    const [jane] = (yield* counterparties.list({
-      search: "Jane",
-      currency: "AUD",
-      period: null,
-    })).filter((row) => row.name === "Jane Smith");
-    if (!jane) return yield* Effect.die("Expected Jane Smith");
-    yield* counterparties.save({
-      commandId: yield* commandId,
-      target: { kind: "update", id: jane.id, expectedVersion: jane.version },
-      fields: {
-        name: jane.name,
-        kind: jane.kind,
-        brand: jane.brand,
-        defaultCategoryId: yield* category("housing.strata"),
-        defaultRole: jane.defaultRole,
+    const jane = yield* updateCounterparty(yield* counterpartyNamed("Jane Smith"), {
+      defaultCategoryId: yield* categoryId("housing.strata"),
+    });
+    const relationships = yield* Relationships;
+    const relate = Effect.fn(function* (
+      change: Parameters<(typeof relationships)["preview"]>[0]["change"],
+    ) {
+      const preview = yield* relationships.preview({ change });
+      yield* relationships.apply({
+        commandId: yield* commandId,
+        change,
+        expectedVersions: preview.expectedVersions,
+      });
+    });
+    const settlement = yield* activeEvent("Transfer to xx9999 CommBank app Card");
+    yield* relate({ kind: "unlinkMovement", eventId: settlement.id });
+    const [purchase] = (yield* activeEvent("MYER SYDNEY AU Card xx1234")).allocations;
+    const [refund] = (yield* activeEvent("Refund Purchase MYER SYDNEY")).allocations;
+    yield* relate({
+      kind: "linkCredit",
+      creditAllocationId: refund.id,
+      costAllocationId: purchase.id,
+      amount: { currency: "AUD", minor: 4000n },
+    });
+    yield* relate({
+      kind: "linkMovement",
+      eventId: (yield* activeEvent("Loan Repayment")).id,
+      movementKind: "loanPayment",
+      counterpart: {
+        kind: "event",
+        eventId: (yield* activeEvent("Loan Repayment LN REPAY 123456789")).id,
       },
     });
-    const settlement = yield* eventFor("Transfer to xx9999 CommBank app Card");
-    const relationships = yield* Relationships;
-    const change = { kind: "unlinkMovement", eventId: settlement.id } as const;
-    const preview = yield* relationships.preview({ change });
-    yield* relationships.apply({
+
+    const counterparties = yield* Counterparties;
+    const change = Effect.fn(function* (
+      counterpartyChange: Parameters<(typeof counterparties)["apply"]>[0]["change"],
+    ) {
+      return yield* counterparties.apply({
+        commandId: yield* commandId,
+        change: counterpartyChange,
+      });
+    });
+    const supermarket = yield* createCounterparty({ name: "Supermarket" }, []);
+    yield* change({
+      kind: "moveAlias",
+      aliasKey: "WOOLWORTHS SYDNEY",
+      expectedVersion: 1,
+      counterpartyId: supermarket.id,
+      event: null,
+    });
+    const john = yield* counterpartyNamed("John Citizen");
+    const merged = yield* change({
+      kind: "merge",
+      sourceId: john.id,
+      sourceVersion: john.version,
+      targetId: jane.id,
+      targetVersion: jane.version,
+    });
+    const history = yield* CounterpartyHistory;
+    if (!merged.changeId) return yield* Effect.die("Expected the merge in history");
+    yield* history.undo({ commandId: yield* commandId, changeId: merged.changeId });
+    const corrections = yield* Corrections;
+    const myer = yield* activeEvent("MYER SYDNEY AU Card xx1234");
+    const assigned = yield* corrections.assignCounterparty({
       commandId: yield* commandId,
-      change,
-      expectedVersions: preview.expectedVersions,
+      eventId: myer.id,
+      counterpartyId: jane.id,
+      expectedVersions: [{ eventId: myer.id, version: myer.version }],
+    });
+    const [assignment] = (yield* corrections.history({ eventId: myer.id })).entries;
+    if (assignment?.kind !== "correction") return yield* Effect.die("Expected the assignment");
+    yield* corrections.undo({
+      commandId: yield* commandId,
+      correctionId: assignment.correction.id,
+      expectedVersions: [{ eventId: myer.id, version: assigned.version }],
     });
 
     const incremental = yield* snapshot;
